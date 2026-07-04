@@ -9,12 +9,14 @@ import {
   LogOut,
   Menu,
   ScrollText,
+  Search,
   ShieldAlert,
   ShieldUser,
   Users,
   X,
   type LucideIcon,
 } from 'lucide-react'
+import { CommandPalette } from '@/components/CommandPalette'
 import { useAuth } from '@/contexts/auth-context'
 import {
   estMembreSimple,
@@ -161,7 +163,23 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         </span>
       </Link>
 
-      <div className="mt-7 flex-1">
+      {/* Recherche transverse (⌘K) */}
+      <button
+        type="button"
+        onClick={() => {
+          onNavigate?.()
+          window.dispatchEvent(new Event('nkoni:open-search'))
+        }}
+        className="mt-6 flex items-center gap-2.5 rounded-xl border border-hairline bg-surface/50 px-3 py-2 text-sm text-muted-foreground transition-colors hover:border-hairline-strong hover:text-foreground"
+      >
+        <Search className="h-4 w-4 text-faint" aria-hidden="true" />
+        <span className="flex-1 text-left">Rechercher…</span>
+        <kbd className="rounded border border-hairline-strong px-1.5 py-0.5 text-[0.6rem] text-faint">
+          ⌘K
+        </kbd>
+      </button>
+
+      <div className="mt-6 flex-1">
         <p className="mb-2 px-3 text-[0.68rem] font-medium uppercase tracking-[0.14em] text-faint">
           Navigation
         </p>
@@ -247,6 +265,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div className="lg:pl-64">
         <div className="mx-auto max-w-5xl px-5 py-8 sm:px-8 sm:py-10">{children}</div>
       </div>
+
+      {/* Recherche transverse (⌘K) — montée une fois, globale */}
+      <CommandPalette />
     </div>
   )
 }

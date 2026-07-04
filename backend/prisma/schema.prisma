@@ -50,6 +50,7 @@ model Utilisateur {
   // V2 (§4.4) — conflits déclarés / suivis par ce compte.
   conflitsAuteur      Conflit[] @relation("ConflitAuteur")
   conflitsResponsable Conflit[] @relation("ConflitResponsableSuivi")
+  documentsTeleverses Document[] @relation("DocumentTeleversePar") // V2 §5
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }
@@ -357,9 +358,40 @@ model Commemoration {
   @@index([date])
 }
 
+// ---------------------------------------------------------------------------
+// V2 (§5) — Documents / archives (stockage Vercel Blob).
+//
+// SÉCURITÉ : la visibilité d'un Document HÉRITE de celle de son entité parente
+// (jamais de règle propre au Document). Voir peutVoirDocument (document.service.ts) qui
+// délègue à peutVoirConflit / lecture Membre / Réunion / Commémoration selon entiteType.
+// ---------------------------------------------------------------------------
+
+enum EntiteDocument {
+  MEMBRE
+  REUNION
+  CONFLIT
+  COMMEMORATION
+}
+
 model Document {
-  id        String   @id @default(uuid())
-  createdAt DateTime @default(now())
+  id                String         @id @default(uuid())
+  nom               String
+  description       String?
+  url               String // URL du blob Vercel
+  typeFichier       String // mime-type validé serveur (PDF/JPEG/PNG/DOCX)
+  tailleOctets      Int
+  entiteType        EntiteDocument
+  // Référence POLYMORPHE : selon entiteType, entiteId pointe vers Membre | Reunion |
+  // Conflit | Commemoration. PAS de FK Prisma possible (lien polymorphe) — l'intégrité
+  // et le chargement du parent sont gérés en service (chargerParent / peutVoirDocument).
+  entiteId          String
+  televerseParId    String
+  televersePar      Utilisateur    @relation("DocumentTeleversePar", fields: [televerseParId], references: [id])
+  dateTeleversement DateTime       @default(now())
+  createdAt         DateTime       @default(now())
+
+  @@index([entiteType, entiteId])
+  @@index([televerseParId])
 }
 
 model Notification {

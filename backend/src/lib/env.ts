@@ -30,6 +30,10 @@ export const env = {
   CORS_ORIGIN: optional('CORS_ORIGIN', 'http://localhost:5173'),
   // Nom du cookie httpOnly qui porte le refresh token.
   REFRESH_COOKIE_NAME: optional('REFRESH_COOKIE_NAME', 'nkoni_refresh'),
+  // Token Vercel Blob (stockage des documents §5). Optionnel au démarrage : seuls les
+  // upload/suppression de documents en ont besoin (@vercel/blob le lit aussi via l'env).
+  // À définir sur Railway : BLOB_READ_WRITE_TOKEN.
+  BLOB_READ_WRITE_TOKEN: optional('BLOB_READ_WRITE_TOKEN', ''),
   // Chemin (attribut Path) du cookie refresh. Doit refléter le chemin PUBLIC vu par le
   // navigateur, qui n'est pas forcément le chemin interne du back.
   //   - Dev / appel direct : '/auth' (le front tape http://localhost:3000/auth/*).

@@ -1,8 +1,11 @@
 import Fastify, { type FastifyInstance } from 'fastify'
 import cookie from '@fastify/cookie'
 import cors from '@fastify/cors'
+import multipart from '@fastify/multipart'
 import { env, isProd } from './lib/env'
 import { prisma as defaultPrisma, type PrismaClient } from './lib/prisma'
+import { vercelBlobClient } from './lib/blob'
+import type { BlobClient } from './services/document.service'
 import { registerJwt } from './plugins/jwt'
 import { authRoutes } from './routes/auth.route'
 import { membresRoutes } from './routes/membres.route'
@@ -21,17 +24,21 @@ import { fonctionsRoutes } from './routes/fonctions.route'
 import { affectationsRoutes } from './routes/affectations.route'
 import { conflitsRoutes } from './routes/conflits.route'
 import { commemorationsRoutes } from './routes/commemorations.route'
+import { documentsRoutes } from './routes/documents.route'
 
-// Décoration de l'instance Fastify avec le client Prisma (injectable pour les tests).
+// Décoration de l'instance Fastify avec le client Prisma + le client Blob (injectables en test).
 declare module 'fastify' {
   interface FastifyInstance {
     prisma: PrismaClient
+    blob: BlobClient
   }
 }
 
 export interface BuildAppOptions {
   /** Client Prisma à utiliser (mock en test). Défaut : singleton réel. */
   prisma?: PrismaClient
+  /** Client Blob à utiliser (mock en test). Défaut : Vercel Blob réel. */
+  blob?: BlobClient
   /** Active le logger Fastify. Défaut : true (désactivable en test). */
   logger?: boolean
 }
@@ -43,6 +50,11 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   const app = Fastify({ logger: opts.logger ?? true })
 
   app.decorate('prisma', opts.prisma ?? defaultPrisma)
+  app.decorate('blob', opts.blob ?? vercelBlobClient)
+
+  // Multipart pour l'upload de documents (§5). Limite un peu au-dessus de 10 Mo :
+  // la validation fine des 10 Mo est faite dans le service (validerFichier → 400).
+  await app.register(multipart, { limits: { fileSize: 11 * 1024 * 1024, files: 1 } })
 
   // Cookie AVANT jwt (le namespace refresh lit le cookie).
   await app.register(cookie)
@@ -75,6 +87,7 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   await app.register(affectationsRoutes)
   await app.register(conflitsRoutes)
   await app.register(commemorationsRoutes)
+  await app.register(documentsRoutes)
 
   return app
 }

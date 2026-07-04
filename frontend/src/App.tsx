@@ -1,4 +1,4 @@
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, Outlet } from 'react-router-dom'
 import LandingPage from '@/pages/LandingPage'
 import LoginPage from '@/pages/LoginPage'
 import DashboardPage from '@/pages/DashboardPage'
@@ -8,69 +8,35 @@ import MembreDetailPage from '@/pages/MembreDetailPage'
 import VersementFormPage from '@/pages/VersementFormPage'
 import BaremePage from '@/pages/BaremePage'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
+import { AppShell } from '@/components/AppShell'
+
+/** Layout des pages authentifiées : garde d'accès + coquille d'application. */
+function ProtectedLayout() {
+  return (
+    <ProtectedRoute>
+      <AppShell>
+        <Outlet />
+      </AppShell>
+    </ProtectedRoute>
+  )
+}
 
 function App() {
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<LoginPage />} />
-      <Route
-        path="/dashboard"
-        element={
-          <ProtectedRoute>
-            <DashboardPage />
-          </ProtectedRoute>
-        }
-      />
-      {/* Routes statiques avant la route paramétrée /membres/:id */}
-      <Route
-        path="/bareme"
-        element={
-          <ProtectedRoute>
-            <BaremePage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/membres"
-        element={
-          <ProtectedRoute>
-            <MembresPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/membres/nouveau"
-        element={
-          <ProtectedRoute>
-            <MembreFormPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/membres/:id/editer"
-        element={
-          <ProtectedRoute>
-            <MembreFormPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/membres/:id/versements/nouveau"
-        element={
-          <ProtectedRoute>
-            <VersementFormPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/membres/:id"
-        element={
-          <ProtectedRoute>
-            <MembreDetailPage />
-          </ProtectedRoute>
-        }
-      />
+
+      {/* Pages authentifiées, dans la coquille NKONI. Routes statiques avant /membres/:id. */}
+      <Route element={<ProtectedLayout />}>
+        <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/bareme" element={<BaremePage />} />
+        <Route path="/membres" element={<MembresPage />} />
+        <Route path="/membres/nouveau" element={<MembreFormPage />} />
+        <Route path="/membres/:id/editer" element={<MembreFormPage />} />
+        <Route path="/membres/:id/versements/nouveau" element={<VersementFormPage />} />
+        <Route path="/membres/:id" element={<MembreDetailPage />} />
+      </Route>
     </Routes>
   )
 }

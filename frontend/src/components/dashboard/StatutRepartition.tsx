@@ -1,66 +1,169 @@
+import { Link } from 'react-router-dom'
+import { ChevronRight } from 'lucide-react'
 import type {
   RepartitionStatutContribution,
   RepartitionStatutMembre,
 } from '@/lib/api'
 import { formatNombre } from '@/lib/format'
-
-/**
- * Affiche une répartition (statut de contribution ou statut de membre) en tuiles
- * colorées avec compteur. Réutilisé par les vues COMPLET / FINANCIER / RESTREINT.
- */
+import { Card, Overline } from '@/components/ui/Card'
+import { cn } from '@/lib/utils'
 
 interface Item {
   key: string
   label: string
   count: number
+  bar: string
   dot: string
+  /** Lien optionnel : rend la ligne cliquable → liste Membres pré-filtrée. */
+  href?: string
 }
 
-function Tuiles({ titre, items }: { titre: string; items: Item[] }) {
+/** Répartition en barre segmentée + légende chiffrée, lignes cliquables si `href`. */
+function Repartition({ titre, items }: { titre: string; items: Item[] }) {
+  const total = items.reduce((s, it) => s + it.count, 0)
   return (
-    <section className="rounded-2xl border border-white/12 bg-white/[0.06] p-5 backdrop-blur-xl">
-      <h2 className="text-xs uppercase tracking-wider text-white/40">{titre}</h2>
-      <div className="mt-4 grid grid-cols-3 gap-3">
-        {items.map((it) => (
-          <div
-            key={it.key}
-            className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-4 text-center"
-          >
-            <span className={`mx-auto block h-2 w-2 rounded-full ${it.dot}`} aria-hidden="true" />
-            <p className="mt-2 text-xl font-semibold text-white">{formatNombre(it.count)}</p>
-            <p className="mt-1 text-[11px] uppercase tracking-wide text-white/45">{it.label}</p>
+    <Card className="p-5">
+      <Overline>{titre}</Overline>
+
+      {total === 0 ? (
+        <p className="mt-4 text-sm text-faint">Aucune donnée pour l'instant.</p>
+      ) : (
+        <>
+          <div className="mt-4 flex h-2.5 w-full gap-0.5 overflow-hidden rounded-full bg-surface-2">
+            {items.map((it) =>
+              it.count > 0 ? (
+                <span
+                  key={it.key}
+                  className={cn('h-full first:rounded-l-full last:rounded-r-full', it.bar)}
+                  style={{ width: `${(it.count / total) * 100}%` }}
+                  title={`${it.label} : ${it.count}`}
+                />
+              ) : null,
+            )}
           </div>
-        ))}
-      </div>
-    </section>
+
+          <ul className="mt-3">
+            {items.map((it) => {
+              const pct = Math.round((it.count / total) * 100)
+              const inner = (
+                <>
+                  <span className="flex items-center gap-2 text-muted-foreground">
+                    <span className={cn('h-2 w-2 rounded-full', it.dot)} aria-hidden="true" />
+                    {it.label}
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="num font-semibold text-foreground">
+                      {formatNombre(it.count)}
+                      <span className="ml-1.5 text-xs font-normal text-faint">{pct}%</span>
+                    </span>
+                    {it.href && (
+                      <ChevronRight
+                        className="h-3.5 w-3.5 text-faint transition-transform group-hover:translate-x-0.5 group-hover:text-brass"
+                        aria-hidden="true"
+                      />
+                    )}
+                  </span>
+                </>
+              )
+              return (
+                <li key={it.key}>
+                  {it.href ? (
+                    <Link
+                      to={it.href}
+                      className="group -mx-2 flex items-center justify-between gap-3 rounded-lg px-2 py-1.5 text-sm transition-colors hover:bg-surface-2/70"
+                    >
+                      {inner}
+                    </Link>
+                  ) : (
+                    <div className="flex items-center justify-between gap-3 px-0 py-1.5 text-sm">
+                      {inner}
+                    </div>
+                  )}
+                </li>
+              )
+            })}
+          </ul>
+        </>
+      )}
+    </Card>
   )
 }
 
 export function StatutContributionRepartition({
   data,
+  linkBase = '/membres',
 }: {
   data: RepartitionStatutContribution
+  linkBase?: string
 }) {
   return (
-    <Tuiles
+    <Repartition
       titre="Membres par statut de cotisation"
       items={[
-        { key: 'A_JOUR', label: 'À jour', count: data.A_JOUR, dot: 'bg-emerald-400' },
-        { key: 'PARTIEL', label: 'Partiel', count: data.PARTIEL, dot: 'bg-amber-400' },
-        { key: 'NON_A_JOUR', label: 'Non à jour', count: data.NON_A_JOUR, dot: 'bg-rose-400' },
+        {
+          key: 'A_JOUR',
+          label: 'À jour',
+          count: data.A_JOUR,
+          bar: 'bg-jade',
+          dot: 'bg-jade',
+          href: `${linkBase}?cotisation=A_JOUR`,
+        },
+        {
+          key: 'PARTIEL',
+          label: 'Partiel',
+          count: data.PARTIEL,
+          bar: 'bg-amber',
+          dot: 'bg-amber',
+          href: `${linkBase}?cotisation=PARTIEL`,
+        },
+        {
+          key: 'NON_A_JOUR',
+          label: 'Non à jour',
+          count: data.NON_A_JOUR,
+          bar: 'bg-terra',
+          dot: 'bg-terra',
+          href: `${linkBase}?cotisation=NON_A_JOUR`,
+        },
       ]}
     />
   )
 }
 
-export function StatutMembreRepartition({ data }: { data: RepartitionStatutMembre }) {
+export function StatutMembreRepartition({
+  data,
+  linkBase = '/membres',
+}: {
+  data: RepartitionStatutMembre
+  linkBase?: string
+}) {
   return (
-    <Tuiles
+    <Repartition
       titre="Membres par statut"
       items={[
-        { key: 'ACTIF', label: 'Actifs', count: data.ACTIF, dot: 'bg-sky-400' },
-        { key: 'INACTIF', label: 'Inactifs', count: data.INACTIF, dot: 'bg-white/40' },
-        { key: 'DECEDE', label: 'Décédés', count: data.DECEDE, dot: 'bg-white/20' },
+        {
+          key: 'ACTIF',
+          label: 'Actifs',
+          count: data.ACTIF,
+          bar: 'bg-info',
+          dot: 'bg-info',
+          href: `${linkBase}?statut=ACTIF`,
+        },
+        {
+          key: 'INACTIF',
+          label: 'Inactifs',
+          count: data.INACTIF,
+          bar: 'bg-surface-3',
+          dot: 'bg-muted-foreground',
+          href: `${linkBase}?statut=INACTIF`,
+        },
+        {
+          key: 'DECEDE',
+          label: 'Décédés',
+          count: data.DECEDE,
+          bar: 'bg-faint/40',
+          dot: 'bg-faint',
+          href: `${linkBase}?statut=DECEDE`,
+        },
       ]}
     />
   )

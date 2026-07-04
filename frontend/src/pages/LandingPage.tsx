@@ -1,76 +1,86 @@
-import { Link } from 'react-router-dom'
-import { ShieldCheck, Receipt, Scale } from 'lucide-react'
+import { ShieldCheck, Receipt, Scale, type LucideIcon } from 'lucide-react'
 import { GlassmorphismTrustHero } from '@/components/ui/glassmorphism-trust-hero'
+import { ButtonLink } from '@/components/ui/Button'
+import { Card } from '@/components/ui/Card'
 
-/**
- * Page publique d'entrée de NKONI (avant authentification).
- */
+/** Page publique d'entrée de NKONI (avant authentification). */
 export function LandingPage() {
   return (
-    <main className="min-h-screen bg-[#0b0b12]">
+    <main className="min-h-screen bg-background">
       <GlassmorphismTrustHero loginHref="/login" />
 
-      {/* Cible du CTA « Découvrir NKONI » */}
-      <section
-        id="a-propos"
-        className="mx-auto max-w-5xl scroll-mt-8 px-6 py-20 text-white"
-      >
-        <h2 className="text-center text-3xl font-semibold tracking-tight sm:text-4xl">
-          Pensé pour la famille WAMBA TCHOUPA
+      <section id="a-propos" className="mx-auto max-w-5xl scroll-mt-8 px-6 py-24">
+        <p className="text-center text-[0.72rem] font-medium uppercase tracking-[0.16em] text-brass/80">
+          Pourquoi NKONI
+        </p>
+        <h2 className="mx-auto mt-3 max-w-2xl text-center font-display text-3xl font-semibold tracking-tight sm:text-4xl">
+          Pensé pour les familles et les associations
         </h2>
-        <p className="mx-auto mt-4 max-w-2xl text-center text-white/60">
-          NKONI donne à chaque branche une vue claire et partagée des finances
-          familiales, sans zone d'ombre.
+        <p className="mx-auto mt-4 max-w-2xl text-center text-muted-foreground">
+          NKONI donne à chaque groupe une vue claire et partagée de ses finances collectives,
+          sans zone d'ombre.
         </p>
 
-        <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-3">
+        <div className="mt-14 grid grid-cols-1 gap-5 sm:grid-cols-3">
           <FeatureCard
-            icon={<ShieldCheck className="h-5 w-5 text-emerald-300" />}
+            icon={ShieldCheck}
+            tone="jade"
             title="Statuts transparents"
             text="Chaque membre voit s'il est à jour, partiel ou non à jour, en temps réel."
           />
           <FeatureCard
-            icon={<Scale className="h-5 w-5 text-sky-300" />}
-            title="Équilibrages tracés"
-            text="Les mouvements entre branches sont enregistrés et vérifiables par tous."
+            icon={Scale}
+            tone="brass"
+            title="Mouvements tracés"
+            text="Les équilibrages entre branches sont enregistrés et vérifiables par tous."
           />
           <FeatureCard
-            icon={<Receipt className="h-5 w-5 text-indigo-300" />}
+            icon={Receipt}
+            tone="jade"
             title="Reçus archivés"
-            text="Chaque cotisation génère un reçu conservé et consultable à tout moment."
+            text="Chaque cotisation peut générer un reçu conservé et consultable à tout moment."
           />
         </div>
 
-        <div className="mt-12 text-center">
-          <Link
-            to="/login"
-            className="inline-flex items-center justify-center rounded-full bg-white px-6 py-3 text-sm font-semibold text-zinc-900 transition hover:bg-white/90"
-          >
+        <div className="mt-14 flex justify-center">
+          <ButtonLink to="/login" size="lg">
             Accéder à mon espace
-          </Link>
+          </ButtonLink>
         </div>
       </section>
+
+      <footer className="border-t border-hairline py-8">
+        <p className="text-center text-xs text-faint">
+          NKONI — gestion des cotisations &amp; transparence financière.
+        </p>
+      </footer>
     </main>
   )
 }
 
 function FeatureCard({
-  icon,
+  icon: Icon,
   title,
   text,
+  tone,
 }: {
-  icon: React.ReactNode
+  icon: LucideIcon
   title: string
   text: string
+  tone: 'brass' | 'jade'
 }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.05] p-6 backdrop-blur-md">
-      <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.06]">
-        {icon}
+    <Card interactive className="p-6">
+      <div
+        className={`inline-flex h-11 w-11 items-center justify-center rounded-xl bg-surface-2 ${
+          tone === 'jade' ? 'text-jade' : 'text-brass'
+        }`}
+      >
+        <Icon className="h-5 w-5" aria-hidden="true" />
       </div>
-      <h3 className="mt-4 text-lg font-semibold text-white">{title}</h3>
-      <p className="mt-2 text-sm leading-relaxed text-white/55">{text}</p>
-    </div>
+      <h3 className="mt-4 text-lg font-semibold text-foreground">{title}</h3>
+      <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{text}</p>
+    </Card>
   )
 }
 

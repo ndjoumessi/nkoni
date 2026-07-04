@@ -1,10 +1,22 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Loader2, Plus, Search } from 'lucide-react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { Loader2, Plus, Search, Users } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
-import { membresApi, ApiError, type MembreStatut, type StatutMembre } from '@/lib/api'
+import {
+  membresApi,
+  ApiError,
+  type MembreStatut,
+  type StatutMembre,
+  type StatutContribution,
+} from '@/lib/api'
 import { estMembreSimple, peutGererMembres } from '@/lib/roles'
 import { StatutCotisationBadge, StatutMembreBadge } from '@/components/membres/StatutBadges'
+import { PageHeader } from '@/components/ui/PageHeader'
+import { Card } from '@/components/ui/Card'
+import { ButtonLink, Button } from '@/components/ui/Button'
+import { Input, Select } from '@/components/ui/Field'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { RowsSkeleton } from '@/components/ui/Skeleton'
 
 const STATUTS: { value: StatutMembre; label: string }[] = [
   { value: 'ACTIF', label: 'Actifs' },
@@ -12,15 +24,15 @@ const STATUTS: { value: StatutMembre; label: string }[] = [
   { value: 'DECEDE', label: 'Décédés' },
 ]
 
-const inputCls =
-  'w-full rounded-xl border border-white/12 bg-white/[0.04] px-4 py-2.5 text-sm text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-white/30'
+const COTISATIONS: { value: StatutContribution; label: string }[] = [
+  { value: 'A_JOUR', label: 'À jour' },
+  { value: 'PARTIEL', label: 'Partiel' },
+  { value: 'NON_A_JOUR', label: 'Non à jour' },
+]
 
 /**
- * Liste des membres (ADMIN, PRESIDENT, SECRETAIRE, TRESORIERE, COMMISSAIRE — tous ont
- * Lecture sur Membre). MEMBRE_SIMPLE est redirigé vers sa propre fiche.
- *
- * Le statut de cotisation vient de GET /membres/statuts (calculé en masse côté backend) →
- * une seule requête, pas de N+1 sur GET /membres/:id/statut.
+ * Liste des membres. Le statut de cotisation vient de GET /membres/statuts (calculé en
+ * masse côté backend) → une seule requête. MEMBRE_SIMPLE est redirigé vers sa fiche.
  */
 export function MembresPage() {
   const { user, accessToken } = useAuth()
@@ -30,9 +42,14 @@ export function MembresPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  // Filtres initialisés depuis l'URL (dashboard actionnable : ?statut= / ?cotisation= / ?branche=).
+  const [searchParams] = useSearchParams()
   const [recherche, setRecherche] = useState('')
-  const [filtreBranche, setFiltreBranche] = useState('')
-  const [filtreStatut, setFiltreStatut] = useState('')
+  const [filtreBranche, setFiltreBranche] = useState(searchParams.get('branche') ?? '')
+  const [filtreStatut, setFiltreStatut] = useState(searchParams.get('statut') ?? '')
+  const [filtreCotisation, setFiltreCotisation] = useState(searchParams.get('cotisation') ?? '')
+
+  const gestion = peutGererMembres(user?.role)
 
   useEffect(() => {
     if (!accessToken) return
@@ -79,149 +96,171 @@ export function MembresPage() {
       if (q && !`${m.nom} ${m.prenom}`.toLowerCase().includes(q)) return false
       if (filtreBranche && m.brancheId !== filtreBranche) return false
       if (filtreStatut && m.statut !== filtreStatut) return false
+      if (filtreCotisation && m.statutCotisation !== filtreCotisation) return false
       return true
     })
-  }, [membres, recherche, filtreBranche, filtreStatut])
+  }, [membres, recherche, filtreBranche, filtreStatut, filtreCotisation])
 
-  // Pendant la redirection MEMBRE_SIMPLE, on n'affiche pas la liste.
   if (estMembreSimple(user?.role)) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#0b0b12] text-white/60">
-        <Loader2 className="h-6 w-6 animate-spin" aria-label="Redirection" />
-      </main>
+      <div className="flex items-center justify-center py-24 text-muted-foreground">
+        <Loader2 className="h-6 w-6 animate-spin text-brass" aria-label="Redirection" />
+      </div>
     )
   }
 
+  const resetFiltres = () => {
+    setRecherche('')
+    setFiltreBranche('')
+    setFiltreStatut('')
+    setFiltreCotisation('')
+  }
+
   return (
-    <main className="min-h-screen bg-[#0b0b12] text-white">
-      <div className="mx-auto max-w-5xl px-6 py-10">
-        <Link
-          to="/dashboard"
-          className="inline-flex items-center gap-1.5 text-sm text-white/50 transition hover:text-white/80"
-        >
-          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-          Tableau de bord
-        </Link>
-
-        <header className="mt-4 flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Membres</h1>
-            {membres && (
-              <p className="mt-1 text-sm text-white/50">
-                {filtres.length} / {membres.length} membre{membres.length > 1 ? 's' : ''}
-              </p>
-            )}
-          </div>
-          {peutGererMembres(user?.role) && (
-            <Link
-              to="/membres/nouveau"
-              className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/5 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
-            >
-              <Plus className="h-4 w-4" aria-hidden="true" />
+    <>
+      <PageHeader
+        overline="Communauté"
+        title="Membres"
+        description={
+          membres
+            ? `${filtres.length} / ${membres.length} membre${membres.length > 1 ? 's' : ''}`
+            : undefined
+        }
+        actions={
+          gestion && (
+            <ButtonLink to="/membres/nouveau" icon={Plus}>
               Nouveau membre
-            </Link>
-          )}
-        </header>
+            </ButtonLink>
+          )
+        }
+      />
 
-        {/* Filtres */}
-        <div className="mt-6 grid gap-3 sm:grid-cols-[2fr_1fr_1fr]">
-          <div className="relative">
-            <Search
-              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30"
-              aria-hidden="true"
-            />
-            <input
-              type="search"
-              value={recherche}
-              onChange={(e) => setRecherche(e.target.value)}
-              placeholder="Rechercher par nom ou prénom…"
-              className={`${inputCls} pl-9`}
-              aria-label="Rechercher un membre"
-            />
-          </div>
-          <select
-            value={filtreBranche}
-            onChange={(e) => setFiltreBranche(e.target.value)}
-            className={inputCls}
-            aria-label="Filtrer par branche"
-          >
-            <option value="">Toutes les branches</option>
-            {branches.map(([id, nom]) => (
-              <option key={id} value={id}>
-                {nom}
-              </option>
-            ))}
-          </select>
-          <select
-            value={filtreStatut}
-            onChange={(e) => setFiltreStatut(e.target.value)}
-            className={inputCls}
-            aria-label="Filtrer par statut"
-          >
-            <option value="">Tous les statuts</option>
-            {STATUTS.map((s) => (
-              <option key={s.value} value={s.value}>
-                {s.label}
-              </option>
-            ))}
-          </select>
+      {/* Filtres */}
+      <div className="nk-reveal nk-d2 mt-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1fr]">
+        <div className="relative sm:col-span-2 lg:col-span-1">
+          <Search
+            className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-faint"
+            aria-hidden="true"
+          />
+          <Input
+            type="search"
+            value={recherche}
+            onChange={(e) => setRecherche(e.target.value)}
+            placeholder="Rechercher par nom ou prénom…"
+            className="pl-10"
+            aria-label="Rechercher un membre"
+          />
         </div>
+        <Select
+          value={filtreBranche}
+          onChange={(e) => setFiltreBranche(e.target.value)}
+          aria-label="Filtrer par branche"
+        >
+          <option value="">Toutes les branches</option>
+          {branches.map(([id, nom]) => (
+            <option key={id} value={id}>
+              {nom}
+            </option>
+          ))}
+        </Select>
+        <Select
+          value={filtreStatut}
+          onChange={(e) => setFiltreStatut(e.target.value)}
+          aria-label="Filtrer par statut de membre"
+        >
+          <option value="">Tous les statuts</option>
+          {STATUTS.map((s) => (
+            <option key={s.value} value={s.value}>
+              {s.label}
+            </option>
+          ))}
+        </Select>
+        <Select
+          value={filtreCotisation}
+          onChange={(e) => setFiltreCotisation(e.target.value)}
+          aria-label="Filtrer par cotisation"
+        >
+          <option value="">Toutes cotisations</option>
+          {COTISATIONS.map((s) => (
+            <option key={s.value} value={s.value}>
+              {s.label}
+            </option>
+          ))}
+        </Select>
+      </div>
 
-        {/* Contenu */}
-        <div className="mt-6">
-          {loading && (
-            <div className="flex items-center justify-center py-20 text-white/60">
-              <Loader2 className="h-6 w-6 animate-spin" aria-label="Chargement" />
+      {/* Contenu */}
+      <div className="nk-reveal nk-d3 mt-6">
+        {loading && (
+          <Card className="overflow-hidden p-0">
+            <RowsSkeleton rows={6} />
+          </Card>
+        )}
+
+        {!loading && error && (
+          <Card className="border-terra/30 bg-terra/[0.07] p-5 text-terra">{error}</Card>
+        )}
+
+        {!loading && !error && membres && membres.length === 0 && (
+          <EmptyState
+            icon={Users}
+            title="Aucun membre pour l'instant"
+            description="Commencez à constituer votre communauté en ajoutant les premiers membres."
+            action={
+              gestion && (
+                <ButtonLink to="/membres/nouveau" icon={Plus}>
+                  Ajouter un membre
+                </ButtonLink>
+              )
+            }
+          />
+        )}
+
+        {!loading && !error && membres && membres.length > 0 && (
+          <Card className="overflow-hidden p-0">
+            <div className="hidden grid-cols-[2fr_1.5fr_1fr_1fr_0.7fr] gap-4 border-b border-hairline px-5 py-3 text-[0.7rem] font-medium uppercase tracking-[0.12em] text-faint md:grid">
+              <span>Membre</span>
+              <span>Branche</span>
+              <span>Statut</span>
+              <span>Cotisation</span>
+              <span>Adhésion</span>
             </div>
-          )}
-
-          {!loading && error && (
-            <div className="rounded-2xl border border-rose-400/30 bg-rose-400/10 p-5 text-rose-200">
-              {error}
-            </div>
-          )}
-
-          {!loading && !error && membres && (
-            <div className="overflow-hidden rounded-2xl border border-white/12 bg-white/[0.06] backdrop-blur-xl">
-              <div className="hidden grid-cols-[2fr_1.5fr_1fr_1fr_0.7fr] gap-4 border-b border-white/10 px-5 py-3 text-xs uppercase tracking-wider text-white/40 md:grid">
-                <span>Membre</span>
-                <span>Branche</span>
-                <span>Statut</span>
-                <span>Cotisation</span>
-                <span>Adhésion</span>
-              </div>
-              <ul className="divide-y divide-white/[0.06]">
-                {filtres.map((m) => (
-                  <li key={m.id}>
-                    <Link
-                      to={`/membres/${m.id}`}
-                      className="grid grid-cols-2 gap-2 px-5 py-4 transition hover:bg-white/[0.04] focus:outline-none focus-visible:bg-white/[0.06] md:grid-cols-[2fr_1.5fr_1fr_1fr_0.7fr] md:items-center md:gap-4"
-                    >
-                      <span className="font-medium text-white">
-                        {m.nom} <span className="text-white/55">{m.prenom}</span>
-                      </span>
-                      <span className="text-sm text-white/55">{m.branche?.nom ?? '—'}</span>
-                      <span>
-                        <StatutMembreBadge statut={m.statut} />
-                      </span>
-                      <span>
-                        <StatutCotisationBadge statut={m.statutCotisation} />
-                      </span>
-                      <span className="text-sm text-white/55">{m.anneeAdhesion}</span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-              {filtres.length === 0 && (
-                <p className="px-5 py-12 text-center text-sm text-white/40">
+            <ul className="divide-y divide-hairline">
+              {filtres.map((m) => (
+                <li key={m.id}>
+                  <Link
+                    to={`/membres/${m.id}`}
+                    className="grid grid-cols-2 gap-2 px-5 py-4 transition-colors hover:bg-surface-2/60 md:grid-cols-[2fr_1.5fr_1fr_1fr_0.7fr] md:items-center md:gap-4"
+                  >
+                    <span className="font-medium text-foreground">
+                      {m.nom} <span className="text-muted-foreground">{m.prenom}</span>
+                    </span>
+                    <span className="text-sm text-muted-foreground">{m.branche?.nom ?? '—'}</span>
+                    <span>
+                      <StatutMembreBadge statut={m.statut} size="sm" />
+                    </span>
+                    <span>
+                      <StatutCotisationBadge statut={m.statutCotisation} size="sm" />
+                    </span>
+                    <span className="num text-sm text-muted-foreground">{m.anneeAdhesion}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+            {filtres.length === 0 && (
+              <div className="flex flex-col items-center gap-3 px-5 py-12 text-center">
+                <p className="text-sm text-muted-foreground">
                   Aucun membre ne correspond aux filtres.
                 </p>
-              )}
-            </div>
-          )}
-        </div>
+                <Button variant="ghost" size="sm" onClick={resetFiltres}>
+                  Réinitialiser les filtres
+                </Button>
+              </div>
+            )}
+          </Card>
+        )}
       </div>
-    </main>
+    </>
   )
 }
 

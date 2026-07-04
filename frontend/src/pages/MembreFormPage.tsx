@@ -1,6 +1,5 @@
-import { useEffect, useState, type ReactNode } from 'react'
-import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Loader2 } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '@/contexts/auth-context'
 import {
   membresApi,
@@ -12,9 +11,12 @@ import {
   type StatutMembre,
 } from '@/lib/api'
 import { peutGererMembres } from '@/lib/roles'
-
-const inputCls =
-  'w-full rounded-xl border border-white/12 bg-white/[0.04] px-4 py-2.5 text-sm text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-white/30'
+import { useToast } from '@/components/ui/Toast'
+import { PageHeader } from '@/components/ui/PageHeader'
+import { Card } from '@/components/ui/Card'
+import { Button, ButtonLink } from '@/components/ui/Button'
+import { Field, Input, Select, Textarea } from '@/components/ui/Field'
+import { Skeleton } from '@/components/ui/Skeleton'
 
 const STATUTS: { value: StatutMembre; label: string }[] = [
   { value: 'ACTIF', label: 'Actif' },
@@ -24,16 +26,6 @@ const STATUTS: { value: StatutMembre; label: string }[] = [
 
 /** Statuts qui figent la fin de contribution (§4.1) → champ anneeFinContribution visible. */
 const STATUTS_FIN: StatutMembre[] = ['DECEDE', 'INACTIF']
-
-function Field({ label, children, hint }: { label: string; children: ReactNode; hint?: string }) {
-  return (
-    <label className="block">
-      <span className="text-xs uppercase tracking-wider text-white/40">{label}</span>
-      <div className="mt-1.5">{children}</div>
-      {hint && <span className="mt-1 block text-xs text-white/40">{hint}</span>}
-    </label>
-  )
-}
 
 interface FormState {
   nom: string
@@ -65,13 +57,13 @@ export function MembreFormPage() {
   const isEdit = Boolean(id)
   const { user, accessToken } = useAuth()
   const navigate = useNavigate()
+  const toast = useToast()
 
   const [form, setForm] = useState<FormState>(VIDE)
   const [branches, setBranches] = useState<Branche[]>([])
   const [membres, setMembres] = useState<MembreStatut[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm((f) => ({ ...f, [key]: value }))
@@ -115,7 +107,7 @@ export function MembreFormPage() {
         }
       } catch (e) {
         if (e instanceof DOMException && e.name === 'AbortError') return
-        if (active) setError(e instanceof ApiError ? e.message : 'Erreur de chargement.')
+        if (active) toast.error('Chargement impossible', e instanceof ApiError ? e.message : undefined)
       } finally {
         if (active) setLoading(false)
       }
@@ -124,9 +116,8 @@ export function MembreFormPage() {
       active = false
       controller.abort()
     }
-  }, [accessToken, id, isEdit])
+  }, [accessToken, id, isEdit, toast])
 
-  // Autorisation : réservé ADMIN + SECRETAIRE.
   if (!peutGererMembres(user?.role)) {
     return <Navigate to="/membres" replace />
   }
@@ -134,7 +125,6 @@ export function MembreFormPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!accessToken) return
-    setError(null)
     setSaving(true)
     try {
       const payload: MembreInput = {
@@ -154,8 +144,6 @@ export function MembreFormPage() {
       opt('adresse', form.adresse)
       opt('brancheId', form.brancheId)
       opt('chefSousFamilleId', form.chefSousFamilleId)
-      // Fin de contribution : uniquement si statut concerné et valeur saisie ; sinon le
-      // backend la renseigne automatiquement à l'année courante.
       if (STATUTS_FIN.includes(form.statut) && form.anneeFinContribution.trim()) {
         payload.anneeFinContribution = Number(form.anneeFinContribution)
       }
@@ -165,133 +153,106 @@ export function MembreFormPage() {
           ? await membresApi.update(id, payload, accessToken)
           : await membresApi.create(payload, accessToken)
 
+      toast.success(isEdit ? 'Membre mis à jour' : 'Membre créé', `${membre.nom} ${membre.prenom}`)
       navigate(`/membres/${membre.id}`, { replace: true })
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Échec de l’enregistrement.')
+      toast.error(
+        'Enregistrement impossible',
+        e instanceof ApiError ? e.message : 'Réessayez plus tard.',
+      )
     } finally {
       setSaving(false)
     }
   }
 
   const finVisible = STATUTS_FIN.includes(form.statut)
+  const backTo = isEdit && id ? `/membres/${id}` : '/membres'
 
   return (
-    <main className="min-h-screen bg-[#0b0b12] text-white">
-      <div className="mx-auto max-w-2xl px-6 py-10">
-        <Link
-          to={isEdit && id ? `/membres/${id}` : '/membres'}
-          className="inline-flex items-center gap-1.5 text-sm text-white/50 transition hover:text-white/80"
-        >
-          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-          {isEdit ? 'Fiche du membre' : 'Membres'}
-        </Link>
+    <div className="mx-auto max-w-2xl">
+      <PageHeader
+        overline={isEdit ? 'Modifier' : 'Nouveau'}
+        title={isEdit ? 'Modifier le membre' : 'Nouveau membre'}
+        back={{ to: backTo, label: isEdit ? 'Fiche du membre' : 'Membres' }}
+      />
 
-        <h1 className="mt-4 text-2xl font-semibold tracking-tight">
-          {isEdit ? 'Modifier le membre' : 'Nouveau membre'}
-        </h1>
-
-        {loading ? (
-          <div className="flex items-center justify-center py-20 text-white/60">
-            <Loader2 className="h-6 w-6 animate-spin" aria-label="Chargement" />
+      {loading ? (
+        <Card className="mt-7 space-y-4 p-6">
+          <div className="grid gap-5 sm:grid-cols-2">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Skeleton key={i} className="h-16" />
+            ))}
           </div>
-        ) : (
-          <form
-            onSubmit={handleSubmit}
-            className="mt-6 space-y-5 rounded-2xl border border-white/12 bg-white/[0.06] p-6 backdrop-blur-xl"
-          >
+        </Card>
+      ) : (
+        <Card className="nk-reveal nk-d2 mt-7 p-6">
+          <form onSubmit={handleSubmit} className="space-y-5">
             <div className="grid gap-5 sm:grid-cols-2">
-              <Field label="Nom *">
-                <input
-                  required
-                  value={form.nom}
-                  onChange={(e) => set('nom', e.target.value)}
-                  className={inputCls}
-                />
+              <Field label="Nom" required>
+                <Input required value={form.nom} onChange={(e) => set('nom', e.target.value)} />
               </Field>
-              <Field label="Prénom *">
-                <input
-                  required
-                  value={form.prenom}
-                  onChange={(e) => set('prenom', e.target.value)}
-                  className={inputCls}
-                />
+              <Field label="Prénom" required>
+                <Input required value={form.prenom} onChange={(e) => set('prenom', e.target.value)} />
               </Field>
               <Field label="Sexe">
-                <select
-                  value={form.sexe}
-                  onChange={(e) => set('sexe', e.target.value)}
-                  className={inputCls}
-                >
+                <Select value={form.sexe} onChange={(e) => set('sexe', e.target.value)}>
                   <option value="">—</option>
                   <option value="M">Masculin</option>
                   <option value="F">Féminin</option>
-                </select>
+                </Select>
               </Field>
               <Field label="Date de naissance">
-                <input
+                <Input
                   type="date"
                   value={form.dateNaissance}
                   onChange={(e) => set('dateNaissance', e.target.value)}
-                  className={inputCls}
                 />
               </Field>
               <Field label="Fonction sociale">
-                <input
+                <Input
                   value={form.fonctionSociale}
                   onChange={(e) => set('fonctionSociale', e.target.value)}
-                  className={inputCls}
                 />
               </Field>
-              <Field label="Année d’adhésion *">
-                <input
+              <Field label="Année d'adhésion" required>
+                <Input
                   required
                   type="number"
                   min={1900}
                   max={2200}
                   value={form.anneeAdhesion}
                   onChange={(e) => set('anneeAdhesion', e.target.value)}
-                  className={inputCls}
                 />
               </Field>
               <Field label="Téléphone">
-                <input
-                  value={form.telephone}
-                  onChange={(e) => set('telephone', e.target.value)}
-                  className={inputCls}
-                />
+                <Input value={form.telephone} onChange={(e) => set('telephone', e.target.value)} />
               </Field>
               <Field label="Statut">
-                <select
+                <Select
                   value={form.statut}
                   onChange={(e) => set('statut', e.target.value as StatutMembre)}
-                  className={inputCls}
                 >
                   {STATUTS.map((s) => (
                     <option key={s.value} value={s.value}>
                       {s.label}
                     </option>
                   ))}
-                </select>
+                </Select>
               </Field>
               <Field label="Branche familiale">
-                <select
-                  value={form.brancheId}
-                  onChange={(e) => set('brancheId', e.target.value)}
-                  className={inputCls}
-                >
+                <Select value={form.brancheId} onChange={(e) => set('brancheId', e.target.value)}>
                   <option value="">—</option>
                   {branches.map((b) => (
                     <option key={b.id} value={b.id}>
                       {b.nom}
                     </option>
                   ))}
-                </select>
+                </Select>
               </Field>
               <Field label="Chef de sous-famille">
-                <select
+                <Select
                   value={form.chefSousFamilleId}
                   onChange={(e) => set('chefSousFamilleId', e.target.value)}
-                  className={inputCls}
                 >
                   <option value="">—</option>
                   {membres
@@ -301,60 +262,44 @@ export function MembreFormPage() {
                         {m.nom} {m.prenom}
                       </option>
                     ))}
-                </select>
+                </Select>
               </Field>
               {finVisible && (
                 <Field
                   label="Année de fin de contribution"
-                  hint="Laissé vide = renseigné automatiquement à l’année en cours."
+                  hint="Laissé vide = renseigné automatiquement à l'année en cours."
                 >
-                  <input
+                  <Input
                     type="number"
                     min={1900}
                     max={2200}
                     value={form.anneeFinContribution}
                     onChange={(e) => set('anneeFinContribution', e.target.value)}
-                    className={inputCls}
                   />
                 </Field>
               )}
             </div>
 
             <Field label="Adresse">
-              <textarea
+              <Textarea
                 value={form.adresse}
                 onChange={(e) => set('adresse', e.target.value)}
                 rows={2}
-                className={inputCls}
               />
             </Field>
 
-            {error && (
-              <p className="rounded-xl border border-rose-400/30 bg-rose-400/10 px-4 py-2.5 text-sm text-rose-200">
-                {error}
-              </p>
-            )}
-
             <div className="flex items-center justify-end gap-3 pt-2">
-              <Link
-                to={isEdit && id ? `/membres/${id}` : '/membres'}
-                className="rounded-full px-5 py-2.5 text-sm font-medium text-white/60 transition hover:text-white"
-              >
+              <ButtonLink to={backTo} variant="ghost">
                 Annuler
-              </Link>
-              <button
-                type="submit"
-                disabled={saving}
-                className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-white/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 disabled:opacity-60"
-              >
-                {saving && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
+              </ButtonLink>
+              <Button type="submit" loading={saving}>
                 {isEdit ? 'Enregistrer' : 'Créer le membre'}
-              </button>
+              </Button>
             </div>
           </form>
-        )}
-      </div>
-    </main>
+        </Card>
+      )}
+    </div>
   )
 }
 

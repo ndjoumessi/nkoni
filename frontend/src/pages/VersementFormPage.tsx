@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, CalendarPlus, Check, FileText, Loader2 } from 'lucide-react'
+import { CalendarPlus, Check, FileText } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
 import {
   membresApi,
@@ -15,9 +15,13 @@ import {
 } from '@/lib/api'
 import { peutSaisirVersement, peutOuvrirAnnee } from '@/lib/roles'
 import { formatFcfa } from '@/lib/format'
-
-const inputCls =
-  'w-full rounded-xl border border-white/12 bg-white/[0.04] px-4 py-2.5 text-sm text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-white/30'
+import { useToast } from '@/components/ui/Toast'
+import { PageHeader } from '@/components/ui/PageHeader'
+import { Card, Overline } from '@/components/ui/Card'
+import { Button } from '@/components/ui/Button'
+import { Field, Input, Select, Textarea } from '@/components/ui/Field'
+import { Skeleton } from '@/components/ui/Skeleton'
+import { Badge } from '@/components/ui/Badge'
 
 const MODES: { value: ModeVersement; label: string }[] = [
   { value: 'ESPECES', label: 'Espèces' },
@@ -28,19 +32,16 @@ const MODES: { value: ModeVersement; label: string }[] = [
 const aujourdHui = (): string => new Date().toISOString().slice(0, 10)
 
 /**
- * Saisie d'un versement pour une contribution d'un membre (POST /versements).
- * Réservé ADMIN + TRESORIERE (§2). Après succès : résumé des totaux réajustés + bouton
- * « Générer le reçu » (jamais automatique, §4.6).
- *
- * Si aucune contribution n'existe pour l'année voulue, une action « Ouvrir l'année »
- * (POST /contributions/ouvrir-annee) est proposée en place — sans elle, le formulaire
- * serait inutilisable tant qu'aucune année n'a été ouverte.
+ * Saisie d'un versement pour une contribution (POST /versements). Réservé ADMIN + TRESORIERE.
+ * Après succès : résumé des totaux réajustés + génération de reçu à la demande (§4.6).
+ * « Ouvrir l'année » (POST /contributions/ouvrir-annee) débloque le cas « année absente ».
  */
 export function VersementFormPage() {
   const { id } = useParams<{ id: string }>()
   const [searchParams] = useSearchParams()
   const { user, accessToken } = useAuth()
   const navigate = useNavigate()
+  const toast = useToast()
 
   const presetContrib = searchParams.get('contributionId') ?? ''
   const [membreNom, setMembreNom] = useState('')
@@ -53,17 +54,13 @@ export function VersementFormPage() {
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
   const [resultat, setResultat] = useState<VersementCree | null>(null)
 
   const [recu, setRecu] = useState<Recu | null>(null)
   const [generatingRecu, setGeneratingRecu] = useState(false)
-  const [recuError, setRecuError] = useState<string | null>(null)
 
   const [anneeAOuvrir, setAnneeAOuvrir] = useState(String(new Date().getFullYear()))
   const [ouvrant, setOuvrant] = useState(false)
-  const [ouvrirMsg, setOuvrirMsg] = useState<string | null>(null)
-  const [ouvrirErr, setOuvrirErr] = useState<string | null>(null)
   const [baremeManquant, setBaremeManquant] = useState(false)
 
   const chargerContributions = useCallback(
@@ -83,7 +80,6 @@ export function VersementFormPage() {
     const { signal } = controller
     let active = true
     setLoading(true)
-    setError(null)
     void (async () => {
       try {
         const [membre, list] = await Promise.all([
@@ -92,11 +88,10 @@ export function VersementFormPage() {
         ])
         if (!active) return
         setMembreNom(`${membre.nom} ${membre.prenom}`)
-        // Présélection : contributionId de l'URL, sinon la plus récente.
         if (!presetContrib && list.length > 0) setContribId(list[0].id)
       } catch (e) {
         if (e instanceof DOMException && e.name === 'AbortError') return
-        if (active) setError(e instanceof ApiError ? e.message : 'Erreur de chargement.')
+        if (active) toast.error('Chargement impossible', e instanceof ApiError ? e.message : undefined)
       } finally {
         if (active) setLoading(false)
       }
@@ -105,17 +100,14 @@ export function VersementFormPage() {
       active = false
       controller.abort()
     }
-  }, [accessToken, id, chargerContributions, presetContrib])
+  }, [accessToken, id, chargerContributions, presetContrib, toast])
 
-  // Autorisation : réservé ADMIN + TRESORIERE.
   if (!peutSaisirVersement(user?.role)) {
     return <Navigate to={id ? `/membres/${id}` : '/membres'} replace />
   }
 
   const handleOuvrirAnnee = async () => {
     if (!accessToken) return
-    setOuvrirErr(null)
-    setOuvrirMsg(null)
     setBaremeManquant(false)
     setOuvrant(true)
     try {
@@ -123,14 +115,15 @@ export function VersementFormPage() {
       const list = await chargerContributions()
       const nouvelle = list.find((c) => c.annee === res.annee)
       if (nouvelle) setContribId(nouvelle.id)
-      setOuvrirMsg(
-        `Année ${res.annee} ouverte : ${res.contributionsCreees} contribution(s) créée(s) sur ${res.membresEligibles} membre(s) éligible(s)` +
+      toast.success(
+        `Année ${res.annee} ouverte`,
+        `${res.contributionsCreees} contribution(s) créée(s) sur ${res.membresEligibles} membre(s) éligible(s)` +
           (nouvelle ? '.' : ". Ce membre n'est pas éligible pour cette année."),
       )
     } catch (e) {
-      // 400 = aucun barème configuré pour l'année → on proposera un lien vers /bareme.
       if (e instanceof ApiError && e.status === 400) setBaremeManquant(true)
-      setOuvrirErr(
+      toast.error(
+        "Ouverture impossible",
         e instanceof ApiError ? e.message : "Échec de l'ouverture de l'année.",
       )
     } finally {
@@ -141,7 +134,6 @@ export function VersementFormPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!accessToken || !contribId) return
-    setError(null)
     setSaving(true)
     try {
       const res = await versementsApi.create(
@@ -155,8 +147,12 @@ export function VersementFormPage() {
         accessToken,
       )
       setResultat(res)
+      toast.success('Versement enregistré', `${formatFcfa(res.versement.montant)} · année ${res.contribution.annee}`)
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Échec de l’enregistrement du versement.')
+      toast.error(
+        'Enregistrement impossible',
+        e instanceof ApiError ? e.message : 'Échec de l’enregistrement du versement.',
+      )
     } finally {
       setSaving(false)
     }
@@ -164,13 +160,16 @@ export function VersementFormPage() {
 
   const handleGenererRecu = async () => {
     if (!accessToken || !resultat) return
-    setRecuError(null)
     setGeneratingRecu(true)
     try {
       const r = await recusApi.generer(resultat.versement.id, accessToken)
       setRecu(r)
+      toast.success('Reçu généré', `N° ${r.numero}`)
     } catch (e) {
-      setRecuError(e instanceof ApiError ? e.message : 'Échec de la génération du reçu.')
+      toast.error(
+        'Génération impossible',
+        e instanceof ApiError ? e.message : 'Échec de la génération du reçu.',
+      )
     } finally {
       setGeneratingRecu(false)
     }
@@ -184,240 +183,181 @@ export function VersementFormPage() {
     setDateVersement(aujourdHui())
   }
 
+  const backTo = id ? `/membres/${id}` : '/membres'
+
   return (
-    <main className="min-h-screen bg-[#0b0b12] text-white">
-      <div className="mx-auto max-w-xl px-6 py-10">
-        <Link
-          to={id ? `/membres/${id}` : '/membres'}
-          className="inline-flex items-center gap-1.5 text-sm text-white/50 transition hover:text-white/80"
-        >
-          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-          Fiche du membre
-        </Link>
+    <div className="mx-auto max-w-xl">
+      <PageHeader
+        overline="Trésorerie"
+        title="Nouveau versement"
+        description={membreNom || undefined}
+        back={{ to: backTo, label: 'Fiche du membre' }}
+      />
 
-        <h1 className="mt-4 text-2xl font-semibold tracking-tight">Nouveau versement</h1>
-        {membreNom && <p className="mt-1 text-sm text-white/50">{membreNom}</p>}
-
-        {loading ? (
-          <div className="flex items-center justify-center py-20 text-white/60">
-            <Loader2 className="h-6 w-6 animate-spin" aria-label="Chargement" />
-          </div>
-        ) : resultat ? (
-          /* --- Résumé après succès --- */
-          <div className="mt-6 space-y-4">
-            <div className="rounded-2xl border border-emerald-400/25 bg-emerald-400/10 p-6">
-              <div className="flex items-center gap-2 text-emerald-200">
-                <Check className="h-5 w-5" aria-hidden="true" />
-                <h2 className="font-semibold">Versement enregistré</h2>
+      {loading ? (
+        <Card className="mt-7 space-y-4 p-6">
+          <Skeleton className="h-16" />
+          <Skeleton className="h-16" />
+          <Skeleton className="h-24" />
+        </Card>
+      ) : resultat ? (
+        /* --- Résumé après succès --- */
+        <div className="nk-reveal nk-d2 mt-7 space-y-4">
+          <Card className="border-jade/30 bg-jade/[0.07] p-6">
+            <div className="flex items-center gap-2 text-jade">
+              <Check className="h-5 w-5" aria-hidden="true" />
+              <h2 className="font-semibold">Versement enregistré</h2>
+            </div>
+            <p className="num mt-3 text-sm text-foreground/85">
+              {formatFcfa(resultat.versement.montant)} · année {resultat.contribution.annee}
+            </p>
+            <dl className="mt-4 grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <dt className="text-[0.7rem] font-medium uppercase tracking-[0.12em] text-faint">
+                  Total versé
+                </dt>
+                <dd className="num mt-1 font-semibold text-foreground">
+                  {formatFcfa(resultat.contribution.montantVerse)}
+                </dd>
               </div>
-              <p className="mt-3 text-sm text-white/80">
-                {formatFcfa(resultat.versement.montant)} · année {resultat.contribution.annee}
-              </p>
-              <dl className="mt-4 grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <dt className="text-xs uppercase tracking-wider text-white/40">Total versé</dt>
-                  <dd className="mt-1 font-semibold">{formatFcfa(resultat.contribution.montantVerse)}</dd>
-                </div>
-                <div>
-                  <dt className="text-xs uppercase tracking-wider text-white/40">Total valorisé</dt>
-                  <dd className="mt-1 font-semibold">{formatFcfa(resultat.contribution.montantValorise)}</dd>
-                </div>
-              </dl>
-            </div>
+              <div>
+                <dt className="text-[0.7rem] font-medium uppercase tracking-[0.12em] text-faint">
+                  Total valorisé
+                </dt>
+                <dd className="num mt-1 font-semibold text-foreground">
+                  {formatFcfa(resultat.contribution.montantValorise)}
+                </dd>
+              </div>
+            </dl>
+          </Card>
 
-            {/* Génération du reçu — à la demande (§4.6) */}
-            <div className="rounded-2xl border border-white/12 bg-white/[0.06] p-5 backdrop-blur-xl">
-              {recu ? (
-                <p className="inline-flex items-center gap-2 text-sm text-emerald-200">
-                  <FileText className="h-4 w-4" aria-hidden="true" />
-                  Reçu généré : <span className="font-semibold">{recu.numero}</span>
-                </p>
-              ) : (
-                <>
-                  <button
-                    type="button"
-                    onClick={handleGenererRecu}
-                    disabled={generatingRecu}
-                    className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-white/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 disabled:opacity-60"
-                  >
-                    {generatingRecu ? (
-                      <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                    ) : (
-                      <FileText className="h-4 w-4" aria-hidden="true" />
-                    )}
-                    Générer le reçu
-                  </button>
-                  {recuError && <p className="mt-2 text-sm text-rose-300">{recuError}</p>}
-                </>
-              )}
-            </div>
+          <Card className="p-5">
+            {recu ? (
+              <Badge tone="jade" size="lg">
+                <FileText className="h-4 w-4" aria-hidden="true" />
+                Reçu généré : {recu.numero}
+              </Badge>
+            ) : (
+              <Button icon={FileText} loading={generatingRecu} onClick={handleGenererRecu}>
+                Générer le reçu
+              </Button>
+            )}
+          </Card>
 
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={nouveauVersement}
-                className="rounded-full border border-white/20 bg-white/5 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-white/10"
-              >
-                Nouveau versement
-              </button>
-              <button
-                type="button"
-                onClick={() => navigate(`/membres/${id}`)}
-                className="rounded-full px-5 py-2.5 text-sm font-medium text-white/60 transition hover:text-white"
-              >
-                Retour à la fiche
-              </button>
-            </div>
+          <div className="flex items-center gap-3">
+            <Button variant="outline" onClick={nouveauVersement}>
+              Nouveau versement
+            </Button>
+            <Button variant="ghost" onClick={() => navigate(`/membres/${id}`)}>
+              Retour à la fiche
+            </Button>
           </div>
-        ) : (
-          /* --- Formulaire --- */
-          <form
-            onSubmit={handleSubmit}
-            className="mt-6 space-y-5 rounded-2xl border border-white/12 bg-white/[0.06] p-6 backdrop-blur-xl"
-          >
+        </div>
+      ) : (
+        /* --- Formulaire --- */
+        <Card className="nk-reveal nk-d2 mt-7 p-6">
+          <form onSubmit={handleSubmit} className="space-y-5">
             {contributions.length === 0 ? (
-              <p className="rounded-xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">
-                Aucune contribution n’existe pour ce membre. Ouvrez d’abord une année
-                ci-dessous pour pouvoir enregistrer un versement.
+              <p className="rounded-xl border border-amber/30 bg-amber/10 px-4 py-3 text-sm text-amber">
+                Aucune contribution n'existe pour ce membre. Ouvrez d'abord une année ci-dessous
+                pour pouvoir enregistrer un versement.
               </p>
             ) : (
-              <label className="block">
-                <span className="text-xs uppercase tracking-wider text-white/40">Année (contribution) *</span>
-                <select
-                  required
-                  value={contribId}
-                  onChange={(e) => setContribId(e.target.value)}
-                  className={`${inputCls} mt-1.5`}
-                >
+              <Field label="Année (contribution)" required>
+                <Select required value={contribId} onChange={(e) => setContribId(e.target.value)}>
                   {contributions.map((c) => (
                     <option key={c.id} value={c.id}>
-                      {c.annee} — versé {formatFcfa(c.montantVerse)} / attendu {formatFcfa(c.montantAttendu)}
+                      {c.annee} — versé {formatFcfa(c.montantVerse)} / attendu{' '}
+                      {formatFcfa(c.montantAttendu)}
                     </option>
                   ))}
-                </select>
-              </label>
+                </Select>
+              </Field>
             )}
 
             {contributions.length > 0 && (
               <>
                 <div className="grid gap-5 sm:grid-cols-2">
-                  <label className="block">
-                    <span className="text-xs uppercase tracking-wider text-white/40">Montant (FCFA) *</span>
-                    <input
+                  <Field label="Montant (FCFA)" required>
+                    <Input
                       required
                       type="number"
                       min={1}
                       value={montant}
                       onChange={(e) => setMontant(e.target.value)}
-                      className={`${inputCls} mt-1.5`}
                     />
-                  </label>
-                  <label className="block">
-                    <span className="text-xs uppercase tracking-wider text-white/40">Date *</span>
-                    <input
+                  </Field>
+                  <Field label="Date" required>
+                    <Input
                       required
                       type="date"
                       value={dateVersement}
                       onChange={(e) => setDateVersement(e.target.value)}
-                      className={`${inputCls} mt-1.5`}
                     />
-                  </label>
-                  <label className="block">
-                    <span className="text-xs uppercase tracking-wider text-white/40">Mode *</span>
-                    <select
-                      value={mode}
-                      onChange={(e) => setMode(e.target.value as ModeVersement)}
-                      className={`${inputCls} mt-1.5`}
-                    >
+                  </Field>
+                  <Field label="Mode" required>
+                    <Select value={mode} onChange={(e) => setMode(e.target.value as ModeVersement)}>
                       {MODES.map((m) => (
                         <option key={m.value} value={m.value}>
                           {m.label}
                         </option>
                       ))}
-                    </select>
-                  </label>
+                    </Select>
+                  </Field>
                 </div>
-                <label className="block">
-                  <span className="text-xs uppercase tracking-wider text-white/40">Note (optionnelle)</span>
-                  <textarea
-                    value={note}
-                    onChange={(e) => setNote(e.target.value)}
-                    rows={2}
-                    className={`${inputCls} mt-1.5`}
-                  />
-                </label>
-
-                {error && (
-                  <p className="rounded-xl border border-rose-400/30 bg-rose-400/10 px-4 py-2.5 text-sm text-rose-200">
-                    {error}
-                  </p>
-                )}
+                <Field label="Note (optionnelle)">
+                  <Textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} />
+                </Field>
 
                 <div className="flex justify-end">
-                  <button
-                    type="submit"
-                    disabled={saving || !contribId}
-                    className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-white/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 disabled:opacity-60"
-                  >
-                    {saving && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
+                  <Button type="submit" loading={saving} disabled={!contribId}>
                     Enregistrer le versement
-                  </button>
+                  </Button>
                 </div>
               </>
             )}
 
-            {/* Ouvrir une année (ADMIN + TRESORIERE) — débloque le cas « année absente ». */}
+            {/* Ouvrir une année (ADMIN + TRESORIERE) */}
             {peutOuvrirAnnee(user?.role) && (
-              <div className="border-t border-white/10 pt-5">
-                <p className="text-xs uppercase tracking-wider text-white/40">Ouvrir une année</p>
-                <p className="mt-1 text-xs text-white/40">
-                  Crée les contributions de tous les membres éligibles pour l’année (nécessite
-                  un barème configuré pour cette année).
+              <div className="border-t border-hairline pt-5">
+                <Overline>Ouvrir une année</Overline>
+                <p className="mt-1.5 text-xs text-faint">
+                  Crée les contributions de tous les membres éligibles pour l'année (nécessite un
+                  barème configuré pour cette année).
                 </p>
                 <div className="mt-3 flex flex-wrap items-center gap-3">
-                  <input
+                  <Input
                     type="number"
                     min={1900}
                     max={2200}
                     value={anneeAOuvrir}
                     onChange={(e) => setAnneeAOuvrir(e.target.value)}
-                    className={`${inputCls} w-32`}
+                    className="w-32"
                     aria-label="Année à ouvrir"
                   />
-                  <button
-                    type="button"
+                  <Button
+                    variant="outline"
+                    icon={CalendarPlus}
+                    loading={ouvrant}
                     onClick={handleOuvrirAnnee}
-                    disabled={ouvrant}
-                    className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/5 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 disabled:opacity-60"
                   >
-                    {ouvrant ? (
-                      <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                    ) : (
-                      <CalendarPlus className="h-4 w-4" aria-hidden="true" />
-                    )}
-                    Ouvrir l’année
-                  </button>
+                    Ouvrir l'année
+                  </Button>
                 </div>
-                {ouvrirMsg && <p className="mt-2 text-sm text-emerald-200">{ouvrirMsg}</p>}
-                {ouvrirErr && (
-                  <p className="mt-2 text-sm text-rose-300">
-                    {ouvrirErr}
-                    {baremeManquant && (
-                      <>
-                        {' '}
-                        <Link to="/bareme" className="font-semibold text-rose-100 underline">
-                          Configurer le barème →
-                        </Link>
-                      </>
-                    )}
+                {baremeManquant && (
+                  <p className="mt-3 text-sm text-terra">
+                    Aucun barème configuré pour cette année.{' '}
+                    <Link to="/bareme" className="font-semibold text-brass underline">
+                      Configurer le barème →
+                    </Link>
                   </p>
                 )}
               </div>
             )}
           </form>
-        )}
-      </div>
-    </main>
+        </Card>
+      )}
+    </div>
   )
 }
 

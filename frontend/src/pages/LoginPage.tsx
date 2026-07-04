@@ -1,12 +1,14 @@
 import { useState, type FormEvent } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
-import { ArrowLeft, ArrowRight, Loader2, Lock, Mail } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Lock, Mail } from 'lucide-react'
 import { ApiError } from '@/lib/api'
 import { useAuth } from '@/contexts/auth-context'
+import { Button } from '@/components/ui/Button'
+import { Input } from '@/components/ui/Field'
+import { Card } from '@/components/ui/Card'
+import { NkoniMark } from '@/components/ui/NkoniMark'
 
-/**
- * Page de connexion NKONI — thème glassmorphism (fond dégradé, carte translucide).
- */
+/** Page de connexion NKONI — direction « Laiton & Jade ». */
 export function LoginPage() {
   const { login, isAuthenticated, loading } = useAuth()
   const navigate = useNavigate()
@@ -16,7 +18,6 @@ export function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
-  // Déjà connecté (ou session restaurée) → on va directement au dashboard.
   if (!loading && isAuthenticated) {
     return <Navigate to="/dashboard" replace />
   }
@@ -25,7 +26,6 @@ export function LoginPage() {
     e.preventDefault()
     setError(null)
 
-    // Validation basique.
     if (!email.includes('@') || email.trim().length < 3) {
       setError('Veuillez saisir une adresse e-mail valide.')
       return
@@ -53,54 +53,36 @@ export function LoginPage() {
   }
 
   return (
-    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#0b0b12] px-6 py-12 text-white">
-      {/* Fond dégradé (pas d'image externe) */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 -z-10"
-        style={{
-          background:
-            'radial-gradient(900px 500px at 20% -10%, rgba(129,140,248,0.28), transparent 60%),' +
-            'radial-gradient(700px 500px at 100% 10%, rgba(56,189,248,0.18), transparent 58%),' +
-            'linear-gradient(180deg, #0b0b12 0%, #0e0f1a 60%, #0b0b12 100%)',
-        }}
-      />
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-6 py-12">
+      <div className="nk-aura pointer-events-none absolute inset-0 -z-10" aria-hidden="true" />
+      <div className="nk-grid absolute inset-0 -z-10" aria-hidden="true" />
 
       <div className="w-full max-w-md">
-        {/* En-tête de marque */}
-        <div className="mb-8 text-center">
-          <h1 className="text-2xl font-semibold tracking-tight">
-            <span className="bg-gradient-to-r from-indigo-300 via-sky-300 to-emerald-300 bg-clip-text text-transparent">
-              NKONI
-            </span>
+        <div className="nk-reveal nk-d1 mb-8 flex flex-col items-center text-center">
+          <NkoniMark className="h-12 w-12 text-2xl" />
+          <h1 className="mt-4 font-display text-2xl font-semibold tracking-tight text-foreground">
+            NKONI
           </h1>
-          <p className="mt-2 text-sm text-white/50">
-            Espace de gestion familiale WAMBA TCHOUPA
+          <p className="mt-1.5 text-sm text-muted-foreground">
+            Votre espace de gestion associative et familiale
           </p>
         </div>
 
-        {/* Carte glassmorphism */}
-        <div className="rounded-3xl border border-white/12 bg-white/[0.06] p-7 shadow-2xl shadow-black/40 backdrop-blur-xl sm:p-8">
-          <h2 className="text-lg font-semibold text-white">Connexion</h2>
-          <p className="mt-1 text-sm text-white/50">
-            Accédez à votre espace membre.
-          </p>
+        <Card variant="feature" className="nk-reveal nk-d2 p-7 sm:p-8">
+          <h2 className="font-display text-xl font-semibold text-foreground">Connexion</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Accédez à votre espace membre.</p>
 
           <form onSubmit={handleSubmit} className="mt-6 space-y-4" noValidate>
-            {/* Email */}
             <div>
-              <label
-                htmlFor="email"
-                className="mb-1.5 block text-sm font-medium text-white/70"
-              >
+              <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-foreground/80">
                 Adresse e-mail
               </label>
               <div className="relative">
                 <Mail
-                  className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40"
+                  className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-faint"
                   aria-hidden="true"
                 />
-                <input
+                <Input
                   id="email"
                   name="email"
                   type="email"
@@ -108,25 +90,24 @@ export function LoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="vous@exemple.com"
-                  className="w-full rounded-xl border border-white/15 bg-white/[0.04] py-2.5 pl-10 pr-3 text-sm text-white placeholder:text-white/30 transition focus:border-indigo-400/60 focus:outline-none focus:ring-2 focus:ring-indigo-400/40"
+                  className="pl-10"
                 />
               </div>
             </div>
 
-            {/* Mot de passe */}
             <div>
               <label
                 htmlFor="password"
-                className="mb-1.5 block text-sm font-medium text-white/70"
+                className="mb-1.5 block text-sm font-medium text-foreground/80"
               >
                 Mot de passe
               </label>
               <div className="relative">
                 <Lock
-                  className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40"
+                  className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-faint"
                   aria-hidden="true"
                 />
-                <input
+                <Input
                   id="password"
                   name="password"
                   type="password"
@@ -134,32 +115,23 @@ export function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full rounded-xl border border-white/15 bg-white/[0.04] py-2.5 pl-10 pr-3 text-sm text-white placeholder:text-white/30 transition focus:border-indigo-400/60 focus:outline-none focus:ring-2 focus:ring-indigo-400/40"
+                  className="pl-10"
                 />
               </div>
             </div>
 
-            {/* Erreur */}
             {error && (
               <p
                 role="alert"
-                className="rounded-xl border border-rose-400/30 bg-rose-400/10 px-3 py-2 text-sm text-rose-200"
+                className="rounded-xl border border-terra/30 bg-terra/10 px-3.5 py-2.5 text-sm text-terra"
               >
                 {error}
               </p>
             )}
 
-            {/* Bouton */}
-            <button
-              type="submit"
-              disabled={submitting}
-              className="group inline-flex w-full items-center justify-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-semibold text-zinc-900 shadow-lg shadow-black/20 transition hover:bg-white/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#0b0b12] disabled:cursor-not-allowed disabled:opacity-60"
-            >
+            <Button type="submit" loading={submitting} className="w-full" size="lg">
               {submitting ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                  Connexion…
-                </>
+                'Connexion…'
               ) : (
                 <>
                   Se connecter
@@ -169,15 +141,14 @@ export function LoginPage() {
                   />
                 </>
               )}
-            </button>
+            </Button>
           </form>
-        </div>
+        </Card>
 
-        {/* Retour accueil */}
-        <div className="mt-6 text-center">
+        <div className="nk-reveal nk-d3 mt-6 text-center">
           <Link
             to="/"
-            className="inline-flex items-center gap-1.5 text-sm text-white/50 transition hover:text-white/80"
+            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
           >
             <ArrowLeft className="h-4 w-4" aria-hidden="true" />
             Retour à l'accueil

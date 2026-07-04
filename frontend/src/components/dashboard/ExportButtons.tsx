@@ -1,67 +1,57 @@
 import { useState } from 'react'
-import { FileSpreadsheet, FileText, Loader2 } from 'lucide-react'
+import { FileSpreadsheet, FileText } from 'lucide-react'
 import { downloadExportContributions, ApiError } from '@/lib/api'
 import { useAuth } from '@/contexts/auth-context'
+import { useToast } from '@/components/ui/Toast'
+import { Card, Overline } from '@/components/ui/Card'
+import { Button } from '@/components/ui/Button'
 
 /**
- * Boutons d'export des contributions (§5.9), PDF et Excel. Affiché uniquement pour les
- * rôles autorisés (vues COMPLET/FINANCIER). Le téléchargement est un fetch authentifié
- * (token en mémoire) → Blob → enregistrement forcé (cf. downloadExportContributions).
+ * Boutons d'export des contributions (§5.9), PDF et Excel. Le téléchargement est un fetch
+ * authentifié (token en mémoire) → Blob → enregistrement forcé. Feedback via toasts.
  */
 export function ExportButtons({ annee }: { annee?: number }) {
   const { accessToken } = useAuth()
+  const toast = useToast()
   const [enCours, setEnCours] = useState<'xlsx' | 'pdf' | null>(null)
-  const [erreur, setErreur] = useState<string | null>(null)
 
   const exporter = async (format: 'xlsx' | 'pdf') => {
     if (!accessToken) return
-    setErreur(null)
     setEnCours(format)
     try {
       await downloadExportContributions({ format, annee }, accessToken)
+      toast.success('Export prêt', `Le fichier ${format.toUpperCase()} a été téléchargé.`)
     } catch (e) {
-      setErreur(e instanceof ApiError ? e.message : 'Échec de l’export.')
+      toast.error('Échec de l’export', e instanceof ApiError ? e.message : 'Réessayez plus tard.')
     } finally {
       setEnCours(null)
     }
   }
 
-  const btn =
-    'inline-flex items-center justify-center gap-2 rounded-full border border-white/20 bg-white/5 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 disabled:opacity-60'
-
   return (
-    <section className="rounded-2xl border border-white/12 bg-white/[0.06] p-5 backdrop-blur-xl">
-      <h2 className="text-xs uppercase tracking-wider text-white/40">Exporter les contributions</h2>
+    <Card className="p-5">
+      <Overline>Exporter les contributions</Overline>
       <div className="mt-4 flex flex-wrap gap-3">
-        <button
-          type="button"
-          className={btn}
+        <Button
+          variant="outline"
+          icon={FileSpreadsheet}
+          loading={enCours === 'xlsx'}
           disabled={enCours !== null}
           onClick={() => exporter('xlsx')}
         >
-          {enCours === 'xlsx' ? (
-            <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-          ) : (
-            <FileSpreadsheet className="h-4 w-4" aria-hidden="true" />
-          )}
           Excel
-        </button>
-        <button
-          type="button"
-          className={btn}
+        </Button>
+        <Button
+          variant="outline"
+          icon={FileText}
+          loading={enCours === 'pdf'}
           disabled={enCours !== null}
           onClick={() => exporter('pdf')}
         >
-          {enCours === 'pdf' ? (
-            <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-          ) : (
-            <FileText className="h-4 w-4" aria-hidden="true" />
-          )}
           PDF
-        </button>
+        </Button>
       </div>
-      {erreur && <p className="mt-3 text-sm text-rose-300">{erreur}</p>}
-    </section>
+    </Card>
   )
 }
 

@@ -1,25 +1,31 @@
-import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
 import {
   AlertTriangle,
   CalendarRange,
   Coins,
   GitBranch,
-  Loader2,
-  LogOut,
+  ShieldCheck,
+  Sparkles,
   Users,
   Wallet,
 } from 'lucide-react'
-import { estMembreSimple, peutVoirBareme } from '@/lib/roles'
+import { peutGererBareme } from '@/lib/roles'
 import { useAuth } from '@/contexts/auth-context'
 import { useDashboard } from '@/hooks/useDashboard'
-import { StatCard } from '@/components/dashboard/StatCard'
+import { PageHeader } from '@/components/ui/PageHeader'
+import { Card, Overline } from '@/components/ui/Card'
+import { Badge, type BadgeProps } from '@/components/ui/Badge'
+import { StatCard } from '@/components/ui/StatCard'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { ButtonLink } from '@/components/ui/Button'
+import { Skeleton, StatCardSkeleton } from '@/components/ui/Skeleton'
+import { RecouvrementHero } from '@/components/dashboard/RecouvrementHero'
 import {
   StatutContributionRepartition,
   StatutMembreRepartition,
 } from '@/components/dashboard/StatutRepartition'
+import { AnalyseMembres } from '@/components/dashboard/AnalyseMembres'
 import { ExportButtons } from '@/components/dashboard/ExportButtons'
-import { formatFcfa, formatNombre, formatPourcent } from '@/lib/format'
+import { formatFcfa, formatNombre } from '@/lib/format'
 import type {
   Dashboard,
   DashboardComplet,
@@ -30,58 +36,47 @@ import type {
 } from '@/lib/api'
 
 /* -------------------------------------------------------------------------- */
-/* Petits blocs de présentation                                              */
+/* Petits blocs                                                               */
 /* -------------------------------------------------------------------------- */
 
-function RecouvrementBar({ taux }: { taux: number }) {
-  const largeur = Math.max(0, Math.min(100, taux))
-  return (
-    <div className="rounded-2xl border border-white/12 bg-white/[0.06] p-5 backdrop-blur-xl">
-      <div className="flex items-baseline justify-between">
-        <h2 className="text-xs uppercase tracking-wider text-white/40">Taux de recouvrement</h2>
-        <span className="text-lg font-semibold text-white">{formatPourcent(taux)}</span>
-      </div>
-      <div className="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-white/10">
-        <div
-          className="h-full rounded-full bg-gradient-to-r from-indigo-400 via-sky-400 to-emerald-400"
-          style={{ width: `${largeur}%` }}
-        />
-      </div>
-    </div>
-  )
-}
-
-const STATUT_LABEL: Record<StatutContribution, string> = {
-  A_JOUR: 'À jour',
-  PARTIEL: 'Partiel',
-  NON_A_JOUR: 'Non à jour',
-}
-const STATUT_STYLE: Record<StatutContribution, string> = {
-  A_JOUR: 'border-emerald-400/30 bg-emerald-400/10 text-emerald-200',
-  PARTIEL: 'border-amber-400/30 bg-amber-400/10 text-amber-200',
-  NON_A_JOUR: 'border-rose-400/30 bg-rose-400/10 text-rose-200',
-}
-
-function StatutPill({ statut }: { statut: StatutContribution }) {
-  return (
-    <span
-      className={`inline-flex items-center rounded-full border px-4 py-1.5 text-sm font-semibold ${STATUT_STYLE[statut]}`}
-    >
-      {STATUT_LABEL[statut]}
-    </span>
-  )
+const STATUT: Record<StatutContribution, { label: string; tone: BadgeProps['tone'] }> = {
+  A_JOUR: { label: 'À jour', tone: 'jade' },
+  PARTIEL: { label: 'Partiel', tone: 'amber' },
+  NON_A_JOUR: { label: 'Non à jour', tone: 'terra' },
 }
 
 function AlerteBareme({ annee }: { annee: number }) {
   return (
-    <div className="flex items-start gap-3 rounded-2xl border border-amber-400/30 bg-amber-400/10 p-4 text-amber-100">
-      <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
-      <p className="text-sm">
-        Le barème de l’année <span className="font-semibold">{annee}</span> n’est pas encore
-        configuré. Les statuts affichés ignorent cette année tant qu’aucun montant attendu
-        n’est défini.
+    <Card className="flex items-start gap-3 border-amber/30 bg-amber/[0.07] p-4">
+      <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber" aria-hidden="true" />
+      <p className="text-sm text-foreground/85">
+        Le barème de l'année <span className="font-semibold text-amber">{annee}</span> n'est pas
+        encore configuré. Les statuts affichés ignorent cette année tant qu'aucun montant attendu
+        n'est défini.
       </p>
-    </div>
+    </Card>
+  )
+}
+
+/** Onboarding : dashboard sans aucune donnée financière → on oriente vers le barème. */
+function OnboardingVide({ canManage }: { canManage: boolean }) {
+  return (
+    <EmptyState
+      icon={Sparkles}
+      title="Bienvenue sur NKONI"
+      description={
+        canManage
+          ? 'Aucune cotisation n’est encore suivie. Commencez par configurer le barème annuel : il fixe le montant attendu par membre et débloque l’ouverture des années.'
+          : 'Aucune cotisation n’est encore suivie. Le barème annuel n’a pas encore été configuré par un administrateur.'
+      }
+      action={
+        canManage && (
+          <ButtonLink to="/bareme" icon={CalendarRange}>
+            Configurer le premier barème
+          </ButtonLink>
+        )
+      }
+    />
   )
 }
 
@@ -89,37 +84,69 @@ function AlerteBareme({ annee }: { annee: number }) {
 /* Vues                                                                       */
 /* -------------------------------------------------------------------------- */
 
-function VueComplet({ d }: { d: DashboardComplet }) {
+function VueComplet({ d, canManage }: { d: DashboardComplet; canManage: boolean }) {
+  const vide = d.finances.totalAttenduCumule === 0
   return (
     <div className="space-y-4">
       {d.alertes.baremeAnneeCouranteManquant && <AlerteBareme annee={d.anneeCourante} />}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Total attendu" value={formatFcfa(d.finances.totalAttenduCumule)} icon={Wallet} />
-        <StatCard label="Total collecté" value={formatFcfa(d.finances.totalCollecteCumule)} icon={Coins} />
-        <StatCard label="Branches familiales" value={formatNombre(d.nombreBranches)} icon={GitBranch} />
-        <StatCard label="Membres actifs" value={formatNombre(d.membresParStatutMembre.ACTIF)} icon={Users} />
-      </div>
-      <RecouvrementBar taux={d.finances.tauxRecouvrement} />
-      <div className="grid gap-4 lg:grid-cols-2">
-        <StatutContributionRepartition data={d.membresParStatutContribution} />
-        <StatutMembreRepartition data={d.membresParStatutMembre} />
-      </div>
-      <ExportButtons />
+      {vide ? (
+        <OnboardingVide canManage={canManage} />
+      ) : (
+        <>
+          <RecouvrementHero
+            taux={d.finances.tauxRecouvrement}
+            collecte={d.finances.totalCollecteCumule}
+            attendu={d.finances.totalAttenduCumule}
+          />
+          <div className="grid gap-4 sm:grid-cols-3">
+            <StatCard
+              label="Membres à jour"
+              value={formatNombre(d.membresParStatutContribution.A_JOUR)}
+              icon={ShieldCheck}
+              tone="jade"
+            />
+            <StatCard
+              label="Membres actifs"
+              value={formatNombre(d.membresParStatutMembre.ACTIF)}
+              icon={Users}
+            />
+            <StatCard
+              label="Branches"
+              value={formatNombre(d.nombreBranches)}
+              icon={GitBranch}
+            />
+          </div>
+          <div className="grid gap-4 lg:grid-cols-2">
+            <StatutContributionRepartition data={d.membresParStatutContribution} />
+            <StatutMembreRepartition data={d.membresParStatutMembre} />
+          </div>
+          <AnalyseMembres />
+          <ExportButtons />
+        </>
+      )}
     </div>
   )
 }
 
-function VueFinancier({ d }: { d: DashboardFinancier }) {
+function VueFinancier({ d, canManage }: { d: DashboardFinancier; canManage: boolean }) {
+  const vide = d.finances.totalAttenduCumule === 0
   return (
     <div className="space-y-4">
       {d.alertes.baremeAnneeCouranteManquant && <AlerteBareme annee={d.anneeCourante} />}
-      <div className="grid gap-4 sm:grid-cols-2">
-        <StatCard label="Total attendu" value={formatFcfa(d.finances.totalAttenduCumule)} icon={Wallet} />
-        <StatCard label="Total collecté" value={formatFcfa(d.finances.totalCollecteCumule)} icon={Coins} />
-      </div>
-      <RecouvrementBar taux={d.finances.tauxRecouvrement} />
-      <StatutContributionRepartition data={d.membresParStatutContribution} />
-      <ExportButtons />
+      {vide ? (
+        <OnboardingVide canManage={canManage} />
+      ) : (
+        <>
+          <RecouvrementHero
+            taux={d.finances.tauxRecouvrement}
+            collecte={d.finances.totalCollecteCumule}
+            attendu={d.finances.totalAttenduCumule}
+          />
+          <StatutContributionRepartition data={d.membresParStatutContribution} />
+          <AnalyseMembres />
+          <ExportButtons />
+        </>
+      )}
     </div>
   )
 }
@@ -128,8 +155,13 @@ function VueRestreint({ d }: { d: DashboardRestreint }) {
   return (
     <div className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-2">
-        <StatCard label="Branches familiales" value={formatNombre(d.nombreBranches)} icon={GitBranch} />
-        <StatCard label="Membres actifs" value={formatNombre(d.membresParStatutMembre.ACTIF)} icon={Users} />
+        <StatCard label="Branches" value={formatNombre(d.nombreBranches)} icon={GitBranch} />
+        <StatCard
+          label="Membres actifs"
+          value={formatNombre(d.membresParStatutMembre.ACTIF)}
+          icon={Users}
+          tone="jade"
+        />
       </div>
       <StatutMembreRepartition data={d.membresParStatutMembre} />
     </div>
@@ -137,35 +169,70 @@ function VueRestreint({ d }: { d: DashboardRestreint }) {
 }
 
 function VuePerso({ d }: { d: DashboardPerso }) {
+  const s = STATUT[d.statut]
   return (
     <div className="space-y-4">
-      <div className="rounded-2xl border border-white/12 bg-white/[0.06] p-5 backdrop-blur-xl">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xs uppercase tracking-wider text-white/40">
-            Ma situation ({d.anneeCourante})
-          </h2>
-          <StatutPill statut={d.statut} />
+      <Card variant="feature" className="flex flex-wrap items-center justify-between gap-4 p-6">
+        <div>
+          <Overline>Ma situation · {d.anneeCourante}</Overline>
+          <p className="mt-2 font-display text-xl font-semibold tracking-tight text-foreground">
+            Statut de cotisation
+          </p>
         </div>
-      </div>
+        <Badge tone={s.tone} size="lg" dot>
+          {s.label}
+        </Badge>
+      </Card>
       <div className="grid gap-4 sm:grid-cols-2">
-        <StatCard label="Total attendu (cumulé)" value={formatFcfa(d.totalAttenduCumule)} icon={Wallet} />
-        <StatCard label="Total versé / valorisé (cumulé)" value={formatFcfa(d.totalValoriseCumule)} icon={Coins} />
+        <StatCard
+          label="Total attendu (cumulé)"
+          value={formatFcfa(d.totalAttenduCumule)}
+          icon={Wallet}
+        />
+        <StatCard
+          label="Total versé / valorisé (cumulé)"
+          value={formatFcfa(d.totalValoriseCumule)}
+          icon={Coins}
+          tone="jade"
+        />
       </div>
     </div>
   )
 }
 
-function DashboardContent({ data }: { data: Dashboard }) {
+function DashboardContent({ data, canManage }: { data: Dashboard; canManage: boolean }) {
   switch (data.vue) {
     case 'COMPLET':
-      return <VueComplet d={data} />
+      return <VueComplet d={data} canManage={canManage} />
     case 'FINANCIER':
-      return <VueFinancier d={data} />
+      return <VueFinancier d={data} canManage={canManage} />
     case 'RESTREINT':
       return <VueRestreint d={data} />
     case 'PERSO':
       return <VuePerso d={data} />
   }
+}
+
+function DashboardSkeleton() {
+  return (
+    <div className="space-y-4">
+      <Card variant="feature" className="p-7">
+        <Skeleton className="h-3 w-24" />
+        <div className="mt-5 flex flex-col items-center gap-8 sm:flex-row">
+          <Skeleton className="h-36 w-36 rounded-full" />
+          <div className="w-full flex-1 space-y-3">
+            <Skeleton className="h-14 w-full rounded-xl" />
+            <Skeleton className="h-14 w-full rounded-xl" />
+          </div>
+        </div>
+      </Card>
+      <div className="grid gap-4 sm:grid-cols-3">
+        <StatCardSkeleton />
+        <StatCardSkeleton />
+        <StatCardSkeleton />
+      </div>
+    </div>
+  )
 }
 
 /* -------------------------------------------------------------------------- */
@@ -180,79 +247,30 @@ const VUE_LABEL: Record<Dashboard['vue'], string> = {
 }
 
 export function DashboardPage() {
-  const { user, logout } = useAuth()
-  const navigate = useNavigate()
+  const { user } = useAuth()
   const { data, loading, error } = useDashboard()
-  const [signingOut, setSigningOut] = useState(false)
-
-  const handleLogout = async () => {
-    setSigningOut(true)
-    await logout()
-    navigate('/login', { replace: true })
-  }
+  const canManage = peutGererBareme(user?.role)
 
   return (
-    <main className="min-h-screen bg-[#0b0b12] text-white">
-      <div className="mx-auto max-w-5xl px-6 py-10">
-        <header className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="text-sm uppercase tracking-wider text-white/40">Tableau de bord</p>
-            <h1 className="mt-1 text-2xl font-semibold tracking-tight">
-              <span className="bg-gradient-to-r from-indigo-300 via-sky-300 to-emerald-300 bg-clip-text text-transparent">
-                {user?.email}
-              </span>
-            </h1>
-            <p className="mt-1 text-sm text-white/50">
-              {user?.role}
-              {data && ` · ${VUE_LABEL[data.vue]}`}
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            {peutVoirBareme(user?.role) && (
-              <Link
-                to="/bareme"
-                className="inline-flex items-center justify-center gap-2 rounded-full border border-white/20 bg-white/5 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
-              >
-                <CalendarRange className="h-4 w-4" aria-hidden="true" />
-                Barème annuel
-              </Link>
-            )}
-            <Link
-              to="/membres"
-              className="inline-flex items-center justify-center gap-2 rounded-full border border-white/20 bg-white/5 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
-            >
-              <Users className="h-4 w-4" aria-hidden="true" />
-              {estMembreSimple(user?.role) ? 'Ma fiche' : 'Membres'}
-            </Link>
-            <button
-              type="button"
-              onClick={handleLogout}
-              disabled={signingOut}
-              className="inline-flex items-center justify-center gap-2 rounded-full border border-white/20 bg-white/5 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 disabled:opacity-60"
-            >
-              <LogOut className="h-4 w-4" aria-hidden="true" />
-              {signingOut ? 'Déconnexion…' : 'Se déconnecter'}
-            </button>
-          </div>
-        </header>
+    <>
+      <PageHeader
+        overline="Tableau de bord"
+        title="Vue d'ensemble"
+        description={data ? VUE_LABEL[data.vue] : 'Chargement…'}
+      />
 
-        <div className="mt-8">
-          {loading && (
-            <div className="flex items-center justify-center py-20 text-white/60">
-              <Loader2 className="h-6 w-6 animate-spin" aria-label="Chargement" />
-            </div>
-          )}
+      <div className="nk-reveal nk-d2 mt-8">
+        {loading && <DashboardSkeleton />}
 
-          {!loading && error && (
-            <div className="rounded-2xl border border-rose-400/30 bg-rose-400/10 p-5 text-rose-200">
-              {error}
-            </div>
-          )}
+        {!loading && error && (
+          <Card className="border-terra/30 bg-terra/[0.07] p-5 text-terra">{error}</Card>
+        )}
 
-          {!loading && !error && data && <DashboardContent data={data} />}
-        </div>
+        {!loading && !error && data && (
+          <DashboardContent data={data} canManage={canManage} />
+        )}
       </div>
-    </main>
+    </>
   )
 }
 

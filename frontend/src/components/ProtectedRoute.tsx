@@ -13,8 +13,8 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#0b0b12] text-white/70">
-        <Loader2 className="h-6 w-6 animate-spin" aria-label="Chargement" />
+      <div className="flex min-h-screen items-center justify-center bg-background text-muted-foreground">
+        <Loader2 className="h-6 w-6 animate-spin text-brass" aria-label="Chargement" />
       </div>
     )
   }

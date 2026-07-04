@@ -31,6 +31,7 @@ export type Entite =
   | 'Versement'
   | 'Equilibrage'
   | 'Recu'
+  | 'Export'
   | 'Utilisateur'
 
 export type Role =
@@ -126,6 +127,14 @@ export const PERMISSIONS: Record<Entite, Partial<Record<Role, Action[]>>> = {
     TRESORIERE: ['create', 'read'], // Générer
     COMMISSAIRE_COMPTES: ['create', 'read'], // Générer (cf. note §0 vs §2)
     MEMBRE_SIMPLE: ['create', 'read'], // Générer les siens (filtrage en route)
+  },
+  Export: {
+    // Matrice §2, ligne « Export PDF/Excel » : Oui pour ces 4 rôles, Non pour les autres.
+    // SECRETAIRE et MEMBRE_SIMPLE : — (absents → 403). GUIDE_RELIGIEUX : — (V2).
+    ADMIN: READ,
+    PRESIDENT: READ,
+    TRESORIERE: READ,
+    COMMISSAIRE_COMPTES: READ,
   },
   Utilisateur: {
     ADMIN: CRUD,

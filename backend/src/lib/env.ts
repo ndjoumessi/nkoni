@@ -30,6 +30,14 @@ export const env = {
   CORS_ORIGIN: optional('CORS_ORIGIN', 'http://localhost:5173'),
   // Nom du cookie httpOnly qui porte le refresh token.
   REFRESH_COOKIE_NAME: optional('REFRESH_COOKIE_NAME', 'nkoni_refresh'),
+  // Chemin (attribut Path) du cookie refresh. Doit refléter le chemin PUBLIC vu par le
+  // navigateur, qui n'est pas forcément le chemin interne du back.
+  //   - Dev / appel direct : '/auth' (le front tape http://localhost:3000/auth/*).
+  //   - Prod derrière le proxy same-origin Vercel : le front tape /api/auth/* sur
+  //     nkoni.vercel.app (rewrite → Railway). Le cookie devient first-party sur
+  //     nkoni.vercel.app, donc son Path doit être '/api/auth' pour être renvoyé aux
+  //     requêtes /api/auth/refresh et /api/auth/logout. → REFRESH_COOKIE_PATH=/api/auth
+  REFRESH_COOKIE_PATH: optional('REFRESH_COOKIE_PATH', '/auth'),
 } as const
 
 export const isProd = env.NODE_ENV === 'production'

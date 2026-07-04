@@ -8,5 +8,11 @@
       "permanent": true
     }
   ],
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://nkoni-backend-production.up.railway.app/:path*"
+    },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
 }

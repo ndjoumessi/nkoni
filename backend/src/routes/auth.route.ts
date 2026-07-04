@@ -79,11 +79,14 @@ function refreshCookieOptions(maxAgeSeconds: number) {
   return {
     httpOnly: true,
     secure: isProd, // en dev (http://localhost) Secure=false pour que le cookie soit posé
-    // En prod, front (Vercel) et back (Railway) sont sur des domaines différents → le cookie
-    // refresh doit être SameSite=None; Secure pour circuler en cross-site. En dev, Lax suffit
-    // (localhost same-site) et évite d'exiger Secure sur http.
+    // En prod, le front (nkoni.vercel.app) parle au back via un proxy same-origin Vercel
+    // (rewrite /api/* → Railway). Le navigateur ne voit qu'un seul domaine, donc le cookie
+    // refresh est first-party. On garde SameSite=None; Secure (fonctionne aussi same-origin) ;
+    // en dev, Lax suffit et évite d'exiger Secure sur http.
     sameSite: (isProd ? 'none' : 'lax') as 'none' | 'lax',
-    path: '/auth', // envoyé à /auth/refresh et /auth/logout uniquement
+    // Path PUBLIC vu par le navigateur (cf. REFRESH_COOKIE_PATH) : '/auth' en direct,
+    // '/api/auth' derrière le proxy prod. Doit préfixer /(api/)auth/refresh et /logout.
+    path: env.REFRESH_COOKIE_PATH,
     maxAge: maxAgeSeconds,
   }
 }
@@ -172,7 +175,7 @@ export const authRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
 
   // POST /auth/logout — efface le cookie refresh (côté client, tokens à jeter).
   app.post('/logout', async (_req, reply) => {
-    reply.clearCookie(env.REFRESH_COOKIE_NAME, { path: '/auth' })
+    reply.clearCookie(env.REFRESH_COOKIE_NAME, { path: env.REFRESH_COOKIE_PATH })
     return reply.code(204).send()
   })
 

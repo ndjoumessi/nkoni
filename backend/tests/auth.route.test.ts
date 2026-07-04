@@ -84,6 +84,8 @@ describe('Module auth — /auth/*', () => {
     expect(refreshCookie).toBeDefined()
     expect(refreshCookie?.httpOnly).toBe(true)
     expect(refreshCookie?.path).toBe('/auth')
+    // Same-origin (proxy Vercel) → SameSite=Lax (protection CSRF), plus SameSite=None.
+    expect(refreshCookie?.sameSite?.toLowerCase()).toBe('lax')
   })
 
   it('POST /auth/login sans rememberMe → cookie refresh Max-Age 7 jours (session standard)', async () => {

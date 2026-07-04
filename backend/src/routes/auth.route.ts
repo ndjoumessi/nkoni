@@ -79,11 +79,12 @@ function refreshCookieOptions(maxAgeSeconds: number) {
   return {
     httpOnly: true,
     secure: isProd, // en dev (http://localhost) Secure=false pour que le cookie soit posé
-    // En prod, le front (nkoni.vercel.app) parle au back via un proxy same-origin Vercel
-    // (rewrite /api/* → Railway). Le navigateur ne voit qu'un seul domaine, donc le cookie
-    // refresh est first-party. On garde SameSite=None; Secure (fonctionne aussi same-origin) ;
-    // en dev, Lax suffit et évite d'exiger Secure sur http.
-    sameSite: (isProd ? 'none' : 'lax') as 'none' | 'lax',
+    // Front (nkoni.vercel.app) et back sont désormais same-origin en prod grâce au proxy
+    // Vercel (rewrite /api/* → Railway) : le navigateur ne voit qu'un seul domaine et le
+    // cookie refresh est first-party. On n'a donc plus besoin de SameSite=None : on passe en
+    // SameSite=Lax, qui apporte une protection CSRF (le cookie n'est pas envoyé sur les
+    // requêtes cross-site) tout en restant envoyé sur nos appels same-origin /api/auth/*.
+    sameSite: 'lax' as const,
     // Path PUBLIC vu par le navigateur (cf. REFRESH_COOKIE_PATH) : '/auth' en direct,
     // '/api/auth' derrière le proxy prod. Doit préfixer /(api/)auth/refresh et /logout.
     path: env.REFRESH_COOKIE_PATH,

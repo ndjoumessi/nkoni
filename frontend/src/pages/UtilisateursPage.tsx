@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { KeyRound, Mail, Power, ShieldUser, UserPlus } from 'lucide-react'
+import type { FormEvent } from 'react'
 import { useAuth } from '@/contexts/auth-context'
 import {
   utilisateursApi,
@@ -17,6 +18,7 @@ import { Card, Overline } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Field, Input, Select } from '@/components/ui/Field'
 import { PasswordInput } from '@/components/ui/PasswordInput'
+import { Modal } from '@/components/ui/Modal'
 import { FormSection } from '@/components/ui/FormSection'
 import { Badge } from '@/components/ui/Badge'
 import { EmptyState } from '@/components/ui/EmptyState'
@@ -44,6 +46,11 @@ export function UtilisateursPage() {
   const [creating, setCreating] = useState(false)
 
   const [pendingId, setPendingId] = useState<string | null>(null)
+
+  // Modal de réinitialisation du mot de passe d'un compte (ADMIN).
+  const [resetCible, setResetCible] = useState<Utilisateur | null>(null)
+  const [resetPassword, setResetPassword] = useState('')
+  const [resetting, setResetting] = useState(false)
 
   useEffect(() => {
     if (!accessToken) return
@@ -119,6 +126,34 @@ export function UtilisateursPage() {
       )
     } finally {
       setCreating(false)
+    }
+  }
+
+  const ouvrirReset = (u: Utilisateur) => {
+    setResetCible(u)
+    setResetPassword('')
+  }
+
+  const handleReset = async (e: FormEvent) => {
+    e.preventDefault()
+    if (!accessToken || !resetCible) return
+    if (resetPassword.length < 8) {
+      toast.error('Mot de passe trop court', 'Au moins 8 caractères.')
+      return
+    }
+    setResetting(true)
+    try {
+      await utilisateursApi.reinitialiserMotDePasse(resetCible.id, resetPassword, accessToken)
+      toast.success('Mot de passe réinitialisé', resetCible.email)
+      setResetCible(null)
+      setResetPassword('')
+    } catch (err) {
+      toast.error(
+        'Réinitialisation impossible',
+        err instanceof ApiError ? err.message : 'Réessayez plus tard.',
+      )
+    } finally {
+      setResetting(false)
     }
   }
 
@@ -308,7 +343,16 @@ export function UtilisateursPage() {
                       )}
                     </span>
 
-                    <div className="flex justify-start md:justify-end">
+                    <div className="flex flex-wrap justify-start gap-2 md:justify-end">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        icon={KeyRound}
+                        disabled={busy}
+                        onClick={() => ouvrirReset(u)}
+                      >
+                        Réinitialiser le mot de passe
+                      </Button>
                       <Button
                         variant={u.actif ? 'danger' : 'jade'}
                         size="sm"
@@ -328,6 +372,45 @@ export function UtilisateursPage() {
           </Card>
         )}
       </div>
+
+      {/* Modal — réinitialisation du mot de passe d'un compte (ADMIN, sans l'ancien) */}
+      <Modal
+        open={resetCible !== null}
+        onClose={() => (resetting ? undefined : setResetCible(null))}
+        title="Réinitialiser le mot de passe"
+      >
+        <form onSubmit={handleReset} className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Définir un nouveau mot de passe pour{' '}
+            <span className="font-medium text-foreground">{resetCible?.email}</span>. L'ancien
+            mot de passe n'est pas requis.
+          </p>
+          <Field label="Nouveau mot de passe" required hint="Au moins 8 caractères.">
+            <PasswordInput
+              name="reset-new-password"
+              autoComplete="new-password"
+              value={resetPassword}
+              onChange={(e) => setResetPassword(e.target.value)}
+              placeholder="••••••••"
+              leftIcon={KeyRound}
+              autoFocus
+            />
+          </Field>
+          <div className="flex justify-end gap-2 pt-1">
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={resetting}
+              onClick={() => setResetCible(null)}
+            >
+              Annuler
+            </Button>
+            <Button type="submit" icon={KeyRound} loading={resetting}>
+              Réinitialiser
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </>
   )
 }

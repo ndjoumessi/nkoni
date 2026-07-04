@@ -9,6 +9,7 @@ import {
   listerUtilisateurs,
   creerUtilisateur,
   majUtilisateur,
+  reinitialiserMotDePasse,
   EmailDejaUtiliseError,
   MembreIntrouvableError,
   MembreDejaLieError,
@@ -72,6 +73,18 @@ const updateSchema = {
     properties: {
       role: { type: 'string', enum: ROLE_ENUM },
       actif: { type: 'boolean' },
+    },
+  },
+} as const
+
+const resetPasswordSchema = {
+  body: {
+    type: 'object',
+    required: ['nouveauMotDePasse'],
+    additionalProperties: false,
+    properties: {
+      // minLength 8 aligné sur la création de compte.
+      nouveauMotDePasse: { type: 'string', minLength: 8, maxLength: 200 },
     },
   },
 } as const
@@ -153,6 +166,23 @@ export const utilisateursRoutes: FastifyPluginAsync = async (app: FastifyInstanc
           ...(role !== undefined ? { role } : {}),
           ...(actif !== undefined ? { actif } : {}),
         })
+      } catch (err) {
+        if (reply4xxSiMetier(err, reply)) return
+        throw err
+      }
+    },
+  )
+
+  // PATCH /utilisateurs/:id/mot-de-passe — ADMIN. Réinitialise le mot de passe d'un AUTRE
+  // compte sans connaître l'ancien (dépannage). Le changement self-service avec ancien mot
+  // de passe passe par POST /auth/changer-mot-de-passe.
+  app.patch<{ Params: { id: string }; Body: { nouveauMotDePasse: string } }>(
+    '/utilisateurs/:id/mot-de-passe',
+    { schema: resetPasswordSchema, preHandler: [authenticate, requireAdmin] },
+    async (req, reply) => {
+      try {
+        await reinitialiserMotDePasse(app.prisma, req.params.id, req.body.nouveauMotDePasse)
+        return reply.code(204).send()
       } catch (err) {
         if (reply4xxSiMetier(err, reply)) return
         throw err

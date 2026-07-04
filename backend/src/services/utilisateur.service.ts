@@ -162,3 +162,32 @@ export async function majUtilisateur(
     throw err
   }
 }
+
+/* -------------------------------------------------------------------------- */
+/* Réinitialisation du mot de passe (ADMIN, sans l'ancien)                    */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Réinitialise le mot de passe d'un compte SANS connaître l'ancien — réservé ADMIN
+ * (dépannage d'un autre compte). Le contrôle self-service avec ancien mot de passe passe
+ * par `changerMotDePasse` (auth.service). Le nouveau hash n'est jamais renvoyé (PUBLIC_SELECT).
+ */
+export async function reinitialiserMotDePasse(
+  prisma: UtilisateurPrisma,
+  id: string,
+  nouveauMotDePasse: string,
+) {
+  const passwordHash = await hashPassword(nouveauMotDePasse)
+  try {
+    return await prisma.utilisateur.update({
+      where: { id },
+      data: { passwordHash },
+      select: PUBLIC_SELECT,
+    })
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2025') {
+      throw new UtilisateurIntrouvableError()
+    }
+    throw err
+  }
+}

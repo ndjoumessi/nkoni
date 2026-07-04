@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from 'vitest'
 import type { FastifyInstance } from 'fastify'
 import { buildApp } from '../src/app'
 import { hashPassword } from '../src/services/auth.service'
@@ -193,5 +193,113 @@ describe('Module auth — /auth/*', () => {
   it('GET /auth/me (sans token) → 401', async () => {
     const res = await app.inject({ method: 'GET', url: '/auth/me' })
     expect(res.statusCode).toBe(401)
+  })
+})
+
+describe('POST /auth/changer-mot-de-passe (self-service)', () => {
+  let app: FastifyInstance
+  const EMAIL = 'self@nkoni.local'
+  const OLD = 'ancien-secret-1'
+  const NEW = 'nouveau-secret-1'
+
+  // Mock isolé avec `update` mutable : le changement de hash doit se refléter sur les
+  // lectures suivantes (findUnique renvoie la même référence).
+  function buildMock(passwordHash: string) {
+    const user = {
+      id: 'u-1',
+      email: EMAIL,
+      role: 'MEMBRE_SIMPLE',
+      actif: true,
+      passwordHash,
+      membre: null,
+    }
+    return {
+      utilisateur: {
+        findUnique: async (args: { where: { email?: string; id?: string } }) => {
+          const { email, id } = args.where
+          if (email === EMAIL || id === 'u-1') return user
+          return null
+        },
+        update: async (args: { where: { id: string }; data: Record<string, unknown> }) => {
+          if (args.where.id === 'u-1') Object.assign(user, args.data)
+          return user
+        },
+      },
+    }
+  }
+
+  beforeEach(async () => {
+    const passwordHash = await (await import('../src/services/auth.service')).hashPassword(OLD)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    app = await buildApp({ prisma: buildMock(passwordHash) as any, logger: false })
+    await app.ready()
+  })
+  afterEach(async () => {
+    await app.close()
+  })
+
+  const bearer = () => ({
+    authorization: `Bearer ${app.jwt.sign({ sub: 'u-1', role: 'MEMBRE_SIMPLE' })}`,
+  })
+
+  it('ancien mot de passe correct → 204, et le nouveau devient actif', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/auth/changer-mot-de-passe',
+      headers: bearer(),
+      payload: { ancienMotDePasse: OLD, nouveauMotDePasse: NEW },
+    })
+    expect(res.statusCode).toBe(204)
+
+    const avecAncien = await app.inject({
+      method: 'POST',
+      url: '/auth/login',
+      payload: { email: EMAIL, password: OLD },
+    })
+    expect(avecAncien.statusCode).toBe(401)
+
+    const avecNouveau = await app.inject({
+      method: 'POST',
+      url: '/auth/login',
+      payload: { email: EMAIL, password: NEW },
+    })
+    expect(avecNouveau.statusCode).toBe(200)
+  })
+
+  it('ancien mot de passe incorrect → 401 (aucun changement)', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/auth/changer-mot-de-passe',
+      headers: bearer(),
+      payload: { ancienMotDePasse: 'mauvais', nouveauMotDePasse: NEW },
+    })
+    expect(res.statusCode).toBe(401)
+
+    // L'ancien mot de passe fonctionne toujours.
+    const login = await app.inject({
+      method: 'POST',
+      url: '/auth/login',
+      payload: { email: EMAIL, password: OLD },
+    })
+    expect(login.statusCode).toBe(200)
+  })
+
+  it('sans token → 401', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/auth/changer-mot-de-passe',
+      payload: { ancienMotDePasse: OLD, nouveauMotDePasse: NEW },
+    })
+    expect(res.statusCode).toBe(401)
+  })
+
+  it('nouveau mot de passe trop court → 400 (validation de schéma)', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/auth/changer-mot-de-passe',
+      headers: bearer(),
+      payload: { ancienMotDePasse: OLD, nouveauMotDePasse: 'court' },
+    })
+    expect(res.statusCode).toBe(400)
   })
 })

@@ -91,11 +91,16 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   )
 }
 
-function UserChip() {
+function UserChip({ onNavigate }: { onNavigate?: () => void }) {
   const { user } = useAuth()
   const initials = (user?.email ?? '?').slice(0, 2).toUpperCase()
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-hairline bg-surface/60 px-3 py-2.5">
+    <Link
+      to="/mon-profil"
+      onClick={onNavigate}
+      title="Mon profil"
+      className="flex items-center gap-3 rounded-xl border border-hairline bg-surface/60 px-3 py-2.5 transition-colors hover:border-hairline-strong hover:bg-surface-2/70"
+    >
       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-surface-2 text-xs font-semibold text-brass">
         {initials}
       </span>
@@ -103,7 +108,7 @@ function UserChip() {
         <p className="truncate text-sm font-medium text-foreground">{user?.email}</p>
         <p className="truncate text-xs text-faint">{ROLE_LABEL[user?.role ?? ''] ?? user?.role}</p>
       </div>
-    </div>
+    </Link>
   )
 }
 
@@ -135,7 +140,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       </div>
 
       <div className="mt-4 space-y-2">
-        <UserChip />
+        <UserChip onNavigate={onNavigate} />
         <button
           type="button"
           onClick={handleLogout}

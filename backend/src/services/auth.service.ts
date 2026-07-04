@@ -26,6 +26,19 @@ export interface AuthPrisma {
   utilisateur: {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     findUnique(args: any): Promise<any>
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    update(args: any): Promise<any>
+  }
+}
+
+/**
+ * L'ancien mot de passe fourni lors d'un changement self-service ne correspond pas.
+ * Mappée en 401 par la route (on ne confirme rien sur le compte). → 401
+ */
+export class AncienMotDePasseIncorrectError extends Error {
+  constructor() {
+    super('Ancien mot de passe incorrect.')
+    this.name = 'AncienMotDePasseIncorrectError'
   }
 }
 
@@ -76,6 +89,33 @@ export async function verifyCredentials(
   if (!valide) return null
 
   return toAuthUser(record)
+}
+
+/**
+ * Change le mot de passe d'un compte APRÈS vérification de l'ancien (changement
+ * self-service : l'utilisateur connecté change son propre mot de passe).
+ *
+ * Lève `AncienMotDePasseIncorrectError` (→ 401) si le compte est introuvable OU si
+ * l'ancien mot de passe ne correspond pas — on ne distingue pas les deux cas.
+ */
+export async function changerMotDePasse(
+  prisma: AuthPrisma,
+  userId: string,
+  ancienMotDePasse: string,
+  nouveauMotDePasse: string,
+): Promise<void> {
+  const record = await prisma.utilisateur.findUnique({
+    where: { id: userId },
+    select: { passwordHash: true },
+  })
+  if (!record) throw new AncienMotDePasseIncorrectError()
+
+  const passwordHash = record['passwordHash'] as string
+  const valide = await argon2.verify(passwordHash, ancienMotDePasse)
+  if (!valide) throw new AncienMotDePasseIncorrectError()
+
+  const nouveauHash = await hashPassword(nouveauMotDePasse)
+  await prisma.utilisateur.update({ where: { id: userId }, data: { passwordHash: nouveauHash } })
 }
 
 /** Recharge un utilisateur par id (pour /auth/refresh et /auth/me). */

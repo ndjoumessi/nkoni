@@ -110,6 +110,18 @@ export const authApi = {
   me: (accessToken: string, signal?: AbortSignal) =>
     request<AuthUser>('/auth/me', { accessToken, signal }),
   logout: () => request<void>('/auth/logout', { method: 'POST' }),
+  // Changement self-service : l'utilisateur connecté change SON propre mot de passe.
+  // L'ancien est vérifié côté back (401 si incorrect).
+  changerMotDePasse: (
+    ancienMotDePasse: string,
+    nouveauMotDePasse: string,
+    accessToken: string,
+  ) =>
+    request<void>('/auth/changer-mot-de-passe', {
+      method: 'POST',
+      json: { ancienMotDePasse, nouveauMotDePasse },
+      accessToken,
+    }),
 }
 
 /* -------------------------------------------------------------------------- */
@@ -563,6 +575,14 @@ export const utilisateursApi = {
     request<Utilisateur>(`/utilisateurs/${encodeURIComponent(id)}`, {
       method: 'PATCH',
       json: body,
+      accessToken,
+    }),
+  // Réinitialisation ADMIN : impose un nouveau mot de passe à un AUTRE compte sans
+  // connaître l'ancien (dépannage). 204 sans corps.
+  reinitialiserMotDePasse: (id: string, nouveauMotDePasse: string, accessToken: string) =>
+    request<void>(`/utilisateurs/${encodeURIComponent(id)}/mot-de-passe`, {
+      method: 'PATCH',
+      json: { nouveauMotDePasse },
       accessToken,
     }),
 }

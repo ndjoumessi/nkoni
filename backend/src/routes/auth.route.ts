@@ -14,6 +14,8 @@ import type { Role } from '../middlewares/permissions'
 import {
   verifyCredentials,
   findUserById,
+  changerMotDePasse,
+  AncienMotDePasseIncorrectError,
   type AuthenticatedUser,
 } from '../services/auth.service'
 
@@ -49,6 +51,24 @@ interface LoginBody {
   email: string
   password: string
   rememberMe?: boolean
+}
+
+const changerMdpBodySchema = {
+  body: {
+    type: 'object',
+    required: ['ancienMotDePasse', 'nouveauMotDePasse'],
+    additionalProperties: false,
+    properties: {
+      ancienMotDePasse: { type: 'string', minLength: 1, maxLength: 200 },
+      // minLength 8 aligné sur la création de compte (utilisateurs.route.ts).
+      nouveauMotDePasse: { type: 'string', minLength: 8, maxLength: 200 },
+    },
+  },
+} as const
+
+interface ChangerMdpBody {
+  ancienMotDePasse: string
+  nouveauMotDePasse: string
 }
 
 /**
@@ -177,6 +197,31 @@ export const authRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
       membreId: user.membreId,
     }
   })
+
+  // POST /auth/changer-mot-de-passe — l'utilisateur connecté change SON propre mot de
+  // passe. L'ancien est vérifié (argon2) avant d'accepter ; 401 s'il est incorrect.
+  app.post<{ Body: ChangerMdpBody }>(
+    '/changer-mot-de-passe',
+    { schema: changerMdpBodySchema, preHandler: [authenticate] },
+    async (req, reply) => {
+      const sub = req.user.sub
+      if (!sub) {
+        return reply
+          .code(401)
+          .send({ error: 'Unauthorized', message: 'Token invalide.' })
+      }
+      const { ancienMotDePasse, nouveauMotDePasse } = req.body
+      try {
+        await changerMotDePasse(app.prisma, sub, ancienMotDePasse, nouveauMotDePasse)
+        return reply.code(204).send()
+      } catch (err) {
+        if (err instanceof AncienMotDePasseIncorrectError) {
+          return reply.code(401).send({ error: 'Unauthorized', message: err.message })
+        }
+        throw err
+      }
+    },
+  )
 }
 
 export default authRoutes

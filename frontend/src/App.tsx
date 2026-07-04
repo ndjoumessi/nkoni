@@ -9,6 +9,7 @@ import VersementFormPage from '@/pages/VersementFormPage'
 import EquilibrageFormPage from '@/pages/EquilibrageFormPage'
 import BaremePage from '@/pages/BaremePage'
 import UtilisateursPage from '@/pages/UtilisateursPage'
+import MonProfilPage from '@/pages/MonProfilPage'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { AppShell } from '@/components/AppShell'
 
@@ -34,6 +35,7 @@ function App() {
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/bareme" element={<BaremePage />} />
         <Route path="/utilisateurs" element={<UtilisateursPage />} />
+        <Route path="/mon-profil" element={<MonProfilPage />} />
         <Route path="/membres" element={<MembresPage />} />
         <Route path="/membres/nouveau" element={<MembreFormPage />} />
         <Route path="/membres/:id/editer" element={<MembreFormPage />} />

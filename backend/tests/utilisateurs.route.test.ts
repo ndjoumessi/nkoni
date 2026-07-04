@@ -221,4 +221,52 @@ describe('CRUD Utilisateur (ADMIN)', () => {
     })
     expect(res.statusCode).toBe(400)
   })
+
+  /* Réinitialisation du mot de passe par un ADMIN (sans l'ancien) --------------- */
+
+  it('ADMIN réinitialise le mot de passe d’un compte → 204', async () => {
+    const cree = await creer({ email: 'reset@nkoni.cm', password: 'motdepasse1', role: 'PRESIDENT' })
+    const id = cree.json().id
+    const res = await app.inject({
+      method: 'PATCH',
+      url: `/utilisateurs/${id}/mot-de-passe`,
+      headers: auth('ADMIN'),
+      payload: { nouveauMotDePasse: 'nouveaupass1' },
+    })
+    expect(res.statusCode).toBe(204)
+  })
+
+  it('SECRETAIRE ne peut PAS réinitialiser un mot de passe → 403', async () => {
+    const cree = await creer({ email: 'reset2@nkoni.cm', password: 'motdepasse1', role: 'PRESIDENT' })
+    const id = cree.json().id
+    const res = await app.inject({
+      method: 'PATCH',
+      url: `/utilisateurs/${id}/mot-de-passe`,
+      headers: auth('SECRETAIRE'),
+      payload: { nouveauMotDePasse: 'nouveaupass1' },
+    })
+    expect(res.statusCode).toBe(403)
+  })
+
+  it('Réinitialisation sur un compte inconnu → 404', async () => {
+    const res = await app.inject({
+      method: 'PATCH',
+      url: '/utilisateurs/nope/mot-de-passe',
+      headers: auth('ADMIN', 'admin-1'),
+      payload: { nouveauMotDePasse: 'nouveaupass1' },
+    })
+    expect(res.statusCode).toBe(404)
+  })
+
+  it('Nouveau mot de passe trop court → 400 (validation de schéma)', async () => {
+    const cree = await creer({ email: 'reset3@nkoni.cm', password: 'motdepasse1', role: 'PRESIDENT' })
+    const id = cree.json().id
+    const res = await app.inject({
+      method: 'PATCH',
+      url: `/utilisateurs/${id}/mot-de-passe`,
+      headers: auth('ADMIN'),
+      payload: { nouveauMotDePasse: 'court' },
+    })
+    expect(res.statusCode).toBe(400)
+  })
 })

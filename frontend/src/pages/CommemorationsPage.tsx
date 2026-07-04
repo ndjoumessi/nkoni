@@ -4,7 +4,7 @@ import { CalendarRange, Flame, MapPin, Plus, Users } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
 import { commemorationsApi, messageErreur, type Commemoration } from '@/lib/api'
 import { peutVoirCommemorations, peutGererCommemorations } from '@/lib/roles'
-import { formatDateFR } from '@/lib/utils'
+import { formatDateFR, staggerDelay } from '@/lib/utils'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card } from '@/components/ui/Card'
 import { ButtonLink } from '@/components/ui/Button'
@@ -100,8 +100,8 @@ export function CommemorationsPage() {
 
         {!loading && !error && items && items.length > 0 && (
           <ul className="space-y-3">
-            {items.map((c) => (
-              <li key={c.id}>
+            {items.map((c, i) => (
+              <li key={c.id} className="nk-reveal" style={staggerDelay(i)}>
                 <Link
                   to={`/commemorations/${c.id}`}
                   className="group block rounded-2xl border border-hairline bg-surface/60 p-5 transition-colors hover:border-hairline-strong hover:bg-surface-2/60"

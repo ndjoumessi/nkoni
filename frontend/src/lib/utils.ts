@@ -13,3 +13,11 @@ export function formatDateFR(iso: string | null | undefined): string {
     ? '—'
     : d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })
 }
+
+/**
+ * Délai d'entrée décalé pour une liste (guideline §7 `stagger-sequence` : 30–50ms/item).
+ * À combiner avec la classe `nk-reveal`. Plafonné pour éviter d'attendre sur les longues listes.
+ */
+export function staggerDelay(index: number, step = 0.04, cap = 12): { animationDelay: string } {
+  return { animationDelay: `${Math.min(index, cap) * step}s` }
+}

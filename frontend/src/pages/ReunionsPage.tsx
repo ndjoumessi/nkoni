@@ -4,7 +4,7 @@ import { CalendarRange, ListChecks, MapPin, Plus, Gavel } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
 import { reunionsApi, messageErreur, type ReunionListItem } from '@/lib/api'
 import { peutVoirReunions, peutGererReunions } from '@/lib/roles'
-import { formatDateFR } from '@/lib/utils'
+import { formatDateFR, staggerDelay } from '@/lib/utils'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card } from '@/components/ui/Card'
 import { ButtonLink } from '@/components/ui/Button'
@@ -103,8 +103,8 @@ export function ReunionsPage() {
 
         {!loading && !error && reunions && reunions.length > 0 && (
           <ul className="space-y-3">
-            {reunions.map((r) => (
-              <li key={r.id}>
+            {reunions.map((r, i) => (
+              <li key={r.id} className="nk-reveal" style={staggerDelay(i)}>
                 <Link
                   to={`/reunions/${r.id}`}
                   className="group block rounded-2xl border border-hairline bg-surface/60 p-5 transition-colors hover:border-hairline-strong hover:bg-surface-2/60"

@@ -4,7 +4,7 @@ import { CalendarRange, Plus, ShieldAlert, ShieldCheck, Users } from 'lucide-rea
 import { useAuth } from '@/contexts/auth-context'
 import { conflitsApi, messageErreur, type Conflit } from '@/lib/api'
 import { peutVoirConflits, peutDeclarerConflit } from '@/lib/roles'
-import { formatDateFR } from '@/lib/utils'
+import { formatDateFR, staggerDelay } from '@/lib/utils'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card } from '@/components/ui/Card'
 import { ButtonLink } from '@/components/ui/Button'
@@ -100,8 +100,8 @@ export function ConflitsPage() {
 
         {!loading && !error && conflits && conflits.length > 0 && (
           <ul className="space-y-3">
-            {conflits.map((c) => (
-              <li key={c.id}>
+            {conflits.map((c, i) => (
+              <li key={c.id} className="nk-reveal" style={staggerDelay(i)}>
                 <Link
                   to={`/conflits/${c.id}`}
                   className="group block rounded-2xl border border-hairline bg-surface/60 p-5 transition-colors hover:border-hairline-strong hover:bg-surface-2/60"

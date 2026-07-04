@@ -9,6 +9,7 @@ import {
   type FonctionListItem,
 } from '@/lib/api'
 import { peutVoirFonctions, peutGererFonctions } from '@/lib/roles'
+import { staggerDelay } from '@/lib/utils'
 import { useToast } from '@/components/ui/Toast'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card } from '@/components/ui/Card'
@@ -155,10 +156,10 @@ export function FonctionsPage() {
 
         {!loading && !error && fonctions && fonctions.length > 0 && (
           <ul className="space-y-3">
-            {fonctions.map((f) => {
+            {fonctions.map((f, i) => {
               const titulaire = f.affectations[0]?.membre
               return (
-                <li key={f.id}>
+                <li key={f.id} className="nk-reveal" style={staggerDelay(i)}>
                   <Link
                     to={`/fonctions/${f.id}`}
                     className="group block rounded-2xl border border-hairline bg-surface/60 p-5 transition-colors hover:border-hairline-strong hover:bg-surface-2/60"

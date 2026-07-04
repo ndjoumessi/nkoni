@@ -85,6 +85,7 @@ model Membre {
   contributions       Contribution[]
   affectationsFonction AffectationFonction[] // V1.1 — nominations (actives + passées)
   conflitsConcernes   Conflit[]         @relation("ConflitMembresConcernes") // V2 §4.4
+  commemorationsConcernees Commemoration[] @relation("CommemorationMembresConcernes") // V2
   createdAt           DateTime          @default(now())
   updatedAt           DateTime          @updatedAt
 }
@@ -322,9 +323,38 @@ model Conflit {
   @@index([responsableSuiviId])
 }
 
+// ---------------------------------------------------------------------------
+// V2 — Commémorations / cérémonies. Domaine du GUIDE_RELIGIEUX (+ ADMIN) : premier
+// module où ce rôle obtient des droits (CRUD). Le bureau (PRESIDENT/SECRETAIRE) peut
+// créer/modifier (organisation) ; les autres rôles sont en lecture seule.
+// Une commémoration peut concerner 0, 1 ou plusieurs membres (défunts honorés).
+// ---------------------------------------------------------------------------
+
+enum TypeCommemoration {
+  COMMEMORATION
+  CEREMONIE
+}
+
+enum StatutCommemoration {
+  PLANIFIEE
+  TENUE
+  ANNULEE
+}
+
 model Commemoration {
-  id        String   @id @default(uuid())
-  createdAt DateTime @default(now())
+  id               String              @id @default(uuid())
+  titre            String
+  type             TypeCommemoration   @default(COMMEMORATION)
+  date             DateTime
+  lieu             String?
+  description      String?
+  statut           StatutCommemoration @default(PLANIFIEE)
+  membresConcernes Membre[]            @relation("CommemorationMembresConcernes")
+  notes            String?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  @@index([date])
 }
 
 model Document {

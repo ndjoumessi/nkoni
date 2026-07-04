@@ -38,6 +38,7 @@ export type Entite =
   | 'Fonction'
   | 'Affectation'
   | 'Conflit'
+  | 'Commemoration'
 
 export type Role =
   | 'ADMIN'
@@ -196,6 +197,19 @@ export const PERMISSIONS: Record<Entite, Partial<Record<Role, Action[]>>> = {
     PRESIDENT: ['create'],
     SECRETAIRE: ['create'],
     // TRESORIERE / COMMISSAIRE_COMPTES / MEMBRE_SIMPLE / GUIDE_RELIGIEUX : pas de déclaration.
+  },
+  // V2 — Commémorations / cérémonies. DOMAINE DU GUIDE_RELIGIEUX (§0/§3.2) : premier
+  // module où ce rôle a des droits. GUIDE_RELIGIEUX + ADMIN : CRUD complet ; le bureau
+  // (PRESIDENT/SECRETAIRE) aide à l'organisation → Créer/Modifier (pas de delete) ;
+  // TRESORIERE/COMMISSAIRE/MEMBRE_SIMPLE : lecture seule.
+  Commemoration: {
+    ADMIN: CRUD,
+    GUIDE_RELIGIEUX: CRUD,
+    PRESIDENT: ['create', 'read', 'update'],
+    SECRETAIRE: ['create', 'read', 'update'],
+    TRESORIERE: READ,
+    COMMISSAIRE_COMPTES: READ,
+    MEMBRE_SIMPLE: READ,
   },
 }
 

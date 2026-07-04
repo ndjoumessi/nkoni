@@ -66,8 +66,10 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
 
 // Démarrage du serveur uniquement si ce fichier est exécuté directement.
 if (require.main === module) {
+  // Railway (et la plupart des PaaS) injectent le port d'écoute via $PORT.
+  const port = Number(process.env['PORT']) || 3000
   buildApp()
-    .then((app) => app.listen({ port: 3000, host: '0.0.0.0' }))
+    .then((app) => app.listen({ port, host: '0.0.0.0' }))
     .then((address) => {
       if (!isProd) console.log(`NKONI backend prêt sur ${address}`)
     })

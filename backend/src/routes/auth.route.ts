@@ -46,7 +46,10 @@ function refreshCookieOptions() {
   return {
     httpOnly: true,
     secure: isProd, // en dev (http://localhost) Secure=false pour que le cookie soit posé
-    sameSite: 'lax' as const, // localhost:5173 → :3000 = same-site (le port n'affecte pas SameSite)
+    // En prod, front (Vercel) et back (Railway) sont sur des domaines différents → le cookie
+    // refresh doit être SameSite=None; Secure pour circuler en cross-site. En dev, Lax suffit
+    // (localhost same-site) et évite d'exiger Secure sur http.
+    sameSite: (isProd ? 'none' : 'lax') as 'none' | 'lax',
     path: '/auth', // envoyé à /auth/refresh et /auth/logout uniquement
     maxAge: REFRESH_COOKIE_MAX_AGE,
   }

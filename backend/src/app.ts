@@ -6,6 +6,7 @@ import { prisma as defaultPrisma, type PrismaClient } from './lib/prisma'
 import { registerJwt } from './plugins/jwt'
 import { authRoutes } from './routes/auth.route'
 import { membresRoutes } from './routes/membres.route'
+import { branchesRoutes } from './routes/branches.route'
 
 // Décoration de l'instance Fastify avec le client Prisma (injectable pour les tests).
 declare module 'fastify' {
@@ -42,6 +43,7 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
 
   await app.register(authRoutes, { prefix: '/auth' })
   await app.register(membresRoutes)
+  await app.register(branchesRoutes)
 
   return app
 }

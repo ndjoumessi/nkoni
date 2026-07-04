@@ -14,6 +14,10 @@ const TEST_SECRET = 'test-secret-nkoni'
 async function buildTestApp(): Promise<FastifyInstance> {
   const app = Fastify()
   await app.register(fastifyJwt, { secret: TEST_SECRET })
+  // La route /membres interroge Prisma : on décore un mock minimal (liste vide),
+  // suffisant pour tester la chaîne auth → permission sans base de données.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  app.decorate('prisma', { membre: { findMany: async () => [] } } as any)
   await app.register(membresRoutes)
   await app.ready()
   return app

@@ -428,3 +428,122 @@ export const recusApi = {
       accessToken,
     }),
 }
+
+/* -------------------------------------------------------------------------- */
+/* Équilibrage entre années (§4.3)                                           */
+/* -------------------------------------------------------------------------- */
+
+/** Une ligne de simulation : ce que deviendrait une année (aucune écriture). */
+export interface SimulationLigne {
+  annee: number
+  montantAvant: number
+  montantPropose: number
+}
+
+/** Réponse de POST /equilibrages/simuler — preview pure. */
+export interface SimulationEquilibrage {
+  membreId: string
+  anneeDebut: number
+  anneeFin: number
+  nombreAnnees: number
+  /** Somme conservée : la répartition ajustée doit rester égale à cette valeur. */
+  totalPeriode: number
+  repartition: SimulationLigne[]
+}
+
+/** Détail avant/après d'un équilibrage appliqué (trace d'audit). */
+export interface EquilibrageDetail {
+  id: string
+  annee: number
+  montantAvant: number
+  montantApres: number
+}
+
+/** Équilibrage appliqué, tel que renvoyé par GET /equilibrages. */
+export interface Equilibrage {
+  id: string
+  membreId: string
+  anneeDebut: number
+  anneeFin: number
+  totalPeriode: number
+  auteurId: string
+  dateApplication: string
+  details: EquilibrageDetail[]
+}
+
+export interface AppliquerEquilibrageInput {
+  membreId: string
+  anneeDebut: number
+  anneeFin: number
+  /** Montants ajustés (ordre croissant par année) ; omis = répartition proposée. */
+  montantsAjustes?: number[]
+}
+
+export const equilibragesApi = {
+  simuler: (
+    body: { membreId: string; anneeDebut: number; anneeFin: number },
+    accessToken: string,
+  ) =>
+    request<SimulationEquilibrage>('/equilibrages/simuler', {
+      method: 'POST',
+      json: body,
+      accessToken,
+    }),
+  appliquer: (body: AppliquerEquilibrageInput, accessToken: string) =>
+    request<{ equilibrage: Equilibrage; totalPeriode: number; nombreAnnees: number }>(
+      '/equilibrages',
+      { method: 'POST', json: body, accessToken },
+    ),
+  listByMembre: (membreId: string, accessToken: string, signal?: AbortSignal) =>
+    request<Equilibrage[]>(`/equilibrages?membreId=${encodeURIComponent(membreId)}`, {
+      accessToken,
+      signal,
+    }),
+}
+
+/* -------------------------------------------------------------------------- */
+/* Utilisateurs — gestion des comptes (§4.5, ADMIN uniquement)               */
+/* -------------------------------------------------------------------------- */
+
+/** Membre rattaché à un compte (le cas échéant). */
+export interface UtilisateurMembreLie {
+  id: string
+  nom: string
+  prenom: string
+}
+
+/** Compte utilisateur (jamais de passwordHash exposé par l'API). */
+export interface Utilisateur {
+  id: string
+  email: string
+  role: string
+  actif: boolean
+  createdAt: string
+  updatedAt: string
+  membre: UtilisateurMembreLie | null
+}
+
+export interface UtilisateurCreateInput {
+  email: string
+  password: string
+  role: string
+  membreId?: string
+}
+
+export interface UtilisateurUpdateInput {
+  role?: string
+  actif?: boolean
+}
+
+export const utilisateursApi = {
+  list: (accessToken: string, signal?: AbortSignal) =>
+    request<Utilisateur[]>('/utilisateurs', { accessToken, signal }),
+  create: (body: UtilisateurCreateInput, accessToken: string) =>
+    request<Utilisateur>('/utilisateurs', { method: 'POST', json: body, accessToken }),
+  update: (id: string, body: UtilisateurUpdateInput, accessToken: string) =>
+    request<Utilisateur>(`/utilisateurs/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      json: body,
+      accessToken,
+    }),
+}

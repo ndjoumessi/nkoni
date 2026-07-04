@@ -5,12 +5,13 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
+  ShieldUser,
   Users,
   X,
   type LucideIcon,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
-import { estMembreSimple, peutVoirBareme } from '@/lib/roles'
+import { estMembreSimple, peutVoirBareme, peutGererUtilisateurs } from '@/lib/roles'
 import { cn } from '@/lib/utils'
 import { NkoniMark } from '@/components/ui/NkoniMark'
 
@@ -41,6 +42,9 @@ function useNavItems(): NavItem[] {
   ]
   if (peutVoirBareme(user?.role)) {
     items.push({ to: '/bareme', label: 'Barème annuel', icon: CalendarRange })
+  }
+  if (peutGererUtilisateurs(user?.role)) {
+    items.push({ to: '/utilisateurs', label: 'Utilisateurs', icon: ShieldUser })
   }
   return items
 }

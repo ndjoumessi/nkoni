@@ -1,18 +1,20 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ChevronDown, ChevronRight, Pencil, Plus } from 'lucide-react'
+import { ChevronDown, ChevronRight, Pencil, Plus, Scale } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
 import {
   membresApi,
   branchesApi,
   contributionsApi,
+  equilibragesApi,
   ApiError,
   type Membre,
   type StatutCumule,
   type Contribution,
   type Branche,
+  type Equilibrage,
 } from '@/lib/api'
-import { peutGererMembres, peutSaisirVersement } from '@/lib/roles'
+import { peutGererMembres, peutSaisirVersement, peutEquilibrer } from '@/lib/roles'
 import { StatutCotisationBadge, StatutMembreBadge } from '@/components/membres/StatutBadges'
 import { VersementsList } from '@/components/VersementsList'
 import { formatFcfa } from '@/lib/format'
@@ -49,6 +51,7 @@ export function MembreDetailPage() {
   const [statut, setStatut] = useState<StatutCumule | null>(null)
   const [contributions, setContributions] = useState<Contribution[]>([])
   const [financierAccessible, setFinancierAccessible] = useState(false)
+  const [equilibrages, setEquilibrages] = useState<Equilibrage[] | null>(null)
   const [branches, setBranches] = useState<Branche[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -99,6 +102,15 @@ export function MembreDetailPage() {
         if (active) setBranches(b)
       } catch {
         /* pas d'accès aux branches → nom non résolu */
+      }
+
+      // Équilibrages appliqués : best-effort (lecture ADMIN/PRESIDENT/TRESORIERE/COMMISSAIRE).
+      // Le SECRETAIRE / MEMBRE_SIMPLE reçoit 403 → section masquée.
+      try {
+        const eq = await equilibragesApi.listByMembre(id, accessToken, signal)
+        if (active) setEquilibrages(eq)
+      } catch {
+        /* pas d'accès aux équilibrages → section masquée */
       }
     })()
     return () => {
@@ -153,11 +165,22 @@ export function MembreDetailPage() {
           </span>
         }
         actions={
-          peutGererMembres(user?.role) && (
-            <ButtonLink to={`/membres/${membre.id}/editer`} variant="outline" icon={Pencil}>
-              Modifier
-            </ButtonLink>
-          )
+          <>
+            {peutEquilibrer(user?.role) && (
+              <ButtonLink
+                to={`/membres/${membre.id}/equilibrage`}
+                variant="outline"
+                icon={Scale}
+              >
+                Équilibrer les cotisations
+              </ButtonLink>
+            )}
+            {peutGererMembres(user?.role) && (
+              <ButtonLink to={`/membres/${membre.id}/editer`} variant="outline" icon={Pencil}>
+                Modifier
+              </ButtonLink>
+            )}
+          </>
         }
       />
 
@@ -263,6 +286,34 @@ export function MembreDetailPage() {
               })}
             </ul>
           )}
+        </Card>
+      )}
+
+      {/* Équilibrages appliqués — lecture seule (ADMIN/PRESIDENT/TRESORIERE/COMMISSAIRE). */}
+      {equilibrages && equilibrages.length > 0 && (
+        <Card className="nk-reveal nk-d5 mt-4 p-6">
+          <Overline>Équilibrages appliqués</Overline>
+          <div className="mt-4 overflow-hidden rounded-xl border border-hairline">
+            <div className="grid grid-cols-[1fr_1.3fr_1fr] gap-3 border-b border-hairline bg-surface-2/40 px-4 py-2.5 text-[0.7rem] font-medium uppercase tracking-[0.12em] text-faint">
+              <span>Plage</span>
+              <span>Total période</span>
+              <span>Appliqué le</span>
+            </div>
+            <ul className="divide-y divide-hairline">
+              {equilibrages.map((eq) => (
+                <li
+                  key={eq.id}
+                  className="grid grid-cols-[1fr_1.3fr_1fr] items-center gap-3 px-4 py-3 text-sm"
+                >
+                  <span className="num font-medium text-foreground">
+                    {eq.anneeDebut}–{eq.anneeFin}
+                  </span>
+                  <span className="num text-muted-foreground">{formatFcfa(eq.totalPeriode)}</span>
+                  <span className="num text-muted-foreground">{formatDate(eq.dateApplication)}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
         </Card>
       )}
     </div>

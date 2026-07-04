@@ -6,7 +6,9 @@ import MembresPage from '@/pages/MembresPage'
 import MembreFormPage from '@/pages/MembreFormPage'
 import MembreDetailPage from '@/pages/MembreDetailPage'
 import VersementFormPage from '@/pages/VersementFormPage'
+import EquilibrageFormPage from '@/pages/EquilibrageFormPage'
 import BaremePage from '@/pages/BaremePage'
+import UtilisateursPage from '@/pages/UtilisateursPage'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { AppShell } from '@/components/AppShell'
 
@@ -31,10 +33,12 @@ function App() {
       <Route element={<ProtectedLayout />}>
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/bareme" element={<BaremePage />} />
+        <Route path="/utilisateurs" element={<UtilisateursPage />} />
         <Route path="/membres" element={<MembresPage />} />
         <Route path="/membres/nouveau" element={<MembreFormPage />} />
         <Route path="/membres/:id/editer" element={<MembreFormPage />} />
         <Route path="/membres/:id/versements/nouveau" element={<VersementFormPage />} />
+        <Route path="/membres/:id/equilibrage" element={<EquilibrageFormPage />} />
         <Route path="/membres/:id" element={<MembreDetailPage />} />
       </Route>
     </Routes>

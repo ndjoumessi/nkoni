@@ -1,16 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import {
-  AlertTriangle,
-  ArrowDown,
-  ArrowUp,
-  CheckCircle2,
-  ChevronsUpDown,
-  Loader2,
-  Plus,
-  Search,
-  Users,
-} from 'lucide-react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { AlertTriangle, CheckCircle2, Loader2, Plus, Search, Users } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
 import {
   membresApi,
@@ -24,50 +14,15 @@ import { StatutCotisationBadge, StatutMembreBadge } from '@/components/membres/S
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card } from '@/components/ui/Card'
 import { StatCard } from '@/components/ui/StatCard'
+import { DataTable, type Column } from '@/components/ui/DataTable'
 import { ButtonLink, Button } from '@/components/ui/Button'
 import { Input, Select } from '@/components/ui/Field'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { RowsSkeleton } from '@/components/ui/Skeleton'
-import { cn } from '@/lib/utils'
 
 type ColonneTri = 'nom' | 'branche' | 'statut' | 'cotisation' | 'adhesion'
 const ORDRE_STATUT: Record<string, number> = { ACTIF: 0, INACTIF: 1, DECEDE: 2 }
 const ORDRE_COTISATION: Record<string, number> = { A_JOUR: 0, PARTIEL: 1, NON_A_JOUR: 2 }
-
-/** En-tête de colonne triable (grille) — indicateur + libellé d'accessibilité. */
-function SortHeader({
-  col,
-  label,
-  actif,
-  dir,
-  onSort,
-}: {
-  col: ColonneTri
-  label: string
-  actif: ColonneTri
-  dir: 'asc' | 'desc'
-  onSort: (c: ColonneTri) => void
-}) {
-  const estActif = actif === col
-  const Icon = !estActif ? ChevronsUpDown : dir === 'asc' ? ArrowUp : ArrowDown
-  return (
-    <button
-      type="button"
-      onClick={() => onSort(col)}
-      aria-label={`Trier par ${label}${estActif ? (dir === 'asc' ? ', croissant' : ', décroissant') : ''}`}
-      className={cn(
-        'group inline-flex items-center gap-1 uppercase tracking-[0.12em] transition-colors hover:text-foreground',
-        estActif && 'text-brass',
-      )}
-    >
-      {label}
-      <Icon
-        className={cn('h-3 w-3', estActif ? 'opacity-100' : 'opacity-30 group-hover:opacity-70')}
-        aria-hidden="true"
-      />
-    </button>
-  )
-}
 
 const STATUTS: { value: StatutMembre; label: string }[] = [
   { value: 'ACTIF', label: 'Actifs' },
@@ -201,6 +156,44 @@ export function MembresPage() {
     )
   }
 
+  const colonnes: Column<MembreStatut>[] = [
+    {
+      key: 'nom',
+      header: 'Membre',
+      sortable: true,
+      cell: (m) => (
+        <span className="font-medium text-foreground">
+          {m.nom} <span className="text-muted-foreground">{m.prenom}</span>
+        </span>
+      ),
+    },
+    {
+      key: 'branche',
+      header: 'Branche',
+      sortable: true,
+      cell: (m) => <span className="text-muted-foreground">{m.branche?.nom ?? '—'}</span>,
+    },
+    {
+      key: 'statut',
+      header: 'Statut',
+      sortable: true,
+      cell: (m) => <StatutMembreBadge statut={m.statut} size="sm" />,
+    },
+    {
+      key: 'cotisation',
+      header: 'Cotisation',
+      sortable: true,
+      cell: (m) => <StatutCotisationBadge statut={m.statutCotisation} size="sm" />,
+    },
+    {
+      key: 'adhesion',
+      header: 'Adhésion',
+      sortable: true,
+      numeric: true,
+      cell: (m) => m.anneeAdhesion,
+    },
+  ]
+
   const resetFiltres = () => {
     setRecherche('')
     setFiltreBranche('')
@@ -331,36 +324,17 @@ export function MembresPage() {
 
         {!loading && !error && membres && membres.length > 0 && (
           <Card className="overflow-hidden p-0">
-            <div className="hidden grid-cols-[2fr_1.5fr_1fr_1fr_0.7fr] gap-4 border-b border-hairline bg-surface/70 px-5 py-2.5 text-[0.7rem] font-medium uppercase tracking-[0.12em] text-faint md:grid">
-              <SortHeader col="nom" label="Membre" actif={triCol} dir={triDir} onSort={trierPar} />
-              <SortHeader col="branche" label="Branche" actif={triCol} dir={triDir} onSort={trierPar} />
-              <SortHeader col="statut" label="Statut" actif={triCol} dir={triDir} onSort={trierPar} />
-              <SortHeader col="cotisation" label="Cotisation" actif={triCol} dir={triDir} onSort={trierPar} />
-              <SortHeader col="adhesion" label="Adhésion" actif={triCol} dir={triDir} onSort={trierPar} />
-            </div>
-            <ul className="divide-y divide-hairline">
-              {triees.map((m) => (
-                <li key={m.id}>
-                  <Link
-                    to={`/membres/${m.id}`}
-                    className="grid grid-cols-2 gap-2 px-5 py-4 transition-colors hover:bg-surface-2/60 md:grid-cols-[2fr_1.5fr_1fr_1fr_0.7fr] md:items-center md:gap-4"
-                  >
-                    <span className="font-medium text-foreground">
-                      {m.nom} <span className="text-muted-foreground">{m.prenom}</span>
-                    </span>
-                    <span className="text-sm text-muted-foreground">{m.branche?.nom ?? '—'}</span>
-                    <span>
-                      <StatutMembreBadge statut={m.statut} size="sm" />
-                    </span>
-                    <span>
-                      <StatutCotisationBadge statut={m.statutCotisation} size="sm" />
-                    </span>
-                    <span className="num text-sm text-muted-foreground">{m.anneeAdhesion}</span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-            {filtres.length === 0 && (
+            {triees.length > 0 ? (
+              <DataTable
+                caption="Liste des membres, triable par colonne"
+                columns={colonnes}
+                rows={triees}
+                rowKey={(m) => m.id}
+                rowHref={(m) => `/membres/${m.id}`}
+                sort={{ col: triCol, dir: triDir }}
+                onSort={(c) => trierPar(c as ColonneTri)}
+              />
+            ) : (
               <div className="flex flex-col items-center gap-3 px-5 py-12 text-center">
                 <p className="text-sm text-muted-foreground">
                   Aucun membre ne correspond aux filtres.

@@ -1,13 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
-import {
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  ExternalLink,
-  RotateCcw,
-  ScrollText,
-} from 'lucide-react'
+import { ChevronLeft, ChevronRight, ExternalLink, RotateCcw, ScrollText } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
 import {
   auditLogApi,
@@ -24,6 +17,7 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { Card } from '@/components/ui/Card'
 import { Badge, type BadgeProps } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { DataTable, type Column } from '@/components/ui/DataTable'
 import { Field, Select, Input } from '@/components/ui/Field'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { RowsSkeleton } from '@/components/ui/Skeleton'
@@ -137,7 +131,6 @@ export function AuditLogPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [utilisateurs, setUtilisateurs] = useState<Utilisateur[]>([])
-  const [ouvertId, setOuvertId] = useState<string | null>(null)
 
   // Liste des comptes pour le filtre « acteur » (ADMIN a le droit).
   useEffect(() => {
@@ -192,7 +185,6 @@ export function AuditLogPage() {
   const filtrer = (setter: (v: string) => void) => (v: string) => {
     setter(v)
     setPage(1)
-    setOuvertId(null)
   }
   const reinitialiser = () => {
     setEntiteType('')
@@ -200,13 +192,63 @@ export function AuditLogPage() {
     setDateDebut('')
     setDateFin('')
     setPage(1)
-    setOuvertId(null)
   }
 
   const total = data?.total ?? 0
   const limite = data?.limite ?? 50
   const totalPages = Math.max(1, Math.ceil(total / limite))
   const filtresActifs = Boolean(entiteType || acteurId || dateDebut || dateFin)
+
+  const colonnes: Column<AuditEntry>[] = [
+    {
+      key: 'date',
+      header: 'Date',
+      width: '11.5rem',
+      cell: (e) => (
+        <span className="whitespace-nowrap text-muted-foreground">{formatDateHeure(e.dateAction)}</span>
+      ),
+    },
+    {
+      key: 'action',
+      header: 'Action',
+      cell: (e) => (
+        <Badge tone={ACTION_TONE[e.action]} size="sm">
+          {ACTION_LABEL[e.action]}
+        </Badge>
+      ),
+    },
+    {
+      key: 'entite',
+      header: 'Entité',
+      cell: (e) => {
+        const lien = lienEntite(e.entiteType, e.entiteId)
+        return (
+          <span className="inline-flex items-center gap-1.5">
+            <span className="font-medium text-foreground">
+              {ENTITE_LABELS[e.entiteType] ?? e.entiteType}
+            </span>
+            {lien ? (
+              <Link
+                to={lien}
+                className="inline-flex items-center gap-1 font-mono text-xs text-brass hover:underline"
+              >
+                {e.entiteId.slice(0, 8)}…
+                <ExternalLink className="h-3 w-3" aria-hidden="true" />
+              </Link>
+            ) : (
+              <span className="font-mono text-xs text-faint">{e.entiteId.slice(0, 8)}…</span>
+            )}
+          </span>
+        )
+      },
+    },
+    {
+      key: 'acteur',
+      header: 'Acteur',
+      cell: (e) =>
+        e.acteur?.email ?? <span className="italic text-faint">système</span>,
+    },
+  ]
 
   return (
     <>
@@ -281,56 +323,13 @@ export function AuditLogPage() {
 
         {!loading && !error && data && data.donnees.length > 0 && (
           <Card className="overflow-hidden p-0">
-            <ul className="divide-y divide-hairline">
-              {data.donnees.map((e) => {
-                const lien = lienEntite(e.entiteType, e.entiteId)
-                const ouvert = ouvertId === e.id
-                return (
-                  <li key={e.id} className="px-5 py-3.5">
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                      <span className="w-40 shrink-0 text-sm text-muted-foreground">
-                        {formatDateHeure(e.dateAction)}
-                      </span>
-                      <Badge tone={ACTION_TONE[e.action]} size="sm">
-                        {ACTION_LABEL[e.action]}
-                      </Badge>
-                      <span className="inline-flex items-center gap-1.5 text-sm">
-                        <span className="font-medium text-foreground">
-                          {ENTITE_LABELS[e.entiteType] ?? e.entiteType}
-                        </span>
-                        {lien ? (
-                          <Link
-                            to={lien}
-                            className="inline-flex items-center gap-1 font-mono text-xs text-brass hover:underline"
-                          >
-                            {e.entiteId.slice(0, 8)}…
-                            <ExternalLink className="h-3 w-3" aria-hidden="true" />
-                          </Link>
-                        ) : (
-                          <span className="font-mono text-xs text-faint">{e.entiteId.slice(0, 8)}…</span>
-                        )}
-                      </span>
-                      <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">
-                        {e.acteur?.email ?? <span className="text-faint italic">système</span>}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => setOuvertId(ouvert ? null : e.id)}
-                        className="inline-flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-xs text-faint transition-colors hover:text-foreground"
-                        aria-expanded={ouvert}
-                      >
-                        Détails
-                        <ChevronDown
-                          className={cn('h-3.5 w-3.5 transition-transform', ouvert && 'rotate-180')}
-                          aria-hidden="true"
-                        />
-                      </button>
-                    </div>
-                    {ouvert && <DiffDetails entry={e} />}
-                  </li>
-                )
-              })}
-            </ul>
+            <DataTable
+              caption="Journal d'audit (déplier une ligne pour le détail avant/après)"
+              columns={colonnes}
+              rows={data.donnees}
+              rowKey={(e) => e.id}
+              expandable={(e) => <DiffDetails entry={e} />}
+            />
 
             {/* Pagination */}
             <div className="flex items-center justify-between border-t border-hairline px-5 py-3">
@@ -343,10 +342,7 @@ export function AuditLogPage() {
                   variant="ghost"
                   icon={ChevronLeft}
                   disabled={data.page <= 1}
-                  onClick={() => {
-                    setPage((p) => Math.max(1, p - 1))
-                    setOuvertId(null)
-                  }}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
                 >
                   Précédent
                 </Button>
@@ -354,10 +350,7 @@ export function AuditLogPage() {
                   type="button"
                   variant="ghost"
                   disabled={data.page >= totalPages}
-                  onClick={() => {
-                    setPage((p) => p + 1)
-                    setOuvertId(null)
-                  }}
+                  onClick={() => setPage((p) => p + 1)}
                 >
                   Suivant
                   <ChevronRight className="h-4 w-4" aria-hidden="true" />

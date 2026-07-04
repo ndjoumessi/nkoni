@@ -12,6 +12,7 @@ import { contributionsRoutes } from './routes/contributions.route'
 import { versementsRoutes } from './routes/versements.route'
 import { equilibragesRoutes } from './routes/equilibrages.route'
 import { recusRoutes } from './routes/recus.route'
+import { dashboardRoutes } from './routes/dashboard.route'
 
 // Décoration de l'instance Fastify avec le client Prisma (injectable pour les tests).
 declare module 'fastify' {
@@ -54,6 +55,7 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   await app.register(versementsRoutes)
   await app.register(equilibragesRoutes)
   await app.register(recusRoutes)
+  await app.register(dashboardRoutes)
 
   return app
 }

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   AlertTriangle,
   Coins,
@@ -9,6 +9,7 @@ import {
   Users,
   Wallet,
 } from 'lucide-react'
+import { estMembreSimple } from '@/lib/roles'
 import { useAuth } from '@/contexts/auth-context'
 import { useDashboard } from '@/hooks/useDashboard'
 import { StatCard } from '@/components/dashboard/StatCard'
@@ -205,15 +206,24 @@ export function DashboardPage() {
               {data && ` · ${VUE_LABEL[data.vue]}`}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={handleLogout}
-            disabled={signingOut}
-            className="inline-flex items-center justify-center gap-2 rounded-full border border-white/20 bg-white/5 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 disabled:opacity-60"
-          >
-            <LogOut className="h-4 w-4" aria-hidden="true" />
-            {signingOut ? 'Déconnexion…' : 'Se déconnecter'}
-          </button>
+          <div className="flex items-center gap-3">
+            <Link
+              to="/membres"
+              className="inline-flex items-center justify-center gap-2 rounded-full border border-white/20 bg-white/5 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+            >
+              <Users className="h-4 w-4" aria-hidden="true" />
+              {estMembreSimple(user?.role) ? 'Ma fiche' : 'Membres'}
+            </Link>
+            <button
+              type="button"
+              onClick={handleLogout}
+              disabled={signingOut}
+              className="inline-flex items-center justify-center gap-2 rounded-full border border-white/20 bg-white/5 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 disabled:opacity-60"
+            >
+              <LogOut className="h-4 w-4" aria-hidden="true" />
+              {signingOut ? 'Déconnexion…' : 'Se déconnecter'}
+            </button>
+          </div>
         </header>
 
         <div className="mt-8">

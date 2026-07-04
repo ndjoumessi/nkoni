@@ -224,3 +224,110 @@ export async function downloadExportContributions(
   a.remove()
   URL.revokeObjectURL(url)
 }
+
+/* -------------------------------------------------------------------------- */
+/* Membres, Branches, Contributions (§5.2 / §4.1)                            */
+/* -------------------------------------------------------------------------- */
+
+export type StatutMembre = 'ACTIF' | 'INACTIF' | 'DECEDE'
+
+export interface Branche {
+  id: string
+  nom: string
+  description?: string | null
+}
+
+/** Ligne de la liste enrichie GET /membres/statuts (statut cotisation calculé en masse). */
+export interface MembreStatut {
+  id: string
+  nom: string
+  prenom: string
+  sexe: string | null
+  statut: StatutMembre
+  telephone: string | null
+  brancheId: string | null
+  branche: { id: string; nom: string } | null
+  anneeAdhesion: number
+  anneeFinContribution: number | null
+  statutCotisation: StatutContribution
+  totalAttenduCumule: number
+  totalValoriseCumule: number
+}
+
+/** Fiche complète GET /membres/:id. */
+export interface Membre {
+  id: string
+  nom: string
+  prenom: string
+  sexe: string | null
+  dateNaissance: string | null
+  fonctionSociale: string | null
+  statut: StatutMembre
+  telephone: string | null
+  adresse: string | null
+  brancheId: string | null
+  chefSousFamilleId: string | null
+  anneeAdhesion: number
+  anneeFinContribution: number | null
+  dateDeces: string | null
+  compteUtilisateurId: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+/** Corps de création/mise à jour d'un membre (champs optionnels omis si vides). */
+export interface MembreInput {
+  nom: string
+  prenom: string
+  anneeAdhesion: number
+  sexe?: string
+  dateNaissance?: string
+  fonctionSociale?: string
+  statut?: StatutMembre
+  telephone?: string
+  adresse?: string
+  brancheId?: string
+  chefSousFamilleId?: string
+  anneeFinContribution?: number
+}
+
+export interface StatutCumule {
+  totalAttenduCumule: number
+  totalValoriseCumule: number
+  statut: StatutContribution
+}
+
+export interface Contribution {
+  id: string
+  membreId: string
+  annee: number
+  montantAttendu: number
+  montantVerse: number
+  montantValorise: number
+}
+
+export const membresApi = {
+  listStatuts: (accessToken: string, signal?: AbortSignal) =>
+    request<MembreStatut[]>('/membres/statuts', { accessToken, signal }),
+  get: (id: string, accessToken: string, signal?: AbortSignal) =>
+    request<Membre>(`/membres/${id}`, { accessToken, signal }),
+  statut: (id: string, accessToken: string, signal?: AbortSignal) =>
+    request<StatutCumule>(`/membres/${id}/statut`, { accessToken, signal }),
+  create: (body: MembreInput, accessToken: string) =>
+    request<Membre>('/membres', { method: 'POST', json: body, accessToken }),
+  update: (id: string, body: Partial<MembreInput>, accessToken: string) =>
+    request<Membre>(`/membres/${id}`, { method: 'PATCH', json: body, accessToken }),
+}
+
+export const branchesApi = {
+  list: (accessToken: string, signal?: AbortSignal) =>
+    request<Branche[]>('/branches', { accessToken, signal }),
+}
+
+export const contributionsApi = {
+  listByMembre: (membreId: string, accessToken: string, signal?: AbortSignal) =>
+    request<Contribution[]>(`/contributions?membreId=${encodeURIComponent(membreId)}`, {
+      accessToken,
+      signal,
+    }),
+}

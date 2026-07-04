@@ -35,12 +35,14 @@
     // Recommended Options
     "strict": true,
     "jsx": "react-jsx",
-    "verbatimModuleSyntax": true,
+    "verbatimModuleSyntax": false,
     "isolatedModules": true,
     "noUncheckedSideEffectImports": true,
     "moduleDetection": "force",
     "skipLibCheck": true,
 
     "esModuleInterop": true,
-  }
+  },
+  // Scope le build au code source : exclut tests/ et prisma.config.ts (hors rootDir).
+  "include": ["src/**/*"]
 }

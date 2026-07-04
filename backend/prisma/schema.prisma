@@ -11,3 +11,212 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+enum Role {
+  ADMIN
+  PRESIDENT
+  SECRETAIRE
+  TRESORIERE
+  COMMISSAIRE_COMPTES
+  GUIDE_RELIGIEUX
+  MEMBRE_SIMPLE
+}
+
+enum StatutMembre {
+  ACTIF
+  INACTIF
+  DECEDE
+}
+
+enum ModeVersement {
+  ESPECES
+  TIERS
+  AUTRE
+}
+
+enum StatutContribution {
+  A_JOUR
+  PARTIEL
+  NON_A_JOUR
+}
+
+model Utilisateur {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  role         Role
+  actif        Boolean  @default(true)
+  membre       Membre?  @relation("CompteMembre")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model BrancheFamiliale {
+  id          String   @id @default(uuid())
+  nom         String
+  description String?
+  membres     Membre[]
+  createdAt   DateTime @default(now())
+}
+
+model Membre {
+  id                  String            @id @default(uuid())
+  nom                 String
+  prenom              String
+  sexe                String?
+  dateNaissance       DateTime?
+  fonctionSociale     String?
+  statut              StatutMembre      @default(ACTIF)
+  telephone           String?
+  adresse             String?
+  brancheId           String?
+  branche             BrancheFamiliale? @relation(fields: [brancheId], references: [id])
+  chefSousFamilleId   String?
+  chefSousFamille     Membre?           @relation("ChefSousFamille", fields: [chefSousFamilleId], references: [id])
+  membresRattaches    Membre[]          @relation("ChefSousFamille")
+  anneeAdhesion       Int               // année à partir de laquelle la contribution est attendue
+  anneeFinContribution Int?             // renseignée automatiquement si statut = DECEDE ou INACTIF
+  dateDeces           DateTime?
+  compteUtilisateurId String?           @unique
+  compteUtilisateur   Utilisateur?      @relation("CompteMembre", fields: [compteUtilisateurId], references: [id])
+  contributions       Contribution[]
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+}
+
+model BaremeAnnuel {
+  id             String @id @default(uuid())
+  annee          Int    @unique
+  montantAttendu Int    // en FCFA, uniforme pour tous les membres actifs cette année-là
+  createdAt      DateTime @default(now())
+}
+
+model Contribution {
+  id              String   @id @default(uuid())
+  membreId        String
+  membre          Membre   @relation(fields: [membreId], references: [id])
+  annee           Int
+  montantAttendu  Int      // copié du BaremeAnnuel au moment de la création (historisation)
+  montantVerse    Int      @default(0) // somme dénormalisée des Versement.montant
+  montantValorise Int      @default(0) // = montantVerse par défaut, modifiable uniquement par un Équilibrage
+  versements      Versement[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([membreId, annee])
+}
+
+model Versement {
+  id              String        @id @default(uuid())
+  contributionId  String
+  contribution    Contribution  @relation(fields: [contributionId], references: [id])
+  montant         Int
+  dateVersement   DateTime
+  mode            ModeVersement
+  receptionnaireId String?      // FK Utilisateur (généralement la trésorière)
+  note            String?
+  createdAt       DateTime      @default(now())
+}
+
+model EquilibrageContribution {
+  id             String   @id @default(uuid())
+  membreId       String
+  anneeDebut     Int
+  anneeFin       Int
+  totalPeriode   Int      // total conservé, doit être identique avant/après
+  auteurId       String   // FK Utilisateur
+  dateApplication DateTime @default(now())
+  details        EquilibrageDetail[]
+}
+
+model EquilibrageDetail {
+  id             String   @id @default(uuid())
+  equilibrageId  String
+  equilibrage    EquilibrageContribution @relation(fields: [equilibrageId], references: [id])
+  annee          Int
+  montantAvant   Int
+  montantApres   Int
+}
+
+model Recu {
+  id             String   @id @default(uuid())
+  versementId    String
+  numero         String   @unique // ex. NKONI-2025-000123
+  genereParId    String   // FK Utilisateur
+  dateGeneration DateTime @default(now())
+  urlPdf         String?
+}
+
+// ---------------------------------------------------------------------------
+// Entités hors périmètre MVP (§3.2) — squelettes vides.
+// Déclarés uniquement pour éviter une migration lourde en V1.1/V2.
+// AUCUNE logique métier, AUCUN impact sur les routes/services du MVP.
+// Les relations vers les entités MVP (Membre, Utilisateur) seront ajoutées
+// au moment du développement de chaque module.
+// ---------------------------------------------------------------------------
+
+enum NiveauConfidentialite {
+  PUBLIC
+  BUREAU
+  CONFIDENTIEL
+}
+
+model Reunion {
+  id                String             @id @default(uuid())
+  createdAt         DateTime           @default(now())
+  pointsOrdreDuJour PointOrdreDuJour[]
+  resolutions       Resolution[]
+}
+
+model PointOrdreDuJour {
+  id        String   @id @default(uuid())
+  reunionId String
+  reunion   Reunion  @relation(fields: [reunionId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model Resolution {
+  id        String   @id @default(uuid())
+  reunionId String
+  reunion   Reunion  @relation(fields: [reunionId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model FonctionFamiliale {
+  id           String                @id @default(uuid())
+  createdAt    DateTime              @default(now())
+  affectations AffectationFonction[]
+}
+
+model AffectationFonction {
+  id         String            @id @default(uuid())
+  fonctionId String
+  fonction   FonctionFamiliale @relation(fields: [fonctionId], references: [id])
+  createdAt  DateTime          @default(now())
+}
+
+model EvenementFamilial {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+}
+
+model Conflit {
+  id                    String                @id @default(uuid())
+  niveauConfidentialite NiveauConfidentialite
+  createdAt             DateTime              @default(now())
+}
+
+model Commemoration {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+}
+
+model Document {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+}

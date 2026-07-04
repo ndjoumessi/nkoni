@@ -1,0 +1,174 @@
+import type { FastifyReply, FastifyRequest, preHandlerHookHandler } from 'fastify'
+
+/**
+ * Middleware de permissions NKONI — encode la matrice de la section 2 de la spec.
+ *
+ * Séparation des responsabilités :
+ *   - L'AUTHENTIFICATION (présence + validité du JWT) est gérée EN AMONT par le hook
+ *     d'auth `authenticate` (@fastify/jwt, cf. src/middlewares/authenticate.ts), qui
+ *     renvoie 401 si le token est absent/invalide et peuple `req.user`.
+ *   - CE middleware ne fait QUE de l'AUTORISATION : il suppose `req.user.role` déjà
+ *     présent et vérifie le droit du rôle sur (entité, action). Il renvoie 403 si le
+ *     rôle n'a pas la permission. (Il conserve un garde-fou 401 défensif au cas où il
+ *     serait branché sans hook d'auth en amont — mais ce n'est pas sa responsabilité
+ *     nominale.)
+ *
+ * Limite assumée pour cette étape (« lecture partielle ») :
+ *   Plusieurs cellules de la matrice sont restreintes au périmètre du membre
+ *   (« sa propre fiche », « les siennes », « son propre profil »). Ce middleware
+ *   vérifie UNIQUEMENT le droit générique d'accès à l'action sur l'entité. Le
+ *   filtrage « uniquement ses propres données » sera appliqué DANS la logique de
+ *   route (ex. `where: { membreId: req.user.membreId }`), pas ici.
+ */
+
+export type Action = 'create' | 'read' | 'update' | 'delete'
+
+export type Entite =
+  | 'Membre'
+  | 'BrancheFamiliale'
+  | 'BaremeAnnuel'
+  | 'Contribution'
+  | 'Versement'
+  | 'Equilibrage'
+  | 'Recu'
+  | 'Utilisateur'
+
+export type Role =
+  | 'ADMIN'
+  | 'PRESIDENT'
+  | 'SECRETAIRE'
+  | 'TRESORIERE'
+  | 'COMMISSAIRE_COMPTES'
+  | 'GUIDE_RELIGIEUX'
+  | 'MEMBRE_SIMPLE'
+
+// Raccourcis de lisibilité pour la table.
+const CRUD: Action[] = ['create', 'read', 'update', 'delete']
+const READ: Action[] = ['read']
+
+/**
+ * Conventions de mapping des cellules descriptives de la matrice §2 vers les actions
+ * CRUD manipulées par le middleware :
+ *
+ *   - « CRUD »              → create, read, update, delete
+ *   - « Lecture » / « Lecture seule » → read
+ *   - « Créer/Modifier »   → create, update  (+ read : voir principe ci-dessous)
+ *   - « Créer/Appliquer » (Équilibrage) → create  (+ read) ; « Appliquer » fait partie
+ *      de la transaction de création de l'équilibrage, ce n'est pas un update de l'entité.
+ *   - « Générer » (Reçu)   → create  (+ read) ; générer un reçu crée une ligne Recu.
+ *   - « Modifier son propre profil » (Utilisateur/MEMBRE_SIMPLE) → update (+ read)
+ *   - « — »                → aucune permission (rôle absent de l'entrée)
+ *
+ * Principe appliqué et documenté : TOUTE permission d'écriture (create/update/delete)
+ * implique implicitement `read` — on ne peut pas modifier ce qu'on ne peut pas lire.
+ * Les cellules avec écriture incluent donc `read`.
+ *
+ * Arbitrage §0 vs §2 (tranché) : le COMMISSAIRE_COMPTES peut « Générer » un reçu.
+ * Générer un reçu ne modifie AUCUNE donnée financière (Versement/Contribution restent
+ * intouchés) — c'est un document dérivé produit à la demande. C'est donc cohérent avec
+ * l'esprit « lecture seule du module financier » du §0. Décision validée, pas de conflit.
+ *
+ * GUIDE_RELIGIEUX : aucun droit sur les entités MVP (périmètre V2) → absent partout.
+ */
+export const PERMISSIONS: Record<Entite, Partial<Record<Role, Action[]>>> = {
+  Membre: {
+    ADMIN: CRUD,
+    PRESIDENT: READ,
+    SECRETAIRE: ['create', 'read', 'update'], // Créer/Modifier (+ read)
+    TRESORIERE: READ,
+    COMMISSAIRE_COMPTES: READ,
+    MEMBRE_SIMPLE: READ, // sa propre fiche (filtrage en route)
+  },
+  BrancheFamiliale: {
+    ADMIN: CRUD,
+    PRESIDENT: READ,
+    SECRETAIRE: READ,
+    TRESORIERE: READ,
+    COMMISSAIRE_COMPTES: READ,
+    // MEMBRE_SIMPLE : —
+  },
+  BaremeAnnuel: {
+    ADMIN: CRUD,
+    PRESIDENT: READ,
+    // SECRETAIRE : —
+    TRESORIERE: READ,
+    COMMISSAIRE_COMPTES: READ,
+    // MEMBRE_SIMPLE : —
+  },
+  Contribution: {
+    ADMIN: CRUD,
+    PRESIDENT: READ,
+    // SECRETAIRE : —
+    TRESORIERE: CRUD,
+    COMMISSAIRE_COMPTES: READ, // Lecture seule
+    MEMBRE_SIMPLE: READ, // les siennes (filtrage en route)
+  },
+  Versement: {
+    ADMIN: CRUD,
+    PRESIDENT: READ,
+    // SECRETAIRE : —
+    TRESORIERE: CRUD,
+    COMMISSAIRE_COMPTES: READ, // Lecture seule
+    MEMBRE_SIMPLE: READ, // les siens (filtrage en route)
+  },
+  Equilibrage: {
+    ADMIN: ['create', 'read'], // Créer/Appliquer (+ read)
+    PRESIDENT: READ,
+    // SECRETAIRE : —
+    TRESORIERE: ['create', 'read'], // Créer/Appliquer (+ read)
+    COMMISSAIRE_COMPTES: READ, // Lecture seule
+    // MEMBRE_SIMPLE : —
+  },
+  Recu: {
+    ADMIN: ['create', 'read'], // Générer (+ read)
+    PRESIDENT: ['create', 'read'], // Générer
+    // SECRETAIRE : —
+    TRESORIERE: ['create', 'read'], // Générer
+    COMMISSAIRE_COMPTES: ['create', 'read'], // Générer (cf. note §0 vs §2)
+    MEMBRE_SIMPLE: ['create', 'read'], // Générer les siens (filtrage en route)
+  },
+  Utilisateur: {
+    ADMIN: CRUD,
+    // PRESIDENT / SECRETAIRE / TRESORIERE / COMMISSAIRE_COMPTES : —
+    MEMBRE_SIMPLE: ['read', 'update'], // Modifier son propre profil (filtrage en route)
+  },
+}
+
+/**
+ * Factory : retourne un preHandler Fastify qui autorise la requête si le rôle de
+ * l'utilisateur authentifié possède `action` sur `entite`, sinon répond 403.
+ *
+ * @example
+ *   app.get('/membres', { preHandler: [authenticate, requirePermission('Membre', 'read')] }, handler)
+ */
+export function requirePermission(
+  entite: Entite,
+  action: Action,
+): preHandlerHookHandler {
+  return async function permissionPreHandler(
+    req: FastifyRequest,
+    reply: FastifyReply,
+  ): Promise<void> {
+    // Lecture découplée de @fastify/jwt : on lit `req.user` (peuplé en amont par le
+    // hook d'auth) via un cast local, sans dépendre du typage du plugin JWT ici.
+    const user = (req as unknown as { user?: { role?: Role } }).user
+    const role = user?.role
+
+    // Garde-fou défensif : l'auth (401) est normalement déjà traitée en amont.
+    if (!role) {
+      reply.code(401).send({ error: 'Unauthorized', message: 'Authentification requise.' })
+      return
+    }
+
+    const actionsAutorisees = PERMISSIONS[entite][role] ?? []
+    if (!actionsAutorisees.includes(action)) {
+      reply.code(403).send({
+        error: 'Forbidden',
+        message: `Le rôle ${role} n'a pas la permission '${action}' sur l'entité '${entite}'.`,
+      })
+      return
+    }
+
+    // Autorisé : ne rien renvoyer laisse Fastify poursuivre vers le handler.
+  }
+}

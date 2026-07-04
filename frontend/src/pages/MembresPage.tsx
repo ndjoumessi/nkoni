@@ -1,6 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { Loader2, Plus, Search, Users } from 'lucide-react'
+import {
+  AlertTriangle,
+  ArrowDown,
+  ArrowUp,
+  CheckCircle2,
+  ChevronsUpDown,
+  Loader2,
+  Plus,
+  Search,
+  Users,
+} from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
 import {
   membresApi,
@@ -13,10 +23,51 @@ import { estMembreSimple, peutGererMembres } from '@/lib/roles'
 import { StatutCotisationBadge, StatutMembreBadge } from '@/components/membres/StatutBadges'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card } from '@/components/ui/Card'
+import { StatCard } from '@/components/ui/StatCard'
 import { ButtonLink, Button } from '@/components/ui/Button'
 import { Input, Select } from '@/components/ui/Field'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { RowsSkeleton } from '@/components/ui/Skeleton'
+import { cn } from '@/lib/utils'
+
+type ColonneTri = 'nom' | 'branche' | 'statut' | 'cotisation' | 'adhesion'
+const ORDRE_STATUT: Record<string, number> = { ACTIF: 0, INACTIF: 1, DECEDE: 2 }
+const ORDRE_COTISATION: Record<string, number> = { A_JOUR: 0, PARTIEL: 1, NON_A_JOUR: 2 }
+
+/** En-tête de colonne triable (grille) — indicateur + libellé d'accessibilité. */
+function SortHeader({
+  col,
+  label,
+  actif,
+  dir,
+  onSort,
+}: {
+  col: ColonneTri
+  label: string
+  actif: ColonneTri
+  dir: 'asc' | 'desc'
+  onSort: (c: ColonneTri) => void
+}) {
+  const estActif = actif === col
+  const Icon = !estActif ? ChevronsUpDown : dir === 'asc' ? ArrowUp : ArrowDown
+  return (
+    <button
+      type="button"
+      onClick={() => onSort(col)}
+      aria-label={`Trier par ${label}${estActif ? (dir === 'asc' ? ', croissant' : ', décroissant') : ''}`}
+      className={cn(
+        'group inline-flex items-center gap-1 uppercase tracking-[0.12em] transition-colors hover:text-foreground',
+        estActif && 'text-brass',
+      )}
+    >
+      {label}
+      <Icon
+        className={cn('h-3 w-3', estActif ? 'opacity-100' : 'opacity-30 group-hover:opacity-70')}
+        aria-hidden="true"
+      />
+    </button>
+  )
+}
 
 const STATUTS: { value: StatutMembre; label: string }[] = [
   { value: 'ACTIF', label: 'Actifs' },
@@ -48,6 +99,8 @@ export function MembresPage() {
   const [filtreBranche, setFiltreBranche] = useState(searchParams.get('branche') ?? '')
   const [filtreStatut, setFiltreStatut] = useState(searchParams.get('statut') ?? '')
   const [filtreCotisation, setFiltreCotisation] = useState(searchParams.get('cotisation') ?? '')
+  const [triCol, setTriCol] = useState<ColonneTri>('nom')
+  const [triDir, setTriDir] = useState<'asc' | 'desc'>('asc')
 
   const gestion = peutGererMembres(user?.role)
 
@@ -101,6 +154,45 @@ export function MembresPage() {
     })
   }, [membres, recherche, filtreBranche, filtreStatut, filtreCotisation])
 
+  // Tri client (toutes les données sont chargées → tri fiable, pas seulement une page).
+  const triees = useMemo(() => {
+    const cmp = (a: MembreStatut, b: MembreStatut): number => {
+      switch (triCol) {
+        case 'branche':
+          return (a.branche?.nom ?? '').localeCompare(b.branche?.nom ?? '')
+        case 'statut':
+          return (ORDRE_STATUT[a.statut] ?? 9) - (ORDRE_STATUT[b.statut] ?? 9)
+        case 'cotisation':
+          return (ORDRE_COTISATION[a.statutCotisation] ?? 9) - (ORDRE_COTISATION[b.statutCotisation] ?? 9)
+        case 'adhesion':
+          return a.anneeAdhesion - b.anneeAdhesion
+        default:
+          return `${a.nom} ${a.prenom}`.localeCompare(`${b.nom} ${b.prenom}`)
+      }
+    }
+    const arr = [...filtres].sort(cmp)
+    return triDir === 'desc' ? arr.reverse() : arr
+  }, [filtres, triCol, triDir])
+
+  // Synthèse (point focal) — calculée sur l'ensemble non filtré.
+  const resume = useMemo(() => {
+    const base = membres ?? []
+    return {
+      total: base.length,
+      aJour: base.filter((m) => m.statutCotisation === 'A_JOUR').length,
+      nonAJour: base.filter((m) => m.statutCotisation === 'NON_A_JOUR').length,
+      inactifs: base.filter((m) => m.statut !== 'ACTIF').length,
+    }
+  }, [membres])
+
+  const trierPar = (col: ColonneTri) => {
+    if (triCol === col) setTriDir((d) => (d === 'asc' ? 'desc' : 'asc'))
+    else {
+      setTriCol(col)
+      setTriDir('asc')
+    }
+  }
+
   if (estMembreSimple(user?.role)) {
     return (
       <div className="flex items-center justify-center py-24 text-muted-foreground">
@@ -135,8 +227,24 @@ export function MembresPage() {
         }
       />
 
+      {/* Synthèse (point focal) */}
+      {membres && membres.length > 0 && (
+        <div className="nk-reveal nk-d2 mt-7 grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <StatCard label="Membres" value={String(resume.total)} icon={Users} />
+          <StatCard
+            label="À jour"
+            value={String(resume.aJour)}
+            tone="jade"
+            icon={CheckCircle2}
+            hint={resume.total ? `${Math.round((resume.aJour / resume.total) * 100)}%` : undefined}
+          />
+          <StatCard label="Non à jour" value={String(resume.nonAJour)} tone="brass" icon={AlertTriangle} />
+          <StatCard label="Inactifs / décédés" value={String(resume.inactifs)} icon={Users} />
+        </div>
+      )}
+
       {/* Filtres */}
-      <div className="nk-reveal nk-d2 mt-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1fr]">
+      <div className="nk-reveal nk-d3 mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1fr]">
         <div className="relative sm:col-span-2 lg:col-span-1">
           <Search
             className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-faint"
@@ -223,15 +331,15 @@ export function MembresPage() {
 
         {!loading && !error && membres && membres.length > 0 && (
           <Card className="overflow-hidden p-0">
-            <div className="hidden grid-cols-[2fr_1.5fr_1fr_1fr_0.7fr] gap-4 border-b border-hairline px-5 py-3 text-[0.7rem] font-medium uppercase tracking-[0.12em] text-faint md:grid">
-              <span>Membre</span>
-              <span>Branche</span>
-              <span>Statut</span>
-              <span>Cotisation</span>
-              <span>Adhésion</span>
+            <div className="hidden grid-cols-[2fr_1.5fr_1fr_1fr_0.7fr] gap-4 border-b border-hairline bg-surface/70 px-5 py-2.5 text-[0.7rem] font-medium uppercase tracking-[0.12em] text-faint md:grid">
+              <SortHeader col="nom" label="Membre" actif={triCol} dir={triDir} onSort={trierPar} />
+              <SortHeader col="branche" label="Branche" actif={triCol} dir={triDir} onSort={trierPar} />
+              <SortHeader col="statut" label="Statut" actif={triCol} dir={triDir} onSort={trierPar} />
+              <SortHeader col="cotisation" label="Cotisation" actif={triCol} dir={triDir} onSort={trierPar} />
+              <SortHeader col="adhesion" label="Adhésion" actif={triCol} dir={triDir} onSort={trierPar} />
             </div>
             <ul className="divide-y divide-hairline">
-              {filtres.map((m) => (
+              {triees.map((m) => (
                 <li key={m.id}>
                   <Link
                     to={`/membres/${m.id}`}

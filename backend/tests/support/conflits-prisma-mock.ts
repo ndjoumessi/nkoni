@@ -140,6 +140,12 @@ export function buildConflitsMock() {
         const u = users.get(args.where.id)
         return u ? { ...u } : null
       },
+      findMany: async (args: any = {}) => {
+        // Tous les comptes du mock sont actifs. Renvoie les champs sûrs demandés.
+        let list = [...users.values()]
+        if (args.orderBy?.email === 'asc') list = list.sort((a, b) => a.email.localeCompare(b.email))
+        return list.map((u) => ({ id: u.id, email: u.email, role: u.role }))
+      },
     },
     membre: {
       findMany: async (args: any) => {

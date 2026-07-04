@@ -4,6 +4,7 @@ import { requirePermission } from '../middlewares/permissions'
 import {
   creerConflit,
   listerConflitsVisibles,
+  listerResponsablesPossibles,
   getConflitSiAutorise,
   majConflit,
   ConflitIntrouvableError,
@@ -94,6 +95,14 @@ export const conflitsRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
   // GET /conflits — liste filtrée selon la règle de confidentialité.
   app.get('/conflits', { preHandler: [authenticate] }, async (req) =>
     listerConflitsVisibles(app.prisma, demandeur(req)),
+  )
+
+  // GET /conflits/responsables — comptes désignables comme responsable de suivi
+  // (réservé aux déclarants). Déclarée AVANT /conflits/:id (statique > paramétrique).
+  app.get(
+    '/conflits/responsables',
+    { preHandler: [authenticate, requirePermission('Conflit', 'create')] },
+    async () => listerResponsablesPossibles(app.prisma),
   )
 
   // GET /conflits/:id — 404 si absent, 403 si non autorisé pour CE conflit.

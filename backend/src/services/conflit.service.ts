@@ -142,7 +142,10 @@ export interface ConflitPrisma {
     create(args: any): Promise<any>
     update(args: any): Promise<any>
   }
-  utilisateur: { findUnique(args: any): Promise<any> }
+  utilisateur: {
+    findUnique(args: any): Promise<any>
+    findMany(args: any): Promise<any[]>
+  }
   membre: { findMany(args: any): Promise<any[]> }
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
@@ -156,6 +159,19 @@ const CONFLIT_INCLUDE = {
   responsableSuivi: { select: { id: true, email: true, role: true } },
   membresConcernes: { select: { id: true, nom: true, prenom: true } },
 } as const
+
+/**
+ * Liste légère des comptes ACTIFS pouvant être désignés responsable de suivi (id + email
+ * + rôle uniquement, jamais passwordHash). Sert à peupler le sélecteur du formulaire de
+ * déclaration — réservé aux déclarants (cf. route : requirePermission Conflit `create`).
+ */
+export function listerResponsablesPossibles(prisma: ConflitPrisma) {
+  return prisma.utilisateur.findMany({
+    where: { actif: true },
+    select: { id: true, email: true, role: true },
+    orderBy: { email: 'asc' },
+  })
+}
 
 /* -------------------------------------------------------------------------- */
 /* Lecture (filtrée par la règle d'accès)                                     */

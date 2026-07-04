@@ -57,6 +57,30 @@ describe('Conflits (§4.4)', () => {
     }
   })
 
+  /* Responsables possibles (sélecteur du formulaire) ------------------------ */
+
+  it('GET /conflits/responsables : un déclarant obtient la liste (id/email/role, sans passwordHash)', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: '/conflits/responsables',
+      headers: auth('PRESIDENT', 'u-pres'),
+    })
+    expect(res.statusCode).toBe(200)
+    const list = res.json()
+    expect(list.length).toBeGreaterThan(0)
+    expect(list[0]).toHaveProperty('email')
+    expect(list[0].passwordHash).toBeUndefined()
+  })
+
+  it('GET /conflits/responsables : refusé (403) pour un non-déclarant', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: '/conflits/responsables',
+      headers: auth('MEMBRE_SIMPLE', 'u-membre'),
+    })
+    expect(res.statusCode).toBe(403)
+  })
+
   /* Validations de création ------------------------------------------------- */
 
   it('refuse un responsable de suivi si le niveau ≠ CONFIDENTIEL (400)', async () => {

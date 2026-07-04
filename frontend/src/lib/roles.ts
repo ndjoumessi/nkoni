@@ -88,6 +88,33 @@ export function peutSupprimerReunion(role: string | undefined): boolean {
   return role !== undefined && SUPPRESSION_REUNIONS.includes(role)
 }
 
+/* Fonctions/organes + nominations (V1.1 §5) — miroir de la matrice permissions.ts */
+
+/** Lecture des fonctions & de l'historique des nominations (tous sauf GUIDE_RELIGIEUX). */
+const LECTURE_FONCTIONS = [
+  'ADMIN',
+  'PRESIDENT',
+  'SECRETAIRE',
+  'TRESORIERE',
+  'COMMISSAIRE_COMPTES',
+  'MEMBRE_SIMPLE',
+]
+export function peutVoirFonctions(role: string | undefined): boolean {
+  return role !== undefined && LECTURE_FONCTIONS.includes(role)
+}
+
+/** create/update sur fonctions & affectations (créer une fonction, nommer un titulaire). */
+const GESTION_FONCTIONS = ['ADMIN', 'PRESIDENT', 'SECRETAIRE']
+export function peutGererFonctions(role: string | undefined): boolean {
+  return role !== undefined && GESTION_FONCTIONS.includes(role)
+}
+
+/** delete d'une fonction (réservé ADMIN, PRESIDENT). */
+const SUPPRESSION_FONCTIONS = ['ADMIN', 'PRESIDENT']
+export function peutSupprimerFonction(role: string | undefined): boolean {
+  return role !== undefined && SUPPRESSION_FONCTIONS.includes(role)
+}
+
 /** Rôles applicatifs + libellés FR (miroir de l'enum Role du backend). */
 export const ROLES: { value: string; label: string }[] = [
   { value: 'ADMIN', label: 'Administrateur' },

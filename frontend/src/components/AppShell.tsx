@@ -3,6 +3,7 @@ import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
   CalendarRange,
   Gavel,
+  Landmark,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -17,6 +18,7 @@ import {
   peutVoirBareme,
   peutGererUtilisateurs,
   peutVoirReunions,
+  peutVoirFonctions,
 } from '@/lib/roles'
 import { cn } from '@/lib/utils'
 import { NkoniMark } from '@/components/ui/NkoniMark'
@@ -48,6 +50,9 @@ function useNavItems(): NavItem[] {
   ]
   if (peutVoirReunions(user?.role)) {
     items.push({ to: '/reunions', label: 'Réunions', icon: Gavel })
+  }
+  if (peutVoirFonctions(user?.role)) {
+    items.push({ to: '/fonctions', label: 'Fonctions', icon: Landmark })
   }
   if (peutVoirBareme(user?.role)) {
     items.push({ to: '/bareme', label: 'Barème annuel', icon: CalendarRange })

@@ -115,6 +115,29 @@ export function peutSupprimerFonction(role: string | undefined): boolean {
   return role !== undefined && SUPPRESSION_FONCTIONS.includes(role)
 }
 
+/* Conflits (V2 §4.4) — module sensible ---------------------------------------
+ * NB : la visibilité fine (PUBLIC/BUREAU/CONFIDENTIEL) est appliquée CÔTÉ SERVEUR.
+ * Ici on ne gouverne que l'accès au module (nav/page) et le droit de déclarer. */
+
+/** Accès au module Conflits (nav + pages) : tous SAUF GUIDE_RELIGIEUX (exclu). */
+const ACCES_CONFLITS = [
+  'ADMIN',
+  'PRESIDENT',
+  'SECRETAIRE',
+  'TRESORIERE',
+  'COMMISSAIRE_COMPTES',
+  'MEMBRE_SIMPLE',
+]
+export function peutVoirConflits(role: string | undefined): boolean {
+  return role !== undefined && ACCES_CONFLITS.includes(role)
+}
+
+/** Peut déclarer un conflit : ADMIN, PRESIDENT, SECRETAIRE (bureau). */
+const DECLARATION_CONFLITS = ['ADMIN', 'PRESIDENT', 'SECRETAIRE']
+export function peutDeclarerConflit(role: string | undefined): boolean {
+  return role !== undefined && DECLARATION_CONFLITS.includes(role)
+}
+
 /** Rôles applicatifs + libellés FR (miroir de l'enum Role du backend). */
 export const ROLES: { value: string; label: string }[] = [
   { value: 'ADMIN', label: 'Administrateur' },

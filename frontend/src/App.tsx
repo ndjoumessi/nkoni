@@ -15,6 +15,9 @@ import ReunionFormPage from '@/pages/ReunionFormPage'
 import ReunionDetailPage from '@/pages/ReunionDetailPage'
 import FonctionsPage from '@/pages/FonctionsPage'
 import FonctionDetailPage from '@/pages/FonctionDetailPage'
+import ConflitsPage from '@/pages/ConflitsPage'
+import ConflitFormPage from '@/pages/ConflitFormPage'
+import ConflitDetailPage from '@/pages/ConflitDetailPage'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { AppShell } from '@/components/AppShell'
 
@@ -46,6 +49,9 @@ function App() {
         <Route path="/reunions/:id" element={<ReunionDetailPage />} />
         <Route path="/fonctions" element={<FonctionsPage />} />
         <Route path="/fonctions/:id" element={<FonctionDetailPage />} />
+        <Route path="/conflits" element={<ConflitsPage />} />
+        <Route path="/conflits/nouveau" element={<ConflitFormPage />} />
+        <Route path="/conflits/:id" element={<ConflitDetailPage />} />
         <Route path="/membres" element={<MembresPage />} />
         <Route path="/membres/nouveau" element={<MembreFormPage />} />
         <Route path="/membres/:id/editer" element={<MembreFormPage />} />

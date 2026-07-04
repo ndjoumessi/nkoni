@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
+  ShieldAlert,
   ShieldUser,
   Users,
   X,
@@ -19,6 +20,7 @@ import {
   peutGererUtilisateurs,
   peutVoirReunions,
   peutVoirFonctions,
+  peutVoirConflits,
 } from '@/lib/roles'
 import { cn } from '@/lib/utils'
 import { NkoniMark } from '@/components/ui/NkoniMark'
@@ -53,6 +55,9 @@ function useNavItems(): NavItem[] {
   }
   if (peutVoirFonctions(user?.role)) {
     items.push({ to: '/fonctions', label: 'Fonctions', icon: Landmark })
+  }
+  if (peutVoirConflits(user?.role)) {
+    items.push({ to: '/conflits', label: 'Conflits', icon: ShieldAlert })
   }
   if (peutVoirBareme(user?.role)) {
     items.push({ to: '/bareme', label: 'Barème annuel', icon: CalendarRange })

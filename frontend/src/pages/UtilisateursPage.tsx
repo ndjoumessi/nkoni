@@ -16,6 +16,7 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, Overline } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Field, Input, Select } from '@/components/ui/Field'
+import { PasswordInput } from '@/components/ui/PasswordInput'
 import { FormSection } from '@/components/ui/FormSection'
 import { Badge } from '@/components/ui/Badge'
 import { EmptyState } from '@/components/ui/EmptyState'
@@ -174,6 +175,7 @@ export function UtilisateursPage() {
                 />
                 <Input
                   type="email"
+                  name="account-email"
                   autoComplete="off"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -183,20 +185,14 @@ export function UtilisateursPage() {
               </div>
             </Field>
             <Field label="Mot de passe temporaire" required hint="Au moins 8 caractères.">
-              <div className="relative">
-                <KeyRound
-                  className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-faint"
-                  aria-hidden="true"
-                />
-                <Input
-                  type="password"
-                  autoComplete="new-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="pl-10"
-                />
-              </div>
+              <PasswordInput
+                name="new-password"
+                autoComplete="new-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                leftIcon={KeyRound}
+              />
             </Field>
           </FormSection>
 

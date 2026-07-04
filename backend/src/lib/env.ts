@@ -34,5 +34,16 @@ export const env = {
 
 export const isProd = env.NODE_ENV === 'production'
 
-/** Durée de vie du cookie refresh en secondes (doit refléter JWT_REFRESH_TTL). */
-export const REFRESH_COOKIE_MAX_AGE = 60 * 60 * 24 * 30 // 30 jours
+const DAY_SECONDS = 60 * 60 * 24
+
+/**
+ * Durées de vie du refresh token, en SECONDES. Elles pilotent à la fois le `expiresIn`
+ * du JWT refresh signé ET le `Max-Age` du cookie httpOnly — les deux DOIVENT rester
+ * synchronisés, d'où cette source unique.
+ *
+ * Deux paliers, choisis au login selon la case « Se souvenir de moi » (cf. auth.route.ts) :
+ *   - STANDARD : case décochée, session « classique » (7 jours).
+ *   - REMEMBER : case cochée, « reste connecté plus longtemps sur cet appareil » (30 jours).
+ */
+export const REFRESH_TTL_STANDARD_SECONDS = 7 * DAY_SECONDS
+export const REFRESH_TTL_REMEMBER_SECONDS = 30 * DAY_SECONDS

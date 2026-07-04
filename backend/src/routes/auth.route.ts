@@ -3,7 +3,12 @@ import type {
   FastifyPluginAsync,
   FastifyReply,
 } from 'fastify'
-import { env, isProd, REFRESH_COOKIE_MAX_AGE } from '../lib/env'
+import {
+  env,
+  isProd,
+  REFRESH_TTL_STANDARD_SECONDS,
+  REFRESH_TTL_REMEMBER_SECONDS,
+} from '../lib/env'
 import { authenticate } from '../middlewares/authenticate'
 import type { Role } from '../middlewares/permissions'
 import {
@@ -32,6 +37,10 @@ const loginBodySchema = {
     properties: {
       email: { type: 'string', minLength: 3, maxLength: 254 },
       password: { type: 'string', minLength: 1, maxLength: 200 },
+      // « Se souvenir de moi » : optionnel. Absent/false → session standard (7 j) ;
+      // true → session longue (30 j). Ne concerne QUE la durée du refresh token, jamais
+      // le mot de passe (voir le front : le mot de passe n'est stocké nulle part).
+      rememberMe: { type: 'boolean' },
     },
   },
 } as const
@@ -39,10 +48,14 @@ const loginBodySchema = {
 interface LoginBody {
   email: string
   password: string
+  rememberMe?: boolean
 }
 
-/** Options du cookie httpOnly qui porte le refresh token. */
-function refreshCookieOptions() {
+/**
+ * Options du cookie httpOnly qui porte le refresh token.
+ * `maxAgeSeconds` doit refléter le `expiresIn` du JWT signé (même durée) — cf. login.
+ */
+function refreshCookieOptions(maxAgeSeconds: number) {
   return {
     httpOnly: true,
     secure: isProd, // en dev (http://localhost) Secure=false pour que le cookie soit posé
@@ -51,7 +64,7 @@ function refreshCookieOptions() {
     // (localhost same-site) et évite d'exiger Secure sur http.
     sameSite: (isProd ? 'none' : 'lax') as 'none' | 'lax',
     path: '/auth', // envoyé à /auth/refresh et /auth/logout uniquement
-    maxAge: REFRESH_COOKIE_MAX_AGE,
+    maxAge: maxAgeSeconds,
   }
 }
 
@@ -74,7 +87,7 @@ export const authRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
     '/login',
     { schema: loginBodySchema },
     async (req, reply) => {
-      const { email, password } = req.body
+      const { email, password, rememberMe } = req.body
       const user = await verifyCredentials(app.prisma, email, password)
       if (!user) {
         return reply
@@ -88,11 +101,21 @@ export const authRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
       }
 
       const accessToken = await signAccessToken(reply, user)
-      const refreshToken = await reply.refreshJwtSign({
-        sub: user.id,
-        typ: 'refresh',
-      })
-      reply.setCookie(env.REFRESH_COOKIE_NAME, refreshToken, refreshCookieOptions())
+      // « Se souvenir de moi » n'agit QUE sur la longévité de la session (durée du refresh
+      // token + Max-Age du cookie) : 30 j si coché, 7 j sinon. On surcharge le `expiresIn`
+      // par requête et on aligne le Max-Age du cookie sur cette même durée.
+      const refreshTtlSeconds = rememberMe
+        ? REFRESH_TTL_REMEMBER_SECONDS
+        : REFRESH_TTL_STANDARD_SECONDS
+      const refreshToken = await reply.refreshJwtSign(
+        { sub: user.id, typ: 'refresh' },
+        { expiresIn: refreshTtlSeconds },
+      )
+      reply.setCookie(
+        env.REFRESH_COOKIE_NAME,
+        refreshToken,
+        refreshCookieOptions(refreshTtlSeconds),
+      )
 
       return reply.code(200).send({
         accessToken,

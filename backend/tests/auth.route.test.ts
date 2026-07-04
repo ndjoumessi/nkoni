@@ -86,6 +86,26 @@ describe('Module auth — /auth/*', () => {
     expect(refreshCookie?.path).toBe('/auth')
   })
 
+  it('POST /auth/login sans rememberMe → cookie refresh Max-Age 7 jours (session standard)', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/auth/login',
+      payload: { email: ACTIVE_EMAIL, password: PASSWORD },
+    })
+    const cookie = res.cookies.find((c) => c.name === 'nkoni_refresh')
+    expect(cookie?.maxAge).toBe(7 * 24 * 60 * 60)
+  })
+
+  it('POST /auth/login avec rememberMe → cookie refresh Max-Age 30 jours (session longue)', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/auth/login',
+      payload: { email: ACTIVE_EMAIL, password: PASSWORD, rememberMe: true },
+    })
+    const cookie = res.cookies.find((c) => c.name === 'nkoni_refresh')
+    expect(cookie?.maxAge).toBe(30 * 24 * 60 * 60)
+  })
+
   it('POST /auth/login (mauvais mot de passe) → 401', async () => {
     const res = await app.inject({
       method: 'POST',

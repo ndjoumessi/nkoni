@@ -98,10 +98,12 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 }
 
 export const authApi = {
-  login: (email: string, password: string) =>
+  // `rememberMe` allonge la durée de la session (refresh 30 j au lieu de 7 j) côté back.
+  // Le mot de passe n'est JAMAIS transmis pour être stocké : il ne sert qu'à cette requête.
+  login: (email: string, password: string, rememberMe: boolean) =>
     request<LoginResponse>('/auth/login', {
       method: 'POST',
-      json: { email, password },
+      json: { email, password, rememberMe },
     }),
   refresh: (signal?: AbortSignal) =>
     request<RefreshResponse>('/auth/refresh', { method: 'POST', signal }),

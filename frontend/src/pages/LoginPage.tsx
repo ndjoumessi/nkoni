@@ -9,13 +9,38 @@ import { PasswordInput } from '@/components/ui/PasswordInput'
 import { Card } from '@/components/ui/Card'
 import { NkoniMark } from '@/components/ui/NkoniMark'
 
+/**
+ * Clé localStorage de l'e-mail mémorisé par « Se souvenir de moi ».
+ *
+ * SÉCURITÉ — on n'y stocke QUE l'e-mail, jamais le mot de passe (ni ici, ni en
+ * sessionStorage, ni dans un state React persistant). Le mot de passe lui-même n'est
+ * sauvegardé QUE par le gestionnaire natif du navigateur (« Enregistrer le mot de
+ * passe ? » de Chrome), déclenché par la soumission du <form> avec autoComplete —
+ * mécanisme totalement indépendant de cette case. Cette checkbox NE déclenche PAS et
+ * NE remplace PAS l'enregistrement du mot de passe : elle ne fait que (1) pré-remplir
+ * l'e-mail et (2) demander une session plus longue au back (refresh 30 j au lieu de 7 j).
+ */
+const REMEMBERED_EMAIL_KEY = 'nkoni_remembered_email'
+
+function lireEmailMemorise(): string {
+  try {
+    return localStorage.getItem(REMEMBERED_EMAIL_KEY) ?? ''
+  } catch {
+    // localStorage indisponible (mode privé strict, quota) → on ignore silencieusement.
+    return ''
+  }
+}
+
 /** Page de connexion NKONI — direction « Laiton & Jade ». */
 export function LoginPage() {
   const { login, isAuthenticated, loading } = useAuth()
   const navigate = useNavigate()
 
-  const [email, setEmail] = useState('')
+  // Pré-remplissage depuis l'e-mail mémorisé au précédent login « Se souvenir de moi ».
+  const emailMemorise = lireEmailMemorise()
+  const [email, setEmail] = useState(emailMemorise)
   const [password, setPassword] = useState('')
+  const [rememberMe, setRememberMe] = useState(emailMemorise.length > 0)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
@@ -38,7 +63,20 @@ export function LoginPage() {
 
     setSubmitting(true)
     try {
-      await login(email.trim(), password)
+      const emailNettoye = email.trim()
+      await login(emailNettoye, password, rememberMe)
+      // On ne persiste QUE l'e-mail, et seulement si la case est cochée ; sinon on efface
+      // toute trace précédente. Le mot de passe n'est jamais touché ici (cf. commentaire
+      // sur REMEMBERED_EMAIL_KEY).
+      try {
+        if (rememberMe) {
+          localStorage.setItem(REMEMBERED_EMAIL_KEY, emailNettoye)
+        } else {
+          localStorage.removeItem(REMEMBERED_EMAIL_KEY)
+        }
+      } catch {
+        // localStorage indisponible → la mémorisation e-mail est simplement inopérante.
+      }
       navigate('/dashboard', { replace: true })
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
@@ -113,6 +151,25 @@ export function LoginPage() {
                 leftIcon={Lock}
               />
             </div>
+
+            <label htmlFor="rememberMe" className="flex cursor-pointer items-start gap-3">
+              <input
+                id="rememberMe"
+                name="rememberMe"
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded border-hairline-strong bg-surface-2/70 accent-brass focus:outline-none focus:ring-2 focus:ring-brass/40"
+              />
+              <span className="select-none">
+                <span className="block text-sm font-medium text-foreground/80">
+                  Se souvenir de moi
+                </span>
+                <span className="mt-0.5 block text-xs text-faint">
+                  Reste connecté plus longtemps sur cet appareil.
+                </span>
+              </span>
+            </label>
 
             {error && (
               <p

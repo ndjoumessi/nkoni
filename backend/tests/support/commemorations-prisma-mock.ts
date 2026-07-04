@@ -123,12 +123,12 @@ export function buildCommemorationsMock() {
       },
     },
     membre: {
-      findMany: async (args: any) => {
-        const ids: string[] = args.where?.id?.in ?? []
-        return ids
-          .map((id) => membres.get(id))
-          .filter((m): m is StoredMembre => !!m)
-          .map((m) => ({ id: m.id }))
+      findMany: async (args: any = {}) => {
+        // Avec where.id.in → validation (sous-ensemble) ; sans where → liste complète.
+        const inIds: string[] | undefined = args.where?.id?.in
+        let list = [...membres.values()]
+        if (inIds) list = list.filter((m) => inIds.includes(m.id))
+        return list.map((m) => ({ id: m.id, nom: m.nom, prenom: m.prenom }))
       },
     },
   }

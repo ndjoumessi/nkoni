@@ -3,6 +3,7 @@ import { authenticate } from '../middlewares/authenticate'
 import { requirePermission } from '../middlewares/permissions'
 import {
   listerCommemorations,
+  listerMembresSelectionnables,
   getCommemoration,
   creerCommemoration,
   majCommemoration,
@@ -86,6 +87,14 @@ export const commemorationsRoutes: FastifyPluginAsync = async (app: FastifyInsta
     '/commemorations',
     { preHandler: [authenticate, perm('read')] },
     async () => listerCommemorations(app.prisma),
+  )
+
+  // GET /commemorations/membres — membres sélectionnables (concernés/honorés).
+  // Réservé aux gestionnaires. Déclarée AVANT /commemorations/:id (statique > paramétrique).
+  app.get(
+    '/commemorations/membres',
+    { preHandler: [authenticate, perm('create')] },
+    async () => listerMembresSelectionnables(app.prisma),
   )
 
   // GET /commemorations/:id — détail.

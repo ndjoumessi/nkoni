@@ -81,6 +81,29 @@ describe('Commémorations (V2)', () => {
     expect(after.statusCode).toBe(404)
   })
 
+  /* Membres sélectionnables (formulaire) ------------------------------------ */
+
+  it('GET /commemorations/membres : gestionnaire (GUIDE) obtient la liste légère (id/nom/prenom)', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: '/commemorations/membres',
+      headers: auth('GUIDE_RELIGIEUX'),
+    })
+    expect(res.statusCode).toBe(200)
+    const list = res.json()
+    expect(list.length).toBeGreaterThan(0)
+    expect(list[0]).toMatchObject({ id: expect.any(String), nom: expect.any(String), prenom: expect.any(String) })
+  })
+
+  it('GET /commemorations/membres : refusé (403) pour un non-gestionnaire (MEMBRE_SIMPLE)', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: '/commemorations/membres',
+      headers: auth('MEMBRE_SIMPLE'),
+    })
+    expect(res.statusCode).toBe(403)
+  })
+
   /* Validations ------------------------------------------------------------- */
 
   it('refuse un membre concerné inexistant (400)', async () => {

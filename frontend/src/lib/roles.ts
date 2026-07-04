@@ -12,3 +12,16 @@ export function peutGererMembres(role: string | undefined): boolean {
 export function estMembreSimple(role: string | undefined): boolean {
   return role === 'MEMBRE_SIMPLE'
 }
+
+/** Rôles autorisés à saisir un versement et à ouvrir une année (Contribution/Versement CRUD §2). */
+const GESTION_FINANCE = ['ADMIN', 'TRESORIERE']
+
+/** Peut saisir un versement (POST /versements). */
+export function peutSaisirVersement(role: string | undefined): boolean {
+  return role !== undefined && GESTION_FINANCE.includes(role)
+}
+
+/** Peut ouvrir une année (POST /contributions/ouvrir-annee). */
+export function peutOuvrirAnnee(role: string | undefined): boolean {
+  return role !== undefined && GESTION_FINANCE.includes(role)
+}

@@ -324,10 +324,83 @@ export const branchesApi = {
     request<Branche[]>('/branches', { accessToken, signal }),
 }
 
+export interface OuvrirAnneeResult {
+  annee: number
+  montantAttendu: number
+  membresEligibles: number
+  contributionsCreees: number
+}
+
 export const contributionsApi = {
   listByMembre: (membreId: string, accessToken: string, signal?: AbortSignal) =>
     request<Contribution[]>(`/contributions?membreId=${encodeURIComponent(membreId)}`, {
       accessToken,
       signal,
+    }),
+  ouvrirAnnee: (annee: number, accessToken: string) =>
+    request<OuvrirAnneeResult>('/contributions/ouvrir-annee', {
+      method: 'POST',
+      json: { annee },
+      accessToken,
+    }),
+}
+
+/* -------------------------------------------------------------------------- */
+/* Versements & Reçus (§4.4 / §4.6)                                          */
+/* -------------------------------------------------------------------------- */
+
+export type ModeVersement = 'ESPECES' | 'TIERS' | 'AUTRE'
+
+export interface Versement {
+  id: string
+  contributionId: string
+  montant: number
+  dateVersement: string
+  mode: ModeVersement
+  receptionnaireId: string | null
+  note: string | null
+  createdAt: string
+}
+
+export interface VersementInput {
+  contributionId: string
+  montant: number
+  dateVersement: string
+  mode: ModeVersement
+  note?: string
+}
+
+/** Réponse de POST /versements : le versement + la contribution aux totaux réajustés. */
+export interface VersementCree {
+  versement: Versement
+  contribution: Contribution
+}
+
+export interface Recu {
+  id: string
+  versementId: string
+  numero: string
+  genereParId: string
+  dateGeneration: string
+  urlPdf: string | null
+}
+
+export const versementsApi = {
+  listByContribution: (contributionId: string, accessToken: string, signal?: AbortSignal) =>
+    request<Versement[]>(
+      `/versements?contributionId=${encodeURIComponent(contributionId)}`,
+      { accessToken, signal },
+    ),
+  create: (body: VersementInput, accessToken: string) =>
+    request<VersementCree>('/versements', { method: 'POST', json: body, accessToken }),
+}
+
+export const recusApi = {
+  listByMembre: (membreId: string, accessToken: string, signal?: AbortSignal) =>
+    request<Recu[]>(`/recus?membreId=${encodeURIComponent(membreId)}`, { accessToken, signal }),
+  generer: (versementId: string, accessToken: string) =>
+    request<Recu>(`/versements/${encodeURIComponent(versementId)}/recu`, {
+      method: 'POST',
+      accessToken,
     }),
 }

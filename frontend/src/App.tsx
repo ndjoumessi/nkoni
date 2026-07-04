@@ -5,6 +5,7 @@ import DashboardPage from '@/pages/DashboardPage'
 import MembresPage from '@/pages/MembresPage'
 import MembreFormPage from '@/pages/MembreFormPage'
 import MembreDetailPage from '@/pages/MembreDetailPage'
+import VersementFormPage from '@/pages/VersementFormPage'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 
 function App() {
@@ -42,6 +43,14 @@ function App() {
         element={
           <ProtectedRoute>
             <MembreFormPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/membres/:id/versements/nouveau"
+        element={
+          <ProtectedRoute>
+            <VersementFormPage />
           </ProtectedRoute>
         }
       />

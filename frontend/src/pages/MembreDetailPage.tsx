@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Loader2, Pencil } from 'lucide-react'
+import { ArrowLeft, ChevronDown, ChevronRight, Loader2, Pencil, Plus } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
 import {
   membresApi,
@@ -12,8 +12,9 @@ import {
   type Contribution,
   type Branche,
 } from '@/lib/api'
-import { peutGererMembres } from '@/lib/roles'
+import { peutGererMembres, peutSaisirVersement } from '@/lib/roles'
 import { StatutCotisationBadge, StatutMembreBadge } from '@/components/membres/StatutBadges'
+import { VersementsList } from '@/components/VersementsList'
 import { formatFcfa } from '@/lib/format'
 
 function Info({ label, value }: { label: string; value: string }) {
@@ -33,8 +34,13 @@ function formatDate(iso: string | null): string {
 
 /**
  * Fiche complète d'un membre : infos + statut cumulatif (§4.1) + historique des
- * contributions. MEMBRE_SIMPLE ne peut voir que sa propre fiche : le backend renvoie 403
- * pour une autre → on redirige proprement vers le tableau de bord.
+ * contributions (avec versements dépliables et lien de saisie).
+ *
+ * Accès en couches selon la matrice §2 :
+ *  - Le CŒUR (fiche membre) : tout rôle Lecture sur Membre. MEMBRE_SIMPLE sur une AUTRE
+ *    fiche → 403 → redirection propre.
+ *  - Le FINANCIER (statut + contributions) : nécessite Lecture sur Contribution ; le
+ *    SECRETAIRE n'y a pas droit → chargé en best-effort, le bloc est simplement masqué.
  */
 export function MembreDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -44,9 +50,11 @@ export function MembreDetailPage() {
   const [membre, setMembre] = useState<Membre | null>(null)
   const [statut, setStatut] = useState<StatutCumule | null>(null)
   const [contributions, setContributions] = useState<Contribution[]>([])
+  const [financierAccessible, setFinancierAccessible] = useState(false)
   const [branches, setBranches] = useState<Branche[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [expandedContrib, setExpandedContrib] = useState<string | null>(null)
 
   useEffect(() => {
     if (!accessToken || !id) return
@@ -56,21 +64,15 @@ export function MembreDetailPage() {
     setLoading(true)
     setError(null)
     void (async () => {
-      // Cœur de la fiche : accessible à tout rôle Lecture (et au MEMBRE_SIMPLE pour SA fiche).
+      // 1) Cœur : la fiche membre. C'est le seul appel dont le 403 redirige (MEMBRE_SIMPLE
+      //    sur une autre fiche).
       try {
-        const [m, s, c] = await Promise.all([
-          membresApi.get(id, accessToken, signal),
-          membresApi.statut(id, accessToken, signal),
-          contributionsApi.listByMembre(id, accessToken, signal),
-        ])
+        const m = await membresApi.get(id, accessToken, signal)
         if (!active) return
         setMembre(m)
-        setStatut(s)
-        setContributions(c)
         setLoading(false)
       } catch (e) {
         if (e instanceof DOMException && e.name === 'AbortError') return
-        // MEMBRE_SIMPLE sur une AUTRE fiche → 403 : redirection propre.
         if (e instanceof ApiError && e.status === 403) {
           navigate('/dashboard', { replace: true })
           return
@@ -82,9 +84,23 @@ export function MembreDetailPage() {
         return
       }
 
-      // Branches : best-effort pour afficher le NOM de branche. Le MEMBRE_SIMPLE n'a pas
-      // le droit de lecture sur BrancheFamiliale (§2) → un 403 ici est sans conséquence,
-      // on retombe simplement sur « — ».
+      // 2) Financier (statut + contributions) : best-effort. Le SECRETAIRE n'a pas Lecture
+      //    sur Contribution (§2) → 403 attendu → on masque simplement le bloc.
+      try {
+        const [s, c] = await Promise.all([
+          membresApi.statut(id, accessToken, signal),
+          contributionsApi.listByMembre(id, accessToken, signal),
+        ])
+        if (active) {
+          setStatut(s)
+          setContributions([...c].sort((a, b) => b.annee - a.annee))
+          setFinancierAccessible(true)
+        }
+      } catch {
+        /* pas d'accès au financier (ex. SECRETAIRE) → bloc masqué */
+      }
+
+      // 3) Branches : best-effort pour le nom (MEMBRE_SIMPLE n'y a pas droit → « — »).
       try {
         const b = await branchesApi.list(accessToken, signal)
         if (active) setBranches(b)
@@ -149,7 +165,6 @@ export function MembreDetailPage() {
               )}
             </header>
 
-            {/* Statut cumulatif */}
             {statut && (
               <section className="mt-6 grid gap-4 sm:grid-cols-2">
                 <div className="rounded-2xl border border-white/12 bg-white/[0.06] p-5 backdrop-blur-xl">
@@ -163,7 +178,6 @@ export function MembreDetailPage() {
               </section>
             )}
 
-            {/* Infos */}
             <section className="mt-4 rounded-2xl border border-white/12 bg-white/[0.06] p-6 backdrop-blur-xl">
               <h2 className="text-xs uppercase tracking-wider text-white/40">Informations</h2>
               <dl className="mt-4 grid gap-5 sm:grid-cols-2">
@@ -181,38 +195,77 @@ export function MembreDetailPage() {
               </dl>
             </section>
 
-            {/* Historique contributions */}
-            <section className="mt-4 rounded-2xl border border-white/12 bg-white/[0.06] p-6 backdrop-blur-xl">
-              <h2 className="text-xs uppercase tracking-wider text-white/40">
-                Historique des contributions
-              </h2>
-              {contributions.length === 0 ? (
-                <p className="mt-4 text-sm text-white/40">Aucune contribution enregistrée.</p>
-              ) : (
-                <div className="mt-4 overflow-x-auto">
-                  <table className="w-full min-w-[26rem] text-sm">
-                    <thead>
-                      <tr className="text-left text-xs uppercase tracking-wider text-white/40">
-                        <th className="pb-2 font-medium">Année</th>
-                        <th className="pb-2 text-right font-medium">Attendu</th>
-                        <th className="pb-2 text-right font-medium">Versé</th>
-                        <th className="pb-2 text-right font-medium">Valorisé</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-white/[0.06]">
-                      {contributions.map((c) => (
-                        <tr key={c.id} className="text-white/80">
-                          <td className="py-2.5 font-medium text-white">{c.annee}</td>
-                          <td className="py-2.5 text-right">{formatFcfa(c.montantAttendu)}</td>
-                          <td className="py-2.5 text-right">{formatFcfa(c.montantVerse)}</td>
-                          <td className="py-2.5 text-right">{formatFcfa(c.montantValorise)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+            {financierAccessible && (
+              <section className="mt-4 rounded-2xl border border-white/12 bg-white/[0.06] p-6 backdrop-blur-xl">
+                <div className="flex items-center justify-between gap-3">
+                  <h2 className="text-xs uppercase tracking-wider text-white/40">
+                    Contributions & versements
+                  </h2>
+                  {peutSaisirVersement(user?.role) && (
+                    <Link
+                      to={`/membres/${membre.id}/versements/nouveau`}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/5 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-white/10"
+                    >
+                      <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                      Saisir un versement
+                    </Link>
+                  )}
                 </div>
-              )}
-            </section>
+                {contributions.length === 0 ? (
+                  <p className="mt-4 text-sm text-white/40">
+                    Aucune contribution enregistrée. Utilisez « Saisir un versement » pour ouvrir
+                    une année.
+                  </p>
+                ) : (
+                  <ul className="mt-4 space-y-2">
+                    {contributions.map((c) => {
+                      const expanded = expandedContrib === c.id
+                      return (
+                        <li
+                          key={c.id}
+                          className="overflow-hidden rounded-xl border border-white/10 bg-white/[0.03]"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+                            <button
+                              type="button"
+                              onClick={() => setExpandedContrib(expanded ? null : c.id)}
+                              className="flex items-center gap-2 text-sm font-medium text-white transition hover:text-white/80"
+                              aria-expanded={expanded}
+                            >
+                              {expanded ? (
+                                <ChevronDown className="h-4 w-4" aria-hidden="true" />
+                              ) : (
+                                <ChevronRight className="h-4 w-4" aria-hidden="true" />
+                              )}
+                              Année {c.annee}
+                            </button>
+                            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-white/55">
+                              <span>Attendu {formatFcfa(c.montantAttendu)}</span>
+                              <span>Versé {formatFcfa(c.montantVerse)}</span>
+                              <span>Valorisé {formatFcfa(c.montantValorise)}</span>
+                            </div>
+                            {peutSaisirVersement(user?.role) && (
+                              <Link
+                                to={`/membres/${membre.id}/versements/nouveau?contributionId=${c.id}`}
+                                className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/5 px-3 py-1 text-xs font-medium text-white transition hover:bg-white/10"
+                              >
+                                <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                                Versement
+                              </Link>
+                            )}
+                          </div>
+                          {expanded && (
+                            <div className="border-t border-white/10 bg-white/[0.02]">
+                              <VersementsList contributionId={c.id} membreId={membre.id} />
+                            </div>
+                          )}
+                        </li>
+                      )
+                    })}
+                  </ul>
+                )}
+              </section>
+            )}
           </>
         )}
       </div>

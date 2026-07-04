@@ -18,6 +18,9 @@ import FonctionDetailPage from '@/pages/FonctionDetailPage'
 import ConflitsPage from '@/pages/ConflitsPage'
 import ConflitFormPage from '@/pages/ConflitFormPage'
 import ConflitDetailPage from '@/pages/ConflitDetailPage'
+import CommemorationsPage from '@/pages/CommemorationsPage'
+import CommemorationFormPage from '@/pages/CommemorationFormPage'
+import CommemorationDetailPage from '@/pages/CommemorationDetailPage'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { AppShell } from '@/components/AppShell'
 
@@ -52,6 +55,10 @@ function App() {
         <Route path="/conflits" element={<ConflitsPage />} />
         <Route path="/conflits/nouveau" element={<ConflitFormPage />} />
         <Route path="/conflits/:id" element={<ConflitDetailPage />} />
+        <Route path="/commemorations" element={<CommemorationsPage />} />
+        <Route path="/commemorations/nouvelle" element={<CommemorationFormPage />} />
+        <Route path="/commemorations/:id/editer" element={<CommemorationFormPage />} />
+        <Route path="/commemorations/:id" element={<CommemorationDetailPage />} />
         <Route path="/membres" element={<MembresPage />} />
         <Route path="/membres/nouveau" element={<MembreFormPage />} />
         <Route path="/membres/:id/editer" element={<MembreFormPage />} />

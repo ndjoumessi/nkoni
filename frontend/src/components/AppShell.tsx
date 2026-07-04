@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
   CalendarRange,
+  Flame,
   Gavel,
   Landmark,
   LayoutDashboard,
@@ -21,6 +22,7 @@ import {
   peutVoirReunions,
   peutVoirFonctions,
   peutVoirConflits,
+  peutVoirCommemorations,
 } from '@/lib/roles'
 import { cn } from '@/lib/utils'
 import { NkoniMark } from '@/components/ui/NkoniMark'
@@ -58,6 +60,9 @@ function useNavItems(): NavItem[] {
   }
   if (peutVoirConflits(user?.role)) {
     items.push({ to: '/conflits', label: 'Conflits', icon: ShieldAlert })
+  }
+  if (peutVoirCommemorations(user?.role)) {
+    items.push({ to: '/commemorations', label: 'Commémorations', icon: Flame })
   }
   if (peutVoirBareme(user?.role)) {
     items.push({ to: '/bareme', label: 'Barème annuel', icon: CalendarRange })

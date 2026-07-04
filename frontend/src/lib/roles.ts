@@ -138,6 +138,25 @@ export function peutDeclarerConflit(role: string | undefined): boolean {
   return role !== undefined && DECLARATION_CONFLITS.includes(role)
 }
 
+/* Commémorations / cérémonies (V2) — domaine du GUIDE_RELIGIEUX --------------- */
+
+/** Lecture des commémorations : tous les rôles authentifiés. */
+export function peutVoirCommemorations(role: string | undefined): boolean {
+  return role !== undefined
+}
+
+/** Créer/modifier une commémoration : GUIDE_RELIGIEUX, ADMIN, PRESIDENT, SECRETAIRE. */
+const GESTION_COMMEMORATIONS = ['ADMIN', 'GUIDE_RELIGIEUX', 'PRESIDENT', 'SECRETAIRE']
+export function peutGererCommemorations(role: string | undefined): boolean {
+  return role !== undefined && GESTION_COMMEMORATIONS.includes(role)
+}
+
+/** Supprimer une commémoration : GUIDE_RELIGIEUX, ADMIN (domaine du guide). */
+const SUPPRESSION_COMMEMORATIONS = ['ADMIN', 'GUIDE_RELIGIEUX']
+export function peutSupprimerCommemoration(role: string | undefined): boolean {
+  return role !== undefined && SUPPRESSION_COMMEMORATIONS.includes(role)
+}
+
 /** Rôles applicatifs + libellés FR (miroir de l'enum Role du backend). */
 export const ROLES: { value: string; label: string }[] = [
   { value: 'ADMIN', label: 'Administrateur' },

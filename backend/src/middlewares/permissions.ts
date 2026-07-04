@@ -33,6 +33,8 @@ export type Entite =
   | 'Recu'
   | 'Export'
   | 'Utilisateur'
+  | 'Reunion'
+  | 'Resolution'
 
 export type Role =
   | 'ADMIN'
@@ -140,6 +142,25 @@ export const PERMISSIONS: Record<Entite, Partial<Record<Role, Action[]>>> = {
     ADMIN: CRUD,
     // PRESIDENT / SECRETAIRE / TRESORIERE / COMMISSAIRE_COMPTES : —
     MEMBRE_SIMPLE: ['read', 'update'], // Modifier son propre profil (filtrage en route)
+  },
+  // V1.1 (§5) — pas de matrice explicite dans la spec ; permissions calquées sur l'esprit
+  // du §2 (validé avec le PO). La permission `Reunion` gouverne aussi ses PointOrdreDuJour
+  // (sous-ressource). GUIDE_RELIGIEUX : aucun droit (comme le reste du MVP).
+  Reunion: {
+    ADMIN: CRUD,
+    PRESIDENT: CRUD,
+    SECRETAIRE: ['create', 'read', 'update'], // secrétariat : Créer/Modifier (pas de delete)
+    TRESORIERE: READ,
+    COMMISSAIRE_COMPTES: READ,
+    MEMBRE_SIMPLE: READ,
+  },
+  Resolution: {
+    ADMIN: CRUD,
+    PRESIDENT: CRUD,
+    SECRETAIRE: ['create', 'read', 'update'],
+    TRESORIERE: READ,
+    COMMISSAIRE_COMPTES: READ,
+    MEMBRE_SIMPLE: READ,
   },
 }
 

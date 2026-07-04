@@ -161,25 +161,68 @@ enum NiveauConfidentialite {
   CONFIDENTIEL
 }
 
+// ---------------------------------------------------------------------------
+// V1.1 (§5) — Réunions, Ordre du jour, Résolutions.
+// Résolutions PUREMENT DOCUMENTAIRES : aucun effet mécanique sur le reste du
+// système (cf. resolution.service.ts). Choix arbitré, pas un oubli.
+// ---------------------------------------------------------------------------
+
+enum TypeReunion {
+  ORDINAIRE
+  EXTRAORDINAIRE
+}
+
+enum StatutReunion {
+  PLANIFIEE
+  TENUE
+  ANNULEE
+}
+
+enum StatutResolution {
+  ADOPTEE
+  REJETEE
+  REPORTEE
+}
+
 model Reunion {
   id                String             @id @default(uuid())
+  date              DateTime
+  lieu              String
+  type              TypeReunion        @default(ORDINAIRE)
+  statut            StatutReunion      @default(PLANIFIEE)
+  compteRenduTexte  String?            // texte libre ; pas de module fichier séparé pour l'instant
   createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
   pointsOrdreDuJour PointOrdreDuJour[]
   resolutions       Resolution[]
 }
 
 model PointOrdreDuJour {
-  id        String   @id @default(uuid())
-  reunionId String
-  reunion   Reunion  @relation(fields: [reunionId], references: [id])
-  createdAt DateTime @default(now())
+  id          String       @id @default(uuid())
+  reunionId   String
+  reunion     Reunion      @relation(fields: [reunionId], references: [id], onDelete: Cascade)
+  titre       String
+  ordre       Int          // position d'affichage dans l'ordre du jour
+  notes       String?
+  createdAt   DateTime     @default(now())
+  resolutions Resolution[]
+
+  @@index([reunionId, ordre])
 }
 
 model Resolution {
-  id        String   @id @default(uuid())
-  reunionId String
-  reunion   Reunion  @relation(fields: [reunionId], references: [id])
-  createdAt DateTime @default(now())
+  id                 String            @id @default(uuid())
+  reunionId          String
+  reunion            Reunion           @relation(fields: [reunionId], references: [id], onDelete: Cascade)
+  // Rattachement optionnel à un point d'ordre du jour (de la MÊME réunion — contrôlé en service).
+  // Si le point est supprimé, la résolution est conservée (pointOrdreDuJourId → NULL).
+  pointOrdreDuJourId String?
+  pointOrdreDuJour   PointOrdreDuJour? @relation(fields: [pointOrdreDuJourId], references: [id], onDelete: SetNull)
+  texte              String
+  statut             StatutResolution  @default(ADOPTEE)
+  dateVote           DateTime?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
 }
 
 model FonctionFamiliale {

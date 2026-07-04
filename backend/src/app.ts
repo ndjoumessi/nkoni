@@ -40,9 +40,12 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
 
   // Cookie AVANT jwt (le namespace refresh lit le cookie).
   await app.register(cookie)
-  // CORS avec credentials pour que le cookie httpOnly circule cross-port en dev.
+  // CORS avec credentials pour que le cookie httpOnly circule cross-origin.
+  // CORS_ORIGIN accepte une liste séparée par des virgules (front canonique + ancien alias).
   await app.register(cors, {
-    origin: env.CORS_ORIGIN,
+    origin: env.CORS_ORIGIN.split(',')
+      .map((o) => o.trim())
+      .filter(Boolean),
     credentials: true,
   })
   await registerJwt(app)

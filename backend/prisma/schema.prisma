@@ -80,6 +80,7 @@ model Membre {
   compteUtilisateurId String?           @unique
   compteUtilisateur   Utilisateur?      @relation("CompteMembre", fields: [compteUtilisateurId], references: [id])
   contributions       Contribution[]
+  affectationsFonction AffectationFonction[] // V1.1 — nominations (actives + passées)
   createdAt           DateTime          @default(now())
   updatedAt           DateTime          @updatedAt
 }
@@ -225,17 +226,49 @@ model Resolution {
   updatedAt          DateTime          @updatedAt
 }
 
+// ---------------------------------------------------------------------------
+// V1.1 (§5) — Fonctions/organes + historique des nominations.
+//
+// Règle métier centrale : MONO-TITULAIRE avec clôture automatique. Une
+// FonctionFamiliale n'a qu'UNE SEULE AffectationFonction active (dateFin = null)
+// à la fois. Nommer un nouveau titulaire clôture automatiquement l'affectation
+// active précédente, dans une transaction (cf. affectation.service.ts).
+//
+// Convention d'intervalle (documentée, tranchée) : bornes SEMI-OUVERTES
+// [dateDebut, dateFin). La clôture pose dateFin de l'ancienne affectation =
+// dateDebut de la nouvelle (pas « la veille ») : pas de trou ni de recouvrement,
+// et « qui occupe la fonction à l'instant T » a une réponse unique.
+//
+// L'historique est IMMUABLE : aucune suppression physique d'une affectation
+// clôturée (pas d'endpoint update/delete côté affectation ; seule la création
+// écrit, en clôturant la précédente). Un membre peut cumuler plusieurs fonctions.
+// ---------------------------------------------------------------------------
+
 model FonctionFamiliale {
   id           String                @id @default(uuid())
+  nom          String                @unique
+  description  String?
   createdAt    DateTime              @default(now())
+  // Suppression d'une fonction → cascade sur son historique d'affectations
+  // (cohérent avec Reunion → points ; le CRUD complet est réservé ADMIN/PRESIDENT).
   affectations AffectationFonction[]
 }
 
 model AffectationFonction {
   id         String            @id @default(uuid())
   fonctionId String
-  fonction   FonctionFamiliale @relation(fields: [fonctionId], references: [id])
+  fonction   FonctionFamiliale @relation(fields: [fonctionId], references: [id], onDelete: Cascade)
+  membreId   String
+  membre     Membre            @relation(fields: [membreId], references: [id])
+  dateDebut  DateTime
+  dateFin    DateTime? // null = affectation active (titulaire en cours)
+  notes      String?
   createdAt  DateTime          @default(now())
+
+  // Recherche de l'affectation active d'une fonction (where fonctionId, dateFin=null).
+  @@index([fonctionId, dateFin])
+  // Historique par membre (« quelles fonctions a occupé ce membre »).
+  @@index([membreId])
 }
 
 model EvenementFamilial {

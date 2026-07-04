@@ -35,6 +35,8 @@ export type Entite =
   | 'Utilisateur'
   | 'Reunion'
   | 'Resolution'
+  | 'Fonction'
+  | 'Affectation'
 
 export type Role =
   | 'ADMIN'
@@ -158,6 +160,26 @@ export const PERMISSIONS: Record<Entite, Partial<Record<Role, Action[]>>> = {
     ADMIN: CRUD,
     PRESIDENT: CRUD,
     SECRETAIRE: ['create', 'read', 'update'],
+    TRESORIERE: READ,
+    COMMISSAIRE_COMPTES: READ,
+    MEMBRE_SIMPLE: READ,
+  },
+  // V1.1 (§5) — Fonctions/organes + historique des nominations. Permissions calquées
+  // sur l'esprit du §2 (comme Reunion). L'écriture d'une Affectation se limite à la
+  // création (mono-titulaire avec clôture auto) : pas d'update/delete d'affectation
+  // exposé, l'historique est immuable. GUIDE_RELIGIEUX : aucun droit.
+  Fonction: {
+    ADMIN: CRUD,
+    PRESIDENT: CRUD,
+    SECRETAIRE: ['create', 'read', 'update'], // tenue des registres (pas de delete)
+    TRESORIERE: READ,
+    COMMISSAIRE_COMPTES: READ,
+    MEMBRE_SIMPLE: READ,
+  },
+  Affectation: {
+    ADMIN: CRUD,
+    PRESIDENT: CRUD,
+    SECRETAIRE: ['create', 'read', 'update'], // nommer/consigner (pas de delete)
     TRESORIERE: READ,
     COMMISSAIRE_COMPTES: READ,
     MEMBRE_SIMPLE: READ,

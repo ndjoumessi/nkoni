@@ -85,5 +85,3 @@ if (require.main === module) {
       process.exit(1)
     })
 }
-
-// [test auto-deploy] commentaire trivial pour vérifier le déclenchement GitHub → Railway (à retirer)

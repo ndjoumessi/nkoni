@@ -4,7 +4,7 @@ import { Loader2, Plus, Search, Users } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
 import {
   membresApi,
-  ApiError,
+  messageErreur,
   type MembreStatut,
   type StatutMembre,
   type StatutContribution,
@@ -63,7 +63,7 @@ export function MembresPage() {
         if (active) setMembres(data)
       } catch (e) {
         if (e instanceof DOMException && e.name === 'AbortError') return
-        if (active) setError(e instanceof ApiError ? e.message : 'Erreur de chargement.')
+        if (active) setError(messageErreur(e))
       } finally {
         if (active) setLoading(false)
       }
@@ -205,6 +205,7 @@ export function MembresPage() {
           <EmptyState
             icon={Users}
             title="Aucun membre pour l'instant"
+            className="min-h-[52vh] justify-center"
             description="Commencez à constituer votre communauté en ajoutant les premiers membres."
             action={
               gestion && (
@@ -213,6 +214,10 @@ export function MembresPage() {
                 </ButtonLink>
               )
             }
+            tips={[
+              { icon: Search, label: 'Recherche & filtres par branche/statut' },
+              { icon: Users, label: 'Suivi de cotisation par membre' },
+            ]}
           />
         )}
 

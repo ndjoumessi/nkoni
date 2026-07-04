@@ -6,6 +6,7 @@ import {
   utilisateursApi,
   membresApi,
   ApiError,
+  messageErreur,
   type Utilisateur,
   type MembreStatut,
 } from '@/lib/api'
@@ -15,6 +16,7 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, Overline } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Field, Input, Select } from '@/components/ui/Field'
+import { FormSection } from '@/components/ui/FormSection'
 import { Badge } from '@/components/ui/Badge'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { RowsSkeleton } from '@/components/ui/Skeleton'
@@ -61,7 +63,7 @@ export function UtilisateursPage() {
         setMembres(ms)
       } catch (e) {
         if (e instanceof DOMException && e.name === 'AbortError') return
-        if (active) setError(e instanceof ApiError ? e.message : 'Erreur de chargement.')
+        if (active) setError(messageErreur(e))
       } finally {
         if (active) setLoading(false)
       }
@@ -161,8 +163,9 @@ export function UtilisateursPage() {
           <UserPlus className="h-4 w-4 text-brass" aria-hidden="true" />
           <Overline>Créer un compte</Overline>
         </div>
-        <form onSubmit={handleCreate} className="mt-4 space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
+        <form onSubmit={handleCreate} className="mt-5 space-y-4">
+          {/* Section 1 — Identifiants de connexion */}
+          <FormSection icon={Mail} title="Identifiants de connexion">
             <Field label="Adresse e-mail" required>
               <div className="relative">
                 <Mail
@@ -195,6 +198,10 @@ export function UtilisateursPage() {
                 />
               </div>
             </Field>
+          </FormSection>
+
+          {/* Section 2 — Rôle & rattachement */}
+          <FormSection icon={ShieldUser} title="Rôle & rattachement">
             <Field label="Rôle" required>
               <Select value={role} onChange={(e) => setRole(e.target.value)}>
                 {ROLES.map((r) => (
@@ -214,8 +221,9 @@ export function UtilisateursPage() {
                 ))}
               </Select>
             </Field>
-          </div>
-          <div className="flex justify-end">
+          </FormSection>
+
+          <div className="flex justify-end pt-1">
             <Button type="submit" icon={UserPlus} loading={creating}>
               Créer le compte
             </Button>
@@ -239,7 +247,12 @@ export function UtilisateursPage() {
           <EmptyState
             icon={ShieldUser}
             title="Aucun compte"
+            className="min-h-[40vh] justify-center"
             description="Créez le premier compte de connexion ci-dessus."
+            tips={[
+              { icon: UserPlus, label: 'Secrétaire, trésorière, commissaire…' },
+              { icon: KeyRound, label: 'Mot de passe temporaire à changer' },
+            ]}
           />
         )}
 

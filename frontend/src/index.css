@@ -118,6 +118,8 @@
     }
     html {
         @apply font-sans;
+        /* Supprime le halo brun/gris par défaut au tap sur mobile (artefact navigateur). */
+        -webkit-tap-highlight-color: transparent;
     }
     /* Titres : serif éditorial Fraunces, optique auto */
     h1, h2, h3, .font-display {
@@ -154,6 +156,21 @@
         radial-gradient(900px 520px at 12% -8%, oklch(0.805 0.116 84 / 12%), transparent 60%),
         radial-gradient(760px 520px at 100% 4%, oklch(0.735 0.128 166 / 10%), transparent 58%),
         radial-gradient(700px 700px at 50% 118%, oklch(0.672 0.157 39 / 6%), transparent 60%);
+}
+
+/* Grain de marque discret (bruit SVG) — texture légère sur les états vides. */
+.nk-grain {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-size: 140px 140px;
+}
+
+/* Motif géométrique très léger (chevrons/losanges laiton) pour le fond des pages vides. */
+.nk-weave {
+    background-image:
+        repeating-linear-gradient(45deg, oklch(0.805 0.116 84 / 4%) 0 1px, transparent 1px 14px),
+        repeating-linear-gradient(-45deg, oklch(0.735 0.128 166 / 3.5%) 0 1px, transparent 1px 14px);
+    -webkit-mask-image: radial-gradient(closest-side at 50% 42%, #000, transparent 85%);
+    mask-image: radial-gradient(closest-side at 50% 42%, #000, transparent 85%);
 }
 
 /* Grille fine masquée, pour la profondeur des surfaces vitrine */

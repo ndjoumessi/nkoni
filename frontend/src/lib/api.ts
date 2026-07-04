@@ -34,6 +34,23 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Traduit une erreur d'appel API en message lisible pour l'UI.
+ *
+ * - `ApiError` (le serveur A répondu, avec un statut d'erreur) → message du serveur.
+ * - Sinon, `fetch` a **rejeté** sans réponse : réseau coupé, serveur injoignable, ou —
+ *   cas fréquent — requête **bloquée par la politique CORS** (origine non autorisée).
+ *   On loggue l'erreur brute (diagnostic) et on renvoie un message explicite plutôt
+ *   qu'un « Erreur de chargement » opaque.
+ */
+export function messageErreur(e: unknown): string {
+  if (e instanceof ApiError) return e.message
+  if (e instanceof DOMException && e.name === 'AbortError') return 'Requête annulée.'
+  // eslint-disable-next-line no-console
+  console.error('[NKONI] Appel API en échec (réseau ou CORS/origine non autorisée) :', e)
+  return 'Impossible de contacter le serveur (réseau, ou origine non autorisée par le CORS).'
+}
+
 interface RequestOptions {
   method?: string
   json?: unknown

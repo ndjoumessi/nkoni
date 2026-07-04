@@ -64,6 +64,7 @@ function OnboardingVide({ canManage }: { canManage: boolean }) {
     <EmptyState
       icon={Sparkles}
       title="Bienvenue sur NKONI"
+      className="min-h-[56vh] justify-center"
       description={
         canManage
           ? 'Aucune cotisation n’est encore suivie. Commencez par configurer le barème annuel : il fixe le montant attendu par membre et débloque l’ouverture des années.'
@@ -76,6 +77,11 @@ function OnboardingVide({ canManage }: { canManage: boolean }) {
           </ButtonLink>
         )
       }
+      tips={[
+        { icon: CalendarRange, label: 'Définir le barème annuel' },
+        { icon: Users, label: 'Ajouter les membres' },
+        { icon: Coins, label: 'Enregistrer les versements' },
+      ]}
     />
   )
 }

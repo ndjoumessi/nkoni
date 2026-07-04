@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
+import { Phone, User, Users } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
 import {
   membresApi,
@@ -16,6 +17,7 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { Card } from '@/components/ui/Card'
 import { Button, ButtonLink } from '@/components/ui/Button'
 import { Field, Input, Select, Textarea } from '@/components/ui/Field'
+import { FormSection } from '@/components/ui/FormSection'
 import { Skeleton } from '@/components/ui/Skeleton'
 
 const STATUTS: { value: StatutMembre; label: string }[] = [
@@ -187,7 +189,7 @@ export function MembreFormPage() {
       ) : (
         <Card className="nk-reveal nk-d2 mt-7 p-6">
           <form onSubmit={handleSubmit} className="space-y-5">
-            <div className="grid gap-5 sm:grid-cols-2">
+            <FormSection icon={User} title="Identité">
               <Field label="Nom" required>
                 <Input required value={form.nom} onChange={(e) => set('nom', e.target.value)} />
               </Field>
@@ -208,6 +210,22 @@ export function MembreFormPage() {
                   onChange={(e) => set('dateNaissance', e.target.value)}
                 />
               </Field>
+            </FormSection>
+
+            <FormSection icon={Phone} title="Coordonnées">
+              <Field label="Téléphone">
+                <Input value={form.telephone} onChange={(e) => set('telephone', e.target.value)} />
+              </Field>
+              <Field label="Adresse" className="sm:col-span-2">
+                <Textarea
+                  value={form.adresse}
+                  onChange={(e) => set('adresse', e.target.value)}
+                  rows={2}
+                />
+              </Field>
+            </FormSection>
+
+            <FormSection icon={Users} title="Adhésion & rôle familial">
               <Field label="Fonction sociale">
                 <Input
                   value={form.fonctionSociale}
@@ -223,9 +241,6 @@ export function MembreFormPage() {
                   value={form.anneeAdhesion}
                   onChange={(e) => set('anneeAdhesion', e.target.value)}
                 />
-              </Field>
-              <Field label="Téléphone">
-                <Input value={form.telephone} onChange={(e) => set('telephone', e.target.value)} />
               </Field>
               <Field label="Statut">
                 <Select
@@ -278,15 +293,7 @@ export function MembreFormPage() {
                   />
                 </Field>
               )}
-            </div>
-
-            <Field label="Adresse">
-              <Textarea
-                value={form.adresse}
-                onChange={(e) => set('adresse', e.target.value)}
-                rows={2}
-              />
-            </Field>
+            </FormSection>
 
             <div className="flex items-center justify-end gap-3 pt-2">
               <ButtonLink to={backTo} variant="ghost">

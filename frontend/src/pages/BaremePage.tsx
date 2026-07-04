@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { CalendarRange, Check, Pencil, Plus, X } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
-import { baremeApi, ApiError, type Bareme } from '@/lib/api'
+import { baremeApi, ApiError, messageErreur, type Bareme } from '@/lib/api'
 import { peutVoirBareme, peutGererBareme } from '@/lib/roles'
 import { formatFcfa } from '@/lib/format'
 import { useToast } from '@/components/ui/Toast'
@@ -46,7 +46,7 @@ export function BaremePage() {
         if (active) setBaremes(list)
       } catch (e) {
         if (e instanceof DOMException && e.name === 'AbortError') return
-        if (active) setError(e instanceof ApiError ? e.message : 'Erreur de chargement.')
+        if (active) setError(messageErreur(e))
       } finally {
         if (active) setLoading(false)
       }

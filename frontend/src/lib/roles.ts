@@ -25,3 +25,16 @@ export function peutSaisirVersement(role: string | undefined): boolean {
 export function peutOuvrirAnnee(role: string | undefined): boolean {
   return role !== undefined && GESTION_FINANCE.includes(role)
 }
+
+/** Rôles avec Lecture sur BaremeAnnuel (§2 : pas SECRETAIRE, pas MEMBRE_SIMPLE). */
+const LECTURE_BAREME = ['ADMIN', 'PRESIDENT', 'TRESORIERE', 'COMMISSAIRE_COMPTES']
+
+/** Peut consulter les barèmes annuels. */
+export function peutVoirBareme(role: string | undefined): boolean {
+  return role !== undefined && LECTURE_BAREME.includes(role)
+}
+
+/** Peut créer/modifier un barème annuel (ADMIN uniquement). */
+export function peutGererBareme(role: string | undefined): boolean {
+  return role === 'ADMIN'
+}

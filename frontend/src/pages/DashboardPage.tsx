@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   AlertTriangle,
+  CalendarRange,
   Coins,
   GitBranch,
   Loader2,
@@ -9,7 +10,7 @@ import {
   Users,
   Wallet,
 } from 'lucide-react'
-import { estMembreSimple } from '@/lib/roles'
+import { estMembreSimple, peutVoirBareme } from '@/lib/roles'
 import { useAuth } from '@/contexts/auth-context'
 import { useDashboard } from '@/hooks/useDashboard'
 import { StatCard } from '@/components/dashboard/StatCard'
@@ -206,7 +207,16 @@ export function DashboardPage() {
               {data && ` · ${VUE_LABEL[data.vue]}`}
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            {peutVoirBareme(user?.role) && (
+              <Link
+                to="/bareme"
+                className="inline-flex items-center justify-center gap-2 rounded-full border border-white/20 bg-white/5 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+              >
+                <CalendarRange className="h-4 w-4" aria-hidden="true" />
+                Barème annuel
+              </Link>
+            )}
             <Link
               to="/membres"
               className="inline-flex items-center justify-center gap-2 rounded-full border border-white/20 bg-white/5 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"

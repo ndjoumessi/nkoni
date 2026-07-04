@@ -6,6 +6,7 @@ import MembresPage from '@/pages/MembresPage'
 import MembreFormPage from '@/pages/MembreFormPage'
 import MembreDetailPage from '@/pages/MembreDetailPage'
 import VersementFormPage from '@/pages/VersementFormPage'
+import BaremePage from '@/pages/BaremePage'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 
 function App() {
@@ -22,6 +23,14 @@ function App() {
         }
       />
       {/* Routes statiques avant la route paramétrée /membres/:id */}
+      <Route
+        path="/bareme"
+        element={
+          <ProtectedRoute>
+            <BaremePage />
+          </ProtectedRoute>
+        }
+      />
       <Route
         path="/membres"
         element={

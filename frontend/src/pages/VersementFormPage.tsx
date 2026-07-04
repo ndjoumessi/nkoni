@@ -64,6 +64,7 @@ export function VersementFormPage() {
   const [ouvrant, setOuvrant] = useState(false)
   const [ouvrirMsg, setOuvrirMsg] = useState<string | null>(null)
   const [ouvrirErr, setOuvrirErr] = useState<string | null>(null)
+  const [baremeManquant, setBaremeManquant] = useState(false)
 
   const chargerContributions = useCallback(
     async (signal?: AbortSignal): Promise<Contribution[]> => {
@@ -115,6 +116,7 @@ export function VersementFormPage() {
     if (!accessToken) return
     setOuvrirErr(null)
     setOuvrirMsg(null)
+    setBaremeManquant(false)
     setOuvrant(true)
     try {
       const res = await contributionsApi.ouvrirAnnee(Number(anneeAOuvrir), accessToken)
@@ -126,6 +128,8 @@ export function VersementFormPage() {
           (nouvelle ? '.' : ". Ce membre n'est pas éligible pour cette année."),
       )
     } catch (e) {
+      // 400 = aucun barème configuré pour l'année → on proposera un lien vers /bareme.
+      if (e instanceof ApiError && e.status === 400) setBaremeManquant(true)
       setOuvrirErr(
         e instanceof ApiError ? e.message : "Échec de l'ouverture de l'année.",
       )
@@ -395,7 +399,19 @@ export function VersementFormPage() {
                   </button>
                 </div>
                 {ouvrirMsg && <p className="mt-2 text-sm text-emerald-200">{ouvrirMsg}</p>}
-                {ouvrirErr && <p className="mt-2 text-sm text-rose-300">{ouvrirErr}</p>}
+                {ouvrirErr && (
+                  <p className="mt-2 text-sm text-rose-300">
+                    {ouvrirErr}
+                    {baremeManquant && (
+                      <>
+                        {' '}
+                        <Link to="/bareme" className="font-semibold text-rose-100 underline">
+                          Configurer le barème →
+                        </Link>
+                      </>
+                    )}
+                  </p>
+                )}
               </div>
             )}
           </form>

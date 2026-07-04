@@ -14,7 +14,13 @@ import {
   type Branche,
   type Equilibrage,
 } from '@/lib/api'
-import { peutGererMembres, peutSaisirVersement, peutEquilibrer } from '@/lib/roles'
+import {
+  peutGererMembres,
+  peutSaisirVersement,
+  peutEquilibrer,
+  peutGererDocument,
+} from '@/lib/roles'
+import { DocumentsSection } from '@/components/documents/DocumentsSection'
 import { StatutCotisationBadge, StatutMembreBadge } from '@/components/membres/StatutBadges'
 import { VersementsList } from '@/components/VersementsList'
 import { formatFcfa } from '@/lib/format'
@@ -316,6 +322,13 @@ export function MembreDetailPage() {
           </div>
         </Card>
       )}
+
+      {/* Documents rattachés à la fiche membre (MEMBRE_SIMPLE : sa fiche uniquement, filtré serveur) */}
+      <DocumentsSection
+        entiteType="MEMBRE"
+        entiteId={membre.id}
+        canManage={peutGererDocument(user?.role, 'MEMBRE')}
+      />
     </div>
   )
 }

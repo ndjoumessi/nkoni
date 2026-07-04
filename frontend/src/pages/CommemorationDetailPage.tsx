@@ -13,7 +13,9 @@ import {
   peutVoirCommemorations,
   peutGererCommemorations,
   peutSupprimerCommemoration,
+  peutGererDocument,
 } from '@/lib/roles'
+import { DocumentsSection } from '@/components/documents/DocumentsSection'
 import { formatDateFR } from '@/lib/utils'
 import { useToast } from '@/components/ui/Toast'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -226,6 +228,13 @@ export function CommemorationDetailPage() {
           </p>
         </Card>
       )}
+
+      {/* Documents rattachés */}
+      <DocumentsSection
+        entiteType="COMMEMORATION"
+        entiteId={item.id}
+        canManage={peutGererDocument(user?.role, 'COMMEMORATION')}
+      />
 
       {deleteOuvert && (
         <Modal open onClose={() => setDeleteOuvert(false)} title="Supprimer la commémoration ?">

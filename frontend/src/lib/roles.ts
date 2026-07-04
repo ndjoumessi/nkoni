@@ -157,6 +157,19 @@ export function peutSupprimerCommemoration(role: string | undefined): boolean {
   return role !== undefined && SUPPRESSION_COMMEMORATIONS.includes(role)
 }
 
+/* Documents (V2 §5) — miroir de peutGererDocumentPourEntite côté serveur -------
+ * (le serveur reste l'autorité ; ce miroir ne sert qu'à afficher/masquer l'UI d'upload).
+ * Règle : bureau pour tous les types, OU GUIDE_RELIGIEUX pour les COMMEMORATION. */
+const BUREAU_DOCS = ['ADMIN', 'PRESIDENT', 'SECRETAIRE']
+export function peutGererDocument(
+  role: string | undefined,
+  entiteType: 'MEMBRE' | 'REUNION' | 'CONFLIT' | 'COMMEMORATION',
+): boolean {
+  if (role === undefined) return false
+  if (BUREAU_DOCS.includes(role)) return true
+  return entiteType === 'COMMEMORATION' && role === 'GUIDE_RELIGIEUX'
+}
+
 /** Rôles applicatifs + libellés FR (miroir de l'enum Role du backend). */
 export const ROLES: { value: string; label: string }[] = [
   { value: 'ADMIN', label: 'Administrateur' },

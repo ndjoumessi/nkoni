@@ -22,7 +22,13 @@ import {
   type StatutReunion,
   type StatutResolution,
 } from '@/lib/api'
-import { peutVoirReunions, peutGererReunions, peutSupprimerReunion } from '@/lib/roles'
+import {
+  peutVoirReunions,
+  peutGererReunions,
+  peutSupprimerReunion,
+  peutGererDocument,
+} from '@/lib/roles'
+import { DocumentsSection } from '@/components/documents/DocumentsSection'
 import { formatDateFR } from '@/lib/utils'
 import { useToast } from '@/components/ui/Toast'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -538,6 +544,13 @@ export function ReunionDetailPage() {
           </form>
         )}
       </Card>
+
+      {/* Documents rattachés à la réunion */}
+      <DocumentsSection
+        entiteType="REUNION"
+        entiteId={reunion.id}
+        canManage={peutGererDocument(user?.role, 'REUNION')}
+      />
     </>
   )
 }

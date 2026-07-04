@@ -9,7 +9,8 @@ import {
   type Conflit,
   type StatutConflit,
 } from '@/lib/api'
-import { peutVoirConflits } from '@/lib/roles'
+import { peutVoirConflits, peutGererDocument } from '@/lib/roles'
+import { DocumentsSection } from '@/components/documents/DocumentsSection'
 import { formatDateFR } from '@/lib/utils'
 import { useToast } from '@/components/ui/Toast'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -252,6 +253,13 @@ export function ConflitDetailPage() {
           </p>
         )}
       </Card>
+
+      {/* Documents rattachés (visibilité héritée du conflit — filtrée côté serveur) */}
+      <DocumentsSection
+        entiteType="CONFLIT"
+        entiteId={conflit.id}
+        canManage={peutGererDocument(user?.role, 'CONFLIT')}
+      />
     </>
   )
 }

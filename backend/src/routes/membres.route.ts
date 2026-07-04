@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyPluginAsync, FastifyReply } from 'fastify'
 import { Prisma } from '../generated/prisma/client'
 import { authenticate } from '../middlewares/authenticate'
 import { requirePermission } from '../middlewares/permissions'
+import { calculerStatutsMembres } from '../services/membreStatut.service'
 
 /**
  * CRUD Membre (§5 point 2), conforme à la matrice §2 :
@@ -110,6 +111,21 @@ export const membresRoutes: FastifyPluginAsync = async (app: FastifyInstance) =>
       return app.prisma.membre.findMany({
         orderBy: [{ nom: 'asc' }, { prenom: 'asc' }],
       })
+    },
+  )
+
+  // GET /membres/statuts — liste enrichie du statut de cotisation, calculé EN MASSE
+  // (évite le N+1 d'un GET /membres/:id/statut par membre côté front). MEMBRE_SIMPLE :
+  // restreint à sa propre fiche, comme GET /membres.
+  app.get(
+    '/membres/statuts',
+    { preHandler: [authenticate, perm('read')] },
+    async (req) => {
+      const where =
+        req.user.role === 'MEMBRE_SIMPLE'
+          ? { compteUtilisateurId: req.user.sub ?? '' }
+          : undefined
+      return calculerStatutsMembres(app.prisma, anneeCourante(), where)
     },
   )
 

@@ -21,6 +21,7 @@ import { PasswordInput } from '@/components/ui/PasswordInput'
 import { Modal } from '@/components/ui/Modal'
 import { FormSection } from '@/components/ui/FormSection'
 import { Badge } from '@/components/ui/Badge'
+import { DataTable, type Column } from '@/components/ui/DataTable'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { RowsSkeleton } from '@/components/ui/Skeleton'
 
@@ -181,6 +182,95 @@ export function UtilisateursPage() {
     }
   }
 
+  const colonnesComptes: Column<Utilisateur>[] = [
+    {
+      key: 'compte',
+      header: 'Compte',
+      cell: (u) => {
+        const estSoi = u.id === user?.id
+        return (
+          <div className="min-w-0">
+            <p className="flex items-center gap-2 font-medium text-foreground">
+              <span className="truncate">{u.email}</span>
+              {estSoi && (
+                <Badge tone="brass" size="sm">
+                  Vous
+                </Badge>
+              )}
+            </p>
+            <p className="mt-0.5 text-xs text-faint">
+              {u.membre ? `Membre : ${u.membre.nom} ${u.membre.prenom}` : 'Aucun membre lié'}
+            </p>
+          </div>
+        )
+      },
+    },
+    {
+      key: 'role',
+      header: 'Rôle',
+      width: '13rem',
+      cell: (u) => {
+        const estSoi = u.id === user?.id
+        const busy = pendingId === u.id
+        return (
+          <Select
+            value={u.role}
+            disabled={estSoi || busy}
+            onChange={(e) => patch(u, { role: e.target.value })}
+            aria-label={`Rôle de ${u.email}`}
+          >
+            {ROLES.map((r) => (
+              <option key={r.value} value={r.value}>
+                {r.label}
+              </option>
+            ))}
+          </Select>
+        )
+      },
+    },
+    {
+      key: 'statut',
+      header: 'Statut',
+      cell: (u) =>
+        u.actif ? (
+          <Badge tone="jade" size="sm" dot>
+            Actif
+          </Badge>
+        ) : (
+          <Badge tone="neutral" size="sm">
+            Désactivé
+          </Badge>
+        ),
+    },
+    {
+      key: 'actions',
+      header: <span className="sr-only">Actions</span>,
+      align: 'right',
+      cell: (u) => {
+        const estSoi = u.id === user?.id
+        const busy = pendingId === u.id
+        return (
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button variant="ghost" size="sm" icon={KeyRound} disabled={busy} onClick={() => ouvrirReset(u)}>
+              Réinitialiser
+            </Button>
+            <Button
+              variant={u.actif ? 'danger' : 'jade'}
+              size="sm"
+              icon={Power}
+              loading={busy}
+              disabled={estSoi}
+              title={estSoi ? 'Vous ne pouvez pas désactiver votre propre compte.' : undefined}
+              onClick={() => patch(u, { actif: !u.actif })}
+            >
+              {u.actif ? 'Désactiver' : 'Réactiver'}
+            </Button>
+          </div>
+        )
+      },
+    },
+  ]
+
   return (
     <>
       <PageHeader
@@ -289,86 +379,12 @@ export function UtilisateursPage() {
 
         {!loading && !error && utilisateurs && utilisateurs.length > 0 && (
           <Card className="overflow-hidden p-0">
-            <div className="hidden grid-cols-[2fr_1.4fr_1.2fr_auto] gap-4 border-b border-hairline px-5 py-3 text-[0.7rem] font-medium uppercase tracking-[0.12em] text-faint md:grid">
-              <span>Compte</span>
-              <span>Rôle</span>
-              <span>Statut</span>
-              <span className="sr-only">Actions</span>
-            </div>
-            <ul className="divide-y divide-hairline">
-              {utilisateurs.map((u) => {
-                const estSoi = u.id === user?.id
-                const busy = pendingId === u.id
-                return (
-                  <li
-                    key={u.id}
-                    className="grid grid-cols-1 gap-3 px-5 py-4 md:grid-cols-[2fr_1.4fr_1.2fr_auto] md:items-center md:gap-4"
-                  >
-                    <div className="min-w-0">
-                      <p className="flex items-center gap-2 font-medium text-foreground">
-                        <span className="truncate">{u.email}</span>
-                        {estSoi && (
-                          <Badge tone="brass" size="sm">
-                            Vous
-                          </Badge>
-                        )}
-                      </p>
-                      <p className="mt-0.5 text-xs text-faint">
-                        {u.membre ? `Membre : ${u.membre.nom} ${u.membre.prenom}` : 'Aucun membre lié'}
-                      </p>
-                    </div>
-
-                    <Select
-                      value={u.role}
-                      disabled={estSoi || busy}
-                      onChange={(e) => patch(u, { role: e.target.value })}
-                      aria-label={`Rôle de ${u.email}`}
-                    >
-                      {ROLES.map((r) => (
-                        <option key={r.value} value={r.value}>
-                          {r.label}
-                        </option>
-                      ))}
-                    </Select>
-
-                    <span>
-                      {u.actif ? (
-                        <Badge tone="jade" size="sm" dot>
-                          Actif
-                        </Badge>
-                      ) : (
-                        <Badge tone="neutral" size="sm">
-                          Désactivé
-                        </Badge>
-                      )}
-                    </span>
-
-                    <div className="flex flex-wrap justify-start gap-2 md:justify-end">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        icon={KeyRound}
-                        disabled={busy}
-                        onClick={() => ouvrirReset(u)}
-                      >
-                        Réinitialiser le mot de passe
-                      </Button>
-                      <Button
-                        variant={u.actif ? 'danger' : 'jade'}
-                        size="sm"
-                        icon={Power}
-                        loading={busy}
-                        disabled={estSoi}
-                        title={estSoi ? 'Vous ne pouvez pas désactiver votre propre compte.' : undefined}
-                        onClick={() => patch(u, { actif: !u.actif })}
-                      >
-                        {u.actif ? 'Désactiver' : 'Réactiver'}
-                      </Button>
-                    </div>
-                  </li>
-                )
-              })}
-            </ul>
+            <DataTable
+              caption="Comptes de connexion"
+              columns={colonnesComptes}
+              rows={utilisateurs}
+              rowKey={(u) => u.id}
+            />
           </Card>
         )}
       </div>

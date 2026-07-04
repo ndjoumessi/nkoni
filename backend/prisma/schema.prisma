@@ -51,6 +51,7 @@ model Utilisateur {
   conflitsAuteur      Conflit[] @relation("ConflitAuteur")
   conflitsResponsable Conflit[] @relation("ConflitResponsableSuivi")
   documentsTeleverses Document[] @relation("DocumentTeleversePar") // V2 §5
+  auditsActeur        AuditLog[] @relation("AuditActeur") // V2 §5 — écritures tracées
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }
@@ -392,6 +393,37 @@ model Document {
 
   @@index([entiteType, entiteId])
   @@index([televerseParId])
+}
+
+// ---------------------------------------------------------------------------
+// V2 (§5) — Audit trail transverse. Écrit AUTOMATIQUEMENT par une extension Prisma
+// ($extends, cf. lib/audit-middleware.ts) sur les écritures create/update/delete de 6
+// entités : Membre, Contribution, Versement, EquilibrageContribution, Utilisateur, Conflit.
+// Snapshots avant/après en JSON — filtrés : jamais de passwordHash (Utilisateur), et pour
+// Conflit uniquement des métadonnées NON sensibles (pas titre/description/notes). La lecture
+// (GET /audit-log, ADMIN) applique en plus peutVoirConflit sur les entrées CONFLIT.
+// ---------------------------------------------------------------------------
+
+enum ActionAudit {
+  CREATE
+  UPDATE
+  DELETE
+}
+
+model AuditLog {
+  id           String       @id @default(uuid())
+  entiteType   String // nom du modèle : 'Membre' | 'Contribution' | … | 'Conflit'
+  entiteId     String
+  action       ActionAudit
+  acteurId     String? // null = écriture système (seed, migration…)
+  acteur       Utilisateur? @relation("AuditActeur", fields: [acteurId], references: [id], onDelete: SetNull)
+  donneesAvant Json? // snapshot avant (null pour CREATE) — passwordHash exclu
+  donneesApres Json? // snapshot après (null pour DELETE) — passwordHash exclu
+  dateAction   DateTime     @default(now())
+
+  @@index([entiteType, entiteId])
+  @@index([acteurId])
+  @@index([dateAction])
 }
 
 model Notification {

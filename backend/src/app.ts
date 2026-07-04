@@ -25,6 +25,8 @@ import { affectationsRoutes } from './routes/affectations.route'
 import { conflitsRoutes } from './routes/conflits.route'
 import { commemorationsRoutes } from './routes/commemorations.route'
 import { documentsRoutes } from './routes/documents.route'
+import { auditLogRoutes } from './routes/audit-log.route'
+import { auditContext } from './lib/audit-context'
 
 // Décoration de l'instance Fastify avec le client Prisma + le client Blob (injectables en test).
 declare module 'fastify' {
@@ -51,6 +53,13 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
 
   app.decorate('prisma', opts.prisma ?? defaultPrisma)
   app.decorate('blob', opts.blob ?? vercelBlobClient)
+
+  // Audit trail (V2 §5) : établit le contexte ALS par requête ; l'acteur est renseigné
+  // ensuite par le middleware d'authentification, puis lu par l'extension Prisma.
+  app.addHook('onRequest', (_req, _reply, done) => {
+    auditContext.enter()
+    done()
+  })
 
   // Multipart pour l'upload de documents (§5). Limite un peu au-dessus de 10 Mo :
   // la validation fine des 10 Mo est faite dans le service (validerFichier → 400).
@@ -88,6 +97,7 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   await app.register(conflitsRoutes)
   await app.register(commemorationsRoutes)
   await app.register(documentsRoutes)
+  await app.register(auditLogRoutes)
 
   return app
 }

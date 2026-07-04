@@ -1,6 +1,7 @@
 import '@fastify/jwt' // charge l'augmentation de type (req.jwtVerify, req.user)
 import type { FastifyReply, FastifyRequest } from 'fastify'
 import type { Role } from './permissions'
+import { auditContext } from '../lib/audit-context'
 
 /**
  * Hook d'AUTHENTIFICATION minimal (vérification JWT uniquement).
@@ -21,6 +22,8 @@ export async function authenticate(
   try {
     // Fourni par @fastify/jwt : vérifie le Bearer token et remplit `req.user`.
     await req.jwtVerify()
+    // Renseigne l'acteur pour l'audit trail (V2 §5) — best-effort.
+    auditContext.setActeur(req.user.sub)
   } catch {
     reply.code(401).send({ error: 'Unauthorized', message: 'Token JWT absent ou invalide.' })
   }

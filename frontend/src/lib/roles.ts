@@ -57,6 +57,11 @@ export function peutGererUtilisateurs(role: string | undefined): boolean {
   return role === 'ADMIN'
 }
 
+/** Peut consulter le journal d'audit (V2 §5 : ADMIN uniquement). */
+export function peutVoirAudit(role: string | undefined): boolean {
+  return role === 'ADMIN'
+}
+
 /* Réunions / Résolutions (V1.1 §5) — miroir de la matrice permissions.ts ------ */
 
 /** Rôles avec Lecture sur les réunions (tous sauf GUIDE_RELIGIEUX). */

@@ -8,6 +8,7 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
+  ScrollText,
   ShieldAlert,
   ShieldUser,
   Users,
@@ -23,6 +24,7 @@ import {
   peutVoirFonctions,
   peutVoirConflits,
   peutVoirCommemorations,
+  peutVoirAudit,
 } from '@/lib/roles'
 import { cn } from '@/lib/utils'
 import { NkoniMark } from '@/components/ui/NkoniMark'
@@ -69,6 +71,9 @@ function useNavItems(): NavItem[] {
   }
   if (peutGererUtilisateurs(user?.role)) {
     items.push({ to: '/utilisateurs', label: 'Utilisateurs', icon: ShieldUser })
+  }
+  if (peutVoirAudit(user?.role)) {
+    items.push({ to: '/audit', label: 'Audit', icon: ScrollText })
   }
   return items
 }

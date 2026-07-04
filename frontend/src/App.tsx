@@ -21,6 +21,7 @@ import ConflitDetailPage from '@/pages/ConflitDetailPage'
 import CommemorationsPage from '@/pages/CommemorationsPage'
 import CommemorationFormPage from '@/pages/CommemorationFormPage'
 import CommemorationDetailPage from '@/pages/CommemorationDetailPage'
+import AuditLogPage from '@/pages/AuditLogPage'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { AppShell } from '@/components/AppShell'
 
@@ -46,6 +47,7 @@ function App() {
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/bareme" element={<BaremePage />} />
         <Route path="/utilisateurs" element={<UtilisateursPage />} />
+        <Route path="/audit" element={<AuditLogPage />} />
         <Route path="/mon-profil" element={<MonProfilPage />} />
         <Route path="/reunions" element={<ReunionsPage />} />
         <Route path="/reunions/nouvelle" element={<ReunionFormPage />} />

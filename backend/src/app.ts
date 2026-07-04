@@ -7,6 +7,11 @@ import { registerJwt } from './plugins/jwt'
 import { authRoutes } from './routes/auth.route'
 import { membresRoutes } from './routes/membres.route'
 import { branchesRoutes } from './routes/branches.route'
+import { baremeRoutes } from './routes/bareme.route'
+import { contributionsRoutes } from './routes/contributions.route'
+import { versementsRoutes } from './routes/versements.route'
+import { equilibragesRoutes } from './routes/equilibrages.route'
+import { recusRoutes } from './routes/recus.route'
 
 // Décoration de l'instance Fastify avec le client Prisma (injectable pour les tests).
 declare module 'fastify' {
@@ -44,6 +49,11 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   await app.register(authRoutes, { prefix: '/auth' })
   await app.register(membresRoutes)
   await app.register(branchesRoutes)
+  await app.register(baremeRoutes)
+  await app.register(contributionsRoutes)
+  await app.register(versementsRoutes)
+  await app.register(equilibragesRoutes)
+  await app.register(recusRoutes)
 
   return app
 }

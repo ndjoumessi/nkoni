@@ -47,6 +47,9 @@ model Utilisateur {
   role         Role
   actif        Boolean  @default(true)
   membre       Membre?  @relation("CompteMembre")
+  // V2 (§4.4) — conflits déclarés / suivis par ce compte.
+  conflitsAuteur      Conflit[] @relation("ConflitAuteur")
+  conflitsResponsable Conflit[] @relation("ConflitResponsableSuivi")
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }
@@ -81,6 +84,7 @@ model Membre {
   compteUtilisateur   Utilisateur?      @relation("CompteMembre", fields: [compteUtilisateurId], references: [id])
   contributions       Contribution[]
   affectationsFonction AffectationFonction[] // V1.1 — nominations (actives + passées)
+  conflitsConcernes   Conflit[]         @relation("ConflitMembresConcernes") // V2 §4.4
   createdAt           DateTime          @default(now())
   updatedAt           DateTime          @updatedAt
 }
@@ -276,10 +280,46 @@ model EvenementFamilial {
   createdAt DateTime @default(now())
 }
 
+// ---------------------------------------------------------------------------
+// V2 (§4.4) — Conflits familiaux. Module SENSIBLE : la visibilité d'un conflit
+// dépend de son niveauConfidentialite ET de l'identité/rôle du demandeur. La règle
+// d'accès est une fonction pure (peutVoirConflit, cf. conflit.service.ts), source
+// de vérité unique pour la liste filtrée ET pour GET /conflits/:id.
+//   - PUBLIC       : tout utilisateur authentifié
+//   - BUREAU       : ADMIN, PRESIDENT, SECRETAIRE
+//   - CONFIDENTIEL : auteur, responsable de suivi désigné, ADMIN uniquement
+// Le responsable de suivi n'est pertinent que pour CONFIDENTIEL, désigné à la
+// création. Pas de suppression (un conflit clos reste dans l'historique).
+// ---------------------------------------------------------------------------
+
+enum StatutConflit {
+  OUVERT
+  EN_COURS
+  RESOLU
+  CLOS
+}
+
 model Conflit {
   id                    String                @id @default(uuid())
+  titre                 String
+  description           String
   niveauConfidentialite NiveauConfidentialite
+  statut                StatutConflit         @default(OUVERT)
+  auteurId              String
+  auteur                Utilisateur           @relation("ConflitAuteur", fields: [auteurId], references: [id])
+  // Optionnel ; pertinent seulement si niveauConfidentialite = CONFIDENTIEL.
+  responsableSuiviId    String?
+  responsableSuivi      Utilisateur?          @relation("ConflitResponsableSuivi", fields: [responsableSuiviId], references: [id])
+  membresConcernes      Membre[]              @relation("ConflitMembresConcernes")
+  dateOuverture         DateTime              @default(now())
+  dateResolution        DateTime?
+  notes                 String? // suivi / résolution
   createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+
+  @@index([niveauConfidentialite])
+  @@index([auteurId])
+  @@index([responsableSuiviId])
 }
 
 model Commemoration {

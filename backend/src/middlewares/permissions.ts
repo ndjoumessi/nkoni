@@ -37,6 +37,7 @@ export type Entite =
   | 'Resolution'
   | 'Fonction'
   | 'Affectation'
+  | 'Conflit'
 
 export type Role =
   | 'ADMIN'
@@ -183,6 +184,18 @@ export const PERMISSIONS: Record<Entite, Partial<Record<Role, Action[]>>> = {
     TRESORIERE: READ,
     COMMISSAIRE_COMPTES: READ,
     MEMBRE_SIMPLE: READ,
+  },
+  // V2 (§4.4) — Conflits. La matrice ne gouverne QUE la déclaration (`create`),
+  // réservée au bureau : ADMIN, PRESIDENT, SECRETAIRE. La LECTURE et la MODIFICATION
+  // ne passent PAS par cette matrice : elles dépendent du niveau de confidentialité et
+  // de l'identité du demandeur, via les fonctions pures peutVoirConflit /
+  // peutModifierConflit (cf. conflit.service.ts) — pas un simple droit générique
+  // d'entité. Les routes de lecture/màj n'utilisent donc que `authenticate`.
+  Conflit: {
+    ADMIN: ['create'],
+    PRESIDENT: ['create'],
+    SECRETAIRE: ['create'],
+    // TRESORIERE / COMMISSAIRE_COMPTES / MEMBRE_SIMPLE / GUIDE_RELIGIEUX : pas de déclaration.
   },
 }
 

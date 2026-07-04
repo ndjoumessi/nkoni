@@ -1,0 +1,545 @@
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { Navigate, useParams } from 'react-router-dom'
+import {
+  ArrowDown,
+  ArrowUp,
+  CalendarRange,
+  FileText,
+  Gavel,
+  ListChecks,
+  MapPin,
+  Plus,
+  Trash2,
+} from 'lucide-react'
+import { useAuth } from '@/contexts/auth-context'
+import {
+  reunionsApi,
+  resolutionsApi,
+  ApiError,
+  messageErreur,
+  type ReunionDetail,
+  type Resolution,
+  type StatutReunion,
+  type StatutResolution,
+} from '@/lib/api'
+import { peutVoirReunions, peutGererReunions, peutSupprimerReunion } from '@/lib/roles'
+import { formatDateFR } from '@/lib/utils'
+import { useToast } from '@/components/ui/Toast'
+import { PageHeader } from '@/components/ui/PageHeader'
+import { Card, Overline } from '@/components/ui/Card'
+import { Button } from '@/components/ui/Button'
+import { Field, Input, Select, Textarea } from '@/components/ui/Field'
+import { EmptyState } from '@/components/ui/EmptyState'
+import {
+  StatutReunionBadge,
+  StatutResolutionBadge,
+  TypeReunionBadge,
+} from '@/components/reunions/StatutBadges'
+
+const STATUTS_REUNION: { value: StatutReunion; label: string }[] = [
+  { value: 'PLANIFIEE', label: 'Planifiée' },
+  { value: 'TENUE', label: 'Tenue' },
+  { value: 'ANNULEE', label: 'Annulée' },
+]
+
+const STATUTS_RESOLUTION: { value: StatutResolution; label: string }[] = [
+  { value: 'ADOPTEE', label: 'Adoptée' },
+  { value: 'REJETEE', label: 'Rejetée' },
+  { value: 'REPORTEE', label: 'Reportée' },
+]
+
+/** Détail d'une réunion (§5) : infos + statut, compte-rendu, ordre du jour, résolutions. */
+export function ReunionDetailPage() {
+  const { id = '' } = useParams()
+  const { user, accessToken } = useAuth()
+  const toast = useToast()
+
+  const gestion = peutGererReunions(user?.role)
+  const peutSupprimer = peutSupprimerReunion(user?.role)
+
+  const [reunion, setReunion] = useState<ReunionDetail | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  // Compte-rendu (édition).
+  const [compteRendu, setCompteRendu] = useState('')
+  const [crSaving, setCrSaving] = useState(false)
+
+  // Statut / actions ponctuelles.
+  const [statutSaving, setStatutSaving] = useState(false)
+  const [pointPending, setPointPending] = useState<string | null>(null)
+  const [reorderPending, setReorderPending] = useState(false)
+
+  // Ajout d'un point.
+  const [nouveauPoint, setNouveauPoint] = useState('')
+  const [addingPoint, setAddingPoint] = useState(false)
+
+  // Formulaire résolution.
+  const [resTexte, setResTexte] = useState('')
+  const [resStatut, setResStatut] = useState<StatutResolution>('ADOPTEE')
+  const [resPointId, setResPointId] = useState('')
+  const [resSubmitting, setResSubmitting] = useState(false)
+  const [resPending, setResPending] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!accessToken || !id) return
+    const controller = new AbortController()
+    let active = true
+    setLoading(true)
+    setError(null)
+    void (async () => {
+      try {
+        const data = await reunionsApi.get(id, accessToken, controller.signal)
+        if (active) {
+          setReunion(data)
+          setCompteRendu(data.compteRenduTexte ?? '')
+        }
+      } catch (e) {
+        if (e instanceof DOMException && e.name === 'AbortError') return
+        if (active) setError(messageErreur(e))
+      } finally {
+        if (active) setLoading(false)
+      }
+    })()
+    return () => {
+      active = false
+      controller.abort()
+    }
+  }, [accessToken, id])
+
+  const pointsLabel = useMemo(() => {
+    const map = new Map<string, string>()
+    reunion?.pointsOrdreDuJour.forEach((p, i) => map.set(p.id, `${i + 1}. ${p.titre}`))
+    return map
+  }, [reunion])
+
+  if (!peutVoirReunions(user?.role)) {
+    return <Navigate to="/dashboard" replace />
+  }
+
+  const erreurMetier = (err: unknown, fallback: string) =>
+    toast.error(fallback, err instanceof ApiError ? err.message : 'Réessayez plus tard.')
+
+  const changerStatut = async (statut: StatutReunion) => {
+    if (!accessToken || !reunion || statut === reunion.statut) return
+    setStatutSaving(true)
+    try {
+      const maj = await reunionsApi.update(reunion.id, { statut }, accessToken)
+      setReunion(maj)
+      toast.success('Statut mis à jour', STATUTS_REUNION.find((s) => s.value === statut)?.label)
+    } catch (err) {
+      erreurMetier(err, 'Changement de statut impossible')
+    } finally {
+      setStatutSaving(false)
+    }
+  }
+
+  const enregistrerCompteRendu = async () => {
+    if (!accessToken || !reunion) return
+    setCrSaving(true)
+    try {
+      const maj = await reunionsApi.update(
+        reunion.id,
+        { compteRenduTexte: compteRendu.trim() ? compteRendu : null },
+        accessToken,
+      )
+      setReunion(maj)
+      toast.success('Compte-rendu enregistré')
+    } catch (err) {
+      erreurMetier(err, 'Enregistrement impossible')
+    } finally {
+      setCrSaving(false)
+    }
+  }
+
+  const ajouterPoint = async (e: FormEvent) => {
+    e.preventDefault()
+    if (!accessToken || !reunion || nouveauPoint.trim().length === 0) return
+    setAddingPoint(true)
+    try {
+      const point = await reunionsApi.addPoint(reunion.id, { titre: nouveauPoint.trim() }, accessToken)
+      setReunion({ ...reunion, pointsOrdreDuJour: [...reunion.pointsOrdreDuJour, point] })
+      setNouveauPoint('')
+    } catch (err) {
+      erreurMetier(err, 'Ajout du point impossible')
+    } finally {
+      setAddingPoint(false)
+    }
+  }
+
+  const supprimerPoint = async (pointId: string) => {
+    if (!accessToken || !reunion) return
+    setPointPending(pointId)
+    try {
+      await reunionsApi.removePoint(reunion.id, pointId, accessToken)
+      setReunion({
+        ...reunion,
+        pointsOrdreDuJour: reunion.pointsOrdreDuJour.filter((p) => p.id !== pointId),
+        // Une résolution liée à ce point voit son lien retiré côté back (SET NULL).
+        resolutions: reunion.resolutions.map((r) =>
+          r.pointOrdreDuJourId === pointId ? { ...r, pointOrdreDuJourId: null } : r,
+        ),
+      })
+    } catch (err) {
+      erreurMetier(err, 'Suppression du point impossible')
+    } finally {
+      setPointPending(null)
+    }
+  }
+
+  const deplacerPoint = async (index: number, delta: -1 | 1) => {
+    if (!accessToken || !reunion) return
+    const cible = index + delta
+    const pts = reunion.pointsOrdreDuJour
+    if (cible < 0 || cible >= pts.length) return
+    const ordreIds = pts.map((p) => p.id)
+    ;[ordreIds[index], ordreIds[cible]] = [ordreIds[cible], ordreIds[index]]
+    setReorderPending(true)
+    try {
+      const maj = await reunionsApi.reorderPoints(reunion.id, ordreIds, accessToken)
+      setReunion(maj)
+    } catch (err) {
+      erreurMetier(err, 'Réordonnancement impossible')
+    } finally {
+      setReorderPending(false)
+    }
+  }
+
+  const ajouterResolution = async (e: FormEvent) => {
+    e.preventDefault()
+    if (!accessToken || !reunion || resTexte.trim().length === 0) return
+    setResSubmitting(true)
+    try {
+      const res = await resolutionsApi.create(
+        reunion.id,
+        {
+          texte: resTexte.trim(),
+          statut: resStatut,
+          ...(resPointId ? { pointOrdreDuJourId: resPointId } : {}),
+        },
+        accessToken,
+      )
+      setReunion({ ...reunion, resolutions: [...reunion.resolutions, res] })
+      setResTexte('')
+      setResStatut('ADOPTEE')
+      setResPointId('')
+      toast.success('Résolution ajoutée')
+    } catch (err) {
+      // Erreur métier possible : point d'ordre du jour d'une autre réunion (400).
+      erreurMetier(err, 'Ajout de la résolution impossible')
+    } finally {
+      setResSubmitting(false)
+    }
+  }
+
+  const supprimerResolution = async (res: Resolution) => {
+    if (!accessToken || !reunion) return
+    setResPending(res.id)
+    try {
+      await resolutionsApi.remove(res.id, accessToken)
+      setReunion({
+        ...reunion,
+        resolutions: reunion.resolutions.filter((r) => r.id !== res.id),
+      })
+    } catch (err) {
+      erreurMetier(err, 'Suppression de la résolution impossible')
+    } finally {
+      setResPending(null)
+    }
+  }
+
+  if (loading) {
+    return (
+      <>
+        <PageHeader
+          overline="Vie associative"
+          title="Réunion"
+          back={{ to: '/reunions', label: 'Retour aux réunions' }}
+        />
+        <Card className="nk-reveal nk-d2 mt-7 h-48 animate-pulse bg-surface-2/40" />
+      </>
+    )
+  }
+
+  if (error || !reunion) {
+    return (
+      <>
+        <PageHeader
+          overline="Vie associative"
+          title="Réunion"
+          back={{ to: '/reunions', label: 'Retour aux réunions' }}
+        />
+        <Card className="nk-reveal nk-d2 mt-7 border-terra/30 bg-terra/[0.07] p-5 text-terra">
+          {error ?? 'Réunion introuvable.'}
+        </Card>
+      </>
+    )
+  }
+
+  const crReadOnly = !gestion
+
+  return (
+    <>
+      <PageHeader
+        overline="Vie associative"
+        title={formatDateFR(reunion.date)}
+        description={
+          <span className="inline-flex items-center gap-1.5">
+            <MapPin className="h-3.5 w-3.5 text-faint" aria-hidden="true" />
+            {reunion.lieu}
+          </span>
+        }
+        back={{ to: '/reunions', label: 'Retour aux réunions' }}
+        actions={
+          <div className="flex items-center gap-2">
+            <StatutReunionBadge statut={reunion.statut} />
+            <TypeReunionBadge type={reunion.type} />
+          </div>
+        }
+      />
+
+      {/* Statut */}
+      {gestion && (
+        <Card className="nk-reveal nk-d2 mt-7 p-6">
+          <div className="flex items-center gap-2">
+            <CalendarRange className="h-4 w-4 text-brass" aria-hidden="true" />
+            <Overline>Statut de la réunion</Overline>
+          </div>
+          <div className="mt-4 max-w-xs">
+            <Field label="Statut">
+              <Select
+                value={reunion.statut}
+                disabled={statutSaving}
+                onChange={(e) => changerStatut(e.target.value as StatutReunion)}
+              >
+                {STATUTS_REUNION.map((s) => (
+                  <option key={s.value} value={s.value}>
+                    {s.label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          </div>
+        </Card>
+      )}
+
+      {/* Compte-rendu */}
+      <Card className="nk-reveal nk-d2 mt-6 p-6">
+        <div className="flex items-center gap-2">
+          <FileText className="h-4 w-4 text-brass" aria-hidden="true" />
+          <Overline>Compte-rendu</Overline>
+        </div>
+        {crReadOnly ? (
+          <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
+            {reunion.compteRenduTexte?.trim() ? reunion.compteRenduTexte : 'Aucun compte-rendu.'}
+          </p>
+        ) : (
+          <div className="mt-4 space-y-3">
+            <Textarea
+              value={compteRendu}
+              onChange={(e) => setCompteRendu(e.target.value)}
+              placeholder="Rédigez le compte-rendu de la séance…"
+              rows={6}
+            />
+            <div className="flex justify-end">
+              <Button
+                type="button"
+                icon={FileText}
+                loading={crSaving}
+                disabled={compteRendu === (reunion.compteRenduTexte ?? '')}
+                onClick={enregistrerCompteRendu}
+              >
+                Enregistrer le compte-rendu
+              </Button>
+            </div>
+          </div>
+        )}
+      </Card>
+
+      {/* Ordre du jour */}
+      <Card className="nk-reveal nk-d3 mt-6 p-6">
+        <div className="flex items-center gap-2">
+          <ListChecks className="h-4 w-4 text-brass" aria-hidden="true" />
+          <Overline>Ordre du jour</Overline>
+        </div>
+
+        {reunion.pointsOrdreDuJour.length === 0 ? (
+          <p className="mt-4 text-sm text-faint">Aucun point à l’ordre du jour.</p>
+        ) : (
+          <ul className="mt-4 space-y-2">
+            {reunion.pointsOrdreDuJour.map((p, index) => (
+              <li
+                key={p.id}
+                className="flex items-start gap-3 rounded-xl border border-hairline bg-surface-2/40 p-3.5"
+              >
+                <span className="mt-0.5 w-6 shrink-0 text-center text-xs font-semibold text-brass">
+                  {index + 1}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-foreground">{p.titre}</p>
+                  {p.notes && (
+                    <p className="mt-1 whitespace-pre-wrap text-sm text-muted-foreground">
+                      {p.notes}
+                    </p>
+                  )}
+                </div>
+                {gestion && (
+                  <div className="flex shrink-0 items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => deplacerPoint(index, -1)}
+                      disabled={index === 0 || reorderPending}
+                      aria-label="Monter le point"
+                      className="flex h-7 w-7 items-center justify-center rounded-lg text-faint transition-colors hover:text-foreground disabled:opacity-30"
+                    >
+                      <ArrowUp className="h-4 w-4" aria-hidden="true" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => deplacerPoint(index, 1)}
+                      disabled={index === reunion.pointsOrdreDuJour.length - 1 || reorderPending}
+                      aria-label="Descendre le point"
+                      className="flex h-7 w-7 items-center justify-center rounded-lg text-faint transition-colors hover:text-foreground disabled:opacity-30"
+                    >
+                      <ArrowDown className="h-4 w-4" aria-hidden="true" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => supprimerPoint(p.id)}
+                      disabled={pointPending === p.id}
+                      aria-label="Supprimer le point"
+                      className="flex h-7 w-7 items-center justify-center rounded-lg text-faint transition-colors hover:text-terra disabled:opacity-40"
+                    >
+                      <Trash2 className="h-4 w-4" aria-hidden="true" />
+                    </button>
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {gestion && (
+          <form onSubmit={ajouterPoint} className="mt-4 flex gap-2">
+            <Input
+              value={nouveauPoint}
+              onChange={(e) => setNouveauPoint(e.target.value)}
+              placeholder="Ajouter un point à l’ordre du jour…"
+            />
+            <Button
+              type="submit"
+              variant="ghost"
+              icon={Plus}
+              loading={addingPoint}
+              disabled={nouveauPoint.trim().length === 0}
+            >
+              Ajouter
+            </Button>
+          </form>
+        )}
+      </Card>
+
+      {/* Résolutions */}
+      <Card className="nk-reveal nk-d3 mt-6 p-6">
+        <div className="flex items-center gap-2">
+          <Gavel className="h-4 w-4 text-brass" aria-hidden="true" />
+          <Overline>Résolutions</Overline>
+        </div>
+
+        {reunion.resolutions.length === 0 ? (
+          <EmptyState
+            icon={Gavel}
+            tone="jade"
+            title="Aucune résolution"
+            className="mt-4"
+            description={
+              gestion
+                ? 'Consignez les décisions prises pendant la séance.'
+                : 'Les décisions consignées apparaîtront ici.'
+            }
+          />
+        ) : (
+          <ul className="mt-4 space-y-3">
+            {reunion.resolutions.map((r) => (
+              <li key={r.id} className="rounded-xl border border-hairline bg-surface-2/40 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <StatutResolutionBadge statut={r.statut} size="sm" />
+                  {peutSupprimer && (
+                    <button
+                      type="button"
+                      onClick={() => supprimerResolution(r)}
+                      disabled={resPending === r.id}
+                      aria-label="Supprimer la résolution"
+                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-faint transition-colors hover:text-terra disabled:opacity-40"
+                    >
+                      <Trash2 className="h-4 w-4" aria-hidden="true" />
+                    </button>
+                  )}
+                </div>
+                <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-foreground">
+                  {r.texte}
+                </p>
+                {r.pointOrdreDuJourId && pointsLabel.has(r.pointOrdreDuJourId) && (
+                  <p className="mt-2 inline-flex items-center gap-1.5 text-xs text-faint">
+                    <ListChecks className="h-3.5 w-3.5" aria-hidden="true" />
+                    {pointsLabel.get(r.pointOrdreDuJourId)}
+                  </p>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {gestion && (
+          <form onSubmit={ajouterResolution} className="mt-5 space-y-3 border-t border-hairline pt-5">
+            <Overline>Ajouter une résolution</Overline>
+            <Field label="Texte de la résolution" required>
+              <Textarea
+                value={resTexte}
+                onChange={(e) => setResTexte(e.target.value)}
+                placeholder="Décision adoptée par l’assemblée…"
+                rows={3}
+              />
+            </Field>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label="Statut">
+                <Select
+                  value={resStatut}
+                  onChange={(e) => setResStatut(e.target.value as StatutResolution)}
+                >
+                  {STATUTS_RESOLUTION.map((s) => (
+                    <option key={s.value} value={s.value}>
+                      {s.label}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+              <Field label="Point d’ordre du jour lié" hint="Optionnel.">
+                <Select value={resPointId} onChange={(e) => setResPointId(e.target.value)}>
+                  <option value="">Aucun</option>
+                  {reunion.pointsOrdreDuJour.map((p, i) => (
+                    <option key={p.id} value={p.id}>
+                      {i + 1}. {p.titre}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+            </div>
+            <div className="flex justify-end">
+              <Button
+                type="submit"
+                icon={Plus}
+                loading={resSubmitting}
+                disabled={resTexte.trim().length === 0}
+              >
+                Ajouter la résolution
+              </Button>
+            </div>
+          </form>
+        )}
+      </Card>
+    </>
+  )
+}
+
+export default ReunionDetailPage

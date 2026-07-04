@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
   CalendarRange,
+  Gavel,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -11,7 +12,12 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
-import { estMembreSimple, peutVoirBareme, peutGererUtilisateurs } from '@/lib/roles'
+import {
+  estMembreSimple,
+  peutVoirBareme,
+  peutGererUtilisateurs,
+  peutVoirReunions,
+} from '@/lib/roles'
 import { cn } from '@/lib/utils'
 import { NkoniMark } from '@/components/ui/NkoniMark'
 
@@ -40,6 +46,9 @@ function useNavItems(): NavItem[] {
       icon: Users,
     },
   ]
+  if (peutVoirReunions(user?.role)) {
+    items.push({ to: '/reunions', label: 'Réunions', icon: Gavel })
+  }
   if (peutVoirBareme(user?.role)) {
     items.push({ to: '/bareme', label: 'Barème annuel', icon: CalendarRange })
   }

@@ -57,6 +57,37 @@ export function peutGererUtilisateurs(role: string | undefined): boolean {
   return role === 'ADMIN'
 }
 
+/* Réunions / Résolutions (V1.1 §5) — miroir de la matrice permissions.ts ------ */
+
+/** Rôles avec Lecture sur les réunions (tous sauf GUIDE_RELIGIEUX). */
+const LECTURE_REUNIONS = [
+  'ADMIN',
+  'PRESIDENT',
+  'SECRETAIRE',
+  'TRESORIERE',
+  'COMMISSAIRE_COMPTES',
+  'MEMBRE_SIMPLE',
+]
+
+/** Peut consulter les réunions & résolutions (lien de nav, listes, détail). */
+export function peutVoirReunions(role: string | undefined): boolean {
+  return role !== undefined && LECTURE_REUNIONS.includes(role)
+}
+
+/** Rôles avec create/update sur réunions & résolutions (édition, ordre du jour). */
+const GESTION_REUNIONS = ['ADMIN', 'PRESIDENT', 'SECRETAIRE']
+
+/** Peut créer/modifier une réunion, éditer l'ordre du jour, ajouter des résolutions. */
+export function peutGererReunions(role: string | undefined): boolean {
+  return role !== undefined && GESTION_REUNIONS.includes(role)
+}
+
+/** Peut supprimer une réunion / une résolution (delete réservé ADMIN, PRESIDENT). */
+const SUPPRESSION_REUNIONS = ['ADMIN', 'PRESIDENT']
+export function peutSupprimerReunion(role: string | undefined): boolean {
+  return role !== undefined && SUPPRESSION_REUNIONS.includes(role)
+}
+
 /** Rôles applicatifs + libellés FR (miroir de l'enum Role du backend). */
 export const ROLES: { value: string; label: string }[] = [
   { value: 'ADMIN', label: 'Administrateur' },

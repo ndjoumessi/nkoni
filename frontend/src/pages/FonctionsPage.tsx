@@ -13,6 +13,7 @@ import { staggerDelay } from '@/lib/utils'
 import { useToast } from '@/components/ui/Toast'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card } from '@/components/ui/Card'
+import { StatCard } from '@/components/ui/StatCard'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Field, Input, Textarea } from '@/components/ui/Field'
@@ -119,7 +120,24 @@ export function FonctionsPage() {
         }
       />
 
-      <div className="nk-reveal nk-d2 mt-7">
+      {fonctions && fonctions.length > 0 && (
+        <div className="nk-reveal nk-d2 mt-7 grid grid-cols-3 gap-3">
+          <StatCard label="Fonctions" value={String(fonctions.length)} icon={Landmark} />
+          <StatCard
+            label="Occupées"
+            value={String(fonctions.filter((f) => f.affectations[0]?.membre).length)}
+            tone="jade"
+            icon={UserCheck}
+          />
+          <StatCard
+            label="Vacantes"
+            value={String(fonctions.filter((f) => !f.affectations[0]?.membre).length)}
+            icon={UserX}
+          />
+        </div>
+      )}
+
+      <div className="nk-reveal nk-d3 mt-6">
         {loading && (
           <Card className="overflow-hidden p-0">
             <RowsSkeleton rows={4} />

@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
-import { CalendarRange, Plus, ShieldAlert, ShieldCheck, Users } from 'lucide-react'
+import { AlertTriangle, CalendarRange, Lock, Plus, ShieldAlert, ShieldCheck, Users } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
 import { conflitsApi, messageErreur, type Conflit } from '@/lib/api'
 import { peutVoirConflits, peutDeclarerConflit } from '@/lib/roles'
 import { formatDateFR, staggerDelay } from '@/lib/utils'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card } from '@/components/ui/Card'
+import { StatCard } from '@/components/ui/StatCard'
 import { ButtonLink } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { RowsSkeleton } from '@/components/ui/Skeleton'
@@ -66,7 +67,30 @@ export function ConflitsPage() {
         }
       />
 
-      <div className="nk-reveal nk-d2 mt-7">
+      {conflits && conflits.length > 0 && (
+        <div className="nk-reveal nk-d2 mt-7 grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <StatCard label="Conflits" value={String(conflits.length)} icon={ShieldAlert} />
+          <StatCard
+            label="En cours"
+            value={String(conflits.filter((c) => c.statut === 'OUVERT' || c.statut === 'EN_COURS').length)}
+            tone="brass"
+            icon={AlertTriangle}
+          />
+          <StatCard
+            label="Résolus"
+            value={String(conflits.filter((c) => c.statut === 'RESOLU' || c.statut === 'CLOS').length)}
+            tone="jade"
+            icon={ShieldCheck}
+          />
+          <StatCard
+            label="Confidentiels"
+            value={String(conflits.filter((c) => c.niveauConfidentialite === 'CONFIDENTIEL').length)}
+            icon={Lock}
+          />
+        </div>
+      )}
+
+      <div className="nk-reveal nk-d3 mt-6">
         {loading && (
           <Card className="overflow-hidden p-0">
             <RowsSkeleton rows={4} />

@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
-import { CalendarRange, Flame, MapPin, Plus, Users } from 'lucide-react'
+import { CalendarRange, CheckCircle2, Flame, MapPin, Plus, Users } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
 import { commemorationsApi, messageErreur, type Commemoration } from '@/lib/api'
 import { peutVoirCommemorations, peutGererCommemorations } from '@/lib/roles'
 import { formatDateFR, staggerDelay } from '@/lib/utils'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card } from '@/components/ui/Card'
+import { StatCard } from '@/components/ui/StatCard'
 import { ButtonLink } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { RowsSkeleton } from '@/components/ui/Skeleton'
@@ -67,7 +68,30 @@ export function CommemorationsPage() {
         }
       />
 
-      <div className="nk-reveal nk-d2 mt-7">
+      {items && items.length > 0 && (
+        <div className="nk-reveal nk-d2 mt-7 grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <StatCard label="Événements" value={String(items.length)} icon={Flame} />
+          <StatCard
+            label="Planifiées"
+            value={String(items.filter((c) => c.statut === 'PLANIFIEE').length)}
+            tone="brass"
+            icon={CalendarRange}
+          />
+          <StatCard
+            label="Tenues"
+            value={String(items.filter((c) => c.statut === 'TENUE').length)}
+            tone="jade"
+            icon={CheckCircle2}
+          />
+          <StatCard
+            label="Cérémonies"
+            value={String(items.filter((c) => c.type === 'CEREMONIE').length)}
+            icon={Users}
+          />
+        </div>
+      )}
+
+      <div className="nk-reveal nk-d3 mt-6">
         {loading && (
           <Card className="overflow-hidden p-0">
             <RowsSkeleton rows={4} />

@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
-import { CalendarRange, ListChecks, MapPin, Plus, Gavel } from 'lucide-react'
+import { CalendarRange, CheckCircle2, ListChecks, MapPin, Plus, Gavel } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
 import { reunionsApi, messageErreur, type ReunionListItem } from '@/lib/api'
 import { peutVoirReunions, peutGererReunions } from '@/lib/roles'
 import { formatDateFR, staggerDelay } from '@/lib/utils'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card } from '@/components/ui/Card'
+import { StatCard } from '@/components/ui/StatCard'
 import { ButtonLink } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { RowsSkeleton } from '@/components/ui/Skeleton'
@@ -66,7 +67,25 @@ export function ReunionsPage() {
         }
       />
 
-      <div className="nk-reveal nk-d2 mt-7">
+      {reunions && reunions.length > 0 && (
+        <div className="nk-reveal nk-d2 mt-7 grid grid-cols-3 gap-3">
+          <StatCard label="Réunions" value={String(reunions.length)} icon={CalendarRange} />
+          <StatCard
+            label="Planifiées"
+            value={String(reunions.filter((r) => r.statut === 'PLANIFIEE').length)}
+            tone="brass"
+            icon={CalendarRange}
+          />
+          <StatCard
+            label="Tenues"
+            value={String(reunions.filter((r) => r.statut === 'TENUE').length)}
+            tone="jade"
+            icon={CheckCircle2}
+          />
+        </div>
+      )}
+
+      <div className="nk-reveal nk-d3 mt-6">
         {loading && (
           <Card className="overflow-hidden p-0">
             <RowsSkeleton rows={4} />

@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils'
 
-/** Monogramme NKONI — tuile laiton, lettre grotesque Bricolage. Marque réutilisable. */
+/** Monogramme NKONI — tuile laiton, lettre serif Fraunces. Marque réutilisable. */
 export function NkoniMark({ className }: { className?: string }) {
   return (
     <span

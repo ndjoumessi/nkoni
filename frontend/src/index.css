@@ -2,21 +2,21 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
-@import "@fontsource-variable/bricolage-grotesque";
+@import "@fontsource-variable/fraunces";
 
 @custom-variant dark (&:is(.dark *));
 
 /* ==========================================================================
-   NKONI — Design system « Indigo Adire »
-   Mode sombre committé : encre INDIGO-NUIT (clin d'œil au textile adire/indigo),
-   laiton comme accent de marque, jade pour le positif, terracotta pour les alertes.
-   Titres Bricolage Grotesque (grotesque éditorial vivant), données Geist tabular-nums.
+   NKONI — Design system « Laiton & Jade »
+   Mode sombre committé : encre jade chaude, laiton comme accent de marque rare,
+   jade pour la santé/positif, terracotta pour les alertes. Titres Fraunces (serif
+   éditorial), données en Geist tabular-nums.
    ========================================================================== */
 
 @theme inline {
     /* Typo */
     --font-sans: 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
-    --font-display: 'Bricolage Grotesque Variable', 'Geist Variable', ui-sans-serif, sans-serif;
+    --font-display: 'Fraunces Variable', ui-serif, Georgia, 'Times New Roman', serif;
     --font-heading: var(--font-display);
 
     /* Rayons */
@@ -67,26 +67,26 @@
     color-scheme: dark;
     --radius: 0.75rem;
 
-    /* --- Socle sombre : encre INDIGO-NUIT (teinte ~278), 3 élévations réelles --- */
-    --canvas: oklch(0.188 0.045 278);
-    --surface: oklch(0.252 0.052 278);
-    --surface-2: oklch(0.308 0.055 278);
-    --surface-3: oklch(0.362 0.05 278);
+    /* --- Socle sombre : encre jade chaude, 3 niveaux d'élévation réels --- */
+    --canvas: oklch(0.164 0.013 168);
+    --surface: oklch(0.212 0.014 168);
+    --surface-2: oklch(0.262 0.016 168);
+    --surface-3: oklch(0.312 0.017 168);
 
-    --hairline: oklch(1 0 0 / 9%);
-    --hairline-strong: oklch(1 0 0 / 15%);
+    --hairline: oklch(1 0 0 / 8%);
+    --hairline-strong: oklch(1 0 0 / 14%);
 
-    /* --- Texte (ivoire chaud) --- */
-    --foreground: oklch(0.958 0.008 85);
-    --faint: oklch(0.66 0.028 274);
+    /* --- Texte (blanc chaud) --- */
+    --foreground: oklch(0.962 0.008 92);
+    --faint: oklch(0.62 0.012 110);
 
-    /* --- Accents de marque (laiton conservé, jade/terracotta, info périwinkle) --- */
-    --brass: oklch(0.808 0.121 82);
-    --brass-foreground: oklch(0.23 0.04 278);
-    --jade: oklch(0.742 0.132 166);
-    --amber: oklch(0.822 0.12 82);
-    --terra: oklch(0.678 0.158 40);
-    --info: oklch(0.735 0.098 264);
+    /* --- Accents de marque --- */
+    --brass: oklch(0.805 0.116 84);
+    --brass-foreground: oklch(0.22 0.024 150);
+    --jade: oklch(0.735 0.128 166);
+    --amber: oklch(0.82 0.118 82);
+    --terra: oklch(0.672 0.157 39);
+    --info: oklch(0.72 0.086 232);
 
     /* --- Remap shadcn --- */
     --background: var(--canvas);
@@ -99,7 +99,7 @@
     --secondary: var(--surface-2);
     --secondary-foreground: var(--foreground);
     --muted: var(--surface-2);
-    --muted-foreground: oklch(0.748 0.024 274);
+    --muted-foreground: oklch(0.735 0.012 100);
     --accent: var(--surface-3);
     --accent-foreground: var(--foreground);
     --destructive: var(--terra);
@@ -121,10 +121,9 @@
         /* Supprime le halo brun/gris par défaut au tap sur mobile (artefact navigateur). */
         -webkit-tap-highlight-color: transparent;
     }
-    /* Titres : grotesque éditorial Bricolage — optique auto + tracking resserré */
+    /* Titres : serif éditorial Fraunces, optique auto */
     h1, h2, h3, .font-display {
         font-optical-sizing: auto;
-        letter-spacing: -0.018em;
     }
     /* Chiffres alignés partout où l'on met .num */
     .num {
@@ -143,7 +142,7 @@
         color: var(--foreground);
     }
     ::selection {
-        background: oklch(0.808 0.121 82 / 26%);
+        background: oklch(0.805 0.116 84 / 25%);
     }
 }
 
@@ -151,12 +150,12 @@
    Atmosphère & mouvement
    ========================================================================== */
 
-/* Halo ambiant réutilisable (shell, login, landing) — indigo profond + laiton */
+/* Halo ambiant réutilisable (shell, login, landing) */
 .nk-aura {
     background:
-        radial-gradient(940px 540px at 10% -10%, oklch(0.55 0.13 276 / 24%), transparent 62%),
-        radial-gradient(780px 520px at 100% 2%, oklch(0.808 0.121 82 / 12%), transparent 58%),
-        radial-gradient(720px 720px at 52% 120%, oklch(0.742 0.132 166 / 9%), transparent 60%);
+        radial-gradient(900px 520px at 12% -8%, oklch(0.805 0.116 84 / 12%), transparent 60%),
+        radial-gradient(760px 520px at 100% 4%, oklch(0.735 0.128 166 / 10%), transparent 58%),
+        radial-gradient(700px 700px at 50% 118%, oklch(0.672 0.157 39 / 6%), transparent 60%);
 }
 
 /* Grain de marque discret (bruit SVG) — texture légère sur les états vides. */
@@ -168,8 +167,8 @@
 /* Motif géométrique très léger (chevrons/losanges laiton) pour le fond des pages vides. */
 .nk-weave {
     background-image:
-        repeating-linear-gradient(45deg, oklch(0.808 0.121 82 / 4.5%) 0 1px, transparent 1px 14px),
-        repeating-linear-gradient(-45deg, oklch(0.6 0.13 276 / 5%) 0 1px, transparent 1px 14px);
+        repeating-linear-gradient(45deg, oklch(0.805 0.116 84 / 4%) 0 1px, transparent 1px 14px),
+        repeating-linear-gradient(-45deg, oklch(0.735 0.128 166 / 3.5%) 0 1px, transparent 1px 14px);
     -webkit-mask-image: radial-gradient(closest-side at 50% 42%, #000, transparent 85%);
     mask-image: radial-gradient(closest-side at 50% 42%, #000, transparent 85%);
 }

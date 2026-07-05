@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { ShieldCheck, Receipt, Scale, type LucideIcon } from 'lucide-react'
 import { GlassmorphismTrustHero } from '@/components/ui/glassmorphism-trust-hero'
 import { ButtonLink } from '@/components/ui/Button'
@@ -17,8 +18,9 @@ export function LandingPage() {
           Pensé pour les familles et les associations
         </h2>
         <p className="mx-auto mt-4 max-w-2xl text-pretty text-center text-muted-foreground">
-          NKONI donne à chaque groupe une vue claire et partagée de ses finances collectives,
-          sans zone d'ombre.
+          Chaque groupe dispose de son propre espace, sécurisé et isolé : NKONI donne à chacun
+          une vue claire et partagée de ses finances collectives, sans zone d'ombre — et aucune
+          donnée n'est jamais partagée entre espaces.
         </p>
 
         <div className="mt-14 grid grid-cols-1 gap-5 sm:grid-cols-3">
@@ -42,10 +44,16 @@ export function LandingPage() {
           />
         </div>
 
-        <div className="mt-14 flex justify-center">
-          <ButtonLink to="/login" size="lg">
-            Accéder à mon espace
+        <div className="mt-14 flex flex-col items-center gap-3">
+          <ButtonLink to="/inscription" size="lg">
+            Créer mon espace
           </ButtonLink>
+          <Link
+            to="/login"
+            className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Vous avez déjà un espace ? Se connecter
+          </Link>
         </div>
       </section>
 

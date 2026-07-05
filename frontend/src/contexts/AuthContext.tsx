@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { authApi } from '@/lib/api'
-import type { AuthUser } from '@/lib/api'
+import type { AuthUser, InscriptionInput } from '@/lib/api'
 import { AuthContext, type AuthContextValue } from './auth-context'
 
 /**
@@ -54,6 +54,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [],
   )
 
+  const inscription = useCallback(async (input: InscriptionInput) => {
+    // L'inscription connecte directement : même réhydratation que login (token + user).
+    const { accessToken: token, user: connectedUser } = await authApi.inscription(input)
+    setAccessToken(token)
+    setUser(connectedUser)
+  }, [])
+
   const logout = useCallback(async () => {
     try {
       await authApi.logout()
@@ -70,6 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loading,
     isAuthenticated: user !== null,
     login,
+    inscription,
     logout,
   }
 

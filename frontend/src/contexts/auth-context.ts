@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react'
-import type { AuthUser } from '@/lib/api'
+import type { AuthUser, InscriptionInput } from '@/lib/api'
 
 export interface AuthContextValue {
   user: AuthUser | null
@@ -7,6 +7,8 @@ export interface AuthContextValue {
   loading: boolean
   isAuthenticated: boolean
   login: (email: string, password: string, rememberMe: boolean) => Promise<void>
+  /** Auto-inscription (§3.1) : crée l'organisation + l'admin fondateur et ouvre la session. */
+  inscription: (input: InscriptionInput) => Promise<void>
   logout: () => Promise<void>
 }
 

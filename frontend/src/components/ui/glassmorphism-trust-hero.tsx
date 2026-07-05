@@ -24,6 +24,7 @@ import { NkoniMark } from '@/components/ui/NkoniMark'
 
 interface GlassmorphismTrustHeroProps {
   loginHref?: string
+  inscriptionHref?: string
   onDiscover?: () => void
 }
 
@@ -52,6 +53,7 @@ const STATUS_LEGEND = [
 
 export function GlassmorphismTrustHero({
   loginHref = '/login',
+  inscriptionHref = '/inscription',
   onDiscover,
 }: GlassmorphismTrustHeroProps) {
   const handleDiscover = () => {
@@ -81,9 +83,14 @@ export function GlassmorphismTrustHero({
           <NkoniMark className="h-9 w-9 text-lg" />
           <span className="font-display text-xl font-semibold tracking-tight">NKONI</span>
         </div>
-        <ButtonLink to={loginHref} variant="outline" size="sm">
-          Se connecter
-        </ButtonLink>
+        <div className="flex items-center gap-2">
+          <ButtonLink to={inscriptionHref} size="sm">
+            Créer mon espace
+          </ButtonLink>
+          <ButtonLink to={loginHref} variant="outline" size="sm">
+            Se connecter
+          </ButtonLink>
+        </div>
       </div>
 
       <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-12 px-6 pb-20 pt-6 sm:pt-10 lg:grid-cols-2 lg:gap-16 lg:pb-28">
@@ -105,14 +112,14 @@ export function GlassmorphismTrustHero({
           </h1>
 
           <p className="nk-reveal nk-d3 mx-auto mt-6 max-w-xl text-pretty text-base leading-relaxed text-muted-foreground sm:text-lg lg:mx-0">
-            NKONI centralise le suivi des cotisations et la transparence financière de votre
-            association, famille ou tontine : chaque membre connaît son statut, chaque mouvement
-            est tracé, chaque reçu est archivé.
+            Chaque association, famille ou tontine dispose de son{' '}
+            <span className="text-foreground">propre espace sécurisé et isolé</span> : chaque membre
+            connaît son statut, chaque mouvement est tracé, chaque reçu est archivé.
           </p>
 
           <div className="nk-reveal nk-d4 mt-8 flex flex-col items-stretch justify-center gap-3 sm:flex-row lg:justify-start">
-            <ButtonLink to={loginHref} size="lg" icon={undefined}>
-              Accéder à mon espace
+            <ButtonLink to={inscriptionHref} size="lg" icon={undefined}>
+              Créer mon espace
               <ArrowRight
                 className="h-4 w-4 transition-transform group-hover:translate-x-0.5"
                 aria-hidden="true"

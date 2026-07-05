@@ -20,6 +20,15 @@ export interface LoginResponse {
   user: AuthUser
 }
 
+/** Auto-inscription (§3.1) : création d'une organisation + son admin fondateur. */
+export interface InscriptionInput {
+  nomOrganisation: string
+  devise: 'FCFA' | 'EUR' | 'USD' | 'CAD'
+  langue: 'FR' | 'EN'
+  email: string
+  password: string
+}
+
 export interface RefreshResponse {
   accessToken: string
 }
@@ -105,6 +114,10 @@ export const authApi = {
       method: 'POST',
       json: { email, password, rememberMe },
     }),
+  // Auto-inscription publique : crée l'organisation + l'admin fondateur et connecte
+  // directement (même forme de réponse qu'un login : accessToken + user + cookie refresh).
+  inscription: (input: InscriptionInput) =>
+    request<LoginResponse>('/organisations/inscription', { method: 'POST', json: input }),
   refresh: (signal?: AbortSignal) =>
     request<RefreshResponse>('/auth/refresh', { method: 'POST', signal }),
   me: (accessToken: string, signal?: AbortSignal) =>

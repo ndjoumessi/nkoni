@@ -1,6 +1,7 @@
 import { Routes, Route, Outlet } from 'react-router-dom'
 import LandingPage from '@/pages/LandingPage'
 import LoginPage from '@/pages/LoginPage'
+import InscriptionPage from '@/pages/InscriptionPage'
 import DashboardPage from '@/pages/DashboardPage'
 import MembresPage from '@/pages/MembresPage'
 import MembreFormPage from '@/pages/MembreFormPage'
@@ -42,6 +43,7 @@ function App() {
     <Routes>
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/inscription" element={<InscriptionPage />} />
 
       {/* Pages authentifiées, dans la coquille NKONI. Routes statiques avant /membres/:id. */}
       <Route element={<ProtectedLayout />}>

@@ -92,4 +92,25 @@ describe('executerVerificationRetards (§5)', () => {
     expect(res.notifies).toBe(1)
     expect(notifs.size).toBe(2)
   })
+
+  it('préférence COTISATION_RETARD désactivée → aucune notif même si NON_A_JOUR', async () => {
+    const { prisma, notifs } = buildNotificationsMock({
+      membres: [MEMBRES[0]], // m1 NON_A_JOUR → u1
+      baremes,
+      utilisateurs: [{ id: 'u1', notificationsActives: { COTISATION_RETARD: false } }],
+    })
+    const res = await executerVerificationRetards(prisma, ANNEE, NOW)
+    expect(res.notifies).toBe(0)
+    expect(notifs.size).toBe(0)
+  })
+
+  it('indépendance des types : désactiver VERSEMENT_RECU n’empêche pas COTISATION_RETARD', async () => {
+    const { prisma } = buildNotificationsMock({
+      membres: [MEMBRES[0]],
+      baremes,
+      utilisateurs: [{ id: 'u1', notificationsActives: { VERSEMENT_RECU: false } }],
+    })
+    const res = await executerVerificationRetards(prisma, ANNEE, NOW)
+    expect(res.notifies).toBe(1) // COTISATION_RETARD reste actif
+  })
 })

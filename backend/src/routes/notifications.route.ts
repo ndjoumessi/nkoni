@@ -5,8 +5,22 @@ import {
   marquerCommeLue,
   marquerToutesCommeLues,
   compterNonLues,
+  lirePreferences,
+  majPreferences,
   NotificationIntrouvableError,
 } from '../services/notification.service'
+
+const preferencesSchema = {
+  body: {
+    type: 'object',
+    additionalProperties: false,
+    minProperties: 1,
+    properties: {
+      VERSEMENT_RECU: { type: 'boolean' },
+      COTISATION_RETARD: { type: 'boolean' },
+    },
+  },
+} as const
 
 /**
  * Notifications in-app (§5) — chacun ne voit et ne modifie QUE les siennes.
@@ -34,6 +48,19 @@ export const notificationsRoutes: FastifyPluginAsync = async (app: FastifyInstan
     const count = await marquerToutesCommeLues(app.prisma, req.user.sub ?? '')
     return { count }
   })
+
+  // Préférences de notification (les siennes) — un booléen par type.
+  app.get('/notifications/preferences', { preHandler: [authenticate] }, async (req) => {
+    return lirePreferences(app.prisma, req.user.sub ?? '')
+  })
+
+  app.patch<{ Body: { VERSEMENT_RECU?: boolean; COTISATION_RETARD?: boolean } }>(
+    '/notifications/preferences',
+    { schema: preferencesSchema, preHandler: [authenticate] },
+    async (req) => {
+      return majPreferences(app.prisma, req.user.sub ?? '', req.body)
+    },
+  )
 
   app.patch<{ Params: { id: string } }>(
     '/notifications/:id/lu',

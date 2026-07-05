@@ -13,6 +13,12 @@
 
 export type TypeNotification = 'VERSEMENT_RECU' | 'COTISATION_RETARD'
 
+/** Tous les types de notification (source unique pour les préférences). */
+export const TYPES_NOTIFICATION: TypeNotification[] = ['VERSEMENT_RECU', 'COTISATION_RETARD']
+
+/** Préférences normalisées : un booléen par type (true = activé). */
+export type PreferencesNotification = Record<TypeNotification, boolean>
+
 /** Levée quand la notification cible n'existe pas OU n'appartient pas au demandeur. */
 export class NotificationIntrouvableError extends Error {
   readonly id: string
@@ -51,6 +57,81 @@ export interface NotificationPrisma {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     findUnique(args: any): Promise<any>
   }
+  utilisateur: {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    findUnique(args: any): Promise<any>
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    update(args: any): Promise<any>
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Préférences de notification (par utilisateur)                             */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Un type est-il actif d'après le blob de préférences brut ? Fonction PURE.
+ * Défaut = activé : seul `{ "TYPE": false }` explicite désactive (null / clé absente = ON).
+ */
+export function typeActif(notificationsActives: unknown, type: TypeNotification): boolean {
+  if (notificationsActives && typeof notificationsActives === 'object') {
+    return (notificationsActives as Record<string, unknown>)[type] !== false
+  }
+  return true
+}
+
+/** Normalise un blob brut en un booléen par type (défaut true). */
+function normaliserPreferences(raw: unknown): PreferencesNotification {
+  const prefs = {} as PreferencesNotification
+  for (const t of TYPES_NOTIFICATION) prefs[t] = typeActif(raw, t)
+  return prefs
+}
+
+/** Lit les préférences d'un utilisateur (normalisées, défaut = tout activé). */
+export async function lirePreferences(
+  prisma: NotificationPrisma,
+  utilisateurId: string,
+): Promise<PreferencesNotification> {
+  const u = await prisma.utilisateur.findUnique({
+    where: { id: utilisateurId },
+    select: { notificationsActives: true },
+  })
+  return normaliserPreferences(u?.notificationsActives)
+}
+
+/** Met à jour (merge) les préférences d'un utilisateur, retourne l'état normalisé. */
+export async function majPreferences(
+  prisma: NotificationPrisma,
+  utilisateurId: string,
+  patch: Partial<PreferencesNotification>,
+): Promise<PreferencesNotification> {
+  const u = await prisma.utilisateur.findUnique({
+    where: { id: utilisateurId },
+    select: { notificationsActives: true },
+  })
+  const courant =
+    u?.notificationsActives && typeof u.notificationsActives === 'object'
+      ? (u.notificationsActives as Record<string, unknown>)
+      : {}
+  const fusionne = { ...courant, ...patch }
+  await prisma.utilisateur.update({
+    where: { id: utilisateurId },
+    data: { notificationsActives: fusionne },
+  })
+  return normaliserPreferences(fusionne)
+}
+
+/** Le type est-il actif pour cet utilisateur ? (lecture ciblée avant création d'une notif.) */
+export async function estTypeActifPour(
+  prisma: NotificationPrisma,
+  utilisateurId: string,
+  type: TypeNotification,
+): Promise<boolean> {
+  const u = await prisma.utilisateur.findUnique({
+    where: { id: utilisateurId },
+    select: { notificationsActives: true },
+  })
+  return typeActif(u?.notificationsActives, type)
 }
 
 /* -------------------------------------------------------------------------- */
@@ -160,6 +241,9 @@ export async function notifierVersement(
   })
   const destinataireId = membre?.compteUtilisateurId
   if (!destinataireId) return // membre sans compte → aucun destinataire
+
+  // Préférence : si l'utilisateur a désactivé ce type, on ne crée RIEN (pas de notif fantôme).
+  if (!(await estTypeActifPour(prisma, destinataireId, 'VERSEMENT_RECU'))) return
 
   await creerNotification(prisma, {
     destinataireId,

@@ -51,6 +51,20 @@ describe('notifierVersement (déclencheur §5)', () => {
     })
     expect(notifs.size).toBe(0)
   })
+
+  it('préférence VERSEMENT_RECU désactivée → aucune notif (pas de notif fantôme)', async () => {
+    const { prisma, notifs } = buildNotificationsMock({
+      membres: [{ id: 'm-avec', compteUtilisateurId: 'u-avec' }],
+      utilisateurs: [{ id: 'u-avec', notificationsActives: { VERSEMENT_RECU: false } }],
+    })
+    await notifierVersement(prisma, {
+      versementId: 'v3',
+      membreId: 'm-avec',
+      montant: 5_000,
+      annee: 2025,
+    })
+    expect(notifs.size).toBe(0)
+  })
 })
 
 describe('CRUD notifications isolé par destinataire', () => {

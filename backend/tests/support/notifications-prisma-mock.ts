@@ -31,10 +31,18 @@ export interface MembreSeed {
   contributions?: { annee: number; montantValorise: number }[]
 }
 
+export interface UtilisateurSeed {
+  id: string
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  notificationsActives?: any
+}
+
 export interface NotificationsMockOptions {
   notifs?: StoredNotif[]
   membres?: MembreSeed[]
   baremes?: { annee: number; montantAttendu: number }[]
+  /** Préférences par utilisateur (sinon dérivé des membres → tout activé par défaut). */
+  utilisateurs?: UtilisateurSeed[]
 }
 
 function matchNotif(n: StoredNotif, where: any = {}): boolean {
@@ -62,6 +70,20 @@ export function buildNotificationsMock(options: NotificationsMockOptions = {}) {
     ]),
   )
   const baremes = options.baremes ?? []
+
+  // Utilisateurs : ceux fournis + un défaut (préférences null = tout activé) pour chaque
+  // compte lié à un membre non déjà décrit.
+  const utilisateurs = new Map<string, UtilisateurSeed>(
+    (options.utilisateurs ?? []).map((u) => [u.id, { notificationsActives: null, ...u }]),
+  )
+  for (const m of membres.values()) {
+    if (m.compteUtilisateurId && !utilisateurs.has(m.compteUtilisateurId)) {
+      utilisateurs.set(m.compteUtilisateurId, {
+        id: m.compteUtilisateurId,
+        notificationsActives: null,
+      })
+    }
+  }
   let seq = 0
 
   const prisma: any = {
@@ -121,7 +143,19 @@ export function buildNotificationsMock(options: NotificationsMockOptions = {}) {
     baremeAnnuel: {
       findMany: async () => baremes.map((b) => ({ ...b })),
     },
+    utilisateur: {
+      findUnique: async ({ where }: any) => {
+        const u = utilisateurs.get(where.id)
+        return u ? { notificationsActives: u.notificationsActives ?? null } : null
+      },
+      update: async ({ where, data }: any) => {
+        const u = utilisateurs.get(where.id) ?? { id: where.id }
+        u.notificationsActives = data.notificationsActives
+        utilisateurs.set(where.id, u)
+        return { id: where.id, notificationsActives: u.notificationsActives }
+      },
+    },
   }
 
-  return { prisma, notifs }
+  return { prisma, notifs, utilisateurs }
 }

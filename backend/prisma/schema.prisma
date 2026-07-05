@@ -53,6 +53,9 @@ model Utilisateur {
   documentsTeleverses Document[] @relation("DocumentTeleversePar") // V2 §5
   auditsActeur        AuditLog[] @relation("AuditActeur") // V2 §5 — écritures tracées
   notifications       Notification[] @relation("NotificationDestinataire") // V2 §5 — notifs reçues
+  // Préférences de notification par type. null / clé absente = ACTIVÉ (défaut : tout activé,
+  // rétrocompatible). Un type est désactivé seulement si explicitement { "TYPE": false }.
+  notificationsActives Json?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }

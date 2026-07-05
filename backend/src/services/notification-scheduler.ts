@@ -26,7 +26,11 @@ import {
   calculerStatutContribution,
   type BaremeAnnuelInput,
 } from './statutContribution'
-import { creerNotification, type NotificationPrisma } from './notification.service'
+import {
+  creerNotification,
+  estTypeActifPour,
+  type NotificationPrisma,
+} from './notification.service'
 
 const JOURS_ANTISPAM = 7
 const MS_PAR_JOUR = 24 * 60 * 60 * 1000
@@ -98,6 +102,9 @@ export async function executerVerificationRetards(
       anneeCourante,
     })
     if (statut !== 'NON_A_JOUR') continue
+
+    // Préférence : si l'utilisateur a désactivé COTISATION_RETARD, on ne crée rien.
+    if (!(await estTypeActifPour(prisma, m.compteUtilisateurId, 'COTISATION_RETARD'))) continue
 
     // Anti-spam : une COTISATION_RETARD non lue de moins de 7 jours bloque un nouveau rappel.
     const recente = await prisma.notification.findFirst({

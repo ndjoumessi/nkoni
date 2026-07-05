@@ -85,6 +85,30 @@ describe('Isolation multi-tenant (§2.2) — extension Prisma', () => {
     await base.membre.delete({ where: { id: cree.id } })
   })
 
+  it('create : un organisationId fourni par l’appelant est IGNORÉ (forcé à l’org courante)', async () => {
+    // Tentative de contournement : créer en contexte A un membre marqué org B.
+    const cree = await enOrg(ORG_A, () =>
+      client.membre.create({
+        // @ts-expect-error organisationId n'est pas censé être passé — on teste le durcissement
+        data: { nom: 'Pirate', prenom: 'P', anneeAdhesion: 2021, organisationId: ORG_B },
+      }),
+    )
+    expect(cree.organisationId).toBe(ORG_A) // forcé, pas ORG_B
+    await base.membre.delete({ where: { id: cree.id } })
+  })
+
+  it('update : impossible de DÉPLACER un enregistrement vers une autre org', async () => {
+    const maj = await enOrg(ORG_A, () =>
+      client.membre.update({
+        where: { id: membreAId },
+        // @ts-expect-error tentative de réassignation d'org — doit être neutralisée
+        data: { organisationId: ORG_B, telephone: '111' },
+      }),
+    )
+    expect(maj.organisationId).toBe(ORG_A) // resté dans A malgré la tentative
+    expect(maj.telephone).toBe('111')
+  })
+
   it('fail-closed : requête scopée sans contexte org → TenantContextError', async () => {
     await expect(client.membre.findMany()).rejects.toBeInstanceOf(TenantContextError)
     await expect(

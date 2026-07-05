@@ -11,9 +11,13 @@ import { orgContext } from './org-context'
  *     mutations de masse (updateMany/deleteMany) → `where.organisationId` injecté.
  *   - findUnique[OrThrow] : le `where` unique n'accepte pas `organisationId` → POST-filtre
  *     (on vérifie `result.organisationId` ; sinon null / NotFound). Aucune fuite.
- *   - create/createMany → `organisationId` injecté dans `data`.
+ *   - create/createMany → `organisationId` FORCÉ à l'org courante dans `data` (toute valeur
+ *     fournie par l'appelant est IGNORÉE : impossible d'écrire dans une autre org).
  *   - update/delete/upsert (par `where` unique) → PRÉ-lecture de la cible (client `base`,
- *     non scopé) et refus si elle appartient à une autre org (ou est absente).
+ *     non scopé) et refus si elle appartient à une autre org (ou est absente) ; sur une
+ *     cible valide, `organisationId` est aussi FORCÉ dans les `data` (pas de déplacement
+ *     cross-org via `update { data: { organisationId: … } }`).
+ *   - updateMany/deleteMany → `where.organisationId` injecté ; updateMany force aussi `data`.
  *
  * FAIL-CLOSED : sur un modèle scopé, si le contexte n'a ni `organisationId` ni `unscoped`,
  * la requête LÈVE `TenantContextError` (jamais « tout retourner »). `unscoped: true` bypass
@@ -98,9 +102,14 @@ export async function intercepterTenant(
   const orgId = store?.organisationId
   if (!orgId) throw new TenantContextError(model, operation) // FAIL-CLOSED
 
-  // Lectures à where libre + mutations de masse : filtre injecté.
+  // Lectures à where libre + mutations de masse : filtre injecté (organisationId placé EN
+  // DERNIER → écrase toute valeur fournie par l'appelant, pas de contournement possible).
   if (READ_WHERE_OPS.has(operation)) {
-    return query({ ...args, where: { ...args?.where, organisationId: orgId } })
+    const scoped: any = { ...args, where: { ...args?.where, organisationId: orgId } }
+    // updateMany : FORCER aussi organisationId dans data (empêche de déplacer en masse des
+    // lignes vers une autre org). deleteMany / lectures n'ont pas de `data`.
+    if (operation === 'updateMany') scoped.data = { ...args?.data, organisationId: orgId }
+    return query(scoped)
   }
 
   // findUnique[OrThrow] : post-filtre (le where unique ne tolère pas organisationId).
@@ -116,16 +125,16 @@ export async function intercepterTenant(
     return null
   }
 
-  // create : injecter organisationId dans data.
+  // create : FORCER organisationId = orgId (on IGNORE toute valeur fournie par l'appelant,
+  // sinon un create avec organisationId d'une AUTRE org écrirait cross-tenant).
   if (operation === 'create') {
-    const data = { ...args?.data, organisationId: args?.data?.organisationId ?? orgId }
-    return query({ ...args, data })
+    return query({ ...args, data: { ...args?.data, organisationId: orgId } })
   }
   if (operation === 'createMany') {
     const raw = args?.data
     const data = Array.isArray(raw)
-      ? raw.map((d: any) => ({ ...d, organisationId: d.organisationId ?? orgId }))
-      : { ...raw, organisationId: raw?.organisationId ?? orgId }
+      ? raw.map((d: any) => ({ ...d, organisationId: orgId }))
+      : { ...raw, organisationId: orgId }
     return query({ ...args, data })
   }
 
@@ -136,13 +145,26 @@ export async function intercepterTenant(
       .catch(() => null)
 
     if (existing && existing.organisationId === orgId) {
-      // Cible bien dans l'org courante : on laisse passer (upsert.update inclus).
-      return query(args)
+      // Cible dans l'org courante. On FORCE organisationId dans les data d'écriture pour
+      // interdire un déplacement cross-org (ex. update { data: { organisationId: autre } }).
+      if (operation === 'delete') return query(args) // pas de data
+      if (operation === 'update') {
+        return query({ ...args, data: { ...args?.data, organisationId: orgId } })
+      }
+      // upsert d'une cible existante (même org) : forcer org dans create ET update.
+      return query({
+        ...args,
+        create: { ...args?.create, organisationId: orgId },
+        update: { ...args?.update, organisationId: orgId },
+      })
     }
     if (operation === 'upsert' && !existing) {
-      // upsert d'une cible inexistante = création → injecter org dans `create`.
-      const create = { ...args?.create, organisationId: args?.create?.organisationId ?? orgId }
-      return query({ ...args, create })
+      // upsert d'une cible inexistante = création → forcer org dans `create` (et `update`).
+      return query({
+        ...args,
+        create: { ...args?.create, organisationId: orgId },
+        update: { ...args?.update, organisationId: orgId },
+      })
     }
     // Cible absente OU appartenant à une autre org → refus (pas d'écriture cross-org).
     throw new TenantContextError(model, operation)

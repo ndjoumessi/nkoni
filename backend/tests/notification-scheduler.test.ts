@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import { executerVerificationRetards } from '../src/services/notification-scheduler'
+import {
+  executerVerificationRetards,
+  executerVerificationRetardsToutesOrgs,
+} from '../src/services/notification-scheduler'
 import {
   buildNotificationsMock,
   type StoredNotif,
@@ -112,5 +115,27 @@ describe('executerVerificationRetards (§5)', () => {
     })
     const res = await executerVerificationRetards(prisma, ANNEE, NOW)
     expect(res.notifies).toBe(1) // COTISATION_RETARD reste actif
+  })
+})
+
+describe('executerVerificationRetardsToutesOrgs (§2.2 — tâche système multi-org)', () => {
+  it('itère sur les organisations actives et agrège les résultats par org', async () => {
+    const { prisma } = buildNotificationsMock({
+      membres: [MEMBRES[0]], // m1 NON_A_JOUR → 1 notif
+      baremes,
+      organisations: [{ id: 'org-a' }, { id: 'org-b' }],
+    })
+    const res = await executerVerificationRetardsToutesOrgs(prisma, ANNEE, NOW)
+    // Une entrée de résultat par organisation active, dans l'ordre.
+    expect(res.map((r) => r.organisationId)).toEqual(['org-a', 'org-b'])
+    // Le scan tourne pour chaque org (mock non scopé → même jeu de données visible).
+    expect(res.every((r) => r.verifies === 1)).toBe(true)
+  })
+
+  it('aucune organisation active → aucun scan', async () => {
+    const { prisma, notifs } = buildNotificationsMock({ membres: [MEMBRES[0]], baremes, organisations: [] })
+    const res = await executerVerificationRetardsToutesOrgs(prisma, ANNEE, NOW)
+    expect(res).toEqual([])
+    expect(notifs.size).toBe(0)
   })
 })

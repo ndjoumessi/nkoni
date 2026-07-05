@@ -31,6 +31,7 @@ import {
   estTypeActifPour,
   type NotificationPrisma,
 } from './notification.service'
+import { orgContext } from '../lib/org-context'
 
 const JOURS_ANTISPAM = 7
 const MS_PAR_JOUR = 24 * 60 * 60 * 1000
@@ -48,6 +49,10 @@ export interface SchedulerPrisma extends NotificationPrisma {
   baremeAnnuel: {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     findMany(args?: any): Promise<{ annee: number; montantAttendu: number }[]>
+  }
+  organisation: {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    findMany(args?: any): Promise<{ id: string }[]>
   }
 }
 
@@ -131,6 +136,38 @@ export async function executerVerificationRetards(
   return { verifies: membres.length, notifies }
 }
 
+/** Résultat de la vérification pour une organisation donnée. */
+export interface VerificationRetardsOrgResult extends VerificationRetardsResult {
+  organisationId: string
+}
+
+/**
+ * Vérification des retards POUR TOUTES LES ORGANISATIONS ACTIVES (SaaS §2.2).
+ *
+ * Tâche système sans requête HTTP → aucun contexte d'org établi par `authenticate`. Plutôt
+ * qu'un `runUnscoped` global (qui mélangerait les données de toutes les orgs et fausserait le
+ * calcul), on ITÈRE : chaque organisation est traitée DANS son propre contexte d'isolation,
+ * de sorte que toutes les requêtes du scan (`executerVerificationRetards`) sont scopées sur
+ * elle. `Organisation` est la racine (non scopée) → sa lecture ne nécessite pas de contexte.
+ */
+export async function executerVerificationRetardsToutesOrgs(
+  prisma: SchedulerPrisma,
+  anneeCourante: number,
+  now: Date = new Date(),
+): Promise<VerificationRetardsOrgResult[]> {
+  const orgs = await prisma.organisation.findMany({ where: { actif: true }, select: { id: true } })
+  const resultats: VerificationRetardsOrgResult[] = []
+  for (const org of orgs) {
+    // `run` avec un callback qui AWAIT à l'intérieur : le contexte ALS couvre l'exécution
+    // (différée) des requêtes Prisma. Hors requête HTTP, il n'y a pas de `enterWith` préalable.
+    const r = await orgContext.run({ organisationId: org.id }, async () =>
+      executerVerificationRetards(prisma, anneeCourante, now),
+    )
+    resultats.push({ organisationId: org.id, ...r })
+  }
+  return resultats
+}
+
 /**
  * Enregistre le cron quotidien (03:00, Africa/Douala). À appeler UNE FOIS depuis le
  * bootstrap serveur, après app.listen. N'est jamais appelé par buildApp (donc pas en test).
@@ -140,10 +177,18 @@ export function demarrerScheduler(app: FastifyInstance): void {
     '0 3 * * *',
     () => {
       const anneeCourante = new Date().getFullYear()
-      void executerVerificationRetards(app.prisma as unknown as SchedulerPrisma, anneeCourante)
-        .then((r) =>
-          app.log.info({ ...r }, 'Vérification quotidienne des retards de cotisation terminée'),
-        )
+      void executerVerificationRetardsToutesOrgs(
+        app.prisma as unknown as SchedulerPrisma,
+        anneeCourante,
+      )
+        .then((resultats) => {
+          const verifies = resultats.reduce((s, r) => s + r.verifies, 0)
+          const notifies = resultats.reduce((s, r) => s + r.notifies, 0)
+          app.log.info(
+            { organisations: resultats.length, verifies, notifies },
+            'Vérification quotidienne des retards de cotisation terminée (toutes organisations)',
+          )
+        })
         .catch((err) =>
           app.log.error({ err }, 'Vérification des retards de cotisation échouée'),
         )

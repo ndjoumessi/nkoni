@@ -43,6 +43,8 @@ export interface NotificationsMockOptions {
   baremes?: { annee: number; montantAttendu: number }[]
   /** Préférences par utilisateur (sinon dérivé des membres → tout activé par défaut). */
   utilisateurs?: UtilisateurSeed[]
+  /** Organisations actives renvoyées par `organisation.findMany` (wrapper multi-org). */
+  organisations?: { id: string }[]
 }
 
 function matchNotif(n: StoredNotif, where: any = {}): boolean {
@@ -142,6 +144,9 @@ export function buildNotificationsMock(options: NotificationsMockOptions = {}) {
     },
     baremeAnnuel: {
       findMany: async () => baremes.map((b) => ({ ...b })),
+    },
+    organisation: {
+      findMany: async () => (options.organisations ?? []).map((o) => ({ ...o })),
     },
     utilisateur: {
       findUnique: async ({ where }: any) => {

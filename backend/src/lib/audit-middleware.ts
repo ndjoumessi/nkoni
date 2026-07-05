@@ -1,5 +1,6 @@
 import { Prisma } from '../generated/prisma/client'
 import { auditContext } from './audit-context'
+import { orgContext } from './org-context'
 
 /**
  * V2 (§5) — Audit trail transverse via extension Prisma ($extends, Prisma 7 ; `$use` est
@@ -103,6 +104,9 @@ export async function capturerAudit(
       entiteId: String(entiteId),
       action,
       acteurId: auditContext.acteurId() ?? null,
+      // AuditLog est un modèle SCOPÉ mais écrit via `base` (client NON étendu, anti-récursion)
+      // → l'extension d'isolation ne l'intercepte pas : on stampe explicitement l'org courante.
+      organisationId: orgContext.organisationId() ?? null,
       donneesAvant: donneesAvant ?? Prisma.JsonNull,
       donneesApres: donneesApres ?? Prisma.JsonNull,
     },

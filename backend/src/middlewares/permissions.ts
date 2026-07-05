@@ -41,6 +41,12 @@ export type Entite =
   | 'Commemoration'
 
 export type Role =
+  // Rôle PLATEFORME transverse (SaaS §2.3). Volontairement ABSENT de la matrice PERMISSIONS
+  // ci-dessous : un SUPER_ADMIN n'a donc AUCUN droit sur les entités métier (toute route
+  // tenant lui renvoie 403 via requirePermission → `?? []`). Ses seules routes sont
+  // /platform/* (cf. requireSuperAdmin), et il n'a de toute façon pas de contexte
+  // d'organisation → l'extension d'isolation Prisma fail-close sur tout modèle scopé.
+  | 'SUPER_ADMIN'
   | 'ADMIN'
   | 'PRESIDENT'
   | 'SECRETAIRE'
@@ -250,4 +256,30 @@ export function requirePermission(
 
     // Autorisé : ne rien renvoyer laisse Fastify poursuivre vers le handler.
   }
+}
+
+/**
+ * Garde des routes PLATEFORME (SaaS §2.3) : autorise UNIQUEMENT le rôle transverse
+ * SUPER_ADMIN, sinon 403. À brancher APRÈS `authenticate` (qui garantit `req.user`).
+ *
+ * Distinct de `requirePermission` (matrice par entité, réservée aux rôles d'organisation) :
+ * les capacités du super-admin ne portent pas sur des entités métier mais sur la gestion des
+ * organisations clientes (lister, suspendre) — un droit transverse, hors matrice.
+ *
+ * @example
+ *   app.get('/platform/organisations', { preHandler: [authenticate, requireSuperAdmin] }, h)
+ */
+export const requireSuperAdmin: preHandlerHookHandler = async function requireSuperAdminPreHandler(
+  req: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> {
+  const user = (req as unknown as { user?: { role?: Role } }).user
+  if (user?.role !== 'SUPER_ADMIN') {
+    reply.code(403).send({
+      error: 'Forbidden',
+      message: 'Accès réservé à un administrateur de la plateforme.',
+    })
+    return
+  }
+  // Autorisé.
 }

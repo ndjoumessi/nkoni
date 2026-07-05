@@ -7,6 +7,7 @@ import {
   MODELES_AUDITES,
 } from '../src/lib/audit-middleware'
 import { auditContext } from '../src/lib/audit-context'
+import { orgContext } from '../src/lib/org-context'
 
 /* Client Prisma « de base » mocké : trace auditLog.create, renvoie `before` en findUnique. */
 function mockBase(before: unknown = null) {
@@ -213,5 +214,22 @@ describe('intercepterAudit — capture create/update/delete', () => {
       result: { id: 'm1' },
     })
     expect(audits[0].acteurId).toBeNull()
+  })
+
+  it('flux non scopé (runUnscoped : bootstrap SUPER_ADMIN / système) → AUCUN audit écrit', async () => {
+    const { base, audits } = mockBase(null)
+    // L'audit étant par organisation (AuditLog.organisationId NOT NULL), une écriture
+    // délibérément non scopée ne doit PAS tenter de journal orphelin — mais l'opération
+    // métier, elle, doit bien s'exécuter et renvoyer son résultat.
+    const result = await orgContext.runUnscoped(async () =>
+      intercepterAudit(base, {
+        model: 'Utilisateur',
+        operation: 'create',
+        args: { data: { email: 'sa@nkoni.io', role: 'SUPER_ADMIN' } },
+        query: async () => ({ id: 'sa-1', email: 'sa@nkoni.io', role: 'SUPER_ADMIN' }),
+      }),
+    )
+    expect(audits).toHaveLength(0) // aucun audit
+    expect(result).toMatchObject({ id: 'sa-1', role: 'SUPER_ADMIN' }) // opération exécutée
   })
 })

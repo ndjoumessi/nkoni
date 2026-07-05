@@ -5,9 +5,15 @@ import {
   genererEvolutionPdf,
   genererComparaisonExcel,
   genererComparaisonPdf,
+  genererComparaisonMultiExcel,
+  genererComparaisonMultiPdf,
   totauxEvolution,
 } from '../src/services/export-rapport.service'
-import type { RapportFinancier, ComparaisonPeriodes } from '../src/services/rapport.service'
+import type {
+  RapportFinancier,
+  ComparaisonPeriodes,
+  ComparaisonMulti,
+} from '../src/services/rapport.service'
 
 /**
  * Export des rapports financiers : formatage réel (bytes magiques PK/%PDF + relecture du
@@ -136,6 +142,76 @@ describe('Comparaison — Excel', () => {
 describe('Comparaison — PDF', () => {
   it('produit un .pdf (%PDF … EOF)', async () => {
     const buf = await genererComparaisonPdf(comparaison, now)
+    expect(buf.subarray(0, 4).toString('latin1')).toBe('%PDF')
+    expect(buf.subarray(-6).toString('latin1')).toContain('EOF')
+  })
+})
+
+/* -------------------------------------------------------------------------- */
+/* Comparaison multi-années                                                   */
+/* -------------------------------------------------------------------------- */
+
+const multi: ComparaisonMulti = {
+  annees: [
+    {
+      annee: 2022,
+      rapport: {
+        annee: 2022, montantAttendu: 10_000, membresEligibles: 1, totalAttendu: 10_000,
+        totalCollecte: 10_000, tauxRecouvrement: 100, membresParStatut: { A_JOUR: 1, PARTIEL: 0, NON_A_JOUR: 0 },
+      },
+      variations: null, // première année → pas de variation
+    },
+    {
+      annee: 2023,
+      rapport: {
+        annee: 2023, montantAttendu: 10_000, membresEligibles: 1, totalAttendu: 10_000,
+        totalCollecte: 5_000, tauxRecouvrement: 50, membresParStatut: { A_JOUR: 0, PARTIEL: 1, NON_A_JOUR: 0 },
+      },
+      variations: { totalAttendu: 0, totalCollecte: -50, tauxRecouvrement: -50 },
+    },
+    {
+      annee: 2024,
+      rapport: {
+        annee: 2024, montantAttendu: 12_000, membresEligibles: 1, totalAttendu: 12_000,
+        totalCollecte: 12_000, tauxRecouvrement: 100, membresParStatut: { A_JOUR: 1, PARTIEL: 0, NON_A_JOUR: 0 },
+      },
+      variations: { totalAttendu: 20, totalCollecte: 140, tauxRecouvrement: 100 },
+    },
+  ],
+}
+
+describe('Comparaison multi-années — Excel', () => {
+  it('en-têtes = Métrique + (année, Δ %) par année ; variations colorées', async () => {
+    const buf = await genererComparaisonMultiExcel(multi, now)
+    expect(buf.subarray(0, 2).toString('latin1')).toBe('PK')
+
+    const wb = new ExcelJS.Workbook()
+    await wb.xlsx.load(buf as unknown as ArrayBuffer)
+    const ws = wb.getWorksheet('Comparaison')!
+
+    // En-têtes : Métrique | 2022 | 2023 | Δ % | 2024 | Δ %
+    expect(ws.getRow(1).getCell(2).value).toBe('2022')
+    expect(ws.getRow(1).getCell(3).value).toBe('2023')
+    expect(ws.getRow(1).getCell(4).value).toBe('Δ %')
+    expect(ws.getRow(1).getCell(5).value).toBe('2024')
+    expect(ws.getRow(1).getCell(6).value).toBe('Δ %')
+
+    // Ligne « Total attendu » : Δ2024 = +20 (verte).
+    const rowAttendu = ws.getRow(2)
+    expect(rowAttendu.getCell(1).value).toBe('Total attendu')
+    expect(rowAttendu.getCell(6).value).toBe(20)
+    expect(rowAttendu.getCell(6).font?.color?.argb).toBe('FF157A4F') // vert
+
+    // Ligne « Total collecté » : Δ2023 = -50 (rouge).
+    const rowCollecte = ws.getRow(3)
+    expect(rowCollecte.getCell(4).value).toBe(-50)
+    expect(rowCollecte.getCell(4).font?.color?.argb).toBe('FFB0432A') // rouge
+  })
+})
+
+describe('Comparaison multi-années — PDF', () => {
+  it('produit un .pdf paysage (%PDF … EOF)', async () => {
+    const buf = await genererComparaisonMultiPdf(multi, now)
     expect(buf.subarray(0, 4).toString('latin1')).toBe('%PDF')
     expect(buf.subarray(-6).toString('latin1')).toContain('EOF')
   })

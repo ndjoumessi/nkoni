@@ -16,7 +16,9 @@ import PDFDocument from 'pdfkit'
 import type {
   RapportFinancier,
   ComparaisonPeriodes,
+  ComparaisonMulti,
   RapportAnnee,
+  VariationsComparaison,
 } from './rapport.service'
 
 /* -------------------------------------------------------------------------- */
@@ -180,8 +182,8 @@ function ecrireTableau(
   doc: PDFKit.PDFDocument,
   xs: number[],
   lignes: { valeurs: (string | number)[]; gras: boolean }[],
+  borneDroite = 555,
 ): void {
-  const borneDroite = 555
   for (const { valeurs, gras } of lignes) {
     doc.font(gras ? 'Helvetica-Bold' : 'Helvetica').fontSize(9)
     const y = doc.y
@@ -193,9 +195,16 @@ function ecrireTableau(
   }
 }
 
-function creerPdf(remplir: (doc: PDFKit.PDFDocument) => void): Promise<Buffer> {
+function creerPdf(
+  remplir: (doc: PDFKit.PDFDocument) => void,
+  paysage = false,
+): Promise<Buffer> {
   return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ size: 'A4', margin: 40 })
+    const doc = new PDFDocument({
+      size: 'A4',
+      layout: paysage ? 'landscape' : 'portrait',
+      margin: 40,
+    })
     const chunks: Buffer[] = []
     doc.on('data', (c: Buffer) => chunks.push(c))
     doc.on('end', () => resolve(Buffer.concat(chunks)))
@@ -283,4 +292,139 @@ export function genererComparaisonPdf(
     ]
     ecrireTableau(doc, xs, lignes)
   })
+}
+
+/* -------------------------------------------------------------------------- */
+/* Comparaison MULTI-années (une colonne par année + Δ vs la précédente)      */
+/* -------------------------------------------------------------------------- */
+
+/** Métriques de la table de comparaison ; `cle` présent ⇒ métrique portant une variation. */
+interface MetriqueMulti {
+  label: string
+  valeur: (r: RapportAnnee | null) => number | null
+  cle?: keyof VariationsComparaison
+}
+
+const METRIQUES_MULTI: MetriqueMulti[] = [
+  { label: 'Total attendu', valeur: (r) => r?.totalAttendu ?? null, cle: 'totalAttendu' },
+  { label: 'Total collecté', valeur: (r) => r?.totalCollecte ?? null, cle: 'totalCollecte' },
+  { label: 'Taux de recouvrement (%)', valeur: (r) => r?.tauxRecouvrement ?? null, cle: 'tauxRecouvrement' },
+  { label: 'Membres éligibles', valeur: (r) => r?.membresEligibles ?? null },
+  { label: 'À jour', valeur: (r) => r?.membresParStatut.A_JOUR ?? null },
+  { label: 'Partiel', valeur: (r) => r?.membresParStatut.PARTIEL ?? null },
+  { label: 'Non à jour', valeur: (r) => r?.membresParStatut.NON_A_JOUR ?? null },
+]
+
+/** Texte d'une cellule de variation (première année = '', non calculable = 'n/a'). */
+function celluleVariation(m: MetriqueMulti, ac: ComparaisonMulti['annees'][number]): string | number {
+  if (!m.cle) return '' // métrique de décompte : pas de variation
+  const v = ac.variations ? ac.variations[m.cle] : null
+  return v === null || v === undefined ? 'n/a' : v
+}
+
+/** Comparaison multi-années → une ligne par métrique, cellules valeur + Δ par année. */
+function lignesMulti(comp: ComparaisonMulti): { valeurs: (string | number)[]; gras: boolean }[] {
+  return METRIQUES_MULTI.map((m) => {
+    const valeurs: (string | number)[] = [m.label]
+    comp.annees.forEach((ac, i) => {
+      const v = m.valeur(ac.rapport)
+      valeurs.push(v === null ? '—' : v)
+      if (i > 0) valeurs.push(celluleVariation(m, ac))
+    })
+    return { valeurs, gras: false }
+  })
+}
+
+/** En-têtes de la table multi : Métrique, puis (année, Δ %) pour chaque année (Δ dès la 2e). */
+function entetesMulti(comp: ComparaisonMulti): string[] {
+  const enTetes = ['Métrique']
+  comp.annees.forEach((ac, i) => {
+    enTetes.push(String(ac.annee))
+    if (i > 0) enTetes.push('Δ %')
+  })
+  return enTetes
+}
+
+/** Indices de colonne (1-based) des cellules Δ, pour la coloration conditionnelle. */
+function colonnesVariation(comp: ComparaisonMulti): number[] {
+  const cols: number[] = []
+  let col = 1 // colonne « Métrique »
+  comp.annees.forEach((_, i) => {
+    col += 1 // colonne valeur de l'année
+    if (i > 0) {
+      col += 1 // colonne Δ
+      cols.push(col)
+    }
+  })
+  return cols
+}
+
+/** Comparaison multi-années → classeur .xlsx (Buffer). Variation colorée. Fonction pure. */
+export async function genererComparaisonMultiExcel(
+  comp: ComparaisonMulti,
+  genereLe: Date = new Date(),
+): Promise<Buffer> {
+  const wb = new ExcelJS.Workbook()
+  wb.creator = 'NKONI'
+  wb.created = genereLe
+
+  const ws = wb.addWorksheet('Comparaison')
+  const colonnes: { header: string; key: string; width: number }[] = [
+    { header: 'Métrique', key: 'metrique', width: 26 },
+  ]
+  comp.annees.forEach((ac, i) => {
+    colonnes.push({ header: String(ac.annee), key: `a${i}`, width: 16 })
+    if (i > 0) colonnes.push({ header: 'Δ %', key: `d${i}`, width: 11 })
+  })
+  ws.columns = colonnes
+  ws.getRow(1).font = { bold: true }
+
+  const deltaCols = colonnesVariation(comp)
+  for (const ligne of lignesMulti(comp)) {
+    const row = ws.addRow(ligne.valeurs)
+    for (const dc of deltaCols) {
+      const val = row.getCell(dc).value
+      if (typeof val === 'number' && val !== 0) {
+        row.getCell(dc).font = { bold: true, color: { argb: val > 0 ? COULEUR.vert : COULEUR.rouge } }
+      }
+    }
+  }
+
+  return Buffer.from((await wb.xlsx.writeBuffer()) as ArrayBuffer)
+}
+
+/** Comparaison multi-années → document .pdf (Buffer, paysage pour la largeur). Fonction pure. */
+export function genererComparaisonMultiPdf(
+  comp: ComparaisonMulti,
+  genereLe: Date = new Date(),
+): Promise<Buffer> {
+  return creerPdf((doc) => {
+    const anneesTexte = comp.annees.map((a) => a.annee).join(', ')
+    doc.font('Helvetica-Bold').fontSize(16).text('NKONI — Comparaison multi-années', {
+      align: 'center',
+    })
+    doc.moveDown(0.3)
+    doc
+      .font('Helvetica')
+      .fontSize(9)
+      .text(`Années ${anneesTexte}  ·  Généré le ${genereLe.toISOString()}`, { align: 'center' })
+    doc.moveDown(1)
+
+    // Colonnes dynamiques : « Métrique » large + colonnes réparties sur la largeur paysage.
+    const enTetes = entetesMulti(comp)
+    const xDebut = 40
+    const borneDroite = 800 // A4 paysage (842) - marge
+    const largeurMetrique = 150
+    const largeurCol = (borneDroite - (xDebut + largeurMetrique)) / (enTetes.length - 1)
+    const xs = [xDebut]
+    for (let i = 1; i < enTetes.length; i++) {
+      xs.push(xDebut + largeurMetrique + (i - 1) * largeurCol)
+    }
+
+    const lignes: { valeurs: (string | number)[]; gras: boolean }[] = [
+      { valeurs: enTetes, gras: true },
+      ...lignesMulti(comp),
+    ]
+    ecrireTableau(doc, xs, lignes, borneDroite)
+  }, true)
 }

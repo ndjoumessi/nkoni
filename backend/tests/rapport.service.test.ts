@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   genererRapportFinancier,
   comparerPeriodes,
+  comparerPeriodesMulti,
   variationPourcent,
   rapportPourAnnee,
   type MembreRapport,
@@ -147,6 +148,43 @@ describe('comparerPeriodes (pur)', () => {
     expect(c.rapportA).not.toBeNull()
     expect(c.rapportB).toBeNull()
     expect(c.variations).toEqual({
+      totalAttendu: null,
+      totalCollecte: null,
+      tauxRecouvrement: null,
+    })
+  })
+})
+
+describe('comparerPeriodesMulti (chaîne : chaque année vs la précédente de la liste)', () => {
+  it('3 années contiguës : la 1re sans variation, les suivantes vs la précédente', () => {
+    const c = comparerPeriodesMulti([2023, 2024, 2025], baremes, membres)
+    expect(c.annees.map((a) => a.annee)).toEqual([2023, 2024, 2025])
+
+    // 2023 : première de la liste → aucune variation.
+    expect(c.annees[0].variations).toBeNull()
+    expect(c.annees[0].rapport?.totalCollecte).toBe(10_000)
+
+    // 2024 vs 2023 : attendu 20000→36000 (+80), collecté 10000→30000 (+200).
+    expect(c.annees[1].variations?.totalAttendu).toBe(80)
+    expect(c.annees[1].variations?.totalCollecte).toBe(200)
+
+    // 2025 vs 2024 : attendu 36000→30000 (-16.67), collecté 30000→15000 (-50).
+    expect(c.annees[2].variations?.totalAttendu).toBe(-16.67)
+    expect(c.annees[2].variations?.totalCollecte).toBe(-50)
+  })
+
+  it('années NON contiguës : la variation se calcule vs la précédente DANS LA LISTE, pas l’année civile', () => {
+    // Liste [2023, 2025] en sautant 2024 : 2025 doit être comparé à 2023 (pas à 2024).
+    const c = comparerPeriodesMulti([2023, 2025], baremes, membres)
+    // 2025 vs 2023 : attendu 20000→30000 = +50 (et non -16.67 qui serait le vs-2024).
+    expect(c.annees[1].variations?.totalAttendu).toBe(50)
+    expect(c.annees[1].variations?.totalCollecte).toBe(50) // 10000 → 15000
+  })
+
+  it('année sans barème dans la liste : rapport null + variations null, sans erreur', () => {
+    const c = comparerPeriodesMulti([2025, 2026], baremes, membres)
+    expect(c.annees[1].rapport).toBeNull()
+    expect(c.annees[1].variations).toEqual({
       totalAttendu: null,
       totalCollecte: null,
       tauxRecouvrement: null,

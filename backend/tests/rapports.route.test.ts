@@ -168,4 +168,43 @@ describe('Routes Rapports financiers', () => {
     expect((await exportFinancier('SECRETAIRE', '?anneeDebut=2024&anneeFin=2025')).statusCode).toBe(403)
     expect((await exportComparaison('MEMBRE_SIMPLE', '?anneeA=2024&anneeB=2025')).statusCode).toBe(403)
   })
+
+  /* --- Comparaison multi-années (annees=) + rétrocompatibilité ---------- */
+
+  it('comparaison multi (annees=2024,2025) : 200, chaîne de variations', async () => {
+    const res = await comparaison('ADMIN', '?annees=2024,2025')
+    expect(res.statusCode).toBe(200)
+    const body = res.json()
+    expect(body.annees.map((a: { annee: number }) => a.annee)).toEqual([2024, 2025])
+    expect(body.annees[0].variations).toBeNull() // 1re année
+    // 2025 vs 2024 : attendu 20000 → 24000 = +20.
+    expect(body.annees[1].variations.totalAttendu).toBe(20)
+  })
+
+  it('rétrocompatibilité : anciens paramètres anneeA/anneeB toujours acceptés (200, ancien format)', async () => {
+    const res = await comparaison('ADMIN', '?anneeA=2024&anneeB=2025')
+    expect(res.statusCode).toBe(200)
+    const body = res.json()
+    expect(body).toHaveProperty('rapportA') // forme paire, pas multi
+    expect(body).toHaveProperty('variations')
+  })
+
+  it('comparaison sans paramètre valide → 400', async () => {
+    expect((await comparaison('ADMIN', '')).statusCode).toBe(400)
+    // Une seule année ne respecte pas le motif (≥ 2 années) → 400 (schéma).
+    expect((await comparaison('ADMIN', '?annees=2024')).statusCode).toBe(400)
+  })
+
+  it('export comparaison multi (annees=) : 200, nom de fichier avec toutes les années', async () => {
+    const res = await exportComparaison('TRESORIERE', '?annees=2024,2025&format=xlsx')
+    expect(res.statusCode).toBe(200)
+    expect(res.headers['content-disposition']).toContain('comparaison-2024-2025.xlsx')
+    expect(res.rawPayload.subarray(0, 2).toString('latin1')).toBe('PK')
+  })
+
+  it('export comparaison multi PDF : 200, %PDF', async () => {
+    const res = await exportComparaison('ADMIN', '?annees=2024,2025&format=pdf')
+    expect(res.statusCode).toBe(200)
+    expect(res.rawPayload.subarray(0, 4).toString('latin1')).toBe('%PDF')
+  })
 })

@@ -5,12 +5,15 @@ import {
   chargerDonneesRapport,
   genererRapportFinancier,
   comparerPeriodes,
+  comparerPeriodesMulti,
 } from '../services/rapport.service'
 import {
   genererEvolutionExcel,
   genererEvolutionPdf,
   genererComparaisonExcel,
   genererComparaisonPdf,
+  genererComparaisonMultiExcel,
+  genererComparaisonMultiPdf,
 } from '../services/export-rapport.service'
 
 /**
@@ -26,6 +29,8 @@ import {
  */
 
 const ANNEE = { type: 'integer', minimum: 1900, maximum: 2200 } as const
+/** Liste d'années séparée par des virgules, au moins deux (ex. « 2022,2023,2024 »). */
+const ANNEES_LISTE = { type: 'string', pattern: '^[0-9]{4}(,[0-9]{4})+$' } as const
 
 const financierSchema = {
   querystring: {
@@ -36,16 +41,32 @@ const financierSchema = {
   },
 } as const
 
+// Comparaison : soit l'ancien format (anneeA & anneeB), soit `annees=` (multi). La
+// validation « l'un ou l'autre » est faite dans le handler (schéma volontairement souple).
 const comparaisonSchema = {
   querystring: {
     type: 'object',
     additionalProperties: false,
-    required: ['anneeA', 'anneeB'],
-    properties: { anneeA: ANNEE, anneeB: ANNEE },
+    properties: { anneeA: ANNEE, anneeB: ANNEE, annees: ANNEES_LISTE },
   },
 } as const
 
 const FORMAT = { type: 'string', enum: ['xlsx', 'pdf'], default: 'xlsx' } as const
+
+/**
+ * Parse et valide une liste d'années « 2022,2023,2024 » : au moins 2 années, chacune
+ * dans [1900, 2200]. Retourne `null` si invalide. L'ordre fourni est conservé (la chaîne
+ * de variations suit l'ordre de la liste).
+ */
+function parseAnnees(brut: string): number[] | null {
+  const annees = brut.split(',').map((s) => Number(s))
+  if (annees.length < 2) return null
+  if (annees.some((n) => !Number.isInteger(n) || n < 1900 || n > 2200)) return null
+  return annees
+}
+
+const MESSAGE_COMPARAISON =
+  'Fournissez soit anneeA & anneeB, soit annees= (au moins deux années entre 1900 et 2200, séparées par des virgules).'
 
 const financierExportSchema = {
   querystring: {
@@ -60,8 +81,7 @@ const comparaisonExportSchema = {
   querystring: {
     type: 'object',
     additionalProperties: false,
-    required: ['anneeA', 'anneeB'],
-    properties: { anneeA: ANNEE, anneeB: ANNEE, format: FORMAT },
+    properties: { anneeA: ANNEE, anneeB: ANNEE, annees: ANNEES_LISTE, format: FORMAT },
   },
 } as const
 
@@ -87,13 +107,25 @@ export const rapportsRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
     },
   )
 
-  app.get<{ Querystring: { anneeA: number; anneeB: number } }>(
+  app.get<{ Querystring: { anneeA?: number; anneeB?: number; annees?: string } }>(
     '/rapports/comparaison',
     { schema: comparaisonSchema, preHandler: [authenticate, requirePermission('Export', 'read')] },
-    async (req) => {
-      const { anneeA, anneeB } = req.query
+    async (req, reply) => {
       const { baremes, membres } = await chargerDonneesRapport(app.prisma)
-      return comparerPeriodes(anneeA, anneeB, baremes, membres)
+
+      // Nouveau format multi-années.
+      if (req.query.annees !== undefined) {
+        const annees = parseAnnees(req.query.annees)
+        if (!annees) {
+          return reply.code(400).send({ error: 'Bad Request', message: MESSAGE_COMPARAISON })
+        }
+        return comparerPeriodesMulti(annees, baremes, membres)
+      }
+      // Rétrocompatibilité : paire A / B.
+      if (req.query.anneeA !== undefined && req.query.anneeB !== undefined) {
+        return comparerPeriodes(req.query.anneeA, req.query.anneeB, baremes, membres)
+      }
+      return reply.code(400).send({ error: 'Bad Request', message: MESSAGE_COMPARAISON })
     },
   )
 
@@ -128,23 +160,44 @@ export const rapportsRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
     },
   )
 
-  app.get<{ Querystring: { anneeA: number; anneeB: number; format?: 'xlsx' | 'pdf' } }>(
+  app.get<{
+    Querystring: { anneeA?: number; anneeB?: number; annees?: string; format?: 'xlsx' | 'pdf' }
+  }>(
     '/rapports/comparaison/export',
     {
       schema: comparaisonExportSchema,
       preHandler: [authenticate, requirePermission('Export', 'read')],
     },
     async (req, reply) => {
-      const { anneeA, anneeB } = req.query
       const format = req.query.format ?? 'xlsx'
       const { baremes, membres } = await chargerDonneesRapport(app.prisma)
-      const comparaison = comparerPeriodes(anneeA, anneeB, baremes, membres)
 
-      const nomFichier = `comparaison-${anneeA}-${anneeB}.${format}`
-      const buffer =
-        format === 'pdf'
-          ? await genererComparaisonPdf(comparaison)
-          : await genererComparaisonExcel(comparaison)
+      let buffer: Buffer
+      let nomFichier: string
+
+      if (req.query.annees !== undefined) {
+        // Nouveau format multi-années.
+        const annees = parseAnnees(req.query.annees)
+        if (!annees) {
+          return reply.code(400).send({ error: 'Bad Request', message: MESSAGE_COMPARAISON })
+        }
+        const comparaison = comparerPeriodesMulti(annees, baremes, membres)
+        nomFichier = `comparaison-${annees.join('-')}.${format}`
+        buffer =
+          format === 'pdf'
+            ? await genererComparaisonMultiPdf(comparaison)
+            : await genererComparaisonMultiExcel(comparaison)
+      } else if (req.query.anneeA !== undefined && req.query.anneeB !== undefined) {
+        // Rétrocompatibilité : paire A / B.
+        const comparaison = comparerPeriodes(req.query.anneeA, req.query.anneeB, baremes, membres)
+        nomFichier = `comparaison-${req.query.anneeA}-${req.query.anneeB}.${format}`
+        buffer =
+          format === 'pdf'
+            ? await genererComparaisonPdf(comparaison)
+            : await genererComparaisonExcel(comparaison)
+      } else {
+        return reply.code(400).send({ error: 'Bad Request', message: MESSAGE_COMPARAISON })
+      }
 
       return reply
         .header('Content-Type', CONTENT_TYPE[format])

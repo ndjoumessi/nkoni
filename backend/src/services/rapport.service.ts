@@ -177,6 +177,25 @@ export function variationPourcent(depuis: number | null, vers: number | null): n
  * variation en % de A vers B pour total attendu, total collecté et taux de recouvrement.
  * Une année sans barème donne un bloc `null` et des variations `null` (jamais d'erreur).
  */
+/**
+ * Variations en % de `avant` vers `apres` pour chaque métrique comparable. Fonction
+ * partagée par la comparaison de paire et la comparaison multi-années (une seule
+ * définition du calcul de %).
+ */
+export function variationsEntre(
+  avant: RapportAnnee | null,
+  apres: RapportAnnee | null,
+): VariationsComparaison {
+  return {
+    totalAttendu: variationPourcent(avant?.totalAttendu ?? null, apres?.totalAttendu ?? null),
+    totalCollecte: variationPourcent(avant?.totalCollecte ?? null, apres?.totalCollecte ?? null),
+    tauxRecouvrement: variationPourcent(
+      avant?.tauxRecouvrement ?? null,
+      apres?.tauxRecouvrement ?? null,
+    ),
+  }
+}
+
 export function comparerPeriodes(
   anneeA: number,
   anneeB: number,
@@ -191,18 +210,56 @@ export function comparerPeriodes(
     anneeB,
     rapportA,
     rapportB,
-    variations: {
-      totalAttendu: variationPourcent(rapportA?.totalAttendu ?? null, rapportB?.totalAttendu ?? null),
-      totalCollecte: variationPourcent(
-        rapportA?.totalCollecte ?? null,
-        rapportB?.totalCollecte ?? null,
-      ),
-      tauxRecouvrement: variationPourcent(
-        rapportA?.tauxRecouvrement ?? null,
-        rapportB?.tauxRecouvrement ?? null,
-      ),
-    },
+    variations: variationsEntre(rapportA, rapportB),
   }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Comparaison multi-années (chaîne : chaque année vs la précédente de la liste) */
+/* -------------------------------------------------------------------------- */
+
+export interface AnneeComparee {
+  annee: number
+  /** null si l'année n'a pas de barème configuré (ignorée). */
+  rapport: RapportAnnee | null
+  /**
+   * Variation vs l'année PRÉCÉDENTE DANS LA LISTE (pas l'année civile précédente).
+   * null pour la première année de la liste (aucune référence).
+   */
+  variations: VariationsComparaison | null
+}
+
+export interface ComparaisonMulti {
+  annees: AnneeComparee[]
+}
+
+/**
+ * Compare N années « en chaîne » (fonction PURE) : chaque année à partir de la 2e est
+ * comparée à l'année qui la précède DANS LA LISTE fournie — pas nécessairement l'année
+ * civile précédente (les années peuvent être non contiguës, ex. 2020, 2023, 2024).
+ *
+ * Réutilise `rapportPourAnnee` (donc `calculerStatutContribution`) et `variationsEntre`
+ * (même calcul de % que `comparerPeriodes`). Une année sans barème → rapport `null` et
+ * variations `null` de part et d'autre, sans erreur. L'ordre de la liste est conservé tel
+ * quel (le frontend décide de l'ordre ; le service ne re-trie pas).
+ */
+export function comparerPeriodesMulti(
+  annees: number[],
+  baremes: BaremeAnnuelInput[],
+  membres: MembreRapport[],
+): ComparaisonMulti {
+  const items: AnneeComparee[] = []
+  let precedent: RapportAnnee | null = null
+
+  annees.forEach((annee, index) => {
+    const rapport = rapportPourAnnee(annee, baremes, membres)
+    // 1re année de la liste : aucune référence → pas de variation.
+    const variations = index === 0 ? null : variationsEntre(precedent, rapport)
+    items.push({ annee, rapport, variations })
+    precedent = rapport
+  })
+
+  return { annees: items }
 }
 
 /* -------------------------------------------------------------------------- */

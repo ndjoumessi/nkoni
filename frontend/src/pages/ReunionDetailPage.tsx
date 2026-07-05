@@ -336,7 +336,7 @@ export function ReunionDetailPage() {
           <Overline>Compte-rendu</Overline>
         </div>
         {crReadOnly ? (
-          <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
+          <p className="mt-4 whitespace-pre-wrap break-words text-pretty text-sm leading-relaxed text-muted-foreground">
             {reunion.compteRenduTexte?.trim() ? reunion.compteRenduTexte : 'Aucun compte-rendu.'}
           </p>
         ) : (
@@ -384,7 +384,7 @@ export function ReunionDetailPage() {
                 <div className="min-w-0 flex-1">
                   <p className="font-medium text-foreground">{p.titre}</p>
                   {p.notes && (
-                    <p className="mt-1 whitespace-pre-wrap text-sm text-muted-foreground">
+                    <p className="mt-1 whitespace-pre-wrap break-words text-pretty text-sm text-muted-foreground">
                       {p.notes}
                     </p>
                   )}
@@ -482,7 +482,7 @@ export function ReunionDetailPage() {
                     </button>
                   )}
                 </div>
-                <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-foreground">
+                <p className="mt-2 whitespace-pre-wrap break-words text-pretty text-sm leading-relaxed text-foreground">
                   {r.texte}
                 </p>
                 {r.pointOrdreDuJourId && pointsLabel.has(r.pointOrdreDuJourId) && (

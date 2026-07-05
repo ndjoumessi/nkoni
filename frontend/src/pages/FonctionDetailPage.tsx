@@ -351,7 +351,9 @@ export function FonctionDetailPage() {
                       {formatDateFR(a.dateDebut)} → {a.dateFin ? formatDateFR(a.dateFin) : 'en cours'}
                     </p>
                     {a.notes && (
-                      <p className="mt-1 whitespace-pre-wrap text-sm text-faint">{a.notes}</p>
+                      <p className="mt-1 whitespace-pre-wrap break-words text-pretty text-sm text-faint">
+                        {a.notes}
+                      </p>
                     )}
                   </div>
                 </li>

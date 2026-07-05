@@ -33,7 +33,7 @@ function Info({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <dt className="text-[0.7rem] font-medium uppercase tracking-[0.12em] text-faint">{label}</dt>
-      <dd className="mt-1 text-sm text-foreground/85">{value || '—'}</dd>
+      <dd className="mt-1 break-words text-pretty text-sm text-foreground/85">{value || '—'}</dd>
     </div>
   )
 }

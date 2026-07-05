@@ -37,11 +37,13 @@ export function PageHeader({
               {overline}
             </p>
           )}
-          <h1 className="mt-1 font-display text-[1.9rem] font-semibold leading-tight tracking-tight text-foreground">
+          <h1 className="mt-1 text-balance font-display text-[1.9rem] font-semibold leading-tight tracking-tight text-foreground">
             {title}
           </h1>
           {description && (
-            <div className="mt-1.5 text-sm text-muted-foreground">{description}</div>
+            <div className="mt-1.5 text-pretty break-words text-sm text-muted-foreground">
+              {description}
+            </div>
           )}
         </div>
         {actions && <div className="flex flex-wrap items-center gap-2.5">{actions}</div>}

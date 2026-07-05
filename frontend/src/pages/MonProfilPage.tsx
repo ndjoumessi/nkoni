@@ -86,10 +86,10 @@ export function MonProfilPage() {
           <Overline>Identité</Overline>
         </div>
         <dl className="mt-4 space-y-3 text-sm">
-          <div className="flex items-center gap-3">
-            <Mail className="h-4 w-4 text-faint" aria-hidden="true" />
+          <div className="flex min-w-0 items-center gap-3">
+            <Mail className="h-4 w-4 shrink-0 text-faint" aria-hidden="true" />
             <dt className="sr-only">Adresse e-mail</dt>
-            <dd className="text-foreground">{user?.email}</dd>
+            <dd className="min-w-0 break-words text-foreground">{user?.email}</dd>
           </div>
           <div className="flex items-center gap-3">
             <ShieldCheck className="h-4 w-4 text-faint" aria-hidden="true" />

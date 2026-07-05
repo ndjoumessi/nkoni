@@ -153,7 +153,7 @@ export function ConflitDetailPage() {
           <ShieldAlert className="h-4 w-4 text-brass" aria-hidden="true" />
           <Overline>Détails</Overline>
         </div>
-        <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-foreground">
+        <p className="mt-4 whitespace-pre-wrap break-words text-pretty text-sm leading-relaxed text-foreground">
           {conflit.description}
         </p>
 
@@ -171,17 +171,24 @@ export function ConflitDetailPage() {
             </div>
           )}
           {conflit.auteur && (
-            <div className="flex items-center gap-2">
-              <UserCog className="h-4 w-4 text-faint" aria-hidden="true" />
-              <dt className="text-muted-foreground">Déclaré par</dt>
-              <dd className="truncate text-foreground">{conflit.auteur.email}</dd>
+            <div className="flex min-w-0 items-center gap-2">
+              <UserCog className="h-4 w-4 shrink-0 text-faint" aria-hidden="true" />
+              <dt className="shrink-0 text-muted-foreground">Déclaré par</dt>
+              <dd className="min-w-0 truncate text-foreground" title={conflit.auteur.email}>
+                {conflit.auteur.email}
+              </dd>
             </div>
           )}
           {conflit.responsableSuivi && (
-            <div className="flex items-center gap-2">
-              <UserCog className="h-4 w-4 text-faint" aria-hidden="true" />
-              <dt className="text-muted-foreground">Responsable de suivi</dt>
-              <dd className="truncate text-foreground">{conflit.responsableSuivi.email}</dd>
+            <div className="flex min-w-0 items-center gap-2">
+              <UserCog className="h-4 w-4 shrink-0 text-faint" aria-hidden="true" />
+              <dt className="shrink-0 text-muted-foreground">Responsable de suivi</dt>
+              <dd
+                className="min-w-0 truncate text-foreground"
+                title={conflit.responsableSuivi.email}
+              >
+                {conflit.responsableSuivi.email}
+              </dd>
             </div>
           )}
         </dl>
@@ -248,7 +255,7 @@ export function ConflitDetailPage() {
             </div>
           </div>
         ) : (
-          <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
+          <p className="mt-4 whitespace-pre-wrap break-words text-pretty text-sm leading-relaxed text-muted-foreground">
             {conflit.notes?.trim() ? conflit.notes : 'Aucune note de suivi.'}
           </p>
         )}

@@ -157,7 +157,7 @@ export function CommemorationDetailPage() {
         </div>
 
         {item.description && (
-          <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-foreground">
+          <p className="mt-4 whitespace-pre-wrap break-words text-pretty text-sm leading-relaxed text-foreground">
             {item.description}
           </p>
         )}
@@ -223,7 +223,7 @@ export function CommemorationDetailPage() {
       {item.notes?.trim() && (
         <Card className="nk-reveal nk-d3 mt-6 p-6">
           <Overline>Notes</Overline>
-          <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
+          <p className="mt-3 whitespace-pre-wrap break-words text-pretty text-sm leading-relaxed text-muted-foreground">
             {item.notes}
           </p>
         </Card>

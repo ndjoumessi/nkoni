@@ -10,6 +10,7 @@ import {
   REFRESH_TTL_REMEMBER_SECONDS,
 } from '../lib/env'
 import { authenticate } from '../middlewares/authenticate'
+import { orgContext } from '../lib/org-context'
 import type { Role } from '../middlewares/permissions'
 import {
   verifyCredentials,
@@ -97,11 +98,13 @@ async function signAccessToken(
   reply: FastifyReply,
   user: AuthenticatedUser,
 ): Promise<string> {
-  const payload: { sub: string; role: Role; membreId?: string } = {
+  const payload: { sub: string; role: Role; membreId?: string; organisationId?: string } = {
     sub: user.id,
     role: user.role,
   }
   if (user.membreId) payload.membreId = user.membreId
+  // Porté dans l'access token → l'authenticate établit le contexte d'isolation (SaaS §2.2).
+  if (user.organisationId) payload.organisationId = user.organisationId
   return reply.jwtSign(payload)
 }
 
@@ -112,7 +115,11 @@ export const authRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
     { schema: loginBodySchema },
     async (req, reply) => {
       const { email, password, rememberMe } = req.body
-      const user = await verifyCredentials(app.prisma, email, password)
+      // Pré-auth : l'organisation n'est pas encore connue → lecture DÉLIBÉRÉMENT non scopée
+      // (email globalement unique). L'org de l'utilisateur alimente ensuite le token.
+      const user = await orgContext.runUnscoped(async () =>
+        verifyCredentials(app.prisma, email, password),
+      )
       if (!user) {
         return reply
           .code(401)
@@ -158,7 +165,9 @@ export const authRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
           .send({ error: 'Unauthorized', message: 'Refresh token invalide.' })
       }
 
-      const user = await findUserById(app.prisma, payload.sub)
+      // Pré-auth (le contexte org n'est pas encore établi) : lecture par id non scopée.
+      const sub = payload.sub
+      const user = await orgContext.runUnscoped(async () => findUserById(app.prisma, sub))
       if (!user || !user.actif) {
         return reply
           .code(401)

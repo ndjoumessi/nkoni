@@ -11,6 +11,8 @@ export interface AuthenticatedUser {
   email: string
   role: Role
   membreId: string | null
+  /** Organisation d'appartenance (SaaS §2). Null pour un futur Super-Admin transverse (§2.3). */
+  organisationId: string | null
   actif: boolean
 }
 
@@ -54,6 +56,7 @@ function toAuthUser(record: Record<string, unknown>): AuthenticatedUser {
     email: record['email'] as string,
     role: record['role'] as Role,
     membreId: membre?.id ?? null,
+    organisationId: (record['organisationId'] as string | null | undefined) ?? null,
     actif: record['actif'] as boolean,
   }
 }
@@ -78,6 +81,7 @@ export async function verifyCredentials(
       email: true,
       role: true,
       actif: true,
+      organisationId: true,
       passwordHash: true,
       membre: { select: { id: true } },
     },
@@ -130,6 +134,7 @@ export async function findUserById(
       email: true,
       role: true,
       actif: true,
+      organisationId: true,
       membre: { select: { id: true } },
     },
   })

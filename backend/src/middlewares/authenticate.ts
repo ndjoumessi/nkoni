@@ -2,6 +2,7 @@ import '@fastify/jwt' // charge l'augmentation de type (req.jwtVerify, req.user)
 import type { FastifyReply, FastifyRequest } from 'fastify'
 import type { Role } from './permissions'
 import { auditContext } from '../lib/audit-context'
+import { orgContext } from '../lib/org-context'
 
 /**
  * Hook d'AUTHENTIFICATION minimal (vérification JWT uniquement).
@@ -24,6 +25,9 @@ export async function authenticate(
     await req.jwtVerify()
     // Renseigne l'acteur pour l'audit trail (V2 §5) — best-effort.
     auditContext.setActeur(req.user.sub)
+    // Établit l'organisation courante (SaaS §2.2) : l'extension Prisma d'isolation scope
+    // désormais toutes les requêtes de cette requête HTTP sur cette organisation.
+    orgContext.setOrganisation(req.user.organisationId)
   } catch {
     reply.code(401).send({ error: 'Unauthorized', message: 'Token JWT absent ou invalide.' })
   }
@@ -36,7 +40,7 @@ export async function authenticate(
 // `user` (sortie de vérification de l'access token, exposé en req.user) porte le rôle.
 declare module '@fastify/jwt' {
   interface FastifyJWT {
-    payload: { sub: string; role?: Role; membreId?: string; typ?: 'refresh' }
-    user: { sub?: string; role: Role; membreId?: string }
+    payload: { sub: string; role?: Role; membreId?: string; organisationId?: string; typ?: 'refresh' }
+    user: { sub?: string; role: Role; membreId?: string; organisationId?: string }
   }
 }

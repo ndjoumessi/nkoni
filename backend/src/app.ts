@@ -30,6 +30,7 @@ import { rapportsRoutes } from './routes/rapports.route'
 import { notificationsRoutes } from './routes/notifications.route'
 import { demarrerScheduler } from './services/notification-scheduler'
 import { auditContext } from './lib/audit-context'
+import { orgContext } from './lib/org-context'
 
 // Décoration de l'instance Fastify avec le client Prisma + le client Blob (injectables en test).
 declare module 'fastify' {
@@ -57,10 +58,13 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   app.decorate('prisma', opts.prisma ?? defaultPrisma)
   app.decorate('blob', opts.blob ?? vercelBlobClient)
 
-  // Audit trail (V2 §5) : établit le contexte ALS par requête ; l'acteur est renseigné
-  // ensuite par le middleware d'authentification, puis lu par l'extension Prisma.
+  // Contextes ALS par requête : audit (acteur, V2 §5) et organisation (isolation SaaS §2.2).
+  // L'acteur et l'organisation sont renseignés ensuite par `authenticate` (après vérif JWT),
+  // puis lus par les extensions Prisma. Les flux pré-auth (login/refresh) restent en `{}` et
+  // enveloppent leurs lectures dans `runUnscoped` (bypass délibéré).
   app.addHook('onRequest', (_req, _reply, done) => {
     auditContext.enter()
+    orgContext.enter()
     done()
   })
 

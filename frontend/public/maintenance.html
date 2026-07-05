@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="color-scheme" content="dark" />
+    <title>NKONI — Maintenance</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!--
+      Page de maintenance AUTONOME (design system « Laiton & Jade »).
+      Aucune ressource externe (police système en secours de Fraunces, CSS inline) → s'affiche
+      même si le reste de la plateforme est indisponible. Voir frontend/MAINTENANCE.md pour
+      l'activation/désactivation.
+    -->
+    <style>
+      :root {
+        color-scheme: dark;
+        /* Socle « encre jade chaude » (fallback hex puis oklch, comme l'app). */
+        --canvas: #101d19;
+        --canvas: oklch(0.164 0.013 168);
+        --surface: #1b2a26;
+        --surface: oklch(0.212 0.014 168);
+        --foreground: #f4f2ec;
+        --foreground: oklch(0.962 0.008 92);
+        --faint: #8f978d;
+        --faint: oklch(0.62 0.012 110);
+        --brass: #cba362;
+        --brass: oklch(0.805 0.116 84);
+        --jade: #49b394;
+        --jade: oklch(0.735 0.128 166);
+        --hairline: rgba(255, 255, 255, 0.09);
+        --hairline: oklch(1 0 0 / 9%);
+        --font-display: 'Fraunces', ui-serif, Georgia, 'Times New Roman', serif;
+        --font-sans: 'Geist', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+
+      body {
+        min-height: 100dvh;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        background-color: var(--canvas);
+        color: var(--foreground);
+        font-family: var(--font-sans);
+        -webkit-font-smoothing: antialiased;
+        text-rendering: optimizeLegibility;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      /* Halo ambiant de marque (laiton + jade + terracotta), identique à l'esprit .nk-aura. */
+      .aura {
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        pointer-events: none;
+        background:
+          radial-gradient(900px 520px at 12% -8%, oklch(0.805 0.116 84 / 12%), transparent 60%),
+          radial-gradient(760px 520px at 100% 4%, oklch(0.735 0.128 166 / 10%), transparent 58%),
+          radial-gradient(700px 700px at 50% 118%, oklch(0.672 0.157 39 / 6%), transparent 60%);
+      }
+
+      .card {
+        position: relative;
+        z-index: 1;
+        width: min(520px, 100%);
+        padding: clamp(28px, 5vw, 48px);
+        text-align: center;
+        background: var(--surface);
+        border: 1px solid var(--hairline);
+        border-radius: 20px;
+        box-shadow:
+          0 1px 0 oklch(1 0 0 / 5%) inset,
+          0 24px 60px -30px rgba(0, 0, 0, 0.7);
+      }
+
+      /* Wordmark : losange laiton (écho au motif .nk-weave) + NKONI en serif éditorial. */
+      .mark {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        font-family: var(--font-display);
+        font-weight: 600;
+        font-size: 15px;
+        letter-spacing: 0.28em;
+        text-transform: uppercase;
+        color: var(--brass);
+      }
+      .mark .lozenge {
+        width: 12px;
+        height: 12px;
+        transform: rotate(45deg);
+        border: 1.5px solid var(--brass);
+        border-radius: 2px;
+      }
+
+      .status {
+        display: inline-flex;
+        align-items: center;
+        gap: 9px;
+        margin-top: 26px;
+        padding: 6px 12px;
+        font-size: 12.5px;
+        font-weight: 500;
+        letter-spacing: 0.04em;
+        color: var(--jade);
+        background: oklch(0.735 0.128 166 / 10%);
+        border: 1px solid oklch(0.735 0.128 166 / 26%);
+        border-radius: 999px;
+      }
+      .status .dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--jade);
+        box-shadow: 0 0 0 0 oklch(0.735 0.128 166 / 55%);
+        animation: pulse 2.4s ease-out infinite;
+      }
+
+      h1 {
+        margin: 18px 0 0;
+        font-family: var(--font-display);
+        font-optical-sizing: auto;
+        font-weight: 600;
+        font-size: clamp(26px, 5vw, 34px);
+        line-height: 1.15;
+        letter-spacing: -0.01em;
+        text-wrap: balance;
+      }
+
+      p {
+        margin: 14px auto 0;
+        max-width: 40ch;
+        color: var(--faint);
+        font-size: 15.5px;
+        line-height: 1.6;
+      }
+
+      /* Fine barre de progression indéterminée (accent laiton), purement décorative. */
+      .shimmer {
+        position: relative;
+        height: 3px;
+        margin-top: 30px;
+        border-radius: 999px;
+        overflow: hidden;
+        background: oklch(1 0 0 / 7%);
+      }
+      .shimmer::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        width: 40%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, transparent, var(--brass), transparent);
+        animation: slide 1.9s ease-in-out infinite;
+      }
+
+      @keyframes pulse {
+        0% {
+          box-shadow: 0 0 0 0 oklch(0.735 0.128 166 / 55%);
+        }
+        70% {
+          box-shadow: 0 0 0 8px oklch(0.735 0.128 166 / 0%);
+        }
+        100% {
+          box-shadow: 0 0 0 0 oklch(0.735 0.128 166 / 0%);
+        }
+      }
+      @keyframes slide {
+        0% {
+          transform: translateX(-120%);
+        }
+        100% {
+          transform: translateX(320%);
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .status .dot,
+        .shimmer::before {
+          animation: none;
+        }
+        .shimmer::before {
+          transform: none;
+          width: 100%;
+          opacity: 0.5;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="aura" aria-hidden="true"></div>
+    <main class="card">
+      <div class="mark"><span class="lozenge" aria-hidden="true"></span>NKONI</div>
+      <div class="status"><span class="dot" aria-hidden="true"></span>Maintenance en cours</div>
+      <h1>NKONI est en maintenance</h1>
+      <p>
+        Nous mettons la plateforme à jour. Elle sera de retour dans quelques instants — merci de
+        votre patience.
+      </p>
+      <div class="shimmer" aria-hidden="true"></div>
+    </main>
+  </body>
+</html>

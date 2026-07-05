@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import {
   ArrowLeftRight,
@@ -11,18 +11,20 @@ import {
   TrendingDown,
   TrendingUp,
   Wallet,
+  X,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
 import {
   baremeApi,
   rapportsApi,
   downloadRapportFinancier,
-  downloadRapportComparaison,
+  downloadRapportComparaisonMulti,
   messageErreur,
   ApiError,
-  type ComparaisonPeriodes,
+  type ComparaisonMulti,
   type RapportAnnee,
   type RapportFinancier,
+  type VariationsComparaison,
 } from '@/lib/api'
 import { peutVoirRapports } from '@/lib/roles'
 import { formatFcfa, formatNombre, formatPourcent } from '@/lib/format'
@@ -213,86 +215,81 @@ function NoteSansBareme({ rapport }: { rapport: RapportAnnee | null }) {
   )
 }
 
-function VueComparaison({ data }: { data: ComparaisonPeriodes }) {
-  const { rapportA, rapportB, variations, anneeA, anneeB } = data
+/** Métriques de la table de comparaison ; `vkey` présent ⇒ ligne portant une variation. */
+type MetriqueDef = {
+  label: string
+  valeur: (r: RapportAnnee | null) => string
+  vkey?: keyof VariationsComparaison
+}
 
-  const lignes: {
-    label: string
-    a: string
-    b: string
-    variation?: number | null
-  }[] = [
-    {
-      label: 'Total attendu',
-      a: rapportA ? formatFcfa(rapportA.totalAttendu) : '—',
-      b: rapportB ? formatFcfa(rapportB.totalAttendu) : '—',
-      variation: variations.totalAttendu,
-    },
-    {
-      label: 'Total collecté',
-      a: rapportA ? formatFcfa(rapportA.totalCollecte) : '—',
-      b: rapportB ? formatFcfa(rapportB.totalCollecte) : '—',
-      variation: variations.totalCollecte,
-    },
-    {
-      label: 'Taux de recouvrement',
-      a: rapportA ? formatPourcent(rapportA.tauxRecouvrement) : '—',
-      b: rapportB ? formatPourcent(rapportB.tauxRecouvrement) : '—',
-      variation: variations.tauxRecouvrement,
-    },
-    {
-      label: 'Membres éligibles',
-      a: rapportA ? formatNombre(rapportA.membresEligibles) : '—',
-      b: rapportB ? formatNombre(rapportB.membresEligibles) : '—',
-    },
-    {
-      label: 'À jour',
-      a: rapportA ? formatNombre(rapportA.membresParStatut.A_JOUR) : '—',
-      b: rapportB ? formatNombre(rapportB.membresParStatut.A_JOUR) : '—',
-    },
-    {
-      label: 'Partiel',
-      a: rapportA ? formatNombre(rapportA.membresParStatut.PARTIEL) : '—',
-      b: rapportB ? formatNombre(rapportB.membresParStatut.PARTIEL) : '—',
-    },
-    {
-      label: 'Non à jour',
-      a: rapportA ? formatNombre(rapportA.membresParStatut.NON_A_JOUR) : '—',
-      b: rapportB ? formatNombre(rapportB.membresParStatut.NON_A_JOUR) : '—',
-    },
-  ]
+const METRIQUES_COMPARAISON: MetriqueDef[] = [
+  { label: 'Total attendu', valeur: (r) => (r ? formatFcfa(r.totalAttendu) : '—'), vkey: 'totalAttendu' },
+  { label: 'Total collecté', valeur: (r) => (r ? formatFcfa(r.totalCollecte) : '—'), vkey: 'totalCollecte' },
+  {
+    label: 'Taux de recouvrement',
+    valeur: (r) => (r ? formatPourcent(r.tauxRecouvrement) : '—'),
+    vkey: 'tauxRecouvrement',
+  },
+  { label: 'Membres éligibles', valeur: (r) => (r ? formatNombre(r.membresEligibles) : '—') },
+  { label: 'À jour', valeur: (r) => (r ? formatNombre(r.membresParStatut.A_JOUR) : '—') },
+  { label: 'Partiel', valeur: (r) => (r ? formatNombre(r.membresParStatut.PARTIEL) : '—') },
+  { label: 'Non à jour', valeur: (r) => (r ? formatNombre(r.membresParStatut.NON_A_JOUR) : '—') },
+]
 
+// Cellules de la 1re colonne (Métrique) : collantes à gauche pour rester lisibles au scroll.
+const CELLULE_COLLANTE = 'sticky left-0 z-10 border-r border-hairline bg-surface'
+
+/**
+ * Table de comparaison multi-années (§10) : une colonne par année + une colonne Δ pour
+ * chaque année à partir de la 2e (variation vs la précédente DANS LA LISTE). La 1re colonne
+ * (Métrique) est collante et la table défile horizontalement au besoin (mobile / N années).
+ */
+function VueComparaisonMulti({ data }: { data: ComparaisonMulti }) {
   return (
     <Card className="overflow-hidden p-0">
       <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="w-full min-w-max text-sm">
           <thead>
             <tr className="border-b border-hairline text-[0.7rem] uppercase tracking-[0.1em] text-faint">
-              <th className="px-4 py-3 text-left font-medium">Métrique</th>
-              <th className="num px-4 py-3 text-right font-medium">
-                {anneeA}
-                <NoteSansBareme rapport={rapportA} />
-              </th>
-              <th className="num px-4 py-3 text-right font-medium">
-                {anneeB}
-                <NoteSansBareme rapport={rapportB} />
-              </th>
-              <th className="px-4 py-3 text-right font-medium">Variation</th>
+              <th className={cn(CELLULE_COLLANTE, 'px-4 py-3 text-left font-medium')}>Métrique</th>
+              {data.annees.map((ac, i) => (
+                <Fragment key={ac.annee}>
+                  <th className="num px-4 py-3 text-right font-medium">
+                    {ac.annee}
+                    <NoteSansBareme rapport={ac.rapport} />
+                  </th>
+                  {i > 0 && <th className="px-4 py-3 text-right font-medium">Δ</th>}
+                </Fragment>
+              ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-hairline">
-            {lignes.map((l) => (
-              <tr key={l.label} className="transition-colors hover:bg-surface-2/50">
-                <td className="px-4 py-3 text-muted-foreground">{l.label}</td>
-                <td className="num px-4 py-3 text-right text-foreground">{l.a}</td>
-                <td className="num px-4 py-3 text-right text-foreground">{l.b}</td>
-                <td className="px-4 py-3 text-right">
-                  {l.variation !== undefined ? (
-                    <VariationBadge valeur={l.variation} />
-                  ) : (
-                    <span className="text-faint">—</span>
+            {METRIQUES_COMPARAISON.map((m) => (
+              <tr key={m.label} className="group">
+                <td
+                  className={cn(
+                    CELLULE_COLLANTE,
+                    'px-4 py-3 text-muted-foreground transition-colors group-hover:bg-surface-2',
                   )}
+                >
+                  {m.label}
                 </td>
+                {data.annees.map((ac, i) => (
+                  <Fragment key={ac.annee}>
+                    <td className="num px-4 py-3 text-right text-foreground transition-colors group-hover:bg-surface-2/50">
+                      {m.valeur(ac.rapport)}
+                    </td>
+                    {i > 0 && (
+                      <td className="px-4 py-3 text-right transition-colors group-hover:bg-surface-2/50">
+                        {m.vkey ? (
+                          <VariationBadge valeur={ac.variations ? ac.variations[m.vkey] : null} />
+                        ) : (
+                          <span className="text-faint">—</span>
+                        )}
+                      </td>
+                    )}
+                  </Fragment>
+                ))}
               </tr>
             ))}
           </tbody>
@@ -322,11 +319,11 @@ export function RapportsPage() {
 
   const [debut, setDebut] = useState<number | null>(null)
   const [fin, setFin] = useState<number | null>(null)
-  const [anneeA, setAnneeA] = useState<number | null>(null)
-  const [anneeB, setAnneeB] = useState<number | null>(null)
+  // Années comparées (mode Comparaison) — triées, minimum 2, pas de maximum.
+  const [anneesComp, setAnneesComp] = useState<number[]>([])
 
   const [rapport, setRapport] = useState<RapportFinancier | null>(null)
-  const [comparaison, setComparaison] = useState<ComparaisonPeriodes | null>(null)
+  const [comparaison, setComparaison] = useState<ComparaisonMulti | null>(null)
   const [chargement, setChargement] = useState(false)
   const [erreur, setErreur] = useState<string | null>(null)
 
@@ -344,8 +341,8 @@ export function RapportsPage() {
         if (ys.length > 0) {
           setDebut(ys[0])
           setFin(ys[ys.length - 1])
-          setAnneeB(ys[ys.length - 1])
-          setAnneeA(ys.length > 1 ? ys[ys.length - 2] : ys[0])
+          // Comparaison : par défaut les deux années les plus récentes (si ≥ 2 dispo).
+          setAnneesComp(ys.length >= 2 ? [ys[ys.length - 2], ys[ys.length - 1]] : [...ys])
         }
       })
       .catch((e) => {
@@ -382,10 +379,10 @@ export function RapportsPage() {
           if (actif) setChargement(false)
         })
     } else {
-      if (anneeA === null || anneeB === null) return
+      if (anneesComp.length < 2) return
       setChargement(true)
       void rapportsApi
-        .comparaison(anneeA, anneeB, accessToken, controller.signal)
+        .comparaisonMulti(anneesComp, accessToken, controller.signal)
         .then((r) => {
           if (actif) setComparaison(r)
         })
@@ -401,7 +398,7 @@ export function RapportsPage() {
       actif = false
       controller.abort()
     }
-  }, [mode, debut, fin, anneeA, anneeB, accessToken, annees.length])
+  }, [mode, debut, fin, anneesComp, accessToken, annees.length])
 
   // Synthèse cumulée sur la plage (mode évolution).
   const synthese = useMemo(() => {
@@ -420,8 +417,8 @@ export function RapportsPage() {
     try {
       if (mode === 'evolution' && debut !== null && fin !== null) {
         await downloadRapportFinancier(debut, fin, format, accessToken)
-      } else if (mode === 'comparaison' && anneeA !== null && anneeB !== null) {
-        await downloadRapportComparaison(anneeA, anneeB, format, accessToken)
+      } else if (mode === 'comparaison' && anneesComp.length >= 2) {
+        await downloadRapportComparaisonMulti(anneesComp, format, accessToken)
       }
       toast.success('Export prêt', `Le fichier ${format.toUpperCase()} a été téléchargé.`)
     } catch (e) {
@@ -435,7 +432,14 @@ export function RapportsPage() {
     exportEnCours !== null ||
     (mode === 'evolution'
       ? !rapport || rapport.annees.length === 0 || debut === null || fin === null
-      : comparaison === null || anneeA === null || anneeB === null)
+      : comparaison === null || anneesComp.length < 2)
+
+  // Ajout / retrait d'une année comparée (min. 2, liste maintenue triée).
+  const ajouterAnnee = (a: number) =>
+    setAnneesComp((prev) => (prev.includes(a) ? prev : [...prev, a].sort((x, y) => x - y)))
+  const retirerAnnee = (a: number) =>
+    setAnneesComp((prev) => (prev.length <= 2 ? prev : prev.filter((x) => x !== a)))
+  const anneesAjoutables = annees.filter((a) => !anneesComp.includes(a))
 
   if (!peutVoirRapports(user?.role)) {
     return <Navigate to="/dashboard" replace />
@@ -528,24 +532,47 @@ export function RapportsPage() {
                   </Field>
                 </>
               ) : (
-                <>
-                  <Field label="Année A" className="w-28">
-                    <Select
-                      value={anneeA ?? ''}
-                      onChange={(e) => setAnneeA(Number(e.target.value))}
-                    >
-                      {optionsAnnee()}
-                    </Select>
-                  </Field>
-                  <Field label="Année B" className="w-28">
-                    <Select
-                      value={anneeB ?? ''}
-                      onChange={(e) => setAnneeB(Number(e.target.value))}
-                    >
-                      {optionsAnnee()}
-                    </Select>
-                  </Field>
-                </>
+                <div className="flex flex-col">
+                  <span className="mb-1.5 text-[0.72rem] font-medium uppercase tracking-[0.1em] text-faint">
+                    Années comparées
+                  </span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {anneesComp.map((a) => (
+                      <span
+                        key={a}
+                        className="num inline-flex items-center gap-1 rounded-full border border-hairline-strong bg-surface-2/70 py-1 pl-3 pr-1.5 text-sm text-foreground"
+                      >
+                        {a}
+                        <button
+                          type="button"
+                          onClick={() => retirerAnnee(a)}
+                          disabled={anneesComp.length <= 2}
+                          aria-label={`Retirer ${a}`}
+                          className="flex h-5 w-5 items-center justify-center rounded-full text-faint transition-colors hover:text-terra disabled:opacity-30 disabled:hover:text-faint"
+                        >
+                          <X className="h-3.5 w-3.5" aria-hidden="true" />
+                        </button>
+                      </span>
+                    ))}
+                    {anneesAjoutables.length > 0 && (
+                      <Select
+                        value=""
+                        aria-label="Ajouter une année à comparer"
+                        className="w-auto pr-8 text-sm"
+                        onChange={(e) => {
+                          if (e.target.value) ajouterAnnee(Number(e.target.value))
+                        }}
+                      >
+                        <option value="">+ Ajouter</option>
+                        {anneesAjoutables.map((a) => (
+                          <option key={a} value={a}>
+                            {a}
+                          </option>
+                        ))}
+                      </Select>
+                    )}
+                  </div>
+                </div>
               )}
 
               {/* Export du rapport courant — rattaché aux sélecteurs qui le définissent. */}
@@ -628,8 +655,16 @@ export function RapportsPage() {
                   <TableEvolution annees={rapport.annees} />
                 </div>
               )
-            ) : mode === 'comparaison' && comparaison ? (
-              <VueComparaison data={comparaison} />
+            ) : mode === 'comparaison' ? (
+              anneesComp.length < 2 ? (
+                <EmptyState
+                  icon={ArrowLeftRight}
+                  title="Choisissez au moins deux années"
+                  description="Ajoutez des années à comparer ci-dessus. La variation est calculée d’une année à la suivante dans la sélection."
+                />
+              ) : comparaison ? (
+                <VueComparaisonMulti data={comparaison} />
+              ) : null
             ) : null}
           </div>
         </>

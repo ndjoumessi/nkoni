@@ -229,6 +229,18 @@ export interface ComparaisonPeriodes {
   variations: VariationsComparaison
 }
 
+export interface AnneeComparee {
+  annee: number
+  /** null si l'année n'a pas de barème configuré (ignorée). */
+  rapport: RapportAnnee | null
+  /** Variation vs l'année précédente DANS LA LISTE (null pour la 1re). */
+  variations: VariationsComparaison | null
+}
+
+export interface ComparaisonMulti {
+  annees: AnneeComparee[]
+}
+
 export const rapportsApi = {
   financier: (anneeDebut: number, anneeFin: number, accessToken: string, signal?: AbortSignal) =>
     request<RapportFinancier>(
@@ -240,6 +252,12 @@ export const rapportsApi = {
       `/rapports/comparaison?anneeA=${anneeA}&anneeB=${anneeB}`,
       { accessToken, signal },
     ),
+  /** Comparaison de N années (chaîne de variations). `annees` triées côté appelant. */
+  comparaisonMulti: (annees: number[], accessToken: string, signal?: AbortSignal) =>
+    request<ComparaisonMulti>(`/rapports/comparaison?annees=${annees.join(',')}`, {
+      accessToken,
+      signal,
+    }),
 }
 
 /* -------------------------------------------------------------------------- */
@@ -366,6 +384,19 @@ export function downloadRapportComparaison(
   return telechargerBinaire(
     `/rapports/comparaison/export?anneeA=${anneeA}&anneeB=${anneeB}&format=${format}`,
     `comparaison-${anneeA}-${anneeB}.${format}`,
+    accessToken,
+  )
+}
+
+/** Export de la comparaison de N années en Excel/PDF (nom de fichier = toutes les années). */
+export function downloadRapportComparaisonMulti(
+  annees: number[],
+  format: 'xlsx' | 'pdf',
+  accessToken: string,
+): Promise<void> {
+  return telechargerBinaire(
+    `/rapports/comparaison/export?annees=${annees.join(',')}&format=${format}`,
+    `comparaison-${annees.join('-')}.${format}`,
     accessToken,
   )
 }

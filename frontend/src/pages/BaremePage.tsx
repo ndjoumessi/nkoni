@@ -181,8 +181,9 @@ export function BaremePage() {
               {/* Label fantôme : cale le bouton exactement au niveau des champs (§8),
                   indépendamment des messages d'erreur qui poussent la hauteur en dessous. */}
               <div className="flex flex-col">
+                {/* Mêmes classes que le label de Field → hauteur identique, bouton aligné. */}
                 <span
-                  className="mb-1.5 text-[0.72rem] uppercase tracking-[0.1em]"
+                  className="mb-1.5 flex items-center gap-1 text-[0.72rem] font-medium uppercase tracking-[0.1em]"
                   aria-hidden="true"
                 >
                   &nbsp;

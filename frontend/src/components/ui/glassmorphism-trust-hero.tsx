@@ -104,7 +104,7 @@ export function GlassmorphismTrustHero({
             <span className="block text-foreground">en toute clarté</span>
           </h1>
 
-          <p className="nk-reveal nk-d3 mx-auto mt-6 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg lg:mx-0">
+          <p className="nk-reveal nk-d3 mx-auto mt-6 max-w-xl text-pretty text-base leading-relaxed text-muted-foreground sm:text-lg lg:mx-0">
             NKONI centralise le suivi des cotisations et la transparence financière de votre
             association, famille ou tontine : chaque membre connaît son statut, chaque mouvement
             est tracé, chaque reçu est archivé.

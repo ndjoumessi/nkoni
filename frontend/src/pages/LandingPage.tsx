@@ -13,10 +13,10 @@ export function LandingPage() {
         <p className="text-center text-[0.72rem] font-medium uppercase tracking-[0.16em] text-brass/80">
           Pourquoi NKONI
         </p>
-        <h2 className="mx-auto mt-3 max-w-2xl text-center font-display text-3xl font-semibold tracking-tight sm:text-4xl">
+        <h2 className="mx-auto mt-3 max-w-2xl text-balance text-center font-display text-3xl font-semibold tracking-tight sm:text-4xl">
           Pensé pour les familles et les associations
         </h2>
-        <p className="mx-auto mt-4 max-w-2xl text-center text-muted-foreground">
+        <p className="mx-auto mt-4 max-w-2xl text-pretty text-center text-muted-foreground">
           NKONI donne à chaque groupe une vue claire et partagée de ses finances collectives,
           sans zone d'ombre.
         </p>
@@ -79,7 +79,7 @@ function FeatureCard({
         <Icon className="h-5 w-5" aria-hidden="true" />
       </div>
       <h3 className="mt-4 text-lg font-semibold text-foreground">{title}</h3>
-      <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{text}</p>
+      <p className="mt-2 text-pretty text-sm leading-relaxed text-muted-foreground">{text}</p>
     </Card>
   )
 }

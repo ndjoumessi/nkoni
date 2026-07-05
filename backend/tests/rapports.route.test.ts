@@ -122,4 +122,50 @@ describe('Routes Rapports financiers', () => {
     expect((await comparaison('SECRETAIRE')).statusCode).toBe(403)
     expect((await comparaison('COMMISSAIRE_COMPTES')).statusCode).toBe(200)
   })
+
+  /* --- Exports PDF / Excel ---------------------------------------------- */
+
+  const exportFinancier = (role: string, qs: string) =>
+    app.inject({ method: 'GET', url: `/rapports/financier/export${qs}`, headers: auth(role) })
+  const exportComparaison = (role: string, qs: string) =>
+    app.inject({ method: 'GET', url: `/rapports/comparaison/export${qs}`, headers: auth(role) })
+
+  it('export financier Excel par défaut (200, xlsx, signature PK, nom avec plage)', async () => {
+    const res = await exportFinancier('ADMIN', '?anneeDebut=2024&anneeFin=2025')
+    expect(res.statusCode).toBe(200)
+    expect(res.headers['content-type']).toContain('spreadsheetml.sheet')
+    expect(res.headers['content-disposition']).toContain('rapport-financier-2024-2025.xlsx')
+    expect(res.rawPayload.subarray(0, 2).toString('latin1')).toBe('PK')
+  })
+
+  it('export financier PDF (200, pdf, signature %PDF)', async () => {
+    const res = await exportFinancier('TRESORIERE', '?anneeDebut=2024&anneeFin=2025&format=pdf')
+    expect(res.statusCode).toBe(200)
+    expect(res.headers['content-type']).toContain('application/pdf')
+    expect(res.headers['content-disposition']).toContain('rapport-financier-2024-2025.pdf')
+    expect(res.rawPayload.subarray(0, 4).toString('latin1')).toBe('%PDF')
+  })
+
+  it('export comparaison Excel (200, nom avec les deux années)', async () => {
+    const res = await exportComparaison('COMMISSAIRE_COMPTES', '?anneeA=2024&anneeB=2025')
+    expect(res.statusCode).toBe(200)
+    expect(res.headers['content-disposition']).toContain('comparaison-2024-2025.xlsx')
+    expect(res.rawPayload.subarray(0, 2).toString('latin1')).toBe('PK')
+  })
+
+  it('export comparaison PDF (200, %PDF)', async () => {
+    const res = await exportComparaison('ADMIN', '?anneeA=2024&anneeB=2025&format=pdf')
+    expect(res.statusCode).toBe(200)
+    expect(res.rawPayload.subarray(0, 4).toString('latin1')).toBe('%PDF')
+  })
+
+  it('export financier : plage invalide → 400', async () => {
+    const res = await exportFinancier('ADMIN', '?anneeDebut=2025&anneeFin=2024')
+    expect(res.statusCode).toBe(400)
+  })
+
+  it('export : SECRETAIRE et MEMBRE_SIMPLE refusés (403)', async () => {
+    expect((await exportFinancier('SECRETAIRE', '?anneeDebut=2024&anneeFin=2025')).statusCode).toBe(403)
+    expect((await exportComparaison('MEMBRE_SIMPLE', '?anneeA=2024&anneeB=2025')).statusCode).toBe(403)
+  })
 })

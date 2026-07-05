@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/Button'
 import { Field } from '@/components/ui/Field'
 import { PasswordInput } from '@/components/ui/PasswordInput'
 import { FormSection } from '@/components/ui/FormSection'
+import { NotificationPreferences } from '@/components/NotificationPreferences'
 
 const ROLE_LABEL: Record<string, string> = {
   ADMIN: 'Administrateur',
@@ -179,6 +180,9 @@ export function MonProfilPage() {
           </div>
         </form>
       </Card>
+
+      {/* Préférences de notification (§5) */}
+      <NotificationPreferences />
     </>
   )
 }

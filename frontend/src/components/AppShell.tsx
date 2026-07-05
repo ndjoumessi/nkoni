@@ -161,7 +161,13 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 
   return (
     <div className="flex h-full flex-col">
-      <Link to="/dashboard" onClick={onNavigate} className="flex items-center gap-2.5 px-2 py-1">
+      {/* Logo → landing publique (/). Sortie volontaire de l'appli, pas la nav interne. */}
+      <Link
+        to="/"
+        onClick={onNavigate}
+        title="Retour à l’accueil public"
+        className="flex shrink-0 items-center gap-2.5 rounded-lg px-2 py-1 transition-colors hover:text-brass"
+      >
         <NkoniMark className="h-9 w-9 text-lg" />
         <span className="font-display text-xl font-semibold tracking-tight text-foreground">
           NKONI
@@ -175,7 +181,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
           onNavigate?.()
           window.dispatchEvent(new Event('nkoni:open-search'))
         }}
-        className="mt-6 flex items-center gap-2.5 rounded-xl border border-hairline bg-surface/50 px-3 py-2 text-sm text-muted-foreground transition-colors hover:border-hairline-strong hover:text-foreground"
+        className="mt-6 flex shrink-0 items-center gap-2.5 rounded-xl border border-hairline bg-surface/50 px-3 py-2 text-sm text-muted-foreground transition-colors hover:border-hairline-strong hover:text-foreground"
       >
         <Search className="h-4 w-4 text-faint" aria-hidden="true" />
         <span className="flex-1 text-left">Rechercher…</span>
@@ -184,15 +190,19 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         </kbd>
       </button>
 
-      <div className="mt-6 flex-1">
+      {/* Nav scrollable : garantit que la zone compte/déconnexion en bas reste toujours
+          visible même quand la liste de liens dépasse la hauteur de l'écran (min-h-0 est
+          requis pour qu'un enfant flex puisse défiler au lieu de pousser le reste). */}
+      <div className="mt-6 min-h-0 flex-1 overflow-y-auto">
         <p className="mb-2 px-3 text-[0.68rem] font-medium uppercase tracking-[0.14em] text-faint">
           Navigation
         </p>
         <NavLinks onNavigate={onNavigate} />
       </div>
 
-      {/* Zone compte + action destructive (déconnexion), séparée de la navigation (§9). */}
-      <div className="mt-4 space-y-2 border-t border-hairline pt-4">
+      {/* Zone compte + action destructive (déconnexion), séparée de la navigation (§9).
+          shrink-0 : toujours à sa taille pleine, ancrée en bas (jamais poussée hors écran). */}
+      <div className="mt-4 shrink-0 space-y-2 border-t border-hairline pt-4">
         <UserChip onNavigate={onNavigate} />
         <button
           type="button"
@@ -230,7 +240,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Topbar mobile */}
       <header className="sticky top-0 z-20 flex items-center justify-between border-b border-hairline bg-canvas/85 px-4 py-3 backdrop-blur-xl lg:hidden">
-        <Link to="/dashboard" className="flex items-center gap-2">
+        <Link to="/" title="Retour à l’accueil public" className="flex items-center gap-2">
           <NkoniMark className="h-8 w-8 text-base" />
           <span className="font-display text-lg font-semibold tracking-tight">NKONI</span>
         </Link>

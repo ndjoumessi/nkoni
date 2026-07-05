@@ -83,7 +83,7 @@ function useNavItems(): NavItem[] {
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const items = useNavItems()
   return (
-    <nav className="flex flex-col gap-1">
+    <nav aria-label="Navigation principale" className="flex flex-col gap-1">
       {items.map((item) => {
         const Icon = item.icon
         return (
@@ -186,13 +186,14 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         <NavLinks onNavigate={onNavigate} />
       </div>
 
-      <div className="mt-4 space-y-2">
+      {/* Zone compte + action destructive (déconnexion), séparée de la navigation (§9). */}
+      <div className="mt-4 space-y-2 border-t border-hairline pt-4">
         <UserChip onNavigate={onNavigate} />
         <button
           type="button"
           onClick={handleLogout}
           disabled={signingOut}
-          className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-surface/70 hover:text-terra disabled:opacity-60"
+          className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-terra/10 hover:text-terra disabled:opacity-60"
         >
           <LogOut className="h-[1.15rem] w-[1.15rem]" aria-hidden="true" />
           {signingOut ? 'Déconnexion…' : 'Se déconnecter'}

@@ -1,13 +1,24 @@
-import { useState, type FormEvent } from 'react'
+import { useRef, useState, type FormEvent } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
-import { ArrowLeft, ArrowRight, Lock, Mail } from 'lucide-react'
+import { AlertCircle, ArrowLeft, ArrowRight, Lock, Mail } from 'lucide-react'
 import { ApiError } from '@/lib/api'
 import { useAuth } from '@/contexts/auth-context'
+import { focusPremierChampInvalide } from '@/lib/utils'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Field'
 import { PasswordInput } from '@/components/ui/PasswordInput'
 import { Card } from '@/components/ui/Card'
 import { NkoniMark } from '@/components/ui/NkoniMark'
+
+/** Message d'erreur inline sous un champ (parité §8 avec la primitive Field). */
+function ErreurChamp({ id, children }: { id: string; children: string }) {
+  return (
+    <span id={id} role="alert" className="mt-1.5 flex items-start gap-1 text-xs text-terra">
+      <AlertCircle className="mt-px h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+      <span>{children}</span>
+    </span>
+  )
+}
 
 /**
  * Clé localStorage de l'e-mail mémorisé par « Se souvenir de moi ».
@@ -42,7 +53,10 @@ export function LoginPage() {
   const [password, setPassword] = useState('')
   const [rememberMe, setRememberMe] = useState(emailMemorise.length > 0)
   const [error, setError] = useState<string | null>(null)
+  const [errEmail, setErrEmail] = useState<string | undefined>(undefined)
+  const [errPassword, setErrPassword] = useState<string | undefined>(undefined)
   const [submitting, setSubmitting] = useState(false)
+  const formRef = useRef<HTMLFormElement>(null)
 
   if (!loading && isAuthenticated) {
     return <Navigate to="/dashboard" replace />
@@ -52,12 +66,16 @@ export function LoginPage() {
     e.preventDefault()
     setError(null)
 
-    if (!email.includes('@') || email.trim().length < 3) {
-      setError('Veuillez saisir une adresse e-mail valide.')
-      return
-    }
-    if (password.length === 0) {
-      setError('Veuillez saisir votre mot de passe.')
+    // Validation inline par champ + focus sur le 1er en erreur (§8).
+    const eEmail =
+      !email.includes('@') || email.trim().length < 3
+        ? 'Veuillez saisir une adresse e-mail valide.'
+        : undefined
+    const ePassword = password.length === 0 ? 'Veuillez saisir votre mot de passe.' : undefined
+    setErrEmail(eEmail)
+    setErrPassword(ePassword)
+    if (eEmail || ePassword) {
+      requestAnimationFrame(() => focusPremierChampInvalide(formRef.current))
       return
     }
 
@@ -111,7 +129,7 @@ export function LoginPage() {
           <h2 className="font-display text-xl font-semibold text-foreground">Connexion</h2>
           <p className="mt-1 text-sm text-muted-foreground">Accédez à votre espace membre.</p>
 
-          <form onSubmit={handleSubmit} className="mt-6 space-y-4" noValidate>
+          <form ref={formRef} onSubmit={handleSubmit} className="mt-6 space-y-4" noValidate>
             <div>
               <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-foreground/80">
                 Adresse e-mail
@@ -127,11 +145,17 @@ export function LoginPage() {
                   type="email"
                   autoComplete="username"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEmail(e.target.value)
+                    setErrEmail(undefined)
+                  }}
                   placeholder="vous@exemple.com"
                   className="pl-10"
+                  aria-invalid={errEmail ? true : undefined}
+                  aria-describedby={errEmail ? 'email-err' : undefined}
                 />
               </div>
+              {errEmail && <ErreurChamp id="email-err">{errEmail}</ErreurChamp>}
             </div>
 
             <div>
@@ -146,10 +170,16 @@ export function LoginPage() {
                 name="password"
                 autoComplete="current-password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value)
+                  setErrPassword(undefined)
+                }}
                 placeholder="••••••••"
                 leftIcon={Lock}
+                aria-invalid={errPassword ? true : undefined}
+                aria-describedby={errPassword ? 'password-err' : undefined}
               />
+              {errPassword && <ErreurChamp id="password-err">{errPassword}</ErreurChamp>}
             </div>
 
             <label htmlFor="rememberMe" className="flex cursor-pointer items-start gap-3">

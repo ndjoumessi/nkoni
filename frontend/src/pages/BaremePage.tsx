@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { CalendarRange, Check, Pencil, Plus, X } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
 import { baremeApi, ApiError, messageErreur, type Bareme } from '@/lib/api'
 import { peutVoirBareme, peutGererBareme } from '@/lib/roles'
+import { focusPremierChampInvalide } from '@/lib/utils'
 import { formatFcfa } from '@/lib/format'
 import { useToast } from '@/components/ui/Toast'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -29,10 +30,23 @@ export function BaremePage() {
   const [annee, setAnnee] = useState(String(new Date().getFullYear()))
   const [montant, setMontant] = useState('')
   const [adding, setAdding] = useState(false)
+  const [errAnnee, setErrAnnee] = useState<string | undefined>(undefined)
+  const [errMontant, setErrMontant] = useState<string | undefined>(undefined)
+  const ajoutRef = useRef<HTMLFormElement>(null)
 
   const [editId, setEditId] = useState<string | null>(null)
   const [editMontant, setEditMontant] = useState('')
+  const [errEdit, setErrEdit] = useState<string | undefined>(undefined)
   const [saving, setSaving] = useState(false)
+  const editRef = useRef<HTMLInputElement>(null)
+
+  /** Contrôle d'un montant attendu (≥ 0, requis). */
+  const validerMontant = (v: string): string | undefined => {
+    if (v.trim().length === 0) return 'Le montant est requis.'
+    const n = Number(v)
+    if (!Number.isFinite(n) || n < 0) return 'Montant invalide (≥ 0).'
+    return undefined
+  }
 
   useEffect(() => {
     if (!accessToken) return
@@ -64,6 +78,22 @@ export function BaremePage() {
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!accessToken) return
+
+    // Validation inline par champ + focus sur le 1er en erreur (§8).
+    const anneeNum = Number(annee)
+    const eAnnee =
+      annee.trim().length === 0
+        ? "L'année est requise."
+        : !Number.isInteger(anneeNum) || anneeNum < 1900 || anneeNum > 2200
+          ? 'Année invalide (entre 1900 et 2200).'
+          : undefined
+    const eMontant = validerMontant(montant)
+    setErrAnnee(eAnnee)
+    setErrMontant(eMontant)
+    if (eAnnee || eMontant) {
+      requestAnimationFrame(() => focusPremierChampInvalide(ajoutRef.current))
+      return
+    }
     setAdding(true)
     try {
       const cree = await baremeApi.create(Number(annee), Number(montant), accessToken)
@@ -83,10 +113,17 @@ export function BaremePage() {
   const demarrerEdition = (b: Bareme) => {
     setEditId(b.id)
     setEditMontant(String(b.montantAttendu))
+    setErrEdit(undefined)
   }
 
   const enregistrerEdition = async (id: string) => {
     if (!accessToken) return
+    const eEdit = validerMontant(editMontant)
+    setErrEdit(eEdit)
+    if (eEdit) {
+      requestAnimationFrame(() => editRef.current?.focus())
+      return
+    }
     setSaving(true)
     try {
       const maj = await baremeApi.update(id, Number(editMontant), accessToken)
@@ -115,31 +152,45 @@ export function BaremePage() {
 
       {gestion && (
         <Card className="nk-reveal nk-d2 mt-7 p-5">
-          <form onSubmit={handleAdd}>
+          <form ref={ajoutRef} onSubmit={handleAdd} noValidate>
             <Overline>Ajouter une année</Overline>
-            <div className="mt-3 flex flex-wrap items-end gap-3">
-              <Field label="Année" required className="w-32">
+            <div className="mt-3 flex flex-wrap items-start gap-3">
+              <Field label="Année" required className="w-32" error={errAnnee}>
                 <Input
-                  required
                   type="number"
                   min={1900}
                   max={2200}
                   value={annee}
-                  onChange={(e) => setAnnee(e.target.value)}
+                  onChange={(e) => {
+                    setAnnee(e.target.value)
+                    setErrAnnee(undefined)
+                  }}
                 />
               </Field>
-              <Field label="Montant attendu (FCFA)" required className="flex-1">
+              <Field label="Montant attendu (FCFA)" required className="flex-1" error={errMontant}>
                 <Input
-                  required
                   type="number"
                   min={0}
                   value={montant}
-                  onChange={(e) => setMontant(e.target.value)}
+                  onChange={(e) => {
+                    setMontant(e.target.value)
+                    setErrMontant(undefined)
+                  }}
                 />
               </Field>
-              <Button type="submit" icon={Plus} loading={adding} className="mb-[1px]">
-                Ajouter
-              </Button>
+              {/* Label fantôme : cale le bouton exactement au niveau des champs (§8),
+                  indépendamment des messages d'erreur qui poussent la hauteur en dessous. */}
+              <div className="flex flex-col">
+                <span
+                  className="mb-1.5 text-[0.72rem] uppercase tracking-[0.1em]"
+                  aria-hidden="true"
+                >
+                  &nbsp;
+                </span>
+                <Button type="submit" icon={Plus} loading={adding}>
+                  Ajouter
+                </Button>
+              </div>
             </div>
           </form>
         </Card>
@@ -183,13 +234,30 @@ export function BaremePage() {
                 >
                   <span className="num font-medium text-foreground">{b.annee}</span>
                   {editId === b.id ? (
-                    <Input
-                      type="number"
-                      min={0}
-                      value={editMontant}
-                      onChange={(e) => setEditMontant(e.target.value)}
-                      aria-label={`Montant ${b.annee}`}
-                    />
+                    <div>
+                      <Input
+                        ref={editRef}
+                        type="number"
+                        min={0}
+                        value={editMontant}
+                        onChange={(e) => {
+                          setEditMontant(e.target.value)
+                          setErrEdit(undefined)
+                        }}
+                        aria-label={`Montant ${b.annee}`}
+                        aria-invalid={errEdit ? true : undefined}
+                        aria-describedby={errEdit ? `edit-err-${b.id}` : undefined}
+                      />
+                      {errEdit && (
+                        <span
+                          id={`edit-err-${b.id}`}
+                          role="alert"
+                          className="mt-1 block text-xs text-terra"
+                        >
+                          {errEdit}
+                        </span>
+                      )}
+                    </div>
                   ) : (
                     <span className="num text-sm text-foreground/85">
                       {formatFcfa(b.montantAttendu)}
@@ -209,7 +277,10 @@ export function BaremePage() {
                         </Button>
                         <button
                           type="button"
-                          onClick={() => setEditId(null)}
+                          onClick={() => {
+                            setEditId(null)
+                            setErrEdit(undefined)
+                          }}
                           className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-hairline-strong text-muted-foreground transition-colors hover:text-foreground"
                           aria-label="Annuler"
                         >

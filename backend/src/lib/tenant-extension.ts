@@ -14,9 +14,11 @@ import { orgContext } from './org-context'
  *   - create/createMany → `organisationId` FORCÉ à l'org courante dans `data` (toute valeur
  *     fournie par l'appelant est IGNORÉE : impossible d'écrire dans une autre org).
  *   - update/delete/upsert (par `where` unique) → PRÉ-lecture de la cible (client `base`,
- *     non scopé) et refus si elle appartient à une autre org (ou est absente) ; sur une
- *     cible valide, `organisationId` est aussi FORCÉ dans les `data` (pas de déplacement
- *     cross-org via `update { data: { organisationId: … } }`).
+ *     non scopé). Si elle appartient à une autre org OU est absente → lève **P2025**
+ *     (introuvable) : indistinguable d'un id inexistant, donc pas de fuite d'existence, et
+ *     compatible avec la gestion P2025 → 404 des routes. Sur une cible valide (même org),
+ *     `organisationId` est aussi FORCÉ dans les `data` (pas de déplacement cross-org via
+ *     `update { data: { organisationId: … } }`). NB : `upsert` d'une cible absente = création.
  *   - updateMany/deleteMany → `where.organisationId` injecté ; updateMany force aussi `data`.
  *
  * FAIL-CLOSED : sur un modèle scopé, si le contexte n'a ni `organisationId` ni `unscoped`,
@@ -175,8 +177,15 @@ export async function intercepterTenant(
         update: { ...args?.update, organisationId: orgId },
       })
     }
-    // Cible absente OU appartenant à une autre org → refus (pas d'écriture cross-org).
-    throw new TenantContextError(model, operation)
+    // Cible absente OU appartenant à une autre org → INDISTINGUABLE d'un « introuvable ».
+    // On lève P2025 (et NON TenantContextError, réservé à l'absence TOTALE de contexte =
+    // erreur de câblage) : pas de fuite d'existence cross-org, et compatible avec la gestion
+    // P2025 → 404 déjà en place dans les routes (une mutation par id d'une autre org se
+    // comporte exactement comme une mutation d'un id inexistant dans l'org courante).
+    throw new Prisma.PrismaClientKnownRequestError('No record was found for a mutation.', {
+      code: 'P2025',
+      clientVersion: 'nkoni-tenant',
+    })
   }
 
   return query(args)

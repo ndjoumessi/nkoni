@@ -125,12 +125,14 @@ describe('Isolation multi-tenant (§2.2) — extension Prisma', () => {
     expect(all.map((m) => m.id)).toEqual(expect.arrayContaining([membreAId, membreBId]))
   })
 
-  it('update/delete cross-org : refusé (garde par pré-lecture) ; la sienne passe', async () => {
+  it('update/delete cross-org : traité comme introuvable (P2025) ; la sienne passe', async () => {
+    // Cross-org = indistinguable d'un id inexistant → P2025 (pas TenantContextError, réservé
+    // à l'absence de contexte) → les routes le mappent en 404 sans fuite d'existence.
     await expect(
       enOrg(ORG_A, () =>
         client.membre.update({ where: { id: membreBId }, data: { telephone: 'pirate' } }),
       ),
-    ).rejects.toBeInstanceOf(TenantContextError)
+    ).rejects.toMatchObject({ code: 'P2025' })
 
     const maj = await enOrg(ORG_A, () =>
       client.membre.update({ where: { id: membreAId }, data: { telephone: '698000000' } }),

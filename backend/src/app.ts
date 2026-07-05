@@ -28,6 +28,7 @@ import { documentsRoutes } from './routes/documents.route'
 import { auditLogRoutes } from './routes/audit-log.route'
 import { rapportsRoutes } from './routes/rapports.route'
 import { notificationsRoutes } from './routes/notifications.route'
+import { demarrerScheduler } from './services/notification-scheduler'
 import { auditContext } from './lib/audit-context'
 
 // Décoration de l'instance Fastify avec le client Prisma + le client Blob (injectables en test).
@@ -111,7 +112,12 @@ if (require.main === module) {
   // Railway (et la plupart des PaaS) injectent le port d'écoute via $PORT.
   const port = Number(process.env['PORT']) || 3000
   buildApp()
-    .then((app) => app.listen({ port, host: '0.0.0.0' }))
+    .then(async (app) => {
+      const address = await app.listen({ port, host: '0.0.0.0' })
+      // Scheduler démarré UNIQUEMENT dans le serveur long-vivant (jamais via buildApp/tests).
+      demarrerScheduler(app)
+      return address
+    })
     .then((address) => {
       if (!isProd) console.log(`NKONI backend prêt sur ${address}`)
     })

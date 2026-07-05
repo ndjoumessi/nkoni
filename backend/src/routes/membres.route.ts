@@ -37,6 +37,9 @@ interface MembreCreateBody {
 
 type MembreUpdateBody = Partial<MembreCreateBody>
 
+/** Plafond de membres par organisation sur le plan gratuit (§10.2). */
+export const PLAFOND_MEMBRES_PLAN_GRATUIT = 100
+
 const STATUT_ENUM = ['ACTIF', 'INACTIF', 'DECEDE'] as const
 // Statuts qui figent la fin de contribution (§4.1).
 const STATUTS_FIN_CONTRIBUTION: readonly StatutMembre[] = ['DECEDE', 'INACTIF']
@@ -164,6 +167,16 @@ export const membresRoutes: FastifyPluginAsync = async (app: FastifyInstance) =>
       const body = req.body
       const futurCheck = validerAnneeAdhesion(body.anneeAdhesion, reply)
       if (futurCheck) return futurCheck
+
+      // Plafond du plan gratuit (§10.2) : 100 membres par organisation. `count()` est scopé
+      // par l'extension d'isolation → compte les membres de l'organisation courante.
+      const nbMembres = await app.prisma.membre.count()
+      if (nbMembres >= PLAFOND_MEMBRES_PLAN_GRATUIT) {
+        return reply.code(403).send({
+          error: 'Forbidden',
+          message: `Limite de ${PLAFOND_MEMBRES_PLAN_GRATUIT} membres atteinte pour le plan gratuit.`,
+        })
+      }
 
       // organisationId injecté par l'extension d'isolation (cf. CreationScopee) → non fourni ici.
       const data: CreationScopee<Prisma.MembreUncheckedCreateInput> = {

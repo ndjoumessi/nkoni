@@ -8,7 +8,7 @@ import { buildApp } from '../src/app'
 
 const ANNEE_COURANTE = new Date().getFullYear()
 
-function buildPrismaMock() {
+function buildPrismaMock(opts: { nbMembres?: number } = {}) {
   const membres = [
     {
       id: 'm1',
@@ -36,6 +36,8 @@ function buildPrismaMock() {
           : membres,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       findUnique: async (args: any) => membres.find((m) => m.id === args.where.id) ?? null,
+      // Plafond plan gratuit : par défaut le nb réel de membres du mock (2), surchargeable.
+      count: async () => opts.nbMembres ?? membres.length,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       create: async (args: any) => ({ id: 'm-new', ...args.data }),
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -165,5 +167,45 @@ describe('CRUD Membre', () => {
       payload: { ...membreValide, anneeAdhesion: ANNEE_COURANTE + 1 },
     })
     expect(res.statusCode).toBe(400)
+  })
+})
+
+describe('Plafond de membres du plan gratuit (§10.2)', () => {
+  const membreValide = { nom: 'Nouveau', prenom: 'Membre', anneeAdhesion: 2021 }
+
+  async function appAvec(nbMembres: number): Promise<FastifyInstance> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const app = await buildApp({ prisma: buildPrismaMock({ nbMembres }) as any, logger: false })
+    await app.ready()
+    return app
+  }
+  const adminHeader = (app: FastifyInstance) => ({
+    authorization: `Bearer ${app.jwt.sign({ sub: 'u-admin', role: 'ADMIN' })}`,
+  })
+
+  it('99 membres → création du 100e AUTORISÉE (201)', async () => {
+    const app = await appAvec(99)
+    const res = await app.inject({
+      method: 'POST',
+      url: '/membres',
+      headers: adminHeader(app),
+      payload: membreValide,
+    })
+    expect(res.statusCode).toBe(201)
+    await app.close()
+  })
+
+  it('100 membres → création du 101e BLOQUÉE (403, message plan gratuit)', async () => {
+    const app = await appAvec(100)
+    const res = await app.inject({
+      method: 'POST',
+      url: '/membres',
+      headers: adminHeader(app),
+      payload: membreValide,
+    })
+    expect(res.statusCode).toBe(403)
+    expect(res.json()).toMatchObject({ error: 'Forbidden' })
+    expect(res.json().message).toMatch(/plan gratuit/i)
+    await app.close()
   })
 })

@@ -1,23 +1,13 @@
-import type {
-  FastifyInstance,
-  FastifyPluginAsync,
-  FastifyReply,
-} from 'fastify'
-import {
-  env,
-  isProd,
-  REFRESH_TTL_STANDARD_SECONDS,
-  REFRESH_TTL_REMEMBER_SECONDS,
-} from '../lib/env'
+import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
+import { env } from '../lib/env'
 import { authenticate } from '../middlewares/authenticate'
 import { orgContext } from '../lib/org-context'
-import type { Role } from '../middlewares/permissions'
+import { signAccessToken, emettreSession } from '../lib/session'
 import {
   verifyCredentials,
   findUserById,
   changerMotDePasse,
   AncienMotDePasseIncorrectError,
-  type AuthenticatedUser,
 } from '../services/auth.service'
 
 /**
@@ -72,42 +62,6 @@ interface ChangerMdpBody {
   nouveauMotDePasse: string
 }
 
-/**
- * Options du cookie httpOnly qui porte le refresh token.
- * `maxAgeSeconds` doit refléter le `expiresIn` du JWT signé (même durée) — cf. login.
- */
-function refreshCookieOptions(maxAgeSeconds: number) {
-  return {
-    httpOnly: true,
-    secure: isProd, // en dev (http://localhost) Secure=false pour que le cookie soit posé
-    // Front (nkoni.vercel.app) et back sont désormais same-origin en prod grâce au proxy
-    // Vercel (rewrite /api/* → Railway) : le navigateur ne voit qu'un seul domaine et le
-    // cookie refresh est first-party. On n'a donc plus besoin de SameSite=None : on passe en
-    // SameSite=Lax, qui apporte une protection CSRF (le cookie n'est pas envoyé sur les
-    // requêtes cross-site) tout en restant envoyé sur nos appels same-origin /api/auth/*.
-    sameSite: 'lax' as const,
-    // Path PUBLIC vu par le navigateur (cf. REFRESH_COOKIE_PATH) : '/auth' en direct,
-    // '/api/auth' derrière le proxy prod. Doit préfixer /(api/)auth/refresh et /logout.
-    path: env.REFRESH_COOKIE_PATH,
-    maxAge: maxAgeSeconds,
-  }
-}
-
-/** Signe l'access token (construction conditionnelle pour exactOptionalPropertyTypes). */
-async function signAccessToken(
-  reply: FastifyReply,
-  user: AuthenticatedUser,
-): Promise<string> {
-  const payload: { sub: string; role: Role; membreId?: string; organisationId?: string } = {
-    sub: user.id,
-    role: user.role,
-  }
-  if (user.membreId) payload.membreId = user.membreId
-  // Porté dans l'access token → l'authenticate établit le contexte d'isolation (SaaS §2.2).
-  if (user.organisationId) payload.organisationId = user.organisationId
-  return reply.jwtSign(payload)
-}
-
 export const authRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
   // POST /auth/login
   app.post<{ Body: LoginBody }>(
@@ -131,22 +85,8 @@ export const authRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
           .send({ error: 'Forbidden', message: 'Compte désactivé.' })
       }
 
-      const accessToken = await signAccessToken(reply, user)
-      // « Se souvenir de moi » n'agit QUE sur la longévité de la session (durée du refresh
-      // token + Max-Age du cookie) : 30 j si coché, 7 j sinon. On surcharge le `expiresIn`
-      // par requête et on aligne le Max-Age du cookie sur cette même durée.
-      const refreshTtlSeconds = rememberMe
-        ? REFRESH_TTL_REMEMBER_SECONDS
-        : REFRESH_TTL_STANDARD_SECONDS
-      const refreshToken = await reply.refreshJwtSign(
-        { sub: user.id, typ: 'refresh' },
-        { expiresIn: refreshTtlSeconds },
-      )
-      reply.setCookie(
-        env.REFRESH_COOKIE_NAME,
-        refreshToken,
-        refreshCookieOptions(refreshTtlSeconds),
-      )
+      // « Se souvenir de moi » n'agit QUE sur la longévité du refresh (30 j si coché, 7 j sinon).
+      const accessToken = await emettreSession(reply, user, rememberMe)
 
       return reply.code(200).send({
         accessToken,

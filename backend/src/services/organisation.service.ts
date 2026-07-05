@@ -1,0 +1,91 @@
+import { hashPassword } from './auth.service'
+import type { AuthenticatedUser } from './auth.service'
+
+/**
+ * Auto-inscription (§3.1) — création d'une nouvelle organisation et de son premier
+ * utilisateur ADMIN (le « fondateur »), de façon ATOMIQUE.
+ *
+ * Découplé de Fastify, Prisma injecté (mockable en test). L'appelant DOIT exécuter ceci
+ * HORS contexte d'organisation (`orgContext.runUnscoped`) : l'email est globalement unique
+ * et l'organisation n'existe pas encore ; l'`organisationId` de l'admin est fourni
+ * EXPLICITEMENT dans la transaction (pas d'injection par l'extension d'isolation).
+ */
+
+type Devise = 'FCFA' | 'EUR' | 'USD' | 'CAD'
+type Langue = 'FR' | 'EN'
+
+/** Email déjà utilisé. → 409, message GÉNÉRIQUE (anti-énumération : on ne révèle pas
+ *  qu'un compte existe déjà, ici ou dans une autre organisation). */
+export class EmailDejaUtiliseError extends Error {
+  constructor() {
+    super("Impossible de créer cet espace avec ces informations.")
+    this.name = 'EmailDejaUtiliseError'
+  }
+}
+
+export interface InscriptionParams {
+  nomOrganisation: string
+  devise: Devise
+  langue: Langue
+  email: string
+  password: string
+}
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+export interface InscriptionPrisma {
+  utilisateur: { findUnique(args: any): Promise<any> }
+  organisation: { create(args: any): Promise<any> }
+  $transaction<T>(fn: (tx: any) => Promise<T>): Promise<T>
+}
+/* eslint-enable @typescript-eslint/no-explicit-any */
+
+/**
+ * Crée l'organisation + son admin fondateur. Devise et langue sont fixées ici et
+ * IMMUABLES ensuite (§5). Retourne l'utilisateur ADMIN prêt à ouvrir une session.
+ */
+export async function inscrireOrganisation(
+  prisma: InscriptionPrisma,
+  params: InscriptionParams,
+): Promise<AuthenticatedUser> {
+  // Email stocké verbatim (comme /auth/login qui recherche l'email tel quel) : pas de
+  // normalisation ici, sinon un login ultérieur avec la même saisie ne matcherait plus.
+  const { email } = params
+
+  const existant = await prisma.utilisateur.findUnique({
+    where: { email },
+    select: { id: true },
+  })
+  if (existant) throw new EmailDejaUtiliseError()
+
+  const passwordHash = await hashPassword(params.password)
+
+  const admin = await prisma.$transaction(async (tx) => {
+    const org = await tx.organisation.create({
+      data: {
+        nom: params.nomOrganisation.trim(),
+        devise: params.devise,
+        langueDefaut: params.langue,
+      },
+    })
+    // organisationId FOURNI explicitement : flux non scopé (runUnscoped) → l'extension ne
+    // l'injecte pas, mais la colonne est NOT NULL, donc on la renseigne nous-mêmes.
+    return tx.utilisateur.create({
+      data: {
+        organisationId: org.id,
+        email,
+        passwordHash,
+        role: 'ADMIN',
+      },
+      select: { id: true, email: true, role: true, organisationId: true },
+    })
+  })
+
+  return {
+    id: admin.id,
+    email: admin.email,
+    role: admin.role,
+    membreId: null,
+    organisationId: admin.organisationId,
+    actif: true,
+  }
+}

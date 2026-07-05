@@ -8,6 +8,7 @@ import { vercelBlobClient } from './lib/blob'
 import type { BlobClient } from './services/document.service'
 import { registerJwt } from './plugins/jwt'
 import { authRoutes } from './routes/auth.route'
+import { organisationsRoutes } from './routes/organisations.route'
 import { membresRoutes } from './routes/membres.route'
 import { branchesRoutes } from './routes/branches.route'
 import { baremeRoutes } from './routes/bareme.route'
@@ -87,6 +88,7 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   app.get('/health', async () => ({ status: 'ok' }))
 
   await app.register(authRoutes, { prefix: '/auth' })
+  await app.register(organisationsRoutes)
   await app.register(membresRoutes)
   await app.register(branchesRoutes)
   await app.register(baremeRoutes)

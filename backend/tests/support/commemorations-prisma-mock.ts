@@ -3,8 +3,9 @@ import { Prisma } from '../../src/generated/prisma/client'
 
 /**
  * Mock Prisma en mémoire pour le module V2 Commémorations.
- * Gère : commemoration (findMany/findUnique avec include membresConcernes, create avec
- * connect, update avec set, delete + P2025) et membre.findMany (ids pré-alimentés).
+ * Gère : commemoration (findMany/findUnique avec include membresConcernes, create, update,
+ * delete + P2025), la table de jointure explicite commemorationMembreConcerne
+ * (createMany/deleteMany) et `$transaction` interactif, plus membre.findMany (pré-alimenté).
  */
 
 function p2025() {
@@ -48,6 +49,8 @@ export function buildCommemorationsMock() {
     const m = membres.get(id)
     return m ? { id: m.id, nom: m.nom, prenom: m.prenom } : null
   }
+  // `membresConcernes` est exposé sous forme de lignes de jointure ([{ membre }]) — comme
+  // l'include Prisma réel du join explicite — que le service aplati ensuite (projeter).
   const view = (c: StoredCommemoration) => ({
     id: c.id,
     titre: c.titre,
@@ -61,10 +64,11 @@ export function buildCommemorationsMock() {
     updatedAt: c.updatedAt,
     membresConcernes: c.membresConcernes
       .map(membreView)
-      .filter((m): m is { id: string; nom: string; prenom: string } => !!m),
+      .filter((m): m is { id: string; nom: string; prenom: string } => !!m)
+      .map((membre) => ({ membre })),
   })
 
-  return {
+  const api: any = {
     commemoration: {
       findMany: async (args: any = {}) => {
         let list = [...commemorations.values()]
@@ -90,7 +94,7 @@ export function buildCommemorationsMock() {
           description: d.description ?? null,
           statut: d.statut ?? 'PLANIFIEE',
           notes: d.notes ?? null,
-          membresConcernes: (d.membresConcernes?.connect ?? []).map((m: any) => m.id),
+          membresConcernes: [], // liens posés séparément via commemorationMembreConcerne
           createdAt: now,
           updatedAt: now,
           seq: ++seq,
@@ -109,9 +113,6 @@ export function buildCommemorationsMock() {
         if (d.description !== undefined) c.description = d.description
         if (d.statut !== undefined) c.statut = d.statut
         if (d.notes !== undefined) c.notes = d.notes
-        if (d.membresConcernes?.set !== undefined) {
-          c.membresConcernes = d.membresConcernes.set.map((m: any) => m.id)
-        }
         c.updatedAt = new Date()
         return view(c)
       },
@@ -120,6 +121,29 @@ export function buildCommemorationsMock() {
         if (!c) throw p2025()
         commemorations.delete(c.id)
         return view(c)
+      },
+    },
+    // Table de jointure explicite : reflète les liens dans le membresConcernes du parent.
+    commemorationMembreConcerne: {
+      createMany: async (args: any) => {
+        const rows: any[] = args.data ?? []
+        for (const r of rows) {
+          const c = commemorations.get(r.commemorationId)
+          if (c && !c.membresConcernes.includes(r.membreId)) c.membresConcernes.push(r.membreId)
+        }
+        return { count: rows.length }
+      },
+      deleteMany: async (args: any) => {
+        const cid: string | undefined = args.where?.commemorationId
+        if (cid) {
+          const c = commemorations.get(cid)
+          if (c) {
+            const n = c.membresConcernes.length
+            c.membresConcernes = []
+            return { count: n }
+          }
+        }
+        return { count: 0 }
       },
     },
     membre: {
@@ -131,5 +155,8 @@ export function buildCommemorationsMock() {
         return list.map((m) => ({ id: m.id, nom: m.nom, prenom: m.prenom }))
       },
     },
+    // $transaction interactif : passe le mock lui-même comme `tx`.
+    $transaction: async (fn: any) => fn(api),
   }
+  return api
 }

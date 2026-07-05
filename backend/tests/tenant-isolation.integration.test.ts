@@ -24,8 +24,9 @@ let membreAId = ''
 let membreBId = ''
 let auteurAId = ''
 
-/** Nettoyage idempotent (via `base`, non scopé). Ordre FK : conflits → membres/users → orgs. */
+/** Nettoyage idempotent (via `base`, non scopé). Ordre FK : liens → conflits → membres/users → orgs. */
 async function nettoyer(): Promise<void> {
+  await base.conflitMembreConcerne.deleteMany({ where: { organisationId: { in: [ORG_A, ORG_B] } } })
   await base.conflit.deleteMany({ where: { organisationId: { in: [ORG_A, ORG_B] } } })
   await base.membre.deleteMany({ where: { organisationId: { in: [ORG_A, ORG_B] } } })
   await base.utilisateur.deleteMany({ where: { organisationId: { in: [ORG_A, ORG_B] } } })
@@ -140,7 +141,7 @@ describe('Isolation multi-tenant (§2.2) — extension Prisma', () => {
     expect(bIntact?.telephone).toBeNull()
   })
 
-  it('M2M Conflit↔Membre : un membre d’une autre org est invisible → non liable, et la lecture ne fuit pas', async () => {
+  it('M2M Conflit↔Membre (join explicite) : membre d’une autre org invisible → non liable ; le join est scopé', async () => {
     // (a) En org A, membreB est invisible → impossible de l'obtenir pour le lier.
     const visibleB = await enOrg(ORG_A, () => client.membre.findMany({ where: { id: membreBId } }))
     expect(visibleB).toHaveLength(0)
@@ -151,20 +152,38 @@ describe('Isolation multi-tenant (§2.2) — extension Prisma', () => {
     )
     expect(validables.map((m) => m.id)).toEqual([membreAId])
 
-    // (c) Même si un lien cross-org était forcé HORS application (base brute), la lecture
-    // scopée des membres de l'org A ne fait jamais apparaître membreB.
+    // (c) La table de jointure est elle-même un modèle SCOPÉ : un lien stampé ORG_B (planté
+    // HORS application via `base` brut) n'apparaît jamais dans une lecture scopée ORG_A,
+    // mais est bien visible côté ORG_B. Le join rentre dans le mécanisme commun d'isolation.
     const conflit = await base.conflit.create({
-      data: {
-        organisationId: ORG_A,
-        titre: 't',
-        description: 'd',
-        niveauConfidentialite: 'PUBLIC',
-        auteurId: auteurAId,
-        membresConcernes: { connect: [{ id: membreBId }] },
-      },
+      data: { organisationId: ORG_A, titre: 't', description: 'd', niveauConfidentialite: 'PUBLIC', auteurId: auteurAId },
     })
+    await base.conflitMembreConcerne.create({
+      data: { conflitId: conflit.id, membreId: membreBId, organisationId: ORG_B },
+    })
+    const liensVusEnA = await enOrg(ORG_A, () => client.conflitMembreConcerne.findMany())
+    expect(liensVusEnA.some((l) => l.membreId === membreBId)).toBe(false)
+    const liensVusEnB = await enOrg(ORG_B, () => client.conflitMembreConcerne.findMany())
+    expect(liensVusEnB.some((l) => l.membreId === membreBId)).toBe(true)
+
+    // (d) Et une lecture imbriquée scopée des membres de l'org A ne fait pas apparaître membreB.
     const membresOrgA = await enOrg(ORG_A, () => client.membre.findMany())
     expect(membresOrgA.map((m) => m.id)).not.toContain(membreBId)
+    await base.conflit.delete({ where: { id: conflit.id } })
+  })
+
+  it('create scopé du join : un lien créé en ORG_A porte organisationId = ORG_A', async () => {
+    const conflit = await base.conflit.create({
+      data: { organisationId: ORG_A, titre: 't2', description: 'd', niveauConfidentialite: 'PUBLIC', auteurId: auteurAId },
+    })
+    // createMany top-level en contexte ORG_A → organisationId injecté automatiquement.
+    await enOrg(ORG_A, () =>
+      client.conflitMembreConcerne.createMany({ data: [{ conflitId: conflit.id, membreId: membreAId }] }),
+    )
+    const lien = await base.conflitMembreConcerne.findUnique({
+      where: { conflitId_membreId: { conflitId: conflit.id, membreId: membreAId } },
+    })
+    expect(lien?.organisationId).toBe(ORG_A)
     await base.conflit.delete({ where: { id: conflit.id } })
   })
 })

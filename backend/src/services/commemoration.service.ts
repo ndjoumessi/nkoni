@@ -41,7 +41,13 @@ export interface CommemorationPrisma {
     update(args: any): Promise<any>
     delete(args: any): Promise<any>
   }
+  // Join explicite : liens écrits via des opérations TOP-LEVEL scopées (createMany/deleteMany).
+  commemorationMembreConcerne: {
+    createMany(args: any): Promise<any>
+    deleteMany(args: any): Promise<any>
+  }
   membre: { findMany(args: any): Promise<any[]> }
+  $transaction<T>(fn: (tx: any) => Promise<T>): Promise<T>
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
@@ -49,8 +55,22 @@ type TypeCommemoration = 'COMMEMORATION' | 'CEREMONIE'
 type StatutCommemoration = 'PLANIFIEE' | 'TENUE' | 'ANNULEE'
 
 const COMMEMORATION_INCLUDE = {
-  membresConcernes: { select: { id: true, nom: true, prenom: true } },
+  membresConcernes: { select: { membre: { select: { id: true, nom: true, prenom: true } } } },
 } as const
+
+/**
+ * Aplati les lignes de jointure `membresConcernes` ([{ membre }]) en `[{id,nom,prenom}]` pour
+ * préserver la forme de réponse historique de l'API (le join explicite est un détail DB).
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function projeter(commemoration: any): any {
+  if (!commemoration) return commemoration
+  return {
+    ...commemoration,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    membresConcernes: (commemoration.membresConcernes ?? []).map((j: any) => j.membre),
+  }
+}
 
 /** Vérifie que tous les ids de membres existent, sinon lève une erreur métier (400). */
 async function validerMembres(prisma: CommemorationPrisma, ids: string[]): Promise<void> {
@@ -80,11 +100,12 @@ export function listerMembresSelectionnables(prisma: CommemorationPrisma) {
 /* -------------------------------------------------------------------------- */
 
 /** Liste les commémorations, plus récentes (par date) d'abord. */
-export function listerCommemorations(prisma: CommemorationPrisma) {
-  return prisma.commemoration.findMany({
+export async function listerCommemorations(prisma: CommemorationPrisma) {
+  const list = await prisma.commemoration.findMany({
     orderBy: { date: 'desc' },
     include: COMMEMORATION_INCLUDE,
   })
+  return list.map(projeter)
 }
 
 /** Détail d'une commémoration. Lève 404 si absente. */
@@ -94,7 +115,7 @@ export async function getCommemoration(prisma: CommemorationPrisma, id: string) 
     include: COMMEMORATION_INCLUDE,
   })
   if (!commemoration) throw new CommemorationIntrouvableError()
-  return commemoration
+  return projeter(commemoration)
 }
 
 /* -------------------------------------------------------------------------- */
@@ -127,11 +148,19 @@ export async function creerCommemoration(
     ...(params.description !== undefined ? { description: params.description } : {}),
     ...(params.statut !== undefined ? { statut: params.statut } : {}),
     ...(params.notes !== undefined ? { notes: params.notes } : {}),
-    ...(membreIds.length > 0
-      ? { membresConcernes: { connect: membreIds.map((id) => ({ id })) } }
-      : {}),
   }
-  return prisma.commemoration.create({ data, include: COMMEMORATION_INCLUDE })
+
+  // Atomique : la commémoration ET ses liens membres. Liens via createMany top-level (scopé).
+  const commemoration = await prisma.$transaction(async (tx) => {
+    const cree = await tx.commemoration.create({ data })
+    if (membreIds.length > 0) {
+      await tx.commemorationMembreConcerne.createMany({
+        data: membreIds.map((mid) => ({ commemorationId: cree.id, membreId: mid })),
+      })
+    }
+    return tx.commemoration.findUnique({ where: { id: cree.id }, include: COMMEMORATION_INCLUDE })
+  })
+  return projeter(commemoration)
 }
 
 export interface MajCommemorationParams {
@@ -163,17 +192,24 @@ export async function majCommemoration(
   if (params.description !== undefined) data.description = params.description
   if (params.statut !== undefined) data.statut = params.statut
   if (params.notes !== undefined) data.notes = params.notes
-  if (params.membresConcernes !== undefined) {
-    // `set` remplace intégralement la liste des membres concernés.
-    data.membresConcernes = { set: params.membresConcernes.map((mid) => ({ id: mid })) }
-  }
 
   try {
-    return await prisma.commemoration.update({
-      where: { id },
-      data,
-      include: COMMEMORATION_INCLUDE,
+    const maj = await prisma.$transaction(async (tx) => {
+      // L'update (même data vide) vérifie l'existence (P2025 si absente) et bump `updatedAt`.
+      await tx.commemoration.update({ where: { id }, data })
+      if (params.membresConcernes !== undefined) {
+        // Remplacement intégral des liens : on efface ceux de cette commémoration (scopé)
+        // puis on recrée. Opérations top-level → `organisationId` géré par l'extension.
+        await tx.commemorationMembreConcerne.deleteMany({ where: { commemorationId: id } })
+        if (params.membresConcernes.length > 0) {
+          await tx.commemorationMembreConcerne.createMany({
+            data: params.membresConcernes.map((mid) => ({ commemorationId: id, membreId: mid })),
+          })
+        }
+      }
+      return tx.commemoration.findUnique({ where: { id }, include: COMMEMORATION_INCLUDE })
     })
+    return projeter(maj)
   } catch (err) {
     throw mapP2025(err)
   }

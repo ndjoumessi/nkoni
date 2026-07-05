@@ -23,18 +23,25 @@ import { orgContext } from './org-context'
  * la requête LÈVE `TenantContextError` (jamais « tout retourner »). `unscoped: true` bypass
  * délibéré (login/refresh/système/seed/super-admin).
  *
+ * M2M (Conflit/Commémoration ↔ Membre) : les tables de jointure sont EXPLICITES et scopées
+ * (ConflitMembreConcerne / CommemorationMembreConcerne, chacune avec `organisationId`). Les
+ * liens sont créés/supprimés via des opérations TOP-LEVEL scopées (createMany/deleteMany),
+ * jamais via un M2M implicite. Conséquence : un lien ne peut naître que dans l'org courante,
+ * et il référence un membre déjà validé dans cette org → même une lecture imbriquée
+ * (`conflit.findMany({ include: { membresConcernes } })`) ne peut structurellement pas
+ * exposer un membre d'une autre org.
+ *
  * LIMITES ASSUMÉES (documentées) :
- *   - Les lectures IMBRIQUÉES via include/select (ex. `conflit.findFirst({ include:
- *     { membresConcernes } })`) ne sont PAS ré-scopées par l'extension (Prisma n'expose que
- *     l'opération de plus haut niveau). L'isolation des M2M repose donc sur l'impossibilité
- *     de FORMER un lien cross-org (la validation des ids au moment de l'écriture lit des
- *     `membre` déjà scopés → un membre d'une autre org est invisible, donc non liable).
- *     Voir le test d'isolation dédié. Un durcissement (join tables explicites porteuses
- *     d'organisationId) est une option ouverte si on veut scoper aussi la lecture imbriquée.
- *   - Opérations non couvertes ici : `createManyAndReturn`, écritures imbriquées profondes.
+ *   - Les lectures IMBRIQUÉES via include/select ne sont pas RE-filtrées par l'extension
+ *     (Prisma n'expose que l'opération de plus haut niveau) ; l'isolation repose sur
+ *     l'intégrité des données garantie par les écritures scopées ci-dessus.
+ *   - Opérations non couvertes ici : `createManyAndReturn`, écritures imbriquées profondes
+ *     (on écrit donc les liens M2M via des opérations top-level, cf. services conflit/commémo).
  */
 
-/** Les 20 modèles métier scopés par organisation (tous portent `organisationId`). */
+/** Les 22 modèles métier scopés par organisation (tous portent `organisationId`).
+ *  Inclut les 2 tables de jointure M2M explicites (Conflit/Commémoration ↔ Membre) :
+ *  leurs liens sont créés/lus via des opérations scopées, pas via un M2M implicite. */
 export const SCOPED_MODELS = new Set<string>([
   'Utilisateur',
   'BrancheFamiliale',
@@ -52,7 +59,9 @@ export const SCOPED_MODELS = new Set<string>([
   'AffectationFonction',
   'EvenementFamilial',
   'Conflit',
+  'ConflitMembreConcerne',
   'Commemoration',
+  'CommemorationMembreConcerne',
   'Document',
   'AuditLog',
   'Notification',

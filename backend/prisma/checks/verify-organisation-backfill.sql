@@ -18,7 +18,8 @@ BEGIN
     'Utilisateur','BrancheFamiliale','Membre','BaremeAnnuel','Contribution','Versement',
     'EquilibrageContribution','EquilibrageDetail','Recu','Reunion','PointOrdreDuJour',
     'Resolution','FonctionFamiliale','AffectationFonction','EvenementFamilial','Conflit',
-    'Commemoration','Document','AuditLog','Notification'
+    'ConflitMembreConcerne','Commemoration','CommemorationMembreConcerne','Document',
+    'AuditLog','Notification'
   ]) AS tbl
   LOOP
     EXECUTE format(

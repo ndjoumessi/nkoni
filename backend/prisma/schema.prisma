@@ -71,164 +71,166 @@ model Organisation {
   createdAt    DateTime @default(now())
 
   // Toutes les entités métier scopées (relations inverses).
-  utilisateurs       Utilisateur[]
-  branches           BrancheFamiliale[]
-  membres            Membre[]
-  baremes            BaremeAnnuel[]
-  contributions      Contribution[]
-  versements         Versement[]
-  equilibrages       EquilibrageContribution[]
-  equilibrageDetails EquilibrageDetail[]
-  recus              Recu[]
-  reunions           Reunion[]
-  pointsOrdreDuJour  PointOrdreDuJour[]
-  resolutions        Resolution[]
-  fonctions          FonctionFamiliale[]
-  affectations       AffectationFonction[]
-  evenements         EvenementFamilial[]
-  conflits           Conflit[]
-  commemorations     Commemoration[]
-  documents          Document[]
-  auditLogs          AuditLog[]
-  notifications      Notification[]
+  utilisateurs         Utilisateur[]
+  branches             BrancheFamiliale[]
+  membres              Membre[]
+  baremes              BaremeAnnuel[]
+  contributions        Contribution[]
+  versements           Versement[]
+  equilibrages         EquilibrageContribution[]
+  equilibrageDetails   EquilibrageDetail[]
+  recus                Recu[]
+  reunions             Reunion[]
+  pointsOrdreDuJour    PointOrdreDuJour[]
+  resolutions          Resolution[]
+  fonctions            FonctionFamiliale[]
+  affectations         AffectationFonction[]
+  evenements           EvenementFamilial[]
+  conflits             Conflit[]
+  conflitMembres       ConflitMembreConcerne[]
+  commemorations       Commemoration[]
+  commemorationMembres CommemorationMembreConcerne[]
+  documents            Document[]
+  auditLogs            AuditLog[]
+  notifications        Notification[]
 }
 
 model Utilisateur {
-  id           String   @id @default(uuid())
+  id                   String         @id @default(uuid())
   // SaaS : 1 utilisateur = 1 organisation en v1 (multi-org reporté V2). Nullable en
   // Phase A ; Super-Admin (transverse, §2.3) restera null quand le rôle sera ajouté.
-  organisationId String?
-  organisation   Organisation? @relation(fields: [organisationId], references: [id])
-  email        String   @unique
-  passwordHash String
-  role         Role
-  actif        Boolean  @default(true)
-  membre       Membre?  @relation("CompteMembre")
+  organisationId       String?
+  organisation         Organisation?  @relation(fields: [organisationId], references: [id])
+  email                String         @unique
+  passwordHash         String
+  role                 Role
+  actif                Boolean        @default(true)
+  membre               Membre?        @relation("CompteMembre")
   // V2 (§4.4) — conflits déclarés / suivis par ce compte.
-  conflitsAuteur      Conflit[] @relation("ConflitAuteur")
-  conflitsResponsable Conflit[] @relation("ConflitResponsableSuivi")
-  documentsTeleverses Document[] @relation("DocumentTeleversePar") // V2 §5
-  auditsActeur        AuditLog[] @relation("AuditActeur") // V2 §5 — écritures tracées
-  notifications       Notification[] @relation("NotificationDestinataire") // V2 §5 — notifs reçues
+  conflitsAuteur       Conflit[]      @relation("ConflitAuteur")
+  conflitsResponsable  Conflit[]      @relation("ConflitResponsableSuivi")
+  documentsTeleverses  Document[]     @relation("DocumentTeleversePar") // V2 §5
+  auditsActeur         AuditLog[]     @relation("AuditActeur") // V2 §5 — écritures tracées
+  notifications        Notification[] @relation("NotificationDestinataire") // V2 §5 — notifs reçues
   // Préférences de notification par type. null / clé absente = ACTIVÉ (défaut : tout activé,
   // rétrocompatible). Un type est désactivé seulement si explicitement { "TYPE": false }.
   notificationsActives Json?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
 
   @@index([organisationId])
 }
 
 model BrancheFamiliale {
-  id          String   @id @default(uuid())
+  id             String        @id @default(uuid())
   organisationId String?
   organisation   Organisation? @relation(fields: [organisationId], references: [id])
-  nom         String
-  description String?
-  membres     Membre[]
-  createdAt   DateTime @default(now())
+  nom            String
+  description    String?
+  membres        Membre[]
+  createdAt      DateTime      @default(now())
 
   @@index([organisationId])
 }
 
 model Membre {
-  id                  String            @id @default(uuid())
-  organisationId      String?
-  organisation        Organisation?     @relation(fields: [organisationId], references: [id])
-  nom                 String
-  prenom              String
-  sexe                String?
-  dateNaissance       DateTime?
-  fonctionSociale     String?
-  statut              StatutMembre      @default(ACTIF)
-  telephone           String?
-  adresse             String?
-  brancheId           String?
-  branche             BrancheFamiliale? @relation(fields: [brancheId], references: [id])
-  chefSousFamilleId   String?
-  chefSousFamille     Membre?           @relation("ChefSousFamille", fields: [chefSousFamilleId], references: [id])
-  membresRattaches    Membre[]          @relation("ChefSousFamille")
-  anneeAdhesion       Int               // année à partir de laquelle la contribution est attendue
-  anneeFinContribution Int?             // renseignée automatiquement si statut = DECEDE ou INACTIF
-  dateDeces           DateTime?
-  compteUtilisateurId String?           @unique
-  compteUtilisateur   Utilisateur?      @relation("CompteMembre", fields: [compteUtilisateurId], references: [id])
-  contributions       Contribution[]
-  affectationsFonction AffectationFonction[] // V1.1 — nominations (actives + passées)
-  conflitsConcernes   Conflit[]         @relation("ConflitMembresConcernes") // V2 §4.4
-  commemorationsConcernees Commemoration[] @relation("CommemorationMembresConcernes") // V2
-  createdAt           DateTime          @default(now())
-  updatedAt           DateTime          @updatedAt
+  id                       String                        @id @default(uuid())
+  organisationId           String?
+  organisation             Organisation?                 @relation(fields: [organisationId], references: [id])
+  nom                      String
+  prenom                   String
+  sexe                     String?
+  dateNaissance            DateTime?
+  fonctionSociale          String?
+  statut                   StatutMembre                  @default(ACTIF)
+  telephone                String?
+  adresse                  String?
+  brancheId                String?
+  branche                  BrancheFamiliale?             @relation(fields: [brancheId], references: [id])
+  chefSousFamilleId        String?
+  chefSousFamille          Membre?                       @relation("ChefSousFamille", fields: [chefSousFamilleId], references: [id])
+  membresRattaches         Membre[]                      @relation("ChefSousFamille")
+  anneeAdhesion            Int // année à partir de laquelle la contribution est attendue
+  anneeFinContribution     Int? // renseignée automatiquement si statut = DECEDE ou INACTIF
+  dateDeces                DateTime?
+  compteUtilisateurId      String?                       @unique
+  compteUtilisateur        Utilisateur?                  @relation("CompteMembre", fields: [compteUtilisateurId], references: [id])
+  contributions            Contribution[]
+  affectationsFonction     AffectationFonction[] // V1.1 — nominations (actives + passées)
+  conflitsConcernes        ConflitMembreConcerne[] // V2 §4.4 (join explicite, scopé org)
+  commemorationsConcernees CommemorationMembreConcerne[] // V2 (join explicite, scopé org)
+  createdAt                DateTime                      @default(now())
+  updatedAt                DateTime                      @updatedAt
 
   @@index([organisationId])
 }
 
 model BaremeAnnuel {
-  id             String @id @default(uuid())
+  id             String        @id @default(uuid())
   organisationId String?
   organisation   Organisation? @relation(fields: [organisationId], references: [id])
   // NB : `@unique` global temporaire. Deviendra `@@unique([organisationId, annee])` en
   // Phase C (avec l'adaptation des findUnique par annee → clé composite scopée).
-  annee          Int    @unique
-  montantAttendu Int    // en FCFA, uniforme pour tous les membres actifs cette année-là
-  createdAt      DateTime @default(now())
+  annee          Int           @unique
+  montantAttendu Int // en FCFA, uniforme pour tous les membres actifs cette année-là
+  createdAt      DateTime      @default(now())
 
   @@index([organisationId, annee])
 }
 
 model Contribution {
-  id              String   @id @default(uuid())
+  id              String        @id @default(uuid())
   organisationId  String?
   organisation    Organisation? @relation(fields: [organisationId], references: [id])
   membreId        String
-  membre          Membre   @relation(fields: [membreId], references: [id])
+  membre          Membre        @relation(fields: [membreId], references: [id])
   annee           Int
-  montantAttendu  Int      // copié du BaremeAnnuel au moment de la création (historisation)
-  montantVerse    Int      @default(0) // somme dénormalisée des Versement.montant
-  montantValorise Int      @default(0) // = montantVerse par défaut, modifiable uniquement par un Équilibrage
+  montantAttendu  Int // copié du BaremeAnnuel au moment de la création (historisation)
+  montantVerse    Int           @default(0) // somme dénormalisée des Versement.montant
+  montantValorise Int           @default(0) // = montantVerse par défaut, modifiable uniquement par un Équilibrage
   versements      Versement[]
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 
   @@unique([membreId, annee])
   @@index([organisationId, annee])
 }
 
 model Versement {
-  id              String        @id @default(uuid())
-  organisationId  String?
-  organisation    Organisation? @relation(fields: [organisationId], references: [id])
-  contributionId  String
-  contribution    Contribution  @relation(fields: [contributionId], references: [id])
-  montant         Int
-  dateVersement   DateTime
-  mode            ModeVersement
-  receptionnaireId String?      // FK Utilisateur (généralement la trésorière)
-  note            String?
-  createdAt       DateTime      @default(now())
+  id               String        @id @default(uuid())
+  organisationId   String?
+  organisation     Organisation? @relation(fields: [organisationId], references: [id])
+  contributionId   String
+  contribution     Contribution  @relation(fields: [contributionId], references: [id])
+  montant          Int
+  dateVersement    DateTime
+  mode             ModeVersement
+  receptionnaireId String? // FK Utilisateur (généralement la trésorière)
+  note             String?
+  createdAt        DateTime      @default(now())
 
   @@index([organisationId])
 }
 
 model EquilibrageContribution {
-  id             String   @id @default(uuid())
-  organisationId String?
-  organisation   Organisation? @relation(fields: [organisationId], references: [id])
-  membreId       String
-  anneeDebut     Int
-  anneeFin       Int
-  totalPeriode   Int      // total conservé, doit être identique avant/après
-  auteurId       String   // FK Utilisateur
-  dateApplication DateTime @default(now())
-  details        EquilibrageDetail[]
+  id              String              @id @default(uuid())
+  organisationId  String?
+  organisation    Organisation?       @relation(fields: [organisationId], references: [id])
+  membreId        String
+  anneeDebut      Int
+  anneeFin        Int
+  totalPeriode    Int // total conservé, doit être identique avant/après
+  auteurId        String // FK Utilisateur
+  dateApplication DateTime            @default(now())
+  details         EquilibrageDetail[]
 
   @@index([organisationId])
 }
 
 model EquilibrageDetail {
-  id             String   @id @default(uuid())
+  id             String                  @id @default(uuid())
   organisationId String?
-  organisation   Organisation? @relation(fields: [organisationId], references: [id])
+  organisation   Organisation?           @relation(fields: [organisationId], references: [id])
   equilibrageId  String
   equilibrage    EquilibrageContribution @relation(fields: [equilibrageId], references: [id])
   annee          Int
@@ -239,15 +241,15 @@ model EquilibrageDetail {
 }
 
 model Recu {
-  id             String   @id @default(uuid())
+  id             String        @id @default(uuid())
   organisationId String?
   organisation   Organisation? @relation(fields: [organisationId], references: [id])
   versementId    String
   // NB : `@unique` global temporaire. Deviendra `@@unique([organisationId, numero])`
   // en Phase C (numérotation propre à chaque organisation).
-  numero         String   @unique // ex. NKONI-2025-000123
-  genereParId    String   // FK Utilisateur
-  dateGeneration DateTime @default(now())
+  numero         String        @unique // ex. NKONI-2025-000123
+  genereParId    String // FK Utilisateur
+  dateGeneration DateTime      @default(now())
   urlPdf         String?
 
   @@index([organisationId])
@@ -298,7 +300,7 @@ model Reunion {
   lieu              String
   type              TypeReunion        @default(ORDINAIRE)
   statut            StatutReunion      @default(PLANIFIEE)
-  compteRenduTexte  String?            // texte libre ; pas de module fichier séparé pour l'instant
+  compteRenduTexte  String? // texte libre ; pas de module fichier séparé pour l'instant
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
   pointsOrdreDuJour PointOrdreDuJour[]
@@ -308,16 +310,16 @@ model Reunion {
 }
 
 model PointOrdreDuJour {
-  id          String       @id @default(uuid())
+  id             String        @id @default(uuid())
   organisationId String?
   organisation   Organisation? @relation(fields: [organisationId], references: [id])
-  reunionId   String
-  reunion     Reunion      @relation(fields: [reunionId], references: [id], onDelete: Cascade)
-  titre       String
-  ordre       Int          // position d'affichage dans l'ordre du jour
-  notes       String?
-  createdAt   DateTime     @default(now())
-  resolutions Resolution[]
+  reunionId      String
+  reunion        Reunion       @relation(fields: [reunionId], references: [id], onDelete: Cascade)
+  titre          String
+  ordre          Int // position d'affichage dans l'ordre du jour
+  notes          String?
+  createdAt      DateTime      @default(now())
+  resolutions    Resolution[]
 
   @@index([reunionId, ordre])
   @@index([organisationId])
@@ -361,33 +363,33 @@ model Resolution {
 // ---------------------------------------------------------------------------
 
 model FonctionFamiliale {
-  id           String                @id @default(uuid())
+  id             String                @id @default(uuid())
   organisationId String?
-  organisation   Organisation?       @relation(fields: [organisationId], references: [id])
+  organisation   Organisation?         @relation(fields: [organisationId], references: [id])
   // NB : `@unique` global temporaire. Deviendra `@@unique([organisationId, nom])` en
   // Phase C (nom de fonction unique PAR organisation).
-  nom          String                @unique
-  description  String?
-  createdAt    DateTime              @default(now())
+  nom            String                @unique
+  description    String?
+  createdAt      DateTime              @default(now())
   // Suppression d'une fonction → cascade sur son historique d'affectations
   // (cohérent avec Reunion → points ; le CRUD complet est réservé ADMIN/PRESIDENT).
-  affectations AffectationFonction[]
+  affectations   AffectationFonction[]
 
   @@index([organisationId])
 }
 
 model AffectationFonction {
-  id         String            @id @default(uuid())
+  id             String            @id @default(uuid())
   organisationId String?
-  organisation   Organisation? @relation(fields: [organisationId], references: [id])
-  fonctionId String
-  fonction   FonctionFamiliale @relation(fields: [fonctionId], references: [id], onDelete: Cascade)
-  membreId   String
-  membre     Membre            @relation(fields: [membreId], references: [id])
-  dateDebut  DateTime
-  dateFin    DateTime? // null = affectation active (titulaire en cours)
-  notes      String?
-  createdAt  DateTime          @default(now())
+  organisation   Organisation?     @relation(fields: [organisationId], references: [id])
+  fonctionId     String
+  fonction       FonctionFamiliale @relation(fields: [fonctionId], references: [id], onDelete: Cascade)
+  membreId       String
+  membre         Membre            @relation(fields: [membreId], references: [id])
+  dateDebut      DateTime
+  dateFin        DateTime? // null = affectation active (titulaire en cours)
+  notes          String?
+  createdAt      DateTime          @default(now())
 
   // Recherche de l'affectation active d'une fonction (where fonctionId, dateFin=null).
   @@index([fonctionId, dateFin])
@@ -397,10 +399,10 @@ model AffectationFonction {
 }
 
 model EvenementFamilial {
-  id        String   @id @default(uuid())
+  id             String        @id @default(uuid())
   organisationId String?
   organisation   Organisation? @relation(fields: [organisationId], references: [id])
-  createdAt DateTime @default(now())
+  createdAt      DateTime      @default(now())
 
   @@index([organisationId])
 }
@@ -425,28 +427,45 @@ enum StatutConflit {
 }
 
 model Conflit {
-  id                    String                @id @default(uuid())
+  id                    String                  @id @default(uuid())
   organisationId        String?
-  organisation          Organisation?         @relation(fields: [organisationId], references: [id])
+  organisation          Organisation?           @relation(fields: [organisationId], references: [id])
   titre                 String
   description           String
   niveauConfidentialite NiveauConfidentialite
-  statut                StatutConflit         @default(OUVERT)
+  statut                StatutConflit           @default(OUVERT)
   auteurId              String
-  auteur                Utilisateur           @relation("ConflitAuteur", fields: [auteurId], references: [id])
+  auteur                Utilisateur             @relation("ConflitAuteur", fields: [auteurId], references: [id])
   // Optionnel ; pertinent seulement si niveauConfidentialite = CONFIDENTIEL.
   responsableSuiviId    String?
-  responsableSuivi      Utilisateur?          @relation("ConflitResponsableSuivi", fields: [responsableSuiviId], references: [id])
-  membresConcernes      Membre[]              @relation("ConflitMembresConcernes")
-  dateOuverture         DateTime              @default(now())
+  responsableSuivi      Utilisateur?            @relation("ConflitResponsableSuivi", fields: [responsableSuiviId], references: [id])
+  membresConcernes      ConflitMembreConcerne[]
+  dateOuverture         DateTime                @default(now())
   dateResolution        DateTime?
   notes                 String? // suivi / résolution
-  createdAt             DateTime              @default(now())
-  updatedAt             DateTime              @updatedAt
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
 
   @@index([niveauConfidentialite])
   @@index([auteurId])
   @@index([responsableSuiviId])
+  @@index([organisationId])
+}
+
+// Table de jointure EXPLICITE Conflit ↔ Membre (SaaS §2.2). Porte son propre
+// `organisationId` pour rentrer dans le mécanisme d'isolation commun (extension Prisma) :
+// toute écriture/lecture de lien passe par des opérations scopées, plutôt que par un
+// M2M implicite non re-scopé. onDelete: Cascade → un conflit/membre supprimé retire ses liens.
+model ConflitMembreConcerne {
+  conflitId      String
+  conflit        Conflit       @relation(fields: [conflitId], references: [id], onDelete: Cascade)
+  membreId       String
+  membre         Membre        @relation(fields: [membreId], references: [id], onDelete: Cascade)
+  organisationId String?
+  organisation   Organisation? @relation(fields: [organisationId], references: [id])
+
+  @@id([conflitId, membreId])
+  @@index([membreId])
   @@index([organisationId])
 }
 
@@ -469,21 +488,36 @@ enum StatutCommemoration {
 }
 
 model Commemoration {
-  id               String              @id @default(uuid())
+  id               String                        @id @default(uuid())
   organisationId   String?
-  organisation     Organisation?       @relation(fields: [organisationId], references: [id])
+  organisation     Organisation?                 @relation(fields: [organisationId], references: [id])
   titre            String
-  type             TypeCommemoration   @default(COMMEMORATION)
+  type             TypeCommemoration             @default(COMMEMORATION)
   date             DateTime
   lieu             String?
   description      String?
-  statut           StatutCommemoration @default(PLANIFIEE)
-  membresConcernes Membre[]            @relation("CommemorationMembresConcernes")
+  statut           StatutCommemoration           @default(PLANIFIEE)
+  membresConcernes CommemorationMembreConcerne[]
   notes            String?
-  createdAt        DateTime            @default(now())
-  updatedAt        DateTime            @updatedAt
+  createdAt        DateTime                      @default(now())
+  updatedAt        DateTime                      @updatedAt
 
   @@index([date])
+  @@index([organisationId])
+}
+
+// Table de jointure EXPLICITE Commémoration ↔ Membre (SaaS §2.2), même logique que
+// ConflitMembreConcerne : `organisationId` propre → isolation via l'extension commune.
+model CommemorationMembreConcerne {
+  commemorationId String
+  commemoration   Commemoration @relation(fields: [commemorationId], references: [id], onDelete: Cascade)
+  membreId        String
+  membre          Membre        @relation(fields: [membreId], references: [id], onDelete: Cascade)
+  organisationId  String?
+  organisation    Organisation? @relation(fields: [organisationId], references: [id])
+
+  @@id([commemorationId, membreId])
+  @@index([membreId])
   @@index([organisationId])
 }
 
@@ -542,17 +576,17 @@ enum ActionAudit {
 }
 
 model AuditLog {
-  id           String       @id @default(uuid())
+  id             String        @id @default(uuid())
   organisationId String?
   organisation   Organisation? @relation(fields: [organisationId], references: [id])
-  entiteType   String // nom du modèle : 'Membre' | 'Contribution' | … | 'Conflit'
-  entiteId     String
-  action       ActionAudit
-  acteurId     String? // null = écriture système (seed, migration…)
-  acteur       Utilisateur? @relation("AuditActeur", fields: [acteurId], references: [id], onDelete: SetNull)
-  donneesAvant Json? // snapshot avant (null pour CREATE) — passwordHash exclu
-  donneesApres Json? // snapshot après (null pour DELETE) — passwordHash exclu
-  dateAction   DateTime     @default(now())
+  entiteType     String // nom du modèle : 'Membre' | 'Contribution' | … | 'Conflit'
+  entiteId       String
+  action         ActionAudit
+  acteurId       String? // null = écriture système (seed, migration…)
+  acteur         Utilisateur?  @relation("AuditActeur", fields: [acteurId], references: [id], onDelete: SetNull)
+  donneesAvant   Json? // snapshot avant (null pour CREATE) — passwordHash exclu
+  donneesApres   Json? // snapshot après (null pour DELETE) — passwordHash exclu
+  dateAction     DateTime      @default(now())
 
   @@index([entiteType, entiteId])
   @@index([acteurId])

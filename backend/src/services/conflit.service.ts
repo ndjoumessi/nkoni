@@ -142,23 +142,43 @@ export interface ConflitPrisma {
     create(args: any): Promise<any>
     update(args: any): Promise<any>
   }
+  // Table de jointure explicite : les liens sont écrits via des opérations TOP-LEVEL
+  // (scopées par l'extension d'isolation), jamais via un nested connect non re-scopé.
+  conflitMembreConcerne: { createMany(args: any): Promise<any> }
   utilisateur: {
     findUnique(args: any): Promise<any>
     findMany(args: any): Promise<any[]>
   }
   membre: { findMany(args: any): Promise<any[]> }
+  $transaction<T>(fn: (tx: any) => Promise<T>): Promise<T>
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
 /**
  * Include exposé. IMPORTANT : on ne renvoie JAMAIS l'objet Utilisateur complet
  * (passwordHash) — uniquement des champs sûrs pour l'auteur / le responsable.
+ * `membresConcernes` = lignes de jointure explicites → on projette le membre imbriqué.
  */
 const CONFLIT_INCLUDE = {
   auteur: { select: { id: true, email: true, role: true } },
   responsableSuivi: { select: { id: true, email: true, role: true } },
-  membresConcernes: { select: { id: true, nom: true, prenom: true } },
+  membresConcernes: { select: { membre: { select: { id: true, nom: true, prenom: true } } } },
 } as const
+
+/**
+ * Aplati les lignes de jointure `membresConcernes` ([{ membre: {…} }]) en `[{id,nom,prenom}]`,
+ * pour conserver la forme de réponse HISTORIQUE de l'API (indépendante du schéma DB : le
+ * passage au join explicite ne doit pas modifier le contrat des routes /conflits).
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function projeter(conflit: any): any {
+  if (!conflit) return conflit
+  return {
+    ...conflit,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    membresConcernes: (conflit.membresConcernes ?? []).map((j: any) => j.membre),
+  }
+}
 
 /**
  * Liste légère des comptes ACTIFS pouvant être désignés responsable de suivi (id + email
@@ -186,7 +206,7 @@ export async function listerConflitsVisibles(prisma: ConflitPrisma, u: Demandeur
     orderBy: { dateOuverture: 'desc' },
     include: CONFLIT_INCLUDE,
   })
-  return tous.filter((c) => peutVoirConflit(c, u))
+  return tous.filter((c) => peutVoirConflit(c, u)).map(projeter)
 }
 
 /**
@@ -205,7 +225,7 @@ export async function getConflitSiAutorise(
 ) {
   const conflit = await prisma.conflit.findUnique({ where: { id }, include: CONFLIT_INCLUDE })
   if (!conflit || !peutVoirConflit(conflit, u)) throw new ConflitIntrouvableError()
-  return conflit
+  return projeter(conflit)
 }
 
 /* -------------------------------------------------------------------------- */
@@ -258,11 +278,21 @@ export async function creerConflit(
     ...(params.responsableSuiviId
       ? { responsableSuivi: { connect: { id: params.responsableSuiviId } } }
       : {}),
-    ...(membreIds.length > 0
-      ? { membresConcernes: { connect: membreIds.map((id) => ({ id })) } }
-      : {}),
   }
-  return prisma.conflit.create({ data, include: CONFLIT_INCLUDE })
+
+  // Atomique : le conflit ET ses liens membres dans une transaction. Les liens sont écrits
+  // via `conflitMembreConcerne.createMany` (opération TOP-LEVEL) → l'extension d'isolation
+  // y injecte `organisationId` (même mécanisme que le reste), pas un nested connect.
+  const conflit = await prisma.$transaction(async (tx) => {
+    const cree = await tx.conflit.create({ data })
+    if (membreIds.length > 0) {
+      await tx.conflitMembreConcerne.createMany({
+        data: membreIds.map((mid) => ({ conflitId: cree.id, membreId: mid })),
+      })
+    }
+    return tx.conflit.findUnique({ where: { id: cree.id }, include: CONFLIT_INCLUDE })
+  })
+  return projeter(conflit)
 }
 
 /* -------------------------------------------------------------------------- */
@@ -305,5 +335,6 @@ export async function majConflit(
       data.dateResolution = null // réouverture → efface la date de résolution
     }
   }
-  return prisma.conflit.update({ where: { id }, data, include: CONFLIT_INCLUDE })
+  const maj = await prisma.conflit.update({ where: { id }, data, include: CONFLIT_INCLUDE })
+  return projeter(maj)
 }

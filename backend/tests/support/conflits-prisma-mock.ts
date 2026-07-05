@@ -4,9 +4,10 @@
  * Mock Prisma en mémoire pour le module V2 Conflits.
  *
  * Gère ce que conflit.service appelle : conflit (findMany/findUnique avec include
- * auteur/responsableSuivi/membresConcernes, create avec connect, update), utilisateur
- * (findUnique — comptes pré-alimentés, pour valider responsableSuiviId), membre
- * (findMany where id in — pour valider membresConcernes).
+ * auteur/responsableSuivi/membresConcernes, create, update), la table de jointure explicite
+ * conflitMembreConcerne (createMany) et `$transaction` interactif, utilisateur (findUnique —
+ * comptes pré-alimentés, pour valider responsableSuiviId), membre (findMany where id in —
+ * pour valider membresConcernes).
  *
  * IMPORTANT : l'include ne renvoie que des champs SÛRS (jamais passwordHash).
  */
@@ -65,6 +66,8 @@ export function buildConflitsMock() {
     const u = users.get(id)
     return u ? { id: u.id, email: u.email, role: u.role } : null
   }
+  // `membresConcernes` exposé sous forme de lignes de jointure ([{ membre }]) — comme l'include
+  // Prisma réel du join explicite — que le service aplati ensuite (projeter).
   const view = (c: StoredConflit) => ({
     id: c.id,
     titre: c.titre,
@@ -83,10 +86,10 @@ export function buildConflitsMock() {
     membresConcernes: c.membresConcernes
       .map((id) => membres.get(id))
       .filter((m): m is StoredMembre => !!m)
-      .map((m) => ({ id: m.id, nom: m.nom, prenom: m.prenom })),
+      .map((m) => ({ membre: { id: m.id, nom: m.nom, prenom: m.prenom } })),
   })
 
-  return {
+  const api: any = {
     conflit: {
       findMany: async (args: any = {}) => {
         let list = [...conflits.values()]
@@ -111,7 +114,7 @@ export function buildConflitsMock() {
           statut: d.statut ?? 'OUVERT',
           auteurId: d.auteur.connect.id,
           responsableSuiviId: d.responsableSuivi?.connect?.id ?? null,
-          membresConcernes: (d.membresConcernes?.connect ?? []).map((m: any) => m.id),
+          membresConcernes: [], // liens posés séparément via conflitMembreConcerne
           dateOuverture: now,
           dateResolution: null,
           notes: d.notes ?? null,
@@ -135,6 +138,17 @@ export function buildConflitsMock() {
         return view(c)
       },
     },
+    // Table de jointure explicite : reflète les liens dans le membresConcernes du parent.
+    conflitMembreConcerne: {
+      createMany: async (args: any) => {
+        const rows: any[] = args.data ?? []
+        for (const r of rows) {
+          const c = conflits.get(r.conflitId)
+          if (c && !c.membresConcernes.includes(r.membreId)) c.membresConcernes.push(r.membreId)
+        }
+        return { count: rows.length }
+      },
+    },
     utilisateur: {
       findUnique: async (args: any) => {
         const u = users.get(args.where.id)
@@ -156,5 +170,8 @@ export function buildConflitsMock() {
           .map((m) => ({ id: m.id }))
       },
     },
+    // $transaction interactif : passe le mock lui-même comme `tx`.
+    $transaction: async (fn: any) => fn(api),
   }
+  return api
 }

@@ -7,8 +7,10 @@
 /** Surface minimale de Prisma utilisée par ouvrirAnnee (mockable). */
 export interface OuvrirAnneePrisma {
   baremeAnnuel: {
+    // findFirst (et non findUnique) : `annee` n'est plus unique globalement mais
+    // par organisation (@@unique([organisationId, annee])) → lecture scopée par l'extension.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    findUnique(args: any): Promise<any>
+    findFirst(args: any): Promise<any>
   }
   membre: {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -53,7 +55,7 @@ export async function ouvrirAnnee(
   prisma: OuvrirAnneePrisma,
   annee: number,
 ): Promise<OuvrirAnneeResult> {
-  const bareme = await prisma.baremeAnnuel.findUnique({ where: { annee } })
+  const bareme = await prisma.baremeAnnuel.findFirst({ where: { annee } })
   if (!bareme) {
     throw new BaremeIntrouvableError(annee)
   }

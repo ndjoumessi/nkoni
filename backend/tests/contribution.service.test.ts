@@ -16,7 +16,7 @@ function buildMock(options: {
   const existing = new Set<string>() // clés (membreId|annee) déjà créées
   const prisma: OuvrirAnneePrisma = {
     baremeAnnuel: {
-      findUnique: async ({ where }: { where: { annee: number } }) =>
+      findFirst: async ({ where }: { where: { annee: number } }) =>
         options.bareme && options.bareme.annee === where.annee ? options.bareme : null,
     },
     membre: {

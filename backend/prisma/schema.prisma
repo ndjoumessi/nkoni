@@ -45,9 +45,10 @@ enum StatutContribution {
 //
 // PHASE A (expand) : chaque modèle métier reçoit `organisationId` NULLABLE + un
 // index. Le peuplement (backfill vers « WAMBA TCHOUPA ») se fait dans la migration
-// de données suivante. Le passage NOT NULL (Phase B) et les uniques par-organisation
-// (BaremeAnnuel.annee, Recu.numero, FonctionFamiliale.nom → composites) viendront
-// APRÈS, avec l'extension d'isolation (Phase C). Voir §9 (protocole de sécurité).
+// de données suivante. PHASE C (fait) : extension d'isolation branchée + uniques
+// par-organisation (BaremeAnnuel.annee, Recu.numero, FonctionFamiliale.nom → composites
+// `@@unique([organisationId, champ])`). PHASE B (à venir) : passage `organisationId`
+// NOT NULL après vérification 0 orphelin. Voir §9 (protocole de sécurité).
 // ===========================================================================
 
 enum Devise {
@@ -169,13 +170,14 @@ model BaremeAnnuel {
   id             String        @id @default(uuid())
   organisationId String?
   organisation   Organisation? @relation(fields: [organisationId], references: [id])
-  // NB : `@unique` global temporaire. Deviendra `@@unique([organisationId, annee])` en
-  // Phase C (avec l'adaptation des findUnique par annee → clé composite scopée).
-  annee          Int           @unique
+  // Unicité PAR ORGANISATION (SaaS §2.2) : une seule ligne par (org, année). La lecture par
+  // année passe par un findFirst scopé (cf. contribution.service) — plus de findUnique global.
+  annee          Int
   montantAttendu Int // en FCFA, uniforme pour tous les membres actifs cette année-là
   createdAt      DateTime      @default(now())
 
-  @@index([organisationId, annee])
+  // L'unique composite (org, annee) fournit déjà l'index pour les lectures par organisation.
+  @@unique([organisationId, annee])
 }
 
 model Contribution {
@@ -245,13 +247,14 @@ model Recu {
   organisationId String?
   organisation   Organisation? @relation(fields: [organisationId], references: [id])
   versementId    String
-  // NB : `@unique` global temporaire. Deviendra `@@unique([organisationId, numero])`
-  // en Phase C (numérotation propre à chaque organisation).
-  numero         String        @unique // ex. NKONI-2025-000123
+  // Numérotation PROPRE À CHAQUE ORGANISATION (SaaS §2.2) : unicité (org, numero). La
+  // génération séquentielle lit le dernier numéro via un findFirst scopé (recu.service).
+  numero         String // ex. NKONI-2025-000123
   genereParId    String // FK Utilisateur
   dateGeneration DateTime      @default(now())
   urlPdf         String?
 
+  @@unique([organisationId, numero])
   @@index([organisationId])
 }
 
@@ -366,15 +369,16 @@ model FonctionFamiliale {
   id             String                @id @default(uuid())
   organisationId String?
   organisation   Organisation?         @relation(fields: [organisationId], references: [id])
-  // NB : `@unique` global temporaire. Deviendra `@@unique([organisationId, nom])` en
-  // Phase C (nom de fonction unique PAR organisation).
-  nom            String                @unique
+  // Nom de fonction unique PAR organisation (SaaS §2.2). Le P2002 sur cette contrainte est
+  // mappé en 409 (FonctionNomDuplicateError) sans inspecter la cible → inchangé côté service.
+  nom            String
   description    String?
   createdAt      DateTime              @default(now())
   // Suppression d'une fonction → cascade sur son historique d'affectations
   // (cohérent avec Reunion → points ; le CRUD complet est réservé ADMIN/PRESIDENT).
   affectations   AffectationFonction[]
 
+  @@unique([organisationId, nom])
   @@index([organisationId])
 }
 

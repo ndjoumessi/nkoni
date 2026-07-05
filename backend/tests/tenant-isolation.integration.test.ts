@@ -24,10 +24,11 @@ let membreAId = ''
 let membreBId = ''
 let auteurAId = ''
 
-/** Nettoyage idempotent (via `base`, non scopé). Ordre FK : liens → conflits → membres/users → orgs. */
+/** Nettoyage idempotent (via `base`, non scopé). Ordre FK : liens → conflits → membres/users/baremes → orgs. */
 async function nettoyer(): Promise<void> {
   await base.conflitMembreConcerne.deleteMany({ where: { organisationId: { in: [ORG_A, ORG_B] } } })
   await base.conflit.deleteMany({ where: { organisationId: { in: [ORG_A, ORG_B] } } })
+  await base.baremeAnnuel.deleteMany({ where: { organisationId: { in: [ORG_A, ORG_B] } } })
   await base.membre.deleteMany({ where: { organisationId: { in: [ORG_A, ORG_B] } } })
   await base.utilisateur.deleteMany({ where: { organisationId: { in: [ORG_A, ORG_B] } } })
   await base.organisation.deleteMany({ where: { id: { in: [ORG_A, ORG_B] } } })
@@ -170,6 +171,21 @@ describe('Isolation multi-tenant (§2.2) — extension Prisma', () => {
     const membresOrgA = await enOrg(ORG_A, () => client.membre.findMany())
     expect(membresOrgA.map((m) => m.id)).not.toContain(membreBId)
     await base.conflit.delete({ where: { id: conflit.id } })
+  })
+
+  it('unique PAR ORG (C3) : même annee de barème dans 2 orgs OK ; doublon dans la même org rejeté', async () => {
+    // Même année dans A et dans B → autorisé (espaces de noms disjoints par organisation).
+    const a = await enOrg(ORG_A, () => client.baremeAnnuel.create({ data: { annee: 2099, montantAttendu: 1 } }))
+    const b = await enOrg(ORG_B, () => client.baremeAnnuel.create({ data: { annee: 2099, montantAttendu: 2 } }))
+    expect(a.organisationId).toBe(ORG_A)
+    expect(b.organisationId).toBe(ORG_B)
+
+    // Doublon (2099) dans la MÊME org → violation de @@unique([organisationId, annee]).
+    await expect(
+      enOrg(ORG_A, () => client.baremeAnnuel.create({ data: { annee: 2099, montantAttendu: 3 } })),
+    ).rejects.toMatchObject({ code: 'P2002' })
+
+    await base.baremeAnnuel.deleteMany({ where: { annee: 2099, organisationId: { in: [ORG_A, ORG_B] } } })
   })
 
   it('create scopé du join : un lien créé en ORG_A porte organisationId = ORG_A', async () => {

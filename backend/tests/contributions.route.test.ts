@@ -29,7 +29,8 @@ function buildMock() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return {
     baremeAnnuel: {
-      findUnique: async ({ where }: any) =>
+      // ouvrir-annee lit le barème via findFirst scopé (unique (org, annee), plus global).
+      findFirst: async ({ where }: any) =>
         where.annee === 2025 ? { id: 'b2025', annee: 2025, montantAttendu: 12_000 } : null,
       findMany: async () => baremes,
     },

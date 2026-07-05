@@ -62,8 +62,9 @@ export const branchesRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
     { schema: createBrancheSchema, preHandler: [authenticate, perm('create')] },
     async (req, reply) => {
       const { nom, description } = req.body
+      // organisationId injecté par l'extension d'isolation (fourni au runtime, cf. CreationScopee).
       const branche = await app.prisma.brancheFamiliale.create({
-        data: { nom, description: description ?? null },
+        data: { nom, description: description ?? null } as Prisma.BrancheFamilialeUncheckedCreateInput,
       })
       return reply.code(201).send(branche)
     },

@@ -1,4 +1,5 @@
 import { Prisma } from '../generated/prisma/client'
+import type { CreationScopee } from '../lib/tenant-extension'
 
 /**
  * V1.1 (§5) — Résolutions.
@@ -140,7 +141,7 @@ export async function creerResolution(
     await verifierPointDansReunion(prisma, params.pointOrdreDuJourId, reunionId)
   }
 
-  const data: Prisma.ResolutionUncheckedCreateInput = {
+  const data: CreationScopee<Prisma.ResolutionUncheckedCreateInput> = {
     reunionId,
     texte: params.texte,
     ...(params.statut !== undefined ? { statut: params.statut } : {}),

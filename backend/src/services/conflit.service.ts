@@ -1,4 +1,5 @@
 import { Prisma } from '../generated/prisma/client'
+import type { CreationScopee } from '../lib/tenant-extension'
 import type { Role } from '../middlewares/permissions'
 
 /**
@@ -269,7 +270,7 @@ export async function creerConflit(
     if (trouves.length !== new Set(membreIds).size) throw new MembreConcerneIntrouvableError()
   }
 
-  const data: Prisma.ConflitCreateInput = {
+  const data: CreationScopee<Prisma.ConflitCreateInput> = {
     titre: params.titre,
     description: params.description,
     niveauConfidentialite: params.niveauConfidentialite,

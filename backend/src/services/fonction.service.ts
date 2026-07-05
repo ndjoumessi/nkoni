@@ -1,4 +1,5 @@
 import { Prisma } from '../generated/prisma/client'
+import type { CreationScopee } from '../lib/tenant-extension'
 
 /**
  * V1.1 (§5) — Fonctions/organes familiaux (CRUD).
@@ -89,7 +90,7 @@ export interface CreerFonctionParams {
 }
 
 export async function creerFonction(prisma: FonctionPrisma, params: CreerFonctionParams) {
-  const data: Prisma.FonctionFamilialeUncheckedCreateInput = {
+  const data: CreationScopee<Prisma.FonctionFamilialeUncheckedCreateInput> = {
     nom: params.nom,
     ...(params.description !== undefined ? { description: params.description } : {}),
   }

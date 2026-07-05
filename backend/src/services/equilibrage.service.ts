@@ -208,7 +208,13 @@ export interface EquilibragePrisma {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     create(args: any): Promise<any>
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    findUnique(args: any): Promise<any>
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     findMany(args: any): Promise<any[]>
+  }
+  equilibrageDetail: {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    createMany(args: any): Promise<any>
   }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   $transaction<T>(fn: (tx: any) => Promise<T>): Promise<T>
@@ -333,22 +339,24 @@ export async function appliquerEquilibrage(
       montantsAjustes,
     )
 
-    // 3. Trace d'audit : l'équilibrage + le détail avant/après par année (une seule création imbriquée).
-    const equilibrage = await tx.equilibrageContribution.create({
-      data: {
-        membreId,
-        anneeDebut,
-        anneeFin,
-        totalPeriode,
-        auteurId,
-        details: {
-          create: lignes.map((l) => ({
-            annee: l.annee,
-            montantAvant: l.montantAvant,
-            montantApres: l.montantApres,
-          })),
-        },
-      },
+    // 3. Trace d'audit : l'équilibrage + le détail avant/après par année. EquilibrageDetail
+    //    est un modèle SCOPÉ → écrit via une op TOP-LEVEL (createMany) pour que l'extension
+    //    lui injecte organisationId (un nested create ne serait pas ré-scopé → org nul,
+    //    interdit depuis la Phase B NOT NULL). L'équilibrage et ses détails restent atomiques
+    //    (même transaction `tx`).
+    const cree = await tx.equilibrageContribution.create({
+      data: { membreId, anneeDebut, anneeFin, totalPeriode, auteurId },
+    })
+    await tx.equilibrageDetail.createMany({
+      data: lignes.map((l) => ({
+        equilibrageId: cree.id,
+        annee: l.annee,
+        montantAvant: l.montantAvant,
+        montantApres: l.montantApres,
+      })),
+    })
+    const equilibrage = await tx.equilibrageContribution.findUnique({
+      where: { id: cree.id },
       include: { details: true },
     })
 

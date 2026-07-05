@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyPluginAsync, FastifyReply } from 'fastify'
 import { Prisma } from '../generated/prisma/client'
+import type { CreationScopee } from '../lib/tenant-extension'
 import { authenticate } from '../middlewares/authenticate'
 import { requirePermission } from '../middlewares/permissions'
 import { calculerStatutsMembres } from '../services/membreStatut.service'
@@ -164,7 +165,8 @@ export const membresRoutes: FastifyPluginAsync = async (app: FastifyInstance) =>
       const futurCheck = validerAnneeAdhesion(body.anneeAdhesion, reply)
       if (futurCheck) return futurCheck
 
-      const data: Prisma.MembreUncheckedCreateInput = {
+      // organisationId injecté par l'extension d'isolation (cf. CreationScopee) → non fourni ici.
+      const data: CreationScopee<Prisma.MembreUncheckedCreateInput> = {
         nom: body.nom,
         prenom: body.prenom,
         anneeAdhesion: body.anneeAdhesion,
@@ -181,7 +183,9 @@ export const membresRoutes: FastifyPluginAsync = async (app: FastifyInstance) =>
       const fin = finContributionAuto(body)
       if (fin !== undefined) data.anneeFinContribution = fin
 
-      const membre = await app.prisma.membre.create({ data })
+      const membre = await app.prisma.membre.create({
+        data: data as Prisma.MembreUncheckedCreateInput,
+      })
       return reply.code(201).send(membre)
     },
   )

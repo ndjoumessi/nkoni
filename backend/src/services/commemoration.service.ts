@@ -1,4 +1,5 @@
 import { Prisma } from '../generated/prisma/client'
+import type { CreationScopee } from '../lib/tenant-extension'
 
 /**
  * V2 — Commémorations / cérémonies (domaine du GUIDE_RELIGIEUX + ADMIN).
@@ -140,7 +141,7 @@ export async function creerCommemoration(
   const membreIds = params.membresConcernes ?? []
   await validerMembres(prisma, membreIds)
 
-  const data: Prisma.CommemorationCreateInput = {
+  const data: CreationScopee<Prisma.CommemorationCreateInput> = {
     titre: params.titre,
     date: new Date(params.date),
     ...(params.type !== undefined ? { type: params.type } : {}),

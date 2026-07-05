@@ -1,4 +1,5 @@
 import { Prisma } from '../generated/prisma/client'
+import type { CreationScopee } from '../lib/tenant-extension'
 import { hashPassword } from './auth.service'
 import type { Role } from '../middlewares/permissions'
 
@@ -119,7 +120,7 @@ export async function creerUtilisateur(
   if (membreId !== undefined) await verifierMembreLiable(prisma, membreId)
 
   const passwordHash = await hashPassword(password)
-  const data: Prisma.UtilisateurUncheckedCreateInput & {
+  const data: CreationScopee<Prisma.UtilisateurUncheckedCreateInput> & {
     membre?: { connect: { id: string } }
   } = { email, passwordHash, role }
   if (membreId !== undefined) data.membre = { connect: { id: membreId } }

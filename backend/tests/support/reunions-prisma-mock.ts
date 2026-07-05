@@ -5,8 +5,9 @@ import { Prisma } from '../../src/generated/prisma/client'
  * Mock Prisma en mémoire pour les modules V1.1 (Réunions / Points / Résolutions).
  * Partagé par reunions.route.test.ts et resolutions.route.test.ts.
  *
- * Gère juste ce que les services appellent : include points/resolutions + _count,
- * create imbriqué (pointsOrdreDuJour.create[]), $transaction (Promise.all), cascade à la
+ * Gère juste ce que les services appellent : include points/resolutions + _count, création
+ * des points via createMany top-level (le service ne fait plus de nested create — cf. Phase B),
+ * $transaction sous ses DEUX formes (tableau Promise.all + interactive fn(tx)), cascade à la
  * suppression d'une réunion, et P2025 quand la cible d'un update/delete est absente.
  */
 
@@ -73,7 +74,7 @@ export function buildReunionsMock() {
     return out
   }
 
-  const prisma = {
+  const prisma: any = {
     reunion: {
       findMany: async (args: any = {}) => {
         let list = [...reunions.values()]
@@ -98,20 +99,6 @@ export function buildReunionsMock() {
           updatedAt: now,
         }
         reunions.set(id, r)
-        const nested = args.data.pointsOrdreDuJour?.create as any[] | undefined
-        if (nested) {
-          for (const p of nested) {
-            const pid = nextId('pt')
-            points.set(pid, {
-              id: pid,
-              reunionId: id,
-              titre: p.titre,
-              ordre: p.ordre,
-              notes: p.notes ?? null,
-              seq: ++seq,
-            })
-          }
-        }
         return withInclude(r, args.include)
       },
       update: async (args: any) => {
@@ -153,6 +140,21 @@ export function buildReunionsMock() {
         }
         points.set(id, p)
         return { ...p }
+      },
+      createMany: async (args: any) => {
+        const rows: any[] = args.data ?? []
+        for (const p of rows) {
+          const pid = nextId('pt')
+          points.set(pid, {
+            id: pid,
+            reunionId: p.reunionId,
+            titre: p.titre,
+            ordre: p.ordre,
+            notes: p.notes ?? null,
+            seq: ++seq,
+          })
+        }
+        return { count: rows.length }
       },
       update: async (args: any) => {
         const p = points.get(args.where.id)
@@ -206,7 +208,8 @@ export function buildReunionsMock() {
         return { ...r }
       },
     },
-    $transaction: async (ops: Promise<any>[]) => Promise.all(ops),
+    // Deux formes : tableau d'opérations (réordonnancement) ou callback interactif (création).
+    $transaction: async (arg: any) => (Array.isArray(arg) ? Promise.all(arg) : arg(prisma)),
   }
 
   return prisma

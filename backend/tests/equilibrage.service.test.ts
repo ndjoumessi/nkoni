@@ -70,11 +70,8 @@ function buildMock(initial: MockContribution[]) {
     equilibrageContribution: {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       create: async ({ data }: any) => {
+        // Les détails sont désormais créés séparément (equilibrageDetail.createMany top-level).
         const id = `eq${++seqEq}`
-        const details = (data.details?.create ?? []).map(
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (d: any) => ({ id: `det${++seqDet}`, equilibrageId: id, ...d }),
-        )
         const eq = {
           id,
           membreId: data.membreId,
@@ -82,12 +79,25 @@ function buildMock(initial: MockContribution[]) {
           anneeFin: data.anneeFin,
           totalPeriode: data.totalPeriode,
           auteurId: data.auteurId,
-          details,
+          details: [] as any[],
         }
         equilibrages.push(eq)
         return eq
       },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      findUnique: async ({ where }: any) => equilibrages.find((e) => e.id === where.id) ?? null,
       findMany: async () => equilibrages,
+    },
+    equilibrageDetail: {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      createMany: async ({ data }: any) => {
+        const rows: any[] = data ?? []
+        for (const d of rows) {
+          const eq = equilibrages.find((e) => e.id === d.equilibrageId)
+          if (eq) eq.details.push({ id: `det${++seqDet}`, ...d })
+        }
+        return { count: rows.length }
+      },
     },
     // Versement : toute méthode déclenche le spy → prouve la non-manipulation.
     versement: {

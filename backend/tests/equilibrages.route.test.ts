@@ -53,20 +53,26 @@ function buildMock() {
     equilibrageContribution: {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       create: async ({ data }: any) => {
+        // Détails créés séparément (equilibrageDetail.createMany top-level, cf. Phase B).
         const id = `eq${++seq}`
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const details = (data.details?.create ?? []).map((d: any, i: number) => ({
-          id: `${id}-d${i}`,
-          equilibrageId: id,
-          ...d,
-        }))
-        // `...data` inclut la clé `details` (nested create) ; on la remplace par
-        // le tableau plat des détails créés.
-        const eq = { id, ...data, details }
+        const eq = { id, ...data, details: [] as any[] }
         equilibrages.push(eq)
         return eq
       },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      findUnique: async ({ where }: any) => equilibrages.find((e) => e.id === where.id) ?? null,
       findMany: async () => equilibrages,
+    },
+    equilibrageDetail: {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      createMany: async ({ data }: any) => {
+        const rows: any[] = data ?? []
+        rows.forEach((d, i) => {
+          const eq = equilibrages.find((e) => e.id === d.equilibrageId)
+          if (eq) eq.details.push({ id: `${d.equilibrageId}-d${i}`, ...d })
+        })
+        return { count: rows.length }
+      },
     },
     versement: {
       create: versementGuard,

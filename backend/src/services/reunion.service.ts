@@ -1,4 +1,5 @@
 import { Prisma } from '../generated/prisma/client'
+import type { CreationScopee } from '../lib/tenant-extension'
 
 /**
  * V1.1 (§5) — Réunions + Ordre du jour.
@@ -56,10 +57,14 @@ export interface ReunionPrisma {
   }
   pointOrdreDuJour: {
     create(args: any): Promise<any>
+    createMany(args: any): Promise<any>
     update(args: any): Promise<any>
     delete(args: any): Promise<any>
   }
+  // Prisma expose les deux formes ; on utilise la forme tableau (réordonnancement) et la
+  // forme interactive (création réunion + points scopés en une transaction).
   $transaction(ops: Promise<any>[]): Promise<any[]>
+  $transaction<T>(fn: (tx: any) => Promise<T>): Promise<T>
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
@@ -116,7 +121,7 @@ export interface CreerReunionParams {
 }
 
 export async function creerReunion(prisma: ReunionPrisma, params: CreerReunionParams) {
-  const data: Prisma.ReunionUncheckedCreateInput = {
+  const data: CreationScopee<Prisma.ReunionUncheckedCreateInput> = {
     date: new Date(params.date),
     lieu: params.lieu,
     ...(params.type !== undefined ? { type: params.type } : {}),
@@ -125,16 +130,25 @@ export async function creerReunion(prisma: ReunionPrisma, params: CreerReunionPa
       ? { compteRenduTexte: params.compteRenduTexte }
       : {}),
   }
-  if (params.pointsOrdreDuJour && params.pointsOrdreDuJour.length > 0) {
-    data.pointsOrdreDuJour = {
-      create: params.pointsOrdreDuJour.map((p, index) => ({
-        titre: p.titre,
-        ordre: index,
-        ...(p.notes !== undefined ? { notes: p.notes } : {}),
-      })),
+  const points = params.pointsOrdreDuJour ?? []
+
+  // Atomique : la réunion ET ses points. Les points sont un modèle SCOPÉ → écrits via une op
+  // TOP-LEVEL (createMany) pour que l'extension leur injecte organisationId (un nested create
+  // ne serait pas ré-scopé → organisationId nul, interdit depuis la Phase B NOT NULL).
+  return prisma.$transaction(async (tx) => {
+    const reunion = await tx.reunion.create({ data })
+    if (points.length > 0) {
+      await tx.pointOrdreDuJour.createMany({
+        data: points.map((p, index) => ({
+          reunionId: reunion.id,
+          titre: p.titre,
+          ordre: index,
+          ...(p.notes !== undefined ? { notes: p.notes } : {}),
+        })),
+      })
     }
-  }
-  return prisma.reunion.create({ data, include: REUNION_INCLUDE })
+    return tx.reunion.findUnique({ where: { id: reunion.id }, include: REUNION_INCLUDE })
+  })
 }
 
 /* -------------------------------------------------------------------------- */

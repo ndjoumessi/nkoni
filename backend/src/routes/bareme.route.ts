@@ -56,8 +56,10 @@ export const baremeRoutes: FastifyPluginAsync = async (app: FastifyInstance) => 
     async (req, reply) => {
       const { annee, montantAttendu } = req.body
       try {
+        // organisationId injecté par l'extension d'isolation (cast : requis par le type mais
+        // fourni au runtime, cf. CreationScopee).
         const bareme = await app.prisma.baremeAnnuel.create({
-          data: { annee, montantAttendu },
+          data: { annee, montantAttendu } as Prisma.BaremeAnnuelUncheckedCreateInput,
         })
         return reply.code(201).send(bareme)
       } catch (err) {

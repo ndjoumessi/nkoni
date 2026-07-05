@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
 import { Prisma } from '../generated/prisma/client'
+import type { CreationScopee } from '../lib/tenant-extension'
 import { authenticate } from '../middlewares/authenticate'
 import { requirePermission } from '../middlewares/permissions'
 import { notifierVersement } from '../services/notification.service'
@@ -84,7 +85,8 @@ export const versementsRoutes: FastifyPluginAsync = async (
     async (req, reply) => {
       const { contributionId, montant, dateVersement, mode, note } = req.body
 
-      const data: Prisma.VersementUncheckedCreateInput = {
+      // organisationId injecté par l'extension d'isolation (cf. CreationScopee) → non fourni ici.
+      const data: CreationScopee<Prisma.VersementUncheckedCreateInput> = {
         contributionId,
         montant,
         dateVersement: new Date(dateVersement),
@@ -95,7 +97,9 @@ export const versementsRoutes: FastifyPluginAsync = async (
 
       try {
         const result = await app.prisma.$transaction(async (tx) => {
-          const versement = await tx.versement.create({ data })
+          const versement = await tx.versement.create({
+            data: data as Prisma.VersementUncheckedCreateInput,
+          })
           const contribution = await tx.contribution.update({
             where: { id: contributionId },
             data: {

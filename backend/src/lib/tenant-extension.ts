@@ -41,6 +41,14 @@ import { orgContext } from './org-context'
  *     (on écrit donc les liens M2M via des opérations top-level, cf. services conflit/commémo).
  */
 
+/**
+ * Type d'entrée de CRÉATION d'un modèle scopé, SANS `organisationId`/`organisation` :
+ * l'extension d'isolation injecte l'organisation courante au runtime (fail-closed sinon), donc
+ * les services/routes n'ont pas à la fournir. `organisationId` étant NOT NULL (Phase B), les
+ * types Prisma l'exigeraient sinon ; ce helper documente que l'injection est déléguée.
+ */
+export type CreationScopee<T> = Omit<T, 'organisationId' | 'organisation'>
+
 /** Les 22 modèles métier scopés par organisation (tous portent `organisationId`).
  *  Inclut les 2 tables de jointure M2M explicites (Conflit/Commémoration ↔ Membre) :
  *  leurs liens sont créés/lus via des opérations scopées, pas via un M2M implicite. */

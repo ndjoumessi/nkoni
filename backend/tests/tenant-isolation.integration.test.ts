@@ -24,13 +24,16 @@ let membreAId = ''
 let membreBId = ''
 let auteurAId = ''
 
-/** Nettoyage idempotent (via `base`, non scopé). Ordre FK : liens → conflits → membres/users/baremes → orgs. */
+/** Nettoyage idempotent (via `base`, non scopé). Ordre FK : enfants → parents → orgs. */
 async function nettoyer(): Promise<void> {
-  await base.conflitMembreConcerne.deleteMany({ where: { organisationId: { in: [ORG_A, ORG_B] } } })
-  await base.conflit.deleteMany({ where: { organisationId: { in: [ORG_A, ORG_B] } } })
-  await base.baremeAnnuel.deleteMany({ where: { organisationId: { in: [ORG_A, ORG_B] } } })
-  await base.membre.deleteMany({ where: { organisationId: { in: [ORG_A, ORG_B] } } })
-  await base.utilisateur.deleteMany({ where: { organisationId: { in: [ORG_A, ORG_B] } } })
+  const orgs = { organisationId: { in: [ORG_A, ORG_B] } }
+  await base.conflitMembreConcerne.deleteMany({ where: orgs })
+  await base.conflit.deleteMany({ where: orgs })
+  await base.pointOrdreDuJour.deleteMany({ where: orgs })
+  await base.reunion.deleteMany({ where: orgs })
+  await base.baremeAnnuel.deleteMany({ where: orgs })
+  await base.membre.deleteMany({ where: orgs })
+  await base.utilisateur.deleteMany({ where: orgs })
   await base.organisation.deleteMany({ where: { id: { in: [ORG_A, ORG_B] } } })
 }
 
@@ -188,6 +191,23 @@ describe('Isolation multi-tenant (§2.2) — extension Prisma', () => {
     ).rejects.toMatchObject({ code: 'P2002' })
 
     await base.baremeAnnuel.deleteMany({ where: { annee: 2099, organisationId: { in: [ORG_A, ORG_B] } } })
+  })
+
+  it('enfant scopé en op top-level (Phase B) : un point créé via createMany porte organisationId', async () => {
+    // Valide le refactor reunion/equilibrage : les enfants scopés (PointOrdreDuJour,
+    // EquilibrageDetail) sont créés en op TOP-LEVEL → l'extension injecte organisationId.
+    // Sous NOT NULL, un nested create (non ré-scopé) aurait un org nul → INSERT rejeté.
+    const reunion = await enOrg(ORG_A, () =>
+      client.reunion.create({ data: { date: new Date('2026-01-01T00:00:00Z'), lieu: 'Salle' } }),
+    )
+    expect(reunion.organisationId).toBe(ORG_A)
+    await enOrg(ORG_A, () =>
+      client.pointOrdreDuJour.createMany({ data: [{ reunionId: reunion.id, titre: 'P', ordre: 0 }] }),
+    )
+    const point = await base.pointOrdreDuJour.findFirst({ where: { reunionId: reunion.id } })
+    expect(point?.organisationId).toBe(ORG_A)
+    await base.pointOrdreDuJour.deleteMany({ where: { reunionId: reunion.id } })
+    await base.reunion.delete({ where: { id: reunion.id } })
   })
 
   it('create scopé du join : un lien créé en ORG_A porte organisationId = ORG_A', async () => {

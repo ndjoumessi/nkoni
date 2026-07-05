@@ -4,6 +4,8 @@ import {
   ArrowLeftRight,
   BarChart3,
   Coins,
+  FileSpreadsheet,
+  FileText,
   Minus,
   Percent,
   TrendingDown,
@@ -14,7 +16,10 @@ import { useAuth } from '@/contexts/auth-context'
 import {
   baremeApi,
   rapportsApi,
+  downloadRapportFinancier,
+  downloadRapportComparaison,
   messageErreur,
+  ApiError,
   type ComparaisonPeriodes,
   type RapportAnnee,
   type RapportFinancier,
@@ -22,10 +27,12 @@ import {
 import { peutVoirRapports } from '@/lib/roles'
 import { formatFcfa, formatNombre, formatPourcent } from '@/lib/format'
 import { cn, prefersReducedMotion } from '@/lib/utils'
+import { useToast } from '@/components/ui/Toast'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, Overline } from '@/components/ui/Card'
 import { StatCard } from '@/components/ui/StatCard'
 import { Badge } from '@/components/ui/Badge'
+import { Button } from '@/components/ui/Button'
 import { Field, Select } from '@/components/ui/Field'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { RowsSkeleton } from '@/components/ui/Skeleton'
@@ -306,10 +313,12 @@ function VueComparaison({ data }: { data: ComparaisonPeriodes }) {
  */
 export function RapportsPage() {
   const { user, accessToken } = useAuth()
+  const toast = useToast()
 
   const [annees, setAnnees] = useState<number[]>([])
   const [chargementAnnees, setChargementAnnees] = useState(true)
   const [mode, setMode] = useState<Mode>('evolution')
+  const [exportEnCours, setExportEnCours] = useState<'xlsx' | 'pdf' | null>(null)
 
   const [debut, setDebut] = useState<number | null>(null)
   const [fin, setFin] = useState<number | null>(null)
@@ -402,6 +411,31 @@ export function RapportsPage() {
     const taux = totAttendu > 0 ? Math.round((totCollecte / totAttendu) * 10000) / 100 : 0
     return { totAttendu, totCollecte, taux, nbAnnees: rapport.annees.length }
   }, [rapport])
+
+  // Export du rapport courant (fetch authentifié → téléchargement). Le nom de fichier
+  // (plage / deux années) est porté par le Content-Disposition du serveur.
+  const exporter = async (format: 'xlsx' | 'pdf') => {
+    if (!accessToken) return
+    setExportEnCours(format)
+    try {
+      if (mode === 'evolution' && debut !== null && fin !== null) {
+        await downloadRapportFinancier(debut, fin, format, accessToken)
+      } else if (mode === 'comparaison' && anneeA !== null && anneeB !== null) {
+        await downloadRapportComparaison(anneeA, anneeB, format, accessToken)
+      }
+      toast.success('Export prêt', `Le fichier ${format.toUpperCase()} a été téléchargé.`)
+    } catch (e) {
+      toast.error('Échec de l’export', e instanceof ApiError ? e.message : 'Réessayez plus tard.')
+    } finally {
+      setExportEnCours(null)
+    }
+  }
+
+  const exportDesactive =
+    exportEnCours !== null ||
+    (mode === 'evolution'
+      ? !rapport || rapport.annees.length === 0 || debut === null || fin === null
+      : comparaison === null || anneeA === null || anneeB === null)
 
   if (!peutVoirRapports(user?.role)) {
     return <Navigate to="/dashboard" replace />
@@ -513,6 +547,37 @@ export function RapportsPage() {
                   </Field>
                 </>
               )}
+
+              {/* Export du rapport courant — rattaché aux sélecteurs qui le définissent. */}
+              <div className="ml-auto flex flex-col">
+                <span className="mb-1.5 text-[0.72rem] font-medium uppercase tracking-[0.1em] text-faint">
+                  Export
+                </span>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    icon={FileSpreadsheet}
+                    loading={exportEnCours === 'xlsx'}
+                    disabled={exportDesactive}
+                    onClick={() => exporter('xlsx')}
+                  >
+                    Excel
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    icon={FileText}
+                    loading={exportEnCours === 'pdf'}
+                    disabled={exportDesactive}
+                    onClick={() => exporter('pdf')}
+                  >
+                    PDF
+                  </Button>
+                </div>
+              </div>
             </div>
           </Card>
 

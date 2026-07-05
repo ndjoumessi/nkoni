@@ -305,6 +305,71 @@ export async function downloadExportContributions(
   URL.revokeObjectURL(url)
 }
 
+/**
+ * Télécharge un fichier binaire authentifié (fetch → Blob → lien object-URL éphémère),
+ * en respectant le nom de fichier du `Content-Disposition` (repli sur `fallbackName`).
+ * Base commune aux exports de rapports.
+ */
+async function telechargerBinaire(
+  path: string,
+  fallbackName: string,
+  accessToken: string,
+): Promise<void> {
+  const res = await fetch(`${API_URL}${path}`, {
+    credentials: 'include',
+    headers: { Authorization: `Bearer ${accessToken}` },
+  })
+  if (!res.ok) {
+    let message = `Erreur ${res.status}`
+    try {
+      const data = (await res.json()) as { message?: unknown }
+      if (data?.message) message = String(data.message)
+    } catch {
+      // corps non-JSON : message générique conservé
+    }
+    throw new ApiError(res.status, message)
+  }
+  const blob = await res.blob()
+  const filename =
+    nomFichierDepuisDisposition(res.headers.get('Content-Disposition')) ?? fallbackName
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
+}
+
+/** Export du rapport d'évolution (plage d'années) en Excel/PDF. */
+export function downloadRapportFinancier(
+  anneeDebut: number,
+  anneeFin: number,
+  format: 'xlsx' | 'pdf',
+  accessToken: string,
+): Promise<void> {
+  return telechargerBinaire(
+    `/rapports/financier/export?anneeDebut=${anneeDebut}&anneeFin=${anneeFin}&format=${format}`,
+    `rapport-financier-${anneeDebut}-${anneeFin}.${format}`,
+    accessToken,
+  )
+}
+
+/** Export de la comparaison de deux années en Excel/PDF. */
+export function downloadRapportComparaison(
+  anneeA: number,
+  anneeB: number,
+  format: 'xlsx' | 'pdf',
+  accessToken: string,
+): Promise<void> {
+  return telechargerBinaire(
+    `/rapports/comparaison/export?anneeA=${anneeA}&anneeB=${anneeB}&format=${format}`,
+    `comparaison-${anneeA}-${anneeB}.${format}`,
+    accessToken,
+  )
+}
+
 /* -------------------------------------------------------------------------- */
 /* Membres, Branches, Contributions (§5.2 / §4.1)                            */
 /* -------------------------------------------------------------------------- */

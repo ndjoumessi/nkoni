@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Navigate, useParams } from 'react-router-dom'
 import {
   ArrowDown,
@@ -29,7 +29,7 @@ import {
   peutGererDocument,
 } from '@/lib/roles'
 import { DocumentsSection } from '@/components/documents/DocumentsSection'
-import { formatDateFR } from '@/lib/utils'
+import { formatDateFR, focusPremierChampInvalide } from '@/lib/utils'
 import { useToast } from '@/components/ui/Toast'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, Overline } from '@/components/ui/Card'
@@ -79,6 +79,8 @@ export function ReunionDetailPage() {
   // Ajout d'un point.
   const [nouveauPoint, setNouveauPoint] = useState('')
   const [addingPoint, setAddingPoint] = useState(false)
+  const [errPoint, setErrPoint] = useState<string | undefined>(undefined)
+  const pointFormRef = useRef<HTMLFormElement>(null)
 
   // Formulaire résolution.
   const [resTexte, setResTexte] = useState('')
@@ -86,6 +88,8 @@ export function ReunionDetailPage() {
   const [resPointId, setResPointId] = useState('')
   const [resSubmitting, setResSubmitting] = useState(false)
   const [resPending, setResPending] = useState<string | null>(null)
+  const [errRes, setErrRes] = useState<string | undefined>(undefined)
+  const resFormRef = useRef<HTMLFormElement>(null)
 
   useEffect(() => {
     if (!accessToken || !id) return
@@ -160,7 +164,12 @@ export function ReunionDetailPage() {
 
   const ajouterPoint = async (e: FormEvent) => {
     e.preventDefault()
-    if (!accessToken || !reunion || nouveauPoint.trim().length === 0) return
+    if (!accessToken || !reunion) return
+    if (nouveauPoint.trim().length === 0) {
+      setErrPoint('Saisissez l’intitulé du point.')
+      requestAnimationFrame(() => focusPremierChampInvalide(pointFormRef.current))
+      return
+    }
     setAddingPoint(true)
     try {
       const point = await reunionsApi.addPoint(reunion.id, { titre: nouveauPoint.trim() }, accessToken)
@@ -213,7 +222,12 @@ export function ReunionDetailPage() {
 
   const ajouterResolution = async (e: FormEvent) => {
     e.preventDefault()
-    if (!accessToken || !reunion || resTexte.trim().length === 0) return
+    if (!accessToken || !reunion) return
+    if (resTexte.trim().length === 0) {
+      setErrRes('Le texte de la résolution est requis.')
+      requestAnimationFrame(() => focusPremierChampInvalide(resFormRef.current))
+      return
+    }
     setResSubmitting(true)
     try {
       const res = await resolutionsApi.create(
@@ -426,21 +440,28 @@ export function ReunionDetailPage() {
         )}
 
         {gestion && (
-          <form onSubmit={ajouterPoint} className="mt-4 flex gap-2">
-            <Input
-              value={nouveauPoint}
-              onChange={(e) => setNouveauPoint(e.target.value)}
-              placeholder="Ajouter un point à l’ordre du jour…"
-            />
-            <Button
-              type="submit"
-              variant="ghost"
-              icon={Plus}
-              loading={addingPoint}
-              disabled={nouveauPoint.trim().length === 0}
-            >
-              Ajouter
-            </Button>
+          <form ref={pointFormRef} onSubmit={ajouterPoint} noValidate className="mt-4">
+            <div className="flex gap-2">
+              <Input
+                value={nouveauPoint}
+                onChange={(e) => {
+                  setNouveauPoint(e.target.value)
+                  setErrPoint(undefined)
+                }}
+                placeholder="Ajouter un point à l’ordre du jour…"
+                aria-label="Intitulé du nouveau point"
+                aria-invalid={errPoint ? true : undefined}
+                aria-describedby={errPoint ? 'point-err' : undefined}
+              />
+              <Button type="submit" variant="ghost" icon={Plus} loading={addingPoint}>
+                Ajouter
+              </Button>
+            </div>
+            {errPoint && (
+              <span id="point-err" role="alert" className="mt-1.5 block text-xs text-terra">
+                {errPoint}
+              </span>
+            )}
           </form>
         )}
       </Card>
@@ -497,12 +518,20 @@ export function ReunionDetailPage() {
         )}
 
         {gestion && (
-          <form onSubmit={ajouterResolution} className="mt-5 space-y-3 border-t border-hairline pt-5">
+          <form
+            ref={resFormRef}
+            onSubmit={ajouterResolution}
+            noValidate
+            className="mt-5 space-y-3 border-t border-hairline pt-5"
+          >
             <Overline>Ajouter une résolution</Overline>
-            <Field label="Texte de la résolution" required>
+            <Field label="Texte de la résolution" required error={errRes}>
               <Textarea
                 value={resTexte}
-                onChange={(e) => setResTexte(e.target.value)}
+                onChange={(e) => {
+                  setResTexte(e.target.value)
+                  setErrRes(undefined)
+                }}
                 placeholder="Décision adoptée par l’assemblée…"
                 rows={3}
               />
@@ -532,12 +561,7 @@ export function ReunionDetailPage() {
               </Field>
             </div>
             <div className="flex justify-end">
-              <Button
-                type="submit"
-                icon={Plus}
-                loading={resSubmitting}
-                disabled={resTexte.trim().length === 0}
-              >
+              <Button type="submit" icon={Plus} loading={resSubmitting}>
                 Ajouter la résolution
               </Button>
             </div>

@@ -301,6 +301,7 @@ export function EquilibrageFormPage() {
                           onChange={(e) => setMontant(i, e.target.value)}
                           className="num"
                           aria-label={`Montant après pour ${l.annee}`}
+                          aria-invalid={(nums[i] ?? 0) < 0 ? true : undefined}
                         />
                         {delta !== 0 && (
                           <Badge tone="info" size="sm">

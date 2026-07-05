@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import {
   History,
@@ -21,7 +21,7 @@ import {
   type MembreStatut,
 } from '@/lib/api'
 import { peutVoirFonctions, peutGererFonctions, peutSupprimerFonction } from '@/lib/roles'
-import { formatDateFR } from '@/lib/utils'
+import { formatDateFR, focusPremierChampInvalide } from '@/lib/utils'
 import { useToast } from '@/components/ui/Toast'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, Overline } from '@/components/ui/Card'
@@ -60,12 +60,17 @@ export function FonctionDetailPage() {
   const [nom, setNom] = useState('')
   const [description, setDescription] = useState('')
   const [savingFonction, setSavingFonction] = useState(false)
+  const [errNom, setErrNom] = useState<string | undefined>(undefined)
+  const editFormRef = useRef<HTMLFormElement>(null)
 
   // Formulaire de nomination.
   const [membreId, setMembreId] = useState('')
   const [dateDebut, setDateDebut] = useState(aujourdHui())
   const [notes, setNotes] = useState('')
   const [nominating, setNominating] = useState(false)
+  const [errMembre, setErrMembre] = useState<string | undefined>(undefined)
+  const [errDate, setErrDate] = useState<string | undefined>(undefined)
+  const nomFormRef = useRef<HTMLFormElement>(null)
 
   // Suppression.
   const [deleteOuvert, setDeleteOuvert] = useState(false)
@@ -119,7 +124,13 @@ export function FonctionDetailPage() {
 
   const enregistrerFonction = async (e: FormEvent) => {
     e.preventDefault()
-    if (!accessToken || !fonction || nom.trim().length === 0) return
+    if (!accessToken || !fonction) return
+    const eNom = nom.trim().length === 0 ? 'Le nom est requis.' : undefined
+    setErrNom(eNom)
+    if (eNom) {
+      requestAnimationFrame(() => focusPremierChampInvalide(editFormRef.current))
+      return
+    }
     setSavingFonction(true)
     try {
       const maj = await fonctionsApi.update(
@@ -138,7 +149,15 @@ export function FonctionDetailPage() {
 
   const nommer = async (e: FormEvent) => {
     e.preventDefault()
-    if (!accessToken || !fonction || !membreId || !dateDebut) return
+    if (!accessToken || !fonction) return
+    const eMembre = membreId ? undefined : 'Choisissez un membre.'
+    const eDate = dateDebut ? undefined : 'La date de début est requise.'
+    setErrMembre(eMembre)
+    setErrDate(eDate)
+    if (eMembre || eDate) {
+      requestAnimationFrame(() => focusPremierChampInvalide(nomFormRef.current))
+      return
+    }
     setNominating(true)
     try {
       await affectationsApi.create(
@@ -265,10 +284,16 @@ export function FonctionDetailPage() {
               ? 'Nommer un nouveau titulaire clôture automatiquement l’affectation en cours (à la date de début choisie).'
               : 'Désignez le premier titulaire de cette fonction.'}
           </p>
-          <form onSubmit={nommer} className="mt-4 space-y-3">
+          <form ref={nomFormRef} onSubmit={nommer} noValidate className="mt-4 space-y-3">
             <div className="grid gap-3 sm:grid-cols-2">
-              <Field label="Membre" required>
-                <Select value={membreId} onChange={(e) => setMembreId(e.target.value)}>
+              <Field label="Membre" required error={errMembre}>
+                <Select
+                  value={membreId}
+                  onChange={(e) => {
+                    setMembreId(e.target.value)
+                    setErrMembre(undefined)
+                  }}
+                >
                   <option value="">— Choisir un membre —</option>
                   {membres.map((m) => (
                     <option key={m.id} value={m.id}>
@@ -277,11 +302,14 @@ export function FonctionDetailPage() {
                   ))}
                 </Select>
               </Field>
-              <Field label="Date de début" required>
+              <Field label="Date de début" required error={errDate}>
                 <Input
                   type="date"
                   value={dateDebut}
-                  onChange={(e) => setDateDebut(e.target.value)}
+                  onChange={(e) => {
+                    setDateDebut(e.target.value)
+                    setErrDate(undefined)
+                  }}
                 />
               </Field>
             </div>
@@ -294,12 +322,7 @@ export function FonctionDetailPage() {
               />
             </Field>
             <div className="flex justify-end">
-              <Button
-                type="submit"
-                icon={UserPlus}
-                loading={nominating}
-                disabled={!membreId || !dateDebut}
-              >
+              <Button type="submit" icon={UserPlus} loading={nominating}>
                 Nommer
               </Button>
             </div>
@@ -370,9 +393,16 @@ export function FonctionDetailPage() {
             <Pencil className="h-4 w-4 text-brass" aria-hidden="true" />
             <Overline>Modifier la fonction</Overline>
           </div>
-          <form onSubmit={enregistrerFonction} className="mt-4 space-y-3">
-            <Field label="Nom" required>
-              <Input value={nom} onChange={(e) => setNom(e.target.value)} maxLength={200} />
+          <form ref={editFormRef} onSubmit={enregistrerFonction} noValidate className="mt-4 space-y-3">
+            <Field label="Nom" required error={errNom}>
+              <Input
+                value={nom}
+                onChange={(e) => {
+                  setNom(e.target.value)
+                  setErrNom(undefined)
+                }}
+                maxLength={200}
+              />
             </Field>
             <Field label="Description" hint="Optionnel.">
               <Textarea
@@ -382,12 +412,7 @@ export function FonctionDetailPage() {
               />
             </Field>
             <div className="flex justify-end">
-              <Button
-                type="submit"
-                icon={Pencil}
-                loading={savingFonction}
-                disabled={nom.trim().length === 0 || fonctionInchangee}
-              >
+              <Button type="submit" icon={Pencil} loading={savingFonction} disabled={fonctionInchangee}>
                 Enregistrer
               </Button>
             </div>

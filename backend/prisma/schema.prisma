@@ -40,8 +40,65 @@ enum StatutContribution {
   NON_A_JOUR
 }
 
+// ===========================================================================
+// SaaS multi-tenant (§2) — Organisation = racine de toute donnée métier.
+//
+// PHASE A (expand) : chaque modèle métier reçoit `organisationId` NULLABLE + un
+// index. Le peuplement (backfill vers « WAMBA TCHOUPA ») se fait dans la migration
+// de données suivante. Le passage NOT NULL (Phase B) et les uniques par-organisation
+// (BaremeAnnuel.annee, Recu.numero, FonctionFamiliale.nom → composites) viendront
+// APRÈS, avec l'extension d'isolation (Phase C). Voir §9 (protocole de sécurité).
+// ===========================================================================
+
+enum Devise {
+  FCFA
+  EUR
+  USD
+  CAD
+}
+
+enum Langue {
+  FR
+  EN
+}
+
+model Organisation {
+  id           String   @id @default(uuid())
+  nom          String
+  devise       Devise // fixée à la création, immuable (§5)
+  langueDefaut Langue   @default(FR)
+  actif        Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  // Toutes les entités métier scopées (relations inverses).
+  utilisateurs       Utilisateur[]
+  branches           BrancheFamiliale[]
+  membres            Membre[]
+  baremes            BaremeAnnuel[]
+  contributions      Contribution[]
+  versements         Versement[]
+  equilibrages       EquilibrageContribution[]
+  equilibrageDetails EquilibrageDetail[]
+  recus              Recu[]
+  reunions           Reunion[]
+  pointsOrdreDuJour  PointOrdreDuJour[]
+  resolutions        Resolution[]
+  fonctions          FonctionFamiliale[]
+  affectations       AffectationFonction[]
+  evenements         EvenementFamilial[]
+  conflits           Conflit[]
+  commemorations     Commemoration[]
+  documents          Document[]
+  auditLogs          AuditLog[]
+  notifications      Notification[]
+}
+
 model Utilisateur {
   id           String   @id @default(uuid())
+  // SaaS : 1 utilisateur = 1 organisation en v1 (multi-org reporté V2). Nullable en
+  // Phase A ; Super-Admin (transverse, §2.3) restera null quand le rôle sera ajouté.
+  organisationId String?
+  organisation   Organisation? @relation(fields: [organisationId], references: [id])
   email        String   @unique
   passwordHash String
   role         Role
@@ -58,18 +115,26 @@ model Utilisateur {
   notificationsActives Json?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+
+  @@index([organisationId])
 }
 
 model BrancheFamiliale {
   id          String   @id @default(uuid())
+  organisationId String?
+  organisation   Organisation? @relation(fields: [organisationId], references: [id])
   nom         String
   description String?
   membres     Membre[]
   createdAt   DateTime @default(now())
+
+  @@index([organisationId])
 }
 
 model Membre {
   id                  String            @id @default(uuid())
+  organisationId      String?
+  organisation        Organisation?     @relation(fields: [organisationId], references: [id])
   nom                 String
   prenom              String
   sexe                String?
@@ -94,17 +159,27 @@ model Membre {
   commemorationsConcernees Commemoration[] @relation("CommemorationMembresConcernes") // V2
   createdAt           DateTime          @default(now())
   updatedAt           DateTime          @updatedAt
+
+  @@index([organisationId])
 }
 
 model BaremeAnnuel {
   id             String @id @default(uuid())
+  organisationId String?
+  organisation   Organisation? @relation(fields: [organisationId], references: [id])
+  // NB : `@unique` global temporaire. Deviendra `@@unique([organisationId, annee])` en
+  // Phase C (avec l'adaptation des findUnique par annee → clé composite scopée).
   annee          Int    @unique
   montantAttendu Int    // en FCFA, uniforme pour tous les membres actifs cette année-là
   createdAt      DateTime @default(now())
+
+  @@index([organisationId, annee])
 }
 
 model Contribution {
   id              String   @id @default(uuid())
+  organisationId  String?
+  organisation    Organisation? @relation(fields: [organisationId], references: [id])
   membreId        String
   membre          Membre   @relation(fields: [membreId], references: [id])
   annee           Int
@@ -116,10 +191,13 @@ model Contribution {
   updatedAt       DateTime @updatedAt
 
   @@unique([membreId, annee])
+  @@index([organisationId, annee])
 }
 
 model Versement {
   id              String        @id @default(uuid())
+  organisationId  String?
+  organisation    Organisation? @relation(fields: [organisationId], references: [id])
   contributionId  String
   contribution    Contribution  @relation(fields: [contributionId], references: [id])
   montant         Int
@@ -128,10 +206,14 @@ model Versement {
   receptionnaireId String?      // FK Utilisateur (généralement la trésorière)
   note            String?
   createdAt       DateTime      @default(now())
+
+  @@index([organisationId])
 }
 
 model EquilibrageContribution {
   id             String   @id @default(uuid())
+  organisationId String?
+  organisation   Organisation? @relation(fields: [organisationId], references: [id])
   membreId       String
   anneeDebut     Int
   anneeFin       Int
@@ -139,24 +221,36 @@ model EquilibrageContribution {
   auteurId       String   // FK Utilisateur
   dateApplication DateTime @default(now())
   details        EquilibrageDetail[]
+
+  @@index([organisationId])
 }
 
 model EquilibrageDetail {
   id             String   @id @default(uuid())
+  organisationId String?
+  organisation   Organisation? @relation(fields: [organisationId], references: [id])
   equilibrageId  String
   equilibrage    EquilibrageContribution @relation(fields: [equilibrageId], references: [id])
   annee          Int
   montantAvant   Int
   montantApres   Int
+
+  @@index([organisationId])
 }
 
 model Recu {
   id             String   @id @default(uuid())
+  organisationId String?
+  organisation   Organisation? @relation(fields: [organisationId], references: [id])
   versementId    String
+  // NB : `@unique` global temporaire. Deviendra `@@unique([organisationId, numero])`
+  // en Phase C (numérotation propre à chaque organisation).
   numero         String   @unique // ex. NKONI-2025-000123
   genereParId    String   // FK Utilisateur
   dateGeneration DateTime @default(now())
   urlPdf         String?
+
+  @@index([organisationId])
 }
 
 // ---------------------------------------------------------------------------
@@ -198,6 +292,8 @@ enum StatutResolution {
 
 model Reunion {
   id                String             @id @default(uuid())
+  organisationId    String?
+  organisation      Organisation?      @relation(fields: [organisationId], references: [id])
   date              DateTime
   lieu              String
   type              TypeReunion        @default(ORDINAIRE)
@@ -207,10 +303,14 @@ model Reunion {
   updatedAt         DateTime           @updatedAt
   pointsOrdreDuJour PointOrdreDuJour[]
   resolutions       Resolution[]
+
+  @@index([organisationId])
 }
 
 model PointOrdreDuJour {
   id          String       @id @default(uuid())
+  organisationId String?
+  organisation   Organisation? @relation(fields: [organisationId], references: [id])
   reunionId   String
   reunion     Reunion      @relation(fields: [reunionId], references: [id], onDelete: Cascade)
   titre       String
@@ -220,10 +320,13 @@ model PointOrdreDuJour {
   resolutions Resolution[]
 
   @@index([reunionId, ordre])
+  @@index([organisationId])
 }
 
 model Resolution {
   id                 String            @id @default(uuid())
+  organisationId     String?
+  organisation       Organisation?     @relation(fields: [organisationId], references: [id])
   reunionId          String
   reunion            Reunion           @relation(fields: [reunionId], references: [id], onDelete: Cascade)
   // Rattachement optionnel à un point d'ordre du jour (de la MÊME réunion — contrôlé en service).
@@ -235,6 +338,8 @@ model Resolution {
   dateVote           DateTime?
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
+
+  @@index([organisationId])
 }
 
 // ---------------------------------------------------------------------------
@@ -257,16 +362,24 @@ model Resolution {
 
 model FonctionFamiliale {
   id           String                @id @default(uuid())
+  organisationId String?
+  organisation   Organisation?       @relation(fields: [organisationId], references: [id])
+  // NB : `@unique` global temporaire. Deviendra `@@unique([organisationId, nom])` en
+  // Phase C (nom de fonction unique PAR organisation).
   nom          String                @unique
   description  String?
   createdAt    DateTime              @default(now())
   // Suppression d'une fonction → cascade sur son historique d'affectations
   // (cohérent avec Reunion → points ; le CRUD complet est réservé ADMIN/PRESIDENT).
   affectations AffectationFonction[]
+
+  @@index([organisationId])
 }
 
 model AffectationFonction {
   id         String            @id @default(uuid())
+  organisationId String?
+  organisation   Organisation? @relation(fields: [organisationId], references: [id])
   fonctionId String
   fonction   FonctionFamiliale @relation(fields: [fonctionId], references: [id], onDelete: Cascade)
   membreId   String
@@ -280,11 +393,16 @@ model AffectationFonction {
   @@index([fonctionId, dateFin])
   // Historique par membre (« quelles fonctions a occupé ce membre »).
   @@index([membreId])
+  @@index([organisationId])
 }
 
 model EvenementFamilial {
   id        String   @id @default(uuid())
+  organisationId String?
+  organisation   Organisation? @relation(fields: [organisationId], references: [id])
   createdAt DateTime @default(now())
+
+  @@index([organisationId])
 }
 
 // ---------------------------------------------------------------------------
@@ -308,6 +426,8 @@ enum StatutConflit {
 
 model Conflit {
   id                    String                @id @default(uuid())
+  organisationId        String?
+  organisation          Organisation?         @relation(fields: [organisationId], references: [id])
   titre                 String
   description           String
   niveauConfidentialite NiveauConfidentialite
@@ -327,6 +447,7 @@ model Conflit {
   @@index([niveauConfidentialite])
   @@index([auteurId])
   @@index([responsableSuiviId])
+  @@index([organisationId])
 }
 
 // ---------------------------------------------------------------------------
@@ -349,6 +470,8 @@ enum StatutCommemoration {
 
 model Commemoration {
   id               String              @id @default(uuid())
+  organisationId   String?
+  organisation     Organisation?       @relation(fields: [organisationId], references: [id])
   titre            String
   type             TypeCommemoration   @default(COMMEMORATION)
   date             DateTime
@@ -361,6 +484,7 @@ model Commemoration {
   updatedAt        DateTime            @updatedAt
 
   @@index([date])
+  @@index([organisationId])
 }
 
 // ---------------------------------------------------------------------------
@@ -380,6 +504,8 @@ enum EntiteDocument {
 
 model Document {
   id                String         @id @default(uuid())
+  organisationId    String?
+  organisation      Organisation?  @relation(fields: [organisationId], references: [id])
   nom               String
   description       String?
   url               String // URL du blob Vercel
@@ -397,6 +523,7 @@ model Document {
 
   @@index([entiteType, entiteId])
   @@index([televerseParId])
+  @@index([organisationId])
 }
 
 // ---------------------------------------------------------------------------
@@ -416,6 +543,8 @@ enum ActionAudit {
 
 model AuditLog {
   id           String       @id @default(uuid())
+  organisationId String?
+  organisation   Organisation? @relation(fields: [organisationId], references: [id])
   entiteType   String // nom du modèle : 'Membre' | 'Contribution' | … | 'Conflit'
   entiteId     String
   action       ActionAudit
@@ -428,6 +557,7 @@ model AuditLog {
   @@index([entiteType, entiteId])
   @@index([acteurId])
   @@index([dateAction])
+  @@index([organisationId])
 }
 
 // ---------------------------------------------------------------------------
@@ -445,6 +575,8 @@ enum TypeNotification {
 
 model Notification {
   id             String           @id @default(uuid())
+  organisationId String?
+  organisation   Organisation?    @relation(fields: [organisationId], references: [id])
   destinataireId String
   destinataire   Utilisateur      @relation("NotificationDestinataire", fields: [destinataireId], references: [id], onDelete: Cascade)
   type           TypeNotification
@@ -458,4 +590,5 @@ model Notification {
 
   @@index([destinataireId, lu])
   @@index([destinataireId, type, dateCreation]) // pour l'anti-spam COTISATION_RETARD (< 7 j)
+  @@index([organisationId])
 }

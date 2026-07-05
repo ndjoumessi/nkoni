@@ -1,13 +1,25 @@
-import { forwardRef, type ReactNode } from 'react'
+import {
+  cloneElement,
+  forwardRef,
+  isValidElement,
+  useId,
+  type ReactElement,
+  type ReactNode,
+} from 'react'
+import { AlertCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 /**
  * Champs de formulaire NKONI — style unique partagé (fini le `inputCls` copié
  * dans chaque page). Input / Select / Textarea + wrapper Field (label + hint + erreur).
+ *
+ * §8 (Forms) : le wrapper Field câble l'accessibilité — `htmlFor`/`id`, `aria-invalid`
+ * et `aria-describedby` sont injectés automatiquement dans le contrôle enfant, et
+ * l'état d'erreur teinte la bordure (aria-[invalid=true]).
  */
 
 const control =
-  'w-full rounded-xl border border-hairline-strong bg-surface-2/70 px-3.5 py-2.5 text-sm text-foreground shadow-sm transition-colors duration-150 placeholder:text-faint focus:border-brass/50 focus:bg-surface-2 focus:outline-none disabled:opacity-55'
+  'w-full rounded-xl border border-hairline-strong bg-surface-2/70 px-3.5 py-2.5 text-sm text-foreground shadow-sm transition-colors duration-150 placeholder:text-faint focus:border-brass/50 focus:bg-surface-2 focus:outline-none disabled:opacity-55 aria-[invalid=true]:border-terra/70 aria-[invalid=true]:bg-terra/[0.05] aria-[invalid=true]:focus:border-terra'
 
 export const Input = forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>(
   ({ className, ...props }, ref) => (
@@ -40,6 +52,12 @@ export const Textarea = forwardRef<
 ))
 Textarea.displayName = 'Textarea'
 
+type ControlProps = {
+  id?: string
+  'aria-invalid'?: boolean | 'true' | 'false'
+  'aria-describedby'?: string
+}
+
 export function Field({
   label,
   children,
@@ -55,19 +73,51 @@ export function Field({
   required?: boolean
   className?: string
 }) {
+  const autoId = useId()
+  const descId = `${autoId}-desc`
+  const description = error ?? hint
+
+  // Injecte l'accessibilité §8 dans le contrôle : id (pour htmlFor), aria-invalid,
+  // aria-describedby. Le contrôle enfant doit être l'élément direct (Input/Select/Textarea).
+  let controlId = autoId
+  let rendered: ReactNode = children
+  if (isValidElement(children)) {
+    const child = children as ReactElement<ControlProps>
+    controlId = child.props.id ?? autoId
+    rendered = cloneElement(child, {
+      id: controlId,
+      'aria-invalid': error ? true : undefined,
+      'aria-describedby': description ? descId : undefined,
+    })
+  }
+
   return (
-    <label className={cn('block', className)}>
-      <span className="mb-1.5 flex items-center gap-1 text-[0.72rem] font-medium uppercase tracking-[0.1em] text-faint">
+    <div className={cn('block', className)}>
+      <label
+        htmlFor={controlId}
+        className="mb-1.5 flex items-center gap-1 text-[0.72rem] font-medium uppercase tracking-[0.1em] text-faint"
+      >
         {label}
-        {required && <span className="text-brass">*</span>}
-      </span>
-      {children}
+        {required && (
+          <span className="text-brass" aria-hidden="true">
+            *
+          </span>
+        )}
+      </label>
+      {rendered}
       {error ? (
-        <span className="mt-1.5 block text-xs text-terra">{error}</span>
+        <span id={descId} role="alert" className="mt-1.5 flex items-start gap-1 text-xs text-terra">
+          <AlertCircle className="mt-px h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+          <span>{error}</span>
+        </span>
       ) : (
-        hint && <span className="mt-1.5 block text-xs text-faint">{hint}</span>
+        hint && (
+          <span id={descId} className="mt-1.5 block text-xs text-faint">
+            {hint}
+          </span>
+        )
       )}
-    </label>
+    </div>
   )
 }
 

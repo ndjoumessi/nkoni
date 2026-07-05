@@ -5,7 +5,6 @@ import {
   ArrowUp,
   CalendarRange,
   ListChecks,
-  MapPin,
   Plus,
   Save,
   Trash2,
@@ -13,6 +12,7 @@ import {
 import { useAuth } from '@/contexts/auth-context'
 import { reunionsApi, ApiError, type TypeReunion } from '@/lib/api'
 import { peutGererReunions } from '@/lib/roles'
+import { focusPremierChampInvalide } from '@/lib/utils'
 import { useToast } from '@/components/ui/Toast'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, Overline } from '@/components/ui/Card'
@@ -36,11 +36,14 @@ export function ReunionFormPage() {
   const [lieu, setLieu] = useState('')
   const [type, setType] = useState<TypeReunion>('ORDINAIRE')
   const [points, setPoints] = useState<PointDraft[]>([])
+  const [errDate, setErrDate] = useState<string | undefined>(undefined)
+  const [errLieu, setErrLieu] = useState<string | undefined>(undefined)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
   const seq = useRef(0)
   const newKey = () => `p-${seq.current++}`
+  const formRef = useRef<HTMLFormElement>(null)
 
   if (!peutGererReunions(user?.role)) {
     return <Navigate to="/reunions" replace />
@@ -70,14 +73,16 @@ export function ReunionFormPage() {
     setError(null)
     if (!accessToken) return
 
-    if (!date) {
-      setError('Renseignez la date de la réunion.')
+    // Validation inline par champ + focus sur le 1er en erreur (§8).
+    const eDate = date ? undefined : 'Renseignez la date de la réunion.'
+    const eLieu = lieu.trim().length === 0 ? 'Renseignez le lieu de la réunion.' : undefined
+    setErrDate(eDate)
+    setErrLieu(eLieu)
+    if (eDate || eLieu) {
+      requestAnimationFrame(() => focusPremierChampInvalide(formRef.current))
       return
     }
-    if (lieu.trim().length === 0) {
-      setError('Renseignez le lieu de la réunion.')
-      return
-    }
+
     // Points : on ignore les lignes au titre vide, mais on refuse une ligne à moitié remplie.
     const pointsValides = points.filter((p) => p.titre.trim().length > 0)
     if (points.some((p) => p.titre.trim().length === 0 && p.notes.trim().length > 0)) {
@@ -117,13 +122,16 @@ export function ReunionFormPage() {
       />
 
       <Card className="nk-reveal nk-d2 mt-7 p-6">
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form ref={formRef} onSubmit={handleSubmit} noValidate className="space-y-4">
           <FormSection icon={CalendarRange} title="Informations">
-            <Field label="Date et heure" required>
+            <Field label="Date et heure" required error={errDate}>
               <Input
                 type="datetime-local"
                 value={date}
-                onChange={(e) => setDate(e.target.value)}
+                onChange={(e) => {
+                  setDate(e.target.value)
+                  setErrDate(undefined)
+                }}
               />
             </Field>
             <Field label="Type" required>
@@ -132,19 +140,15 @@ export function ReunionFormPage() {
                 <option value="EXTRAORDINAIRE">Extraordinaire</option>
               </Select>
             </Field>
-            <Field label="Lieu" required className="sm:col-span-2">
-              <div className="relative">
-                <MapPin
-                  className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-faint"
-                  aria-hidden="true"
-                />
-                <Input
-                  value={lieu}
-                  onChange={(e) => setLieu(e.target.value)}
-                  placeholder="Salle des fêtes, Yaoundé…"
-                  className="pl-10"
-                />
-              </div>
+            <Field label="Lieu" required error={errLieu} className="sm:col-span-2">
+              <Input
+                value={lieu}
+                onChange={(e) => {
+                  setLieu(e.target.value)
+                  setErrLieu(undefined)
+                }}
+                placeholder="Salle des fêtes, Yaoundé…"
+              />
             </Field>
           </FormSection>
 

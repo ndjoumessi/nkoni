@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { Phone, User, Users } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
+import { focusPremierChampInvalide } from '@/lib/utils'
 import {
   membresApi,
   branchesApi,
@@ -50,6 +51,8 @@ const VIDE: FormState = {
   anneeFinContribution: '',
 }
 
+type Errors = Partial<Record<keyof FormState, string>>
+
 /**
  * Création et édition d'un membre (même composant, mode déduit de la présence d'un `:id`).
  * Réservé ADMIN + SECRETAIRE (Créer/Modifier §2) — sinon redirection.
@@ -66,9 +69,31 @@ export function MembreFormPage() {
   const [membres, setMembres] = useState<MembreStatut[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [errors, setErrors] = useState<Errors>({})
+  const formRef = useRef<HTMLFormElement>(null)
 
-  const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
+  const set = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm((f) => ({ ...f, [key]: value }))
+    // Validation inline (§8) : on efface l'erreur d'un champ dès qu'il est retouché.
+    setErrors((prev) => (prev[key] ? { ...prev, [key]: undefined } : prev))
+  }
+
+  /** Contrôles côté client — retourne les erreurs par champ (vide = valide). */
+  const valider = (f: FormState): Errors => {
+    const errs: Errors = {}
+    if (f.nom.trim().length === 0) errs.nom = 'Le nom est requis.'
+    if (f.prenom.trim().length === 0) errs.prenom = 'Le prénom est requis.'
+    const annee = Number(f.anneeAdhesion)
+    if (f.anneeAdhesion.trim().length === 0) errs.anneeAdhesion = "L'année d'adhésion est requise."
+    else if (!Number.isInteger(annee) || annee < 1900 || annee > 2200)
+      errs.anneeAdhesion = 'Année invalide (entre 1900 et 2200).'
+    if (STATUTS_FIN.includes(f.statut) && f.anneeFinContribution.trim().length > 0) {
+      const fin = Number(f.anneeFinContribution)
+      if (!Number.isInteger(fin) || fin < 1900 || fin > 2200)
+        errs.anneeFinContribution = 'Année invalide (entre 1900 et 2200).'
+    }
+    return errs
+  }
 
   useEffect(() => {
     if (!accessToken) return
@@ -127,6 +152,15 @@ export function MembreFormPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!accessToken) return
+
+    // Validation inline avant envoi ; focus sur le 1er champ en erreur (§8).
+    const errs = valider(form)
+    if (Object.keys(errs).length > 0) {
+      setErrors(errs)
+      requestAnimationFrame(() => focusPremierChampInvalide(formRef.current))
+      return
+    }
+    setErrors({})
     setSaving(true)
     try {
       const payload: MembreInput = {
@@ -188,13 +222,13 @@ export function MembreFormPage() {
         </Card>
       ) : (
         <Card className="nk-reveal nk-d2 mt-7 p-6">
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form ref={formRef} onSubmit={handleSubmit} noValidate className="space-y-5">
             <FormSection icon={User} title="Identité">
-              <Field label="Nom" required>
-                <Input required value={form.nom} onChange={(e) => set('nom', e.target.value)} />
+              <Field label="Nom" required error={errors.nom}>
+                <Input value={form.nom} onChange={(e) => set('nom', e.target.value)} />
               </Field>
-              <Field label="Prénom" required>
-                <Input required value={form.prenom} onChange={(e) => set('prenom', e.target.value)} />
+              <Field label="Prénom" required error={errors.prenom}>
+                <Input value={form.prenom} onChange={(e) => set('prenom', e.target.value)} />
               </Field>
               <Field label="Sexe">
                 <Select value={form.sexe} onChange={(e) => set('sexe', e.target.value)}>
@@ -232,9 +266,8 @@ export function MembreFormPage() {
                   onChange={(e) => set('fonctionSociale', e.target.value)}
                 />
               </Field>
-              <Field label="Année d'adhésion" required>
+              <Field label="Année d'adhésion" required error={errors.anneeAdhesion}>
                 <Input
-                  required
                   type="number"
                   min={1900}
                   max={2200}
@@ -283,6 +316,7 @@ export function MembreFormPage() {
                 <Field
                   label="Année de fin de contribution"
                   hint="Laissé vide = renseigné automatiquement à l'année en cours."
+                  error={errors.anneeFinContribution}
                 >
                   <Input
                     type="number"

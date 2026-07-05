@@ -1,7 +1,8 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { Flame, Users } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
+import { focusPremierChampInvalide } from '@/lib/utils'
 import {
   commemorationsApi,
   ApiError,
@@ -48,6 +49,9 @@ export function CommemorationFormPage() {
   const [membres, setMembres] = useState<CommemorationMembreRef[]>([])
   const [loading, setLoading] = useState(editing)
   const [submitting, setSubmitting] = useState(false)
+  const [errTitre, setErrTitre] = useState<string | undefined>(undefined)
+  const [errDate, setErrDate] = useState<string | undefined>(undefined)
+  const formRef = useRef<HTMLFormElement>(null)
 
   const autorise = peutGererCommemorations(user?.role)
 
@@ -101,7 +105,17 @@ export function CommemorationFormPage() {
 
   const soumettre = async (e: FormEvent) => {
     e.preventDefault()
-    if (!accessToken || titre.trim().length === 0 || !date) return
+    if (!accessToken) return
+
+    // Validation inline + focus sur le 1er champ en erreur (§8).
+    const eTitre = titre.trim().length === 0 ? 'Le titre est requis.' : undefined
+    const eDate = date ? undefined : 'La date est requise.'
+    setErrTitre(eTitre)
+    setErrDate(eDate)
+    if (eTitre || eDate) {
+      requestAnimationFrame(() => focusPremierChampInvalide(formRef.current))
+      return
+    }
     setSubmitting(true)
     const payload = {
       titre: titre.trim(),
@@ -158,8 +172,6 @@ export function CommemorationFormPage() {
     }
   }
 
-  const invalide = titre.trim().length === 0 || !date
-
   if (loading) {
     return (
       <>
@@ -180,18 +192,21 @@ export function CommemorationFormPage() {
         }}
       />
 
-      <form onSubmit={soumettre} className="nk-reveal nk-d2 mt-7 space-y-6">
+      <form ref={formRef} onSubmit={soumettre} noValidate className="nk-reveal nk-d2 mt-7 space-y-6">
         <Card className="p-6">
           <div className="flex items-center gap-2">
             <Flame className="h-4 w-4 text-brass" aria-hidden="true" />
             <Overline>Événement</Overline>
           </div>
           <div className="mt-4 space-y-4">
-            <Field label="Titre" required>
+            <Field label="Titre" required error={errTitre}>
               <Input
                 autoFocus
                 value={titre}
-                onChange={(e) => setTitre(e.target.value)}
+                onChange={(e) => {
+                  setTitre(e.target.value)
+                  setErrTitre(undefined)
+                }}
                 placeholder="Ex. Hommage aux fondateurs…"
                 maxLength={300}
               />
@@ -206,8 +221,15 @@ export function CommemorationFormPage() {
                   ))}
                 </Select>
               </Field>
-              <Field label="Date" required>
-                <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+              <Field label="Date" required error={errDate}>
+                <Input
+                  type="date"
+                  value={date}
+                  onChange={(e) => {
+                    setDate(e.target.value)
+                    setErrDate(undefined)
+                  }}
+                />
               </Field>
               <Field label="Statut">
                 <Select value={statut} onChange={(e) => setStatut(e.target.value as StatutCommemoration)}>
@@ -285,7 +307,7 @@ export function CommemorationFormPage() {
           >
             Annuler
           </Button>
-          <Button type="submit" icon={Flame} loading={submitting} disabled={invalide}>
+          <Button type="submit" icon={Flame} loading={submitting}>
             {editing ? 'Enregistrer' : 'Créer'}
           </Button>
         </div>

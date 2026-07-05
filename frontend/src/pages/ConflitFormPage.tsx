@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { Lock, ShieldAlert, Users } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
+import { focusPremierChampInvalide } from '@/lib/utils'
 import {
   conflitsApi,
   membresApi,
@@ -42,6 +43,9 @@ export function ConflitFormPage() {
   const [membresConcernes, setMembresConcernes] = useState<Set<string>>(new Set())
   const [notes, setNotes] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [errTitre, setErrTitre] = useState<string | undefined>(undefined)
+  const [errDescription, setErrDescription] = useState<string | undefined>(undefined)
+  const formRef = useRef<HTMLFormElement>(null)
 
   const [membres, setMembres] = useState<MembreStatut[]>([])
   const [responsables, setResponsables] = useState<ConflitUtilisateurRef[]>([])
@@ -91,7 +95,17 @@ export function ConflitFormPage() {
 
   const soumettre = async (e: FormEvent) => {
     e.preventDefault()
-    if (!accessToken || titre.trim().length === 0 || description.trim().length === 0) return
+    if (!accessToken) return
+
+    // Validation inline + focus sur le 1er champ en erreur (§8).
+    const eTitre = titre.trim().length === 0 ? 'Le titre est requis.' : undefined
+    const eDescription = description.trim().length === 0 ? 'La description est requise.' : undefined
+    setErrTitre(eTitre)
+    setErrDescription(eDescription)
+    if (eTitre || eDescription) {
+      requestAnimationFrame(() => focusPremierChampInvalide(formRef.current))
+      return
+    }
     setSubmitting(true)
     try {
       const cree = await conflitsApi.create(
@@ -116,8 +130,6 @@ export function ConflitFormPage() {
     }
   }
 
-  const invalide = titre.trim().length === 0 || description.trim().length === 0
-
   return (
     <>
       <PageHeader
@@ -126,26 +138,32 @@ export function ConflitFormPage() {
         back={{ to: '/conflits', label: 'Retour aux conflits' }}
       />
 
-      <form onSubmit={soumettre} className="nk-reveal nk-d2 mt-7 space-y-6">
+      <form ref={formRef} onSubmit={soumettre} noValidate className="nk-reveal nk-d2 mt-7 space-y-6">
         <Card className="p-6">
           <div className="flex items-center gap-2">
             <ShieldAlert className="h-4 w-4 text-brass" aria-hidden="true" />
             <Overline>Objet du conflit</Overline>
           </div>
           <div className="mt-4 space-y-4">
-            <Field label="Titre" required>
+            <Field label="Titre" required error={errTitre}>
               <Input
                 autoFocus
                 value={titre}
-                onChange={(e) => setTitre(e.target.value)}
+                onChange={(e) => {
+                  setTitre(e.target.value)
+                  setErrTitre(undefined)
+                }}
                 placeholder="Objet du litige…"
                 maxLength={300}
               />
             </Field>
-            <Field label="Description" required>
+            <Field label="Description" required error={errDescription}>
               <Textarea
                 value={description}
-                onChange={(e) => setDescription(e.target.value)}
+                onChange={(e) => {
+                  setDescription(e.target.value)
+                  setErrDescription(undefined)
+                }}
                 placeholder="Circonstances, parties, contexte…"
                 rows={5}
               />
@@ -242,7 +260,7 @@ export function ConflitFormPage() {
           <Button type="button" variant="ghost" onClick={() => navigate('/conflits')}>
             Annuler
           </Button>
-          <Button type="submit" icon={ShieldAlert} loading={submitting} disabled={invalide}>
+          <Button type="submit" icon={ShieldAlert} loading={submitting}>
             Déclarer le conflit
           </Button>
         </div>

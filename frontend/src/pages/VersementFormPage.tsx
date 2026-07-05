@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { CalendarPlus, Check, FileText } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
+import { focusPremierChampInvalide } from '@/lib/utils'
 import {
   membresApi,
   contributionsApi,
@@ -55,6 +56,8 @@ export function VersementFormPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [resultat, setResultat] = useState<VersementCree | null>(null)
+  const [errMontant, setErrMontant] = useState<string | undefined>(undefined)
+  const formRef = useRef<HTMLFormElement>(null)
 
   const [recu, setRecu] = useState<Recu | null>(null)
   const [generatingRecu, setGeneratingRecu] = useState(false)
@@ -134,6 +137,20 @@ export function VersementFormPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!accessToken || !contribId) return
+
+    // Validation inline du montant + focus (§8).
+    const m = Number(montant)
+    const eMontant =
+      montant.trim().length === 0
+        ? 'Le montant est requis.'
+        : !Number.isFinite(m) || m <= 0
+          ? 'Le montant doit être supérieur à 0.'
+          : undefined
+    setErrMontant(eMontant)
+    if (eMontant) {
+      requestAnimationFrame(() => focusPremierChampInvalide(formRef.current))
+      return
+    }
     setSaving(true)
     try {
       const res = await versementsApi.create(
@@ -256,7 +273,7 @@ export function VersementFormPage() {
       ) : (
         /* --- Formulaire --- */
         <Card className="nk-reveal nk-d2 mt-7 p-6">
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form ref={formRef} onSubmit={handleSubmit} noValidate className="space-y-5">
             {contributions.length === 0 ? (
               <p className="rounded-xl border border-amber/30 bg-amber/10 px-4 py-3 text-sm text-amber">
                 Aucune contribution n'existe pour ce membre. Ouvrez d'abord une année ci-dessous
@@ -278,13 +295,15 @@ export function VersementFormPage() {
             {contributions.length > 0 && (
               <>
                 <div className="grid gap-5 sm:grid-cols-2">
-                  <Field label="Montant (FCFA)" required>
+                  <Field label="Montant (FCFA)" required error={errMontant}>
                     <Input
-                      required
                       type="number"
                       min={1}
                       value={montant}
-                      onChange={(e) => setMontant(e.target.value)}
+                      onChange={(e) => {
+                        setMontant(e.target.value)
+                        setErrMontant(undefined)
+                      }}
                     />
                   </Field>
                   <Field label="Date" required>

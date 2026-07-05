@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
+  BarChart3,
   CalendarRange,
   Flame,
   Gavel,
@@ -26,6 +27,7 @@ import {
   peutVoirFonctions,
   peutVoirConflits,
   peutVoirCommemorations,
+  peutVoirRapports,
   peutVoirAudit,
 } from '@/lib/roles'
 import { cn } from '@/lib/utils'
@@ -70,6 +72,9 @@ function useNavItems(): NavItem[] {
   }
   if (peutVoirBareme(user?.role)) {
     items.push({ to: '/bareme', label: 'Barème annuel', icon: CalendarRange })
+  }
+  if (peutVoirRapports(user?.role)) {
+    items.push({ to: '/rapports', label: 'Rapports', icon: BarChart3 })
   }
   if (peutGererUtilisateurs(user?.role)) {
     items.push({ to: '/utilisateurs', label: 'Utilisateurs', icon: ShieldUser })

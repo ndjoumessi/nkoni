@@ -194,6 +194,55 @@ export const dashboardApi = {
 }
 
 /* -------------------------------------------------------------------------- */
+/* Rapports financiers (enrichissement) — agrégations par année               */
+/* -------------------------------------------------------------------------- */
+
+export interface RapportAnnee {
+  annee: number
+  montantAttendu: number
+  membresEligibles: number
+  totalAttendu: number
+  totalCollecte: number
+  tauxRecouvrement: number
+  membresParStatut: RepartitionStatutContribution
+}
+
+export interface RapportFinancier {
+  anneeDebut: number
+  anneeFin: number
+  /** Une entrée par année de la plage ayant un barème (années non configurées absentes). */
+  annees: RapportAnnee[]
+}
+
+export interface VariationsComparaison {
+  totalAttendu: number | null
+  totalCollecte: number | null
+  tauxRecouvrement: number | null
+}
+
+export interface ComparaisonPeriodes {
+  anneeA: number
+  anneeB: number
+  /** null si l'année n'a pas de barème configuré (ignorée). */
+  rapportA: RapportAnnee | null
+  rapportB: RapportAnnee | null
+  variations: VariationsComparaison
+}
+
+export const rapportsApi = {
+  financier: (anneeDebut: number, anneeFin: number, accessToken: string, signal?: AbortSignal) =>
+    request<RapportFinancier>(
+      `/rapports/financier?anneeDebut=${anneeDebut}&anneeFin=${anneeFin}`,
+      { accessToken, signal },
+    ),
+  comparaison: (anneeA: number, anneeB: number, accessToken: string, signal?: AbortSignal) =>
+    request<ComparaisonPeriodes>(
+      `/rapports/comparaison?anneeA=${anneeA}&anneeB=${anneeB}`,
+      { accessToken, signal },
+    ),
+}
+
+/* -------------------------------------------------------------------------- */
 /* Export des contributions (§5.9) — téléchargement binaire (PDF/Excel)       */
 /* -------------------------------------------------------------------------- */
 

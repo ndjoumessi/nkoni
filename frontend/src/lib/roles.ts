@@ -39,6 +39,18 @@ export function peutGererBareme(role: string | undefined): boolean {
   return role === 'ADMIN'
 }
 
+/**
+ * Rôles autorisés à consulter les rapports financiers (miroir de l'entité `Export`/read
+ * côté serveur) : ADMIN, PRESIDENT, TRESORIERE, COMMISSAIRE_COMPTES. Pas SECRETAIRE ni
+ * MEMBRE_SIMPLE ni GUIDE_RELIGIEUX.
+ */
+const LECTURE_RAPPORTS = ['ADMIN', 'PRESIDENT', 'TRESORIERE', 'COMMISSAIRE_COMPTES']
+
+/** Peut consulter la page Rapports financiers (nav + page). */
+export function peutVoirRapports(role: string | undefined): boolean {
+  return role !== undefined && LECTURE_RAPPORTS.includes(role)
+}
+
 /** Peut simuler/appliquer un équilibrage entre années (Equilibrage `create` §2 : ADMIN + TRESORIERE). */
 export function peutEquilibrer(role: string | undefined): boolean {
   return role !== undefined && GESTION_FINANCE.includes(role)

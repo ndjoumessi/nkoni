@@ -8,6 +8,7 @@ import MembreDetailPage from '@/pages/MembreDetailPage'
 import VersementFormPage from '@/pages/VersementFormPage'
 import EquilibrageFormPage from '@/pages/EquilibrageFormPage'
 import BaremePage from '@/pages/BaremePage'
+import RapportsPage from '@/pages/RapportsPage'
 import UtilisateursPage from '@/pages/UtilisateursPage'
 import MonProfilPage from '@/pages/MonProfilPage'
 import ReunionsPage from '@/pages/ReunionsPage'
@@ -46,6 +47,7 @@ function App() {
       <Route element={<ProtectedLayout />}>
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/bareme" element={<BaremePage />} />
+        <Route path="/rapports" element={<RapportsPage />} />
         <Route path="/utilisateurs" element={<UtilisateursPage />} />
         <Route path="/audit" element={<AuditLogPage />} />
         <Route path="/mon-profil" element={<MonProfilPage />} />

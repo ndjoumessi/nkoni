@@ -6,7 +6,8 @@ export interface AuthContextValue {
   accessToken: string | null
   loading: boolean
   isAuthenticated: boolean
-  login: (email: string, password: string, rememberMe: boolean) => Promise<void>
+  /** Connecte l'utilisateur et retourne son profil (pour rediriger selon le rôle). */
+  login: (email: string, password: string, rememberMe: boolean) => Promise<AuthUser>
   /** Auto-inscription (§3.1) : crée l'organisation + l'admin fondateur et ouvre la session. */
   inscription: (input: InscriptionInput) => Promise<void>
   logout: () => Promise<void>

@@ -89,3 +89,117 @@ export async function inscrireOrganisation(
     actif: true,
   }
 }
+
+// ===========================================================================
+// Rôle plateforme Super-Admin (SaaS §2.3) — gestion des organisations clientes.
+// Toutes ces fonctions sont appelées HORS contexte d'organisation (le super-admin
+// n'en a pas) : l'appelant enveloppe l'accès à un modèle scopé (Membre) dans
+// `orgContext.runUnscoped`. `Organisation` n'est PAS un modèle scopé → lecture directe.
+// ===========================================================================
+
+/** Vue plateforme d'une organisation cliente (aucune donnée métier interne). */
+export interface OrganisationResume {
+  id: string
+  nom: string
+  devise: Devise
+  langueDefaut: Langue
+  actif: boolean
+  createdAt: Date
+  /** Nombre de membres — indicateur de volume, pas d'accès aux membres eux-mêmes. */
+  nbMembres: number
+}
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+export interface PlateformePrisma {
+  organisation: {
+    findMany(args: any): Promise<any[]>
+    update(args: any): Promise<any>
+  }
+  membre: { groupBy(args: any): Promise<any[]> }
+}
+export interface OrganisationActifPrisma {
+  organisation: { findUnique(args: any): Promise<any> }
+}
+/* eslint-enable @typescript-eslint/no-explicit-any */
+
+/**
+ * Liste les organisations clientes avec leur statut, date de création et nombre de membres.
+ * Le comptage passe par un `groupBy` unique (Membre scopé → l'appelant est en `runUnscoped`),
+ * pas une requête par organisation.
+ */
+export async function listerOrganisations(
+  prisma: PlateformePrisma,
+): Promise<OrganisationResume[]> {
+  const orgs = await prisma.organisation.findMany({
+    select: {
+      id: true,
+      nom: true,
+      devise: true,
+      langueDefaut: true,
+      actif: true,
+      createdAt: true,
+    },
+    orderBy: { createdAt: 'desc' },
+  })
+
+  const parOrg = await prisma.membre.groupBy({
+    by: ['organisationId'],
+    _count: { _all: true },
+  })
+  const compteur = new Map<string, number>()
+  for (const ligne of parOrg) {
+    compteur.set(ligne.organisationId, ligne._count?._all ?? 0)
+  }
+
+  return orgs.map((o) => ({
+    id: o.id,
+    nom: o.nom,
+    devise: o.devise,
+    langueDefaut: o.langueDefaut,
+    actif: o.actif,
+    createdAt: o.createdAt,
+    nbMembres: compteur.get(o.id) ?? 0,
+  }))
+}
+
+/**
+ * Suspend (`actif = false`) ou réactive (`actif = true`) une organisation (§2.3 : bloque
+ * l'accès, ne supprime AUCUNE donnée). Lève une erreur Prisma P2025 si l'id est inconnu
+ * (mappée en 404 par la route). Ne touche jamais aux données métier de l'organisation.
+ */
+export async function definirStatutOrganisation(
+  prisma: PlateformePrisma,
+  id: string,
+  actif: boolean,
+): Promise<Omit<OrganisationResume, 'nbMembres'>> {
+  const org = await prisma.organisation.update({
+    where: { id },
+    data: { actif },
+    select: {
+      id: true,
+      nom: true,
+      devise: true,
+      langueDefaut: true,
+      actif: true,
+      createdAt: true,
+    },
+  })
+  return org
+}
+
+/**
+ * Statut d'activité d'une organisation, pour bloquer login/refresh d'un espace suspendu
+ * (§2.3). Retourne `null` si l'organisation est introuvable (traité comme suspendu par
+ * l'appelant, par prudence).
+ */
+export async function chargerOrganisationActif(
+  prisma: OrganisationActifPrisma,
+  organisationId: string,
+): Promise<boolean | null> {
+  const org = await prisma.organisation.findUnique({
+    where: { id: organisationId },
+    select: { actif: true },
+  })
+  if (!org) return null
+  return org.actif as boolean
+}

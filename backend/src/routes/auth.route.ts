@@ -9,6 +9,7 @@ import {
   changerMotDePasse,
   AncienMotDePasseIncorrectError,
 } from '../services/auth.service'
+import { chargerOrganisationActif } from '../services/organisation.service'
 
 /**
  * Module d'authentification (§4.5) :
@@ -85,6 +86,21 @@ export const authRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
           .send({ error: 'Forbidden', message: 'Compte désactivé.' })
       }
 
+      // Espace suspendu (§2.3) : un utilisateur tenant dont l'organisation est désactivée ne
+      // peut pas ouvrir de session. Le SUPER_ADMIN (organisationId null) n'est jamais concerné.
+      const orgId = user.organisationId
+      if (orgId) {
+        const orgActive = await orgContext.runUnscoped(async () =>
+          chargerOrganisationActif(app.prisma, orgId),
+        )
+        if (orgActive !== true) {
+          return reply.code(403).send({
+            error: 'Forbidden',
+            message: 'Cet espace a été suspendu. Contactez le support.',
+          })
+        }
+      }
+
       // « Se souvenir de moi » n'agit QUE sur la longévité du refresh (30 j si coché, 7 j sinon).
       const accessToken = await emettreSession(reply, user, rememberMe)
 
@@ -114,6 +130,20 @@ export const authRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
           .send({ error: 'Unauthorized', message: 'Session invalide.' })
       }
 
+      // Espace suspendu (§2.3) : refuser aussi la réémission d'un access token → l'utilisateur
+      // d'un espace désactivé est déconnecté au plus tard au prochain refresh (tokens courts).
+      const orgId = user.organisationId
+      if (orgId) {
+        const orgActive = await orgContext.runUnscoped(async () =>
+          chargerOrganisationActif(app.prisma, orgId),
+        )
+        if (orgActive !== true) {
+          return reply
+            .code(401)
+            .send({ error: 'Unauthorized', message: 'Session invalide.' })
+        }
+      }
+
       const accessToken = await signAccessToken(reply, user)
       return reply.code(200).send({ accessToken })
     } catch {
@@ -137,7 +167,10 @@ export const authRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
         .code(401)
         .send({ error: 'Unauthorized', message: 'Token invalide.' })
     }
-    const user = await findUserById(app.prisma, sub)
+    // Lecture du PROPRE compte par id (sub du JWT). En `runUnscoped` : un SUPER_ADMIN n'a
+    // pas de contexte d'organisation → sans bypass, l'extension d'isolation fail-close sur
+    // Utilisateur (modèle scopé). Sûr : on ne lit que le compte authentifié.
+    const user = await orgContext.runUnscoped(async () => findUserById(app.prisma, sub))
     if (!user) {
       return reply
         .code(401)
@@ -165,7 +198,12 @@ export const authRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
       }
       const { ancienMotDePasse, nouveauMotDePasse } = req.body
       try {
-        await changerMotDePasse(app.prisma, sub, ancienMotDePasse, nouveauMotDePasse)
+        // `runUnscoped` : opère sur le PROPRE compte (sub du JWT). Nécessaire pour un
+        // SUPER_ADMIN (sans contexte org, sinon fail-close sur Utilisateur scopé) ; sûr pour
+        // tous car keyé sur l'utilisateur authentifié.
+        await orgContext.runUnscoped(async () =>
+          changerMotDePasse(app.prisma, sub, ancienMotDePasse, nouveauMotDePasse),
+        )
         return reply.code(204).send()
       } catch (err) {
         if (err instanceof AncienMotDePasseIncorrectError) {

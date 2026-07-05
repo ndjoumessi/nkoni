@@ -13,6 +13,11 @@ datasource db {
 }
 
 enum Role {
+  // Rôle PLATEFORME transverse (SaaS §2.3) — au-dessus des rôles d'organisation. Un
+  // SUPER_ADMIN n'appartient à AUCUNE organisation (organisationId NULL, garanti par une
+  // contrainte CHECK). Il gère les organisations clientes (liste, suspension) mais n'accède
+  // pas aux données métier. Tous les rôles ci-dessous restent scopés à une organisation.
+  SUPER_ADMIN
   ADMIN
   PRESIDENT
   SECRETAIRE
@@ -98,10 +103,14 @@ model Organisation {
 
 model Utilisateur {
   id                   String         @id @default(uuid())
-  // SaaS : 1 utilisateur = 1 organisation en v1 (multi-org reporté V2). Nullable en
-  // Phase A ; Super-Admin (transverse, §2.3) restera null quand le rôle sera ajouté.
-  organisationId       String
-  organisation         Organisation   @relation(fields: [organisationId], references: [id])
+  // SaaS : 1 utilisateur = 1 organisation en v1 (multi-org reporté V2). NULLABLE, mais
+  // uniquement pour le SUPER_ADMIN transverse (§2.3) qui n'a pas d'organisation. L'invariant
+  // « org NULL ⟺ role = SUPER_ADMIN » est garanti au niveau BASE par une contrainte CHECK
+  // (migration saas_utilisateur_org_nullable_superadmin) : un utilisateur tenant a TOUJOURS
+  // une org, un super-admin n'en a JAMAIS. Le typage Prisma ne peut pas exprimer ce lien
+  // conditionnel — c'est la contrainte CHECK qui l'impose côté données.
+  organisationId       String?
+  organisation         Organisation?  @relation(fields: [organisationId], references: [id])
   email                String         @unique
   passwordHash         String
   role                 Role

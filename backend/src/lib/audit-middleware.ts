@@ -124,6 +124,14 @@ export async function intercepterAudit(
   const { model, operation, args, query } = ctx
   if (!doitAuditer(model, operation)) return query(args)
 
+  // L'audit trail est PAR ORGANISATION (AuditLog.organisationId est NOT NULL). Les flux
+  // DÉLIBÉRÉMENT non scopés (`orgContext.runUnscoped` : bootstrap SUPER_ADMIN, seed, système)
+  // écrivent hors organisation → tenter un journal ferait échouer la contrainte NOT NULL.
+  // On saute donc l'audit pour ces écritures système. NB : pour un modèle SCOPÉ écrit sans
+  // contexte (ni org, ni unscoped), l'isolation fail-close AVANT l'audit (extension outermost),
+  // donc ce cas ne parvient jamais ici — seul `unscoped` a besoin d'être filtré.
+  if (orgContext.current()?.unscoped) return query(args)
+
   let before: unknown = null
   if (operation !== 'create') {
     before = await base[accessor(model as string)]

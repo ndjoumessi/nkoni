@@ -24,7 +24,9 @@ import CommemorationsPage from '@/pages/CommemorationsPage'
 import CommemorationFormPage from '@/pages/CommemorationFormPage'
 import CommemorationDetailPage from '@/pages/CommemorationDetailPage'
 import AuditLogPage from '@/pages/AuditLogPage'
+import SuperAdminPage from '@/pages/SuperAdminPage'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
+import { SuperAdminRoute } from '@/components/SuperAdminRoute'
 import { AppShell } from '@/components/AppShell'
 
 /** Layout des pages authentifiées : garde d'accès + coquille d'application. */
@@ -44,6 +46,16 @@ function App() {
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/inscription" element={<InscriptionPage />} />
+
+      {/* Console PLATEFORME (SaaS §2.3) — SUPER_ADMIN uniquement, layout autonome (hors AppShell). */}
+      <Route
+        path="/super-admin"
+        element={
+          <SuperAdminRoute>
+            <SuperAdminPage />
+          </SuperAdminRoute>
+        }
+      />
 
       {/* Pages authentifiées, dans la coquille NKONI. Routes statiques avant /membres/:id. */}
       <Route element={<ProtectedLayout />}>

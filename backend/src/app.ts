@@ -27,6 +27,7 @@ import { commemorationsRoutes } from './routes/commemorations.route'
 import { documentsRoutes } from './routes/documents.route'
 import { auditLogRoutes } from './routes/audit-log.route'
 import { rapportsRoutes } from './routes/rapports.route'
+import { notificationsRoutes } from './routes/notifications.route'
 import { auditContext } from './lib/audit-context'
 
 // Décoration de l'instance Fastify avec le client Prisma + le client Blob (injectables en test).
@@ -100,6 +101,7 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   await app.register(documentsRoutes)
   await app.register(auditLogRoutes)
   await app.register(rapportsRoutes)
+  await app.register(notificationsRoutes)
 
   return app
 }

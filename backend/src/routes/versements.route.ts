@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
 import { Prisma } from '../generated/prisma/client'
 import { authenticate } from '../middlewares/authenticate'
 import { requirePermission } from '../middlewares/permissions'
+import { notifierVersement } from '../services/notification.service'
 
 /**
  * Versements (§5 point 4) — module financier sensible.
@@ -104,6 +105,22 @@ export const versementsRoutes: FastifyPluginAsync = async (
           })
           return { versement, contribution }
         })
+
+        // Déclencheur de notification « versement enregistré » (§5) — APRÈS la
+        // transaction, best-effort : une notification n'est qu'un effet de bord et ne
+        // doit JAMAIS faire échouer ni annuler l'écriture financière déjà committée.
+        // (NB : aucune génération de Reçu ici — cf. garde §4.6.)
+        try {
+          await notifierVersement(app.prisma, {
+            versementId: result.versement.id,
+            membreId: result.contribution.membreId,
+            montant: result.versement.montant,
+            annee: result.contribution.annee,
+          })
+        } catch (notifErr) {
+          app.log.error({ err: notifErr }, 'Notification de versement non créée')
+        }
+
         return reply.code(201).send(result)
       } catch (err) {
         if (isP2025(err)) {

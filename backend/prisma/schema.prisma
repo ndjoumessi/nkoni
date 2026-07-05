@@ -52,6 +52,7 @@ model Utilisateur {
   conflitsResponsable Conflit[] @relation("ConflitResponsableSuivi")
   documentsTeleverses Document[] @relation("DocumentTeleversePar") // V2 §5
   auditsActeur        AuditLog[] @relation("AuditActeur") // V2 §5 — écritures tracées
+  notifications       Notification[] @relation("NotificationDestinataire") // V2 §5 — notifs reçues
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }
@@ -426,7 +427,32 @@ model AuditLog {
   @@index([dateAction])
 }
 
+// ---------------------------------------------------------------------------
+// V2 (§5) — Notifications in-app. Canal interne uniquement (pas d'email).
+// Périmètre initial : événements financiers (VERSEMENT_RECU, COTISATION_RETARD).
+// Seuls les Utilisateur liés à un Membre peuvent en recevoir (cf. §4.5) — un membre
+// sans compte ne notifie personne. `entiteType`/`entiteId` lient la notif à l'entité
+// concernée (Versement / Contribution) sans FK dure (souple, comme AuditLog).
+// ---------------------------------------------------------------------------
+
+enum TypeNotification {
+  VERSEMENT_RECU
+  COTISATION_RETARD
+}
+
 model Notification {
-  id        String   @id @default(uuid())
-  createdAt DateTime @default(now())
+  id             String           @id @default(uuid())
+  destinataireId String
+  destinataire   Utilisateur      @relation("NotificationDestinataire", fields: [destinataireId], references: [id], onDelete: Cascade)
+  type           TypeNotification
+  titre          String
+  message        String
+  entiteType     String? // ex. 'Versement' | 'Contribution' (pas de FK dure)
+  entiteId       String?
+  lu             Boolean          @default(false)
+  dateCreation   DateTime         @default(now())
+  dateLecture    DateTime? // renseignée au passage lu = true
+
+  @@index([destinataireId, lu])
+  @@index([destinataireId, type, dateCreation]) // pour l'anti-spam COTISATION_RETARD (< 7 j)
 }

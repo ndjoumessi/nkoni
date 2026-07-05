@@ -5,13 +5,13 @@ import { useAuth } from '@/contexts/auth-context'
 import { estSuperAdmin } from '@/lib/roles'
 
 /**
- * Protège une route TENANT : rend `children` seulement si l'utilisateur est authentifié.
- * - Pendant la restauration de session (loading) → écran de chargement.
- * - Non authentifié → redirection vers /login.
- * - SUPER_ADMIN (rôle plateforme, sans organisation) → renvoyé vers sa console /super-admin :
- *   les pages tenant (AppShell) n'ont pas de sens pour lui et échoueraient (pas de contexte org).
+ * Protège la console PLATEFORME /super-admin (SaaS §2.3) : réservée au rôle transverse
+ * SUPER_ADMIN.
+ * - Pendant la restauration de session → écran de chargement.
+ * - Non authentifié → /login.
+ * - Authentifié mais non super-admin (rôle d'organisation) → renvoyé vers son tableau de bord.
  */
-export function ProtectedRoute({ children }: { children: ReactNode }) {
+export function SuperAdminRoute({ children }: { children: ReactNode }) {
   const { isAuthenticated, loading, user } = useAuth()
 
   if (loading) {
@@ -26,11 +26,11 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
     return <Navigate to="/login" replace />
   }
 
-  if (estSuperAdmin(user?.role)) {
-    return <Navigate to="/super-admin" replace />
+  if (!estSuperAdmin(user?.role)) {
+    return <Navigate to="/dashboard" replace />
   }
 
   return <>{children}</>
 }
 
-export default ProtectedRoute
+export default SuperAdminRoute

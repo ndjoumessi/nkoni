@@ -3,6 +3,7 @@ import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { AlertCircle, ArrowLeft, ArrowRight, Lock, Mail } from 'lucide-react'
 import { ApiError } from '@/lib/api'
 import { useAuth } from '@/contexts/auth-context'
+import { cheminApresConnexion } from '@/lib/roles'
 import { focusPremierChampInvalide } from '@/lib/utils'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Field'
@@ -44,7 +45,7 @@ function lireEmailMemorise(): string {
 
 /** Page de connexion NKONI — direction « Laiton & Jade ». */
 export function LoginPage() {
-  const { login, isAuthenticated, loading } = useAuth()
+  const { login, isAuthenticated, loading, user } = useAuth()
   const navigate = useNavigate()
 
   // Pré-remplissage depuis l'e-mail mémorisé au précédent login « Se souvenir de moi ».
@@ -59,7 +60,8 @@ export function LoginPage() {
   const formRef = useRef<HTMLFormElement>(null)
 
   if (!loading && isAuthenticated) {
-    return <Navigate to="/dashboard" replace />
+    // Redirection selon le rôle : SUPER_ADMIN → console plateforme, sinon tableau de bord.
+    return <Navigate to={cheminApresConnexion(user?.role)} replace />
   }
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
@@ -82,7 +84,7 @@ export function LoginPage() {
     setSubmitting(true)
     try {
       const emailNettoye = email.trim()
-      await login(emailNettoye, password, rememberMe)
+      const connecte = await login(emailNettoye, password, rememberMe)
       // On ne persiste QUE l'e-mail, et seulement si la case est cochée ; sinon on efface
       // toute trace précédente. Le mot de passe n'est jamais touché ici (cf. commentaire
       // sur REMEMBERED_EMAIL_KEY).
@@ -95,7 +97,8 @@ export function LoginPage() {
       } catch {
         // localStorage indisponible → la mémorisation e-mail est simplement inopérante.
       }
-      navigate('/dashboard', { replace: true })
+      // Un SUPER_ADMIN atterrit sur la console plateforme, tout autre rôle sur son tableau de bord.
+      navigate(cheminApresConnexion(connecte.role), { replace: true })
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
         setError('Identifiants invalides.')

@@ -1,5 +1,21 @@
 /** Regroupements de rôles pour les autorisations d'affichage côté frontend (miroir §2). */
 
+/**
+ * Rôle plateforme transverse (SaaS §2.3) : il n'appartient à aucune organisation et n'a
+ * accès qu'à la console /super-admin (jamais aux pages tenant). Miroir du back.
+ */
+export function estSuperAdmin(role: string | undefined): boolean {
+  return role === 'SUPER_ADMIN'
+}
+
+/**
+ * Chemin d'accueil après connexion selon le rôle : un SUPER_ADMIN va à la console
+ * plateforme, tout autre rôle au tableau de bord de son organisation.
+ */
+export function cheminApresConnexion(role: string | undefined): string {
+  return estSuperAdmin(role) ? '/super-admin' : '/dashboard'
+}
+
 /** Rôles autorisés à créer/modifier un membre (Créer/Modifier dans la matrice). */
 const GESTION_MEMBRES = ['ADMIN', 'SECRETAIRE']
 

@@ -50,6 +50,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       )
       setAccessToken(token)
       setUser(connectedUser)
+      // Retourné pour que l'appelant redirige selon le rôle (SUPER_ADMIN → console plateforme).
+      return connectedUser
     },
     [],
   )

@@ -112,7 +112,8 @@ export function FonctionsPage() {
           fonctions ? `${fonctions.length} fonction${fonctions.length > 1 ? 's' : ''}` : undefined
         }
         actions={
-          gestion && (
+          // Masqué quand la liste est vide : l'EmptyState porte déjà le CTA (pas de doublon).
+          gestion && (!fonctions || fonctions.length > 0) && (
             <Button type="button" icon={Plus} onClick={() => setCreerOuvert(true)}>
               Nouvelle fonction
             </Button>

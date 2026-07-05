@@ -60,7 +60,8 @@ export function CommemorationsPage() {
         title="Commémorations & cérémonies"
         description={items ? `${items.length} événement${items.length > 1 ? 's' : ''}` : undefined}
         actions={
-          gestion && (
+          // Masqué quand la liste est vide : l'EmptyState porte déjà le CTA (pas de doublon).
+          gestion && (!items || items.length > 0) && (
             <ButtonLink to="/commemorations/nouvelle" icon={Plus}>
               Nouvelle
             </ButtonLink>

@@ -59,7 +59,8 @@ export function ReunionsPage() {
           reunions ? `${reunions.length} réunion${reunions.length > 1 ? 's' : ''}` : undefined
         }
         actions={
-          gestion && (
+          // Masqué quand la liste est vide : l'EmptyState porte déjà le CTA (pas de doublon).
+          gestion && (!reunions || reunions.length > 0) && (
             <ButtonLink to="/reunions/nouvelle" icon={Plus}>
               Nouvelle réunion
             </ButtonLink>

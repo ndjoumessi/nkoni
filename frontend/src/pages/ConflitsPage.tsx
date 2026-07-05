@@ -59,7 +59,8 @@ export function ConflitsPage() {
           conflits ? `${conflits.length} conflit${conflits.length > 1 ? 's' : ''} visible${conflits.length > 1 ? 's' : ''}` : undefined
         }
         actions={
-          declarer && (
+          // Masqué quand la liste est vide : l'EmptyState porte déjà le CTA (pas de doublon).
+          declarer && (!conflits || conflits.length > 0) && (
             <ButtonLink to="/conflits/nouveau" icon={Plus}>
               Déclarer un conflit
             </ButtonLink>

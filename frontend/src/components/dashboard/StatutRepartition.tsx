@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ChevronRight } from 'lucide-react'
 import type {
@@ -6,7 +7,7 @@ import type {
 } from '@/lib/api'
 import { formatNombre } from '@/lib/format'
 import { Card, Overline } from '@/components/ui/Card'
-import { cn } from '@/lib/utils'
+import { cn, prefersReducedMotion } from '@/lib/utils'
 
 interface Item {
   key: string
@@ -21,6 +22,15 @@ interface Item {
 /** Répartition en barre segmentée + légende chiffrée, lignes cliquables si `href`. */
 function Repartition({ titre, items }: { titre: string; items: Item[] }) {
   const total = items.reduce((s, it) => s + it.count, 0)
+
+  // Animation d'entrée (§10) : les segments grandissent de 0 vers leur largeur.
+  const [monte, setMonte] = useState(() => prefersReducedMotion())
+  useEffect(() => {
+    if (monte) return
+    const id = requestAnimationFrame(() => setMonte(true))
+    return () => cancelAnimationFrame(id)
+  }, [monte])
+
   return (
     <Card className="p-5">
       <Overline>{titre}</Overline>
@@ -29,13 +39,19 @@ function Repartition({ titre, items }: { titre: string; items: Item[] }) {
         <p className="mt-4 text-sm text-faint">Aucune donnée pour l'instant.</p>
       ) : (
         <>
-          <div className="mt-4 flex h-2.5 w-full gap-0.5 overflow-hidden rounded-full bg-surface-2">
+          <div
+            className="mt-4 flex h-2.5 w-full gap-0.5 overflow-hidden rounded-full bg-surface-2"
+            aria-hidden="true"
+          >
             {items.map((it) =>
               it.count > 0 ? (
                 <span
                   key={it.key}
-                  className={cn('h-full first:rounded-l-full last:rounded-r-full', it.bar)}
-                  style={{ width: `${(it.count / total) * 100}%` }}
+                  className={cn(
+                    'h-full transition-[width] duration-700 ease-out first:rounded-l-full last:rounded-r-full',
+                    it.bar,
+                  )}
+                  style={{ width: monte ? `${(it.count / total) * 100}%` : '0%' }}
                   title={`${it.label} : ${it.count}`}
                 />
               ) : null,

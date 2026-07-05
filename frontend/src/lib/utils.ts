@@ -35,3 +35,15 @@ export function focusPremierChampInvalide(form: HTMLElement | null): void {
     cible.scrollIntoView({ block: 'center', behavior: 'smooth' })
   }
 }
+
+/**
+ * L'utilisateur a-t-il demandé une réduction des animations ? (§1 accessibilité)
+ * À interroger avant toute animation d'entrée pilotée en JS (jauges, barres §10)
+ * pour livrer directement l'état final au lieu d'animer.
+ */
+export function prefersReducedMotion(): boolean {
+  return (
+    typeof window !== 'undefined' &&
+    window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true
+  )
+}

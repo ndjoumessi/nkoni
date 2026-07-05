@@ -1,6 +1,8 @@
+import { useEffect, useState } from 'react'
 import { Coins, Wallet } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { formatFcfa, formatPourcent } from '@/lib/format'
+import { prefersReducedMotion } from '@/lib/utils'
 
 /** Jauge circulaire laiton→jade pour le taux de recouvrement. */
 function Gauge({ value }: { value: number }) {
@@ -9,7 +11,19 @@ function Gauge({ value }: { value: number }) {
   const stroke = 13
   const r = (size - stroke) / 2
   const c = 2 * Math.PI * r
-  const offset = c * (1 - pct / 100)
+
+  // Animation d'entrée (§10) : l'anneau se remplit de 0 vers `pct`. Livré direct si
+  // l'utilisateur préfère moins d'animations.
+  const [affiche, setAffiche] = useState(() => (prefersReducedMotion() ? pct : 0))
+  useEffect(() => {
+    if (prefersReducedMotion()) {
+      setAffiche(pct)
+      return
+    }
+    const id = requestAnimationFrame(() => setAffiche(pct))
+    return () => cancelAnimationFrame(id)
+  }, [pct])
+  const offset = c * (1 - affiche / 100)
 
   return (
     <div className="relative shrink-0" style={{ width: size, height: size }}>

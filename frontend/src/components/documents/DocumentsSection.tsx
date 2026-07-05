@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ChangeEvent } from 'react'
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import { Download, FileText, Image as ImageIcon, Paperclip, Trash2, Upload, X } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
 import {
@@ -8,7 +8,7 @@ import {
   type DocumentMeta,
   type EntiteDocument,
 } from '@/lib/api'
-import { formatDateFR } from '@/lib/utils'
+import { formatDateFR, focusPremierChampInvalide } from '@/lib/utils'
 import { useToast } from '@/components/ui/Toast'
 import { Card, Overline } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -55,9 +55,11 @@ export function DocumentsSection({
   const [error, setError] = useState<string | null>(null)
 
   const fileRef = useRef<HTMLInputElement>(null)
+  const uploadFormRef = useRef<HTMLFormElement>(null)
   const [selection, setSelection] = useState<File | null>(null)
   const [nom, setNom] = useState('')
   const [description, setDescription] = useState('')
+  const [errNom, setErrNom] = useState<string | undefined>(undefined)
   const [uploading, setUploading] = useState(false)
   const [pendingId, setPendingId] = useState<string | null>(null)
   const [downloadId, setDownloadId] = useState<string | null>(null)
@@ -103,10 +105,19 @@ export function DocumentsSection({
     setSelection(null)
     setNom('')
     setDescription('')
+    setErrNom(undefined)
   }
 
-  const televerser = async () => {
-    if (!accessToken || !selection || nom.trim().length === 0) return
+  const televerser = async (e: FormEvent) => {
+    e.preventDefault()
+    if (!accessToken || !selection) return
+    // Validation inline du nom + focus (§8).
+    const eNom = nom.trim().length === 0 ? 'Le nom est requis.' : undefined
+    setErrNom(eNom)
+    if (eNom) {
+      requestAnimationFrame(() => focusPremierChampInvalide(uploadFormRef.current))
+      return
+    }
     setUploading(true)
     try {
       const cree = await documentsApi.upload(
@@ -233,7 +244,7 @@ export function DocumentsSection({
               <p className="mt-2 text-xs text-faint">PDF, JPEG, PNG ou DOCX · 10 Mo maximum.</p>
             </>
           ) : (
-            <div className="space-y-3">
+            <form ref={uploadFormRef} onSubmit={televerser} noValidate className="space-y-3">
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <IconeFichier mime={selection.type} />
                 <span className="truncate">
@@ -248,8 +259,15 @@ export function DocumentsSection({
                   <X className="h-4 w-4" aria-hidden="true" />
                 </button>
               </div>
-              <Field label="Nom" required>
-                <Input value={nom} onChange={(e) => setNom(e.target.value)} maxLength={300} />
+              <Field label="Nom" required error={errNom}>
+                <Input
+                  value={nom}
+                  onChange={(e) => {
+                    setNom(e.target.value)
+                    setErrNom(undefined)
+                  }}
+                  maxLength={300}
+                />
               </Field>
               <Field label="Description" hint="Optionnel.">
                 <Input
@@ -262,17 +280,11 @@ export function DocumentsSection({
                 <Button type="button" variant="ghost" onClick={annuler}>
                   Annuler
                 </Button>
-                <Button
-                  type="button"
-                  icon={Upload}
-                  loading={uploading}
-                  disabled={nom.trim().length === 0}
-                  onClick={televerser}
-                >
+                <Button type="submit" icon={Upload} loading={uploading}>
                   Téléverser
                 </Button>
               </div>
-            </div>
+            </form>
           )}
         </div>
       )}

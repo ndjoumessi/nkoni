@@ -1,2 +1,4 @@
 /** Messages FR du domaine « branches » (§4 i18n). Rempli au lot correspondant. */
-export const messages = {} as const
+export const messages = {
+  'branches.introuvable': 'Branche introuvable.',
+} as const

@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
 import { Prisma } from '../generated/prisma/client'
 import { authenticate } from '../middlewares/authenticate'
 import { requirePermission } from '../middlewares/permissions'
+import { t, langueDeRequete } from '../lib/i18n'
 
 /**
  * CRUD BrancheFamiliale (§5 point 2), conforme à la matrice §2 :
@@ -91,7 +92,7 @@ export const branchesRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
         ) {
           return reply
             .code(404)
-            .send({ error: 'Not Found', message: 'Branche introuvable.' })
+            .send({ error: 'Not Found', message: t(langueDeRequete(req), 'branches.introuvable') })
         }
         throw err
       }
@@ -113,7 +114,7 @@ export const branchesRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
         ) {
           return reply
             .code(404)
-            .send({ error: 'Not Found', message: 'Branche introuvable.' })
+            .send({ error: 'Not Found', message: t(langueDeRequete(req), 'branches.introuvable') })
         }
         throw err
       }

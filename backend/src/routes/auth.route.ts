@@ -8,6 +8,7 @@ import {
   findUserById,
   changerMotDePasse,
   definirLangue,
+  langueEffective,
   AncienMotDePasseIncorrectError,
 } from '../services/auth.service'
 import { chargerOrganisationActif } from '../services/organisation.service'
@@ -95,12 +96,12 @@ export const authRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
       if (!user) {
         return reply
           .code(401)
-          .send({ error: 'Unauthorized', message: 'Identifiants invalides.' })
+          .send({ error: 'Unauthorized', message: t(langueDeRequete(req), 'auth.identifiantsInvalides') })
       }
       if (!user.actif) {
         return reply
           .code(403)
-          .send({ error: 'Forbidden', message: 'Compte désactivé.' })
+          .send({ error: 'Forbidden', message: t(langueDeRequete(req), 'auth.compteDesactive') })
       }
 
       // Espace suspendu (§2.3) : un utilisateur tenant dont l'organisation est désactivée ne
@@ -113,7 +114,7 @@ export const authRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
         if (orgActive !== true) {
           return reply.code(403).send({
             error: 'Forbidden',
-            message: 'Cet espace a été suspendu. Contactez le support.',
+            message: t(langueDeRequete(req), 'auth.espaceSuspendu'),
           })
         }
       }
@@ -123,7 +124,8 @@ export const authRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
 
       return reply.code(200).send({
         accessToken,
-        user: { id: user.id, email: user.email, role: user.role, langue: user.langue },
+        // Langue EFFECTIVE (perso ↩ défaut org) → le front l'applique dès la connexion.
+        user: { id: user.id, email: user.email, role: user.role, langue: langueEffective(user) },
       })
     },
   )
@@ -135,7 +137,7 @@ export const authRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
       if (payload.typ !== 'refresh' || !payload.sub) {
         return reply
           .code(401)
-          .send({ error: 'Unauthorized', message: 'Refresh token invalide.' })
+          .send({ error: 'Unauthorized', message: t(langueDeRequete(req), 'auth.refreshInvalide') })
       }
 
       // Pré-auth (le contexte org n'est pas encore établi) : lecture par id non scopée.
@@ -144,7 +146,7 @@ export const authRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
       if (!user || !user.actif) {
         return reply
           .code(401)
-          .send({ error: 'Unauthorized', message: 'Session invalide.' })
+          .send({ error: 'Unauthorized', message: t(langueDeRequete(req), 'auth.sessionInvalide') })
       }
 
       // Espace suspendu (§2.3) : refuser aussi la réémission d'un access token → l'utilisateur
@@ -157,7 +159,7 @@ export const authRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
         if (orgActive !== true) {
           return reply
             .code(401)
-            .send({ error: 'Unauthorized', message: 'Session invalide.' })
+            .send({ error: 'Unauthorized', message: t(langueDeRequete(req), 'auth.sessionInvalide') })
         }
       }
 
@@ -166,7 +168,7 @@ export const authRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
     } catch {
       return reply
         .code(401)
-        .send({ error: 'Unauthorized', message: 'Refresh token absent ou invalide.' })
+        .send({ error: 'Unauthorized', message: t(langueDeRequete(req), 'auth.refreshAbsent') })
     }
   })
 
@@ -182,7 +184,7 @@ export const authRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
     if (!sub) {
       return reply
         .code(401)
-        .send({ error: 'Unauthorized', message: 'Token invalide.' })
+        .send({ error: 'Unauthorized', message: t(langueDeRequete(req), 'commun.tokenInvalide') })
     }
     // Lecture du PROPRE compte par id (sub du JWT). En `runUnscoped` : un SUPER_ADMIN n'a
     // pas de contexte d'organisation → sans bypass, l'extension d'isolation fail-close sur
@@ -191,16 +193,16 @@ export const authRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
     if (!user) {
       return reply
         .code(401)
-        .send({ error: 'Unauthorized', message: 'Utilisateur introuvable.' })
+        .send({ error: 'Unauthorized', message: t(langueDeRequete(req), 'auth.utilisateurIntrouvable') })
     }
     return {
       id: user.id,
       email: user.email,
       role: user.role,
       membreId: user.membreId,
-      // §4 i18n : préférence de langue perso (null = non exprimée → le front retombe sur son
-      // choix localStorage/navigateur). Le front applique cette langue au montage.
-      langue: user.langue,
+      // §4 i18n : langue EFFECTIVE (préférence perso, sinon défaut de l'org). Le front l'applique
+      // au montage. Null seulement pour un compte sans préférence ni org (SUPER_ADMIN).
+      langue: langueEffective(user),
     }
   })
 
@@ -242,7 +244,7 @@ export const authRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
       if (!sub) {
         return reply
           .code(401)
-          .send({ error: 'Unauthorized', message: 'Token invalide.' })
+          .send({ error: 'Unauthorized', message: t(langueDeRequete(req), 'commun.tokenInvalide') })
       }
       const { ancienMotDePasse, nouveauMotDePasse } = req.body
       try {
@@ -255,7 +257,9 @@ export const authRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
         return reply.code(204).send()
       } catch (err) {
         if (err instanceof AncienMotDePasseIncorrectError) {
-          return reply.code(401).send({ error: 'Unauthorized', message: err.message })
+          return reply
+            .code(401)
+            .send({ error: 'Unauthorized', message: t(langueDeRequete(req), 'auth.ancienMotDePasseIncorrect') })
         }
         throw err
       }

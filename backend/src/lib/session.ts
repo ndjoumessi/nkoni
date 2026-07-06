@@ -8,7 +8,7 @@ import {
 } from './env'
 import type { Role } from '../middlewares/permissions'
 import type { Langue } from './i18n'
-import type { AuthenticatedUser } from '../services/auth.service'
+import { langueEffective, type AuthenticatedUser } from '../services/auth.service'
 
 /**
  * Émission de session (access token + cookie refresh httpOnly) — factorisée pour être
@@ -49,9 +49,11 @@ export async function signAccessToken(
   if (user.membreId) payload.membreId = user.membreId
   // Porté dans l'access token → l'authenticate établit le contexte d'isolation (SaaS §2.2).
   if (user.organisationId) payload.organisationId = user.organisationId
-  // §4 i18n : la préférence de langue voyage dans le token → messages serveur traduits sans
-  // requête DB (voir lib/i18n.ts `langueDeRequete`). Absente si l'utilisateur ne l'a pas fixée.
-  if (user.langue) payload.langue = user.langue
+  // §4 i18n : la langue EFFECTIVE (préférence perso ↩ défaut de l'org) voyage dans le token →
+  // messages serveur traduits sans requête DB (voir lib/i18n.ts `langueDeRequete`). Absente
+  // uniquement pour un compte sans préférence ET sans org (SUPER_ADMIN) → repli Accept-Language.
+  const langue = langueEffective(user)
+  if (langue) payload.langue = langue
   return reply.jwtSign(payload)
 }
 

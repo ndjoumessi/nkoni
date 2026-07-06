@@ -1,4 +1,5 @@
 import type { FastifyReply, FastifyRequest, preHandlerHookHandler } from 'fastify'
+import { t, langueDeRequete } from '../lib/i18n'
 
 /**
  * Middleware de permissions NKONI — encode la matrice de la section 2 de la spec.
@@ -241,7 +242,9 @@ export function requirePermission(
 
     // Garde-fou défensif : l'auth (401) est normalement déjà traitée en amont.
     if (!role) {
-      reply.code(401).send({ error: 'Unauthorized', message: 'Authentification requise.' })
+      reply
+        .code(401)
+        .send({ error: 'Unauthorized', message: t(langueDeRequete(req), 'commun.authRequise') })
       return
     }
 
@@ -249,7 +252,7 @@ export function requirePermission(
     if (!actionsAutorisees.includes(action)) {
       reply.code(403).send({
         error: 'Forbidden',
-        message: `Le rôle ${role} n'a pas la permission '${action}' sur l'entité '${entite}'.`,
+        message: t(langueDeRequete(req), 'permissions.roleSansPermission', { role, action, entite }),
       })
       return
     }
@@ -277,7 +280,7 @@ export const requireSuperAdmin: preHandlerHookHandler = async function requireSu
   if (user?.role !== 'SUPER_ADMIN') {
     reply.code(403).send({
       error: 'Forbidden',
-      message: 'Accès réservé à un administrateur de la plateforme.',
+      message: t(langueDeRequete(req), 'permissions.reserveSuperAdmin'),
     })
     return
   }

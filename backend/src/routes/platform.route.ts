@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
 import { authenticate } from '../middlewares/authenticate'
 import { requireSuperAdmin } from '../middlewares/permissions'
 import { orgContext } from '../lib/org-context'
+import { t, langueDeRequete } from '../lib/i18n'
 import {
   listerOrganisations,
   definirStatutOrganisation,
@@ -68,7 +69,10 @@ async function definirStatut(
     if (err && typeof err === 'object' && (err as { code?: string }).code === 'P2025') {
       return reply
         .code(404)
-        .send({ error: 'Not Found', message: 'Organisation introuvable.' })
+        .send({
+          error: 'Not Found',
+          message: t(langueDeRequete(reply.request), 'platform.organisationIntrouvable'),
+        })
     }
     throw err
   }

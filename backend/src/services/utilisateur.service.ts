@@ -16,17 +16,17 @@ import type { Role } from '../middlewares/permissions'
 /* Erreurs métier (mappées en 4xx par la route)                               */
 /* -------------------------------------------------------------------------- */
 
-/** Email déjà pris (contrainte @unique). → 409 */
+/** Email déjà pris (contrainte @unique). → 409. `email` exposé pour la traduction (§4). */
 export class EmailDejaUtiliseError extends Error {
-  constructor(email: string) {
+  constructor(readonly email: string) {
     super(`Un compte existe déjà avec l'email ${email}.`)
     this.name = 'EmailDejaUtiliseError'
   }
 }
 
-/** Le membre à lier n'existe pas. → 400 */
+/** Le membre à lier n'existe pas. → 400. `membreId` exposé pour la traduction (§4). */
 export class MembreIntrouvableError extends Error {
-  constructor(membreId: string) {
+  constructor(readonly membreId: string) {
     super(`Membre introuvable (${membreId}).`)
     this.name = 'MembreIntrouvableError'
   }

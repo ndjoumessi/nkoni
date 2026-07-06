@@ -15,8 +15,19 @@ export interface AuthenticatedUser {
   /** Organisation d'appartenance (SaaS §2). Null pour un futur Super-Admin transverse (§2.3). */
   organisationId: string | null
   actif: boolean
-  /** Préférence de langue perso (§4). Null = non exprimée (→ Accept-Language/FR côté i18n). */
+  /** Préférence de langue PERSO (§4). Null = non exprimée → on hérite du défaut de l'org. */
   langue: Langue | null
+  /** Langue par défaut de l'organisation (§4). Null pour le SUPER_ADMIN (sans org). */
+  organisationLangueDefaut: Langue | null
+}
+
+/**
+ * Langue EFFECTIVE d'un utilisateur (§4) : sa préférence perso si exprimée, sinon le défaut de
+ * son organisation (cohérent avec le choix fait à l'inscription). Null seulement pour un compte
+ * sans préférence ET sans org (SUPER_ADMIN) → l'i18n retombera alors sur Accept-Language/FR.
+ */
+export function langueEffective(user: AuthenticatedUser): Langue | null {
+  return user.langue ?? user.organisationLangueDefaut
 }
 
 /**
@@ -54,6 +65,7 @@ export function hashPassword(plain: string): Promise<string> {
 
 function toAuthUser(record: Record<string, unknown>): AuthenticatedUser {
   const membre = record['membre'] as { id: string } | null | undefined
+  const organisation = record['organisation'] as { langueDefaut?: Langue } | null | undefined
   return {
     id: record['id'] as string,
     email: record['email'] as string,
@@ -62,6 +74,7 @@ function toAuthUser(record: Record<string, unknown>): AuthenticatedUser {
     organisationId: (record['organisationId'] as string | null | undefined) ?? null,
     actif: record['actif'] as boolean,
     langue: (record['langue'] as Langue | null | undefined) ?? null,
+    organisationLangueDefaut: organisation?.langueDefaut ?? null,
   }
 }
 
@@ -89,6 +102,8 @@ export async function verifyCredentials(
       langue: true,
       passwordHash: true,
       membre: { select: { id: true } },
+      // §4 : défaut de langue de l'org → langue effective si l'utilisateur n'a pas de préférence.
+      organisation: { select: { langueDefaut: true } },
     },
   })
   if (!record) return null
@@ -142,6 +157,7 @@ export async function findUserById(
       organisationId: true,
       langue: true,
       membre: { select: { id: true } },
+      organisation: { select: { langueDefaut: true } },
     },
   })
   if (!record) return null

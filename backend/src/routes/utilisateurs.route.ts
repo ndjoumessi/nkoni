@@ -2,6 +2,7 @@ import type {
   FastifyInstance,
   FastifyPluginAsync,
   FastifyReply,
+  FastifyRequest,
   preHandlerHookHandler,
 } from 'fastify'
 import { authenticate } from '../middlewares/authenticate'
@@ -16,6 +17,7 @@ import {
   UtilisateurIntrouvableError,
 } from '../services/utilisateur.service'
 import type { Role } from '../middlewares/permissions'
+import { t, langueDeRequete } from '../lib/i18n'
 
 /**
  * Gestion des comptes Utilisateur (§4.5) — RÉSERVÉ ADMIN.
@@ -94,23 +96,36 @@ const requireAdmin: preHandlerHookHandler = async (req, reply) => {
   if (req.user.role !== 'ADMIN') {
     reply.code(403).send({
       error: 'Forbidden',
-      message: "La gestion des comptes est réservée à l'administrateur.",
+      message: t(langueDeRequete(req), 'utilisateurs.gestionReserveeAdmin'),
     })
   }
 }
 
-/** Mappe les erreurs métier du service en réponses 4xx explicites ; relance le reste. */
-function reply4xxSiMetier(err: unknown, reply: FastifyReply): boolean {
-  if (err instanceof EmailDejaUtiliseError || err instanceof MembreDejaLieError) {
-    reply.code(409).send({ error: 'Conflict', message: err.message })
+/**
+ * Mappe les erreurs métier du service en réponses 4xx explicites ; relance le reste.
+ * Messages traduits (§4) par TYPE d'erreur dans la langue du demandeur — le service reste
+ * i18n-agnostique (il porte les données, ex. `email`/`membreId`, pas la langue).
+ */
+function reply4xxSiMetier(err: unknown, reply: FastifyReply, req: FastifyRequest): boolean {
+  const langue = langueDeRequete(req)
+  if (err instanceof EmailDejaUtiliseError) {
+    reply
+      .code(409)
+      .send({ error: 'Conflict', message: t(langue, 'utilisateurs.emailDejaUtilise', { email: err.email }) })
+    return true
+  }
+  if (err instanceof MembreDejaLieError) {
+    reply.code(409).send({ error: 'Conflict', message: t(langue, 'utilisateurs.membreDejaLie') })
     return true
   }
   if (err instanceof MembreIntrouvableError) {
-    reply.code(400).send({ error: 'Bad Request', message: err.message })
+    reply
+      .code(400)
+      .send({ error: 'Bad Request', message: t(langue, 'utilisateurs.membreIntrouvable', { membreId: err.membreId }) })
     return true
   }
   if (err instanceof UtilisateurIntrouvableError) {
-    reply.code(404).send({ error: 'Not Found', message: err.message })
+    reply.code(404).send({ error: 'Not Found', message: t(langue, 'utilisateurs.introuvable') })
     return true
   }
   return false
@@ -139,7 +154,7 @@ export const utilisateursRoutes: FastifyPluginAsync = async (app: FastifyInstanc
         })
         return reply.code(201).send(cree)
       } catch (err) {
-        if (reply4xxSiMetier(err, reply)) return
+        if (reply4xxSiMetier(err, reply, req)) return
         throw err
       }
     },
@@ -157,7 +172,7 @@ export const utilisateursRoutes: FastifyPluginAsync = async (app: FastifyInstanc
       if (req.params.id === req.user.sub && (actif === false || (role && role !== 'ADMIN'))) {
         return reply.code(400).send({
           error: 'Bad Request',
-          message: 'Vous ne pouvez pas désactiver ni rétrograder votre propre compte.',
+          message: t(langueDeRequete(req), 'utilisateurs.autoVerrouillage'),
         })
       }
 
@@ -167,7 +182,7 @@ export const utilisateursRoutes: FastifyPluginAsync = async (app: FastifyInstanc
           ...(actif !== undefined ? { actif } : {}),
         })
       } catch (err) {
-        if (reply4xxSiMetier(err, reply)) return
+        if (reply4xxSiMetier(err, reply, req)) return
         throw err
       }
     },
@@ -184,7 +199,7 @@ export const utilisateursRoutes: FastifyPluginAsync = async (app: FastifyInstanc
         await reinitialiserMotDePasse(app.prisma, req.params.id, req.body.nouveauMotDePasse)
         return reply.code(204).send()
       } catch (err) {
-        if (reply4xxSiMetier(err, reply)) return
+        if (reply4xxSiMetier(err, reply, req)) return
         throw err
       }
     },

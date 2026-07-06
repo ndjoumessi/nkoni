@@ -91,6 +91,8 @@ export async function inscrireOrganisation(
     organisationId: admin.organisationId,
     actif: true,
     langue: admin.langue,
+    // L'org vient d'être créée avec cette langue par défaut (§4).
+    organisationLangueDefaut: params.langue,
   }
 }
 

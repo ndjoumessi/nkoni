@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Link, Navigate } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, ExternalLink, RotateCcw, ScrollText } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
@@ -22,26 +23,20 @@ import { Field, Select, Input } from '@/components/ui/Field'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { RowsSkeleton } from '@/components/ui/Skeleton'
 
-/* Libellés FR + badge par type d'entité auditée. */
-const ENTITE_LABELS: Record<string, string> = {
-  Membre: 'Membre',
-  Contribution: 'Contribution',
-  Versement: 'Versement',
-  EquilibrageContribution: 'Équilibrage',
-  Utilisateur: 'Utilisateur',
-  Conflit: 'Conflit',
-}
-const ENTITES = Object.keys(ENTITE_LABELS)
+/* Types d'entités auditées (libellés résolus via `audit.entites.*`). */
+const ENTITES = [
+  'Membre',
+  'Contribution',
+  'Versement',
+  'EquilibrageContribution',
+  'Utilisateur',
+  'Conflit',
+]
 
 const ACTION_TONE: Record<ActionAudit, BadgeProps['tone']> = {
   CREATE: 'jade',
   UPDATE: 'amber',
   DELETE: 'terra',
-}
-const ACTION_LABEL: Record<ActionAudit, string> = {
-  CREATE: 'Création',
-  UPDATE: 'Modification',
-  DELETE: 'Suppression',
 }
 
 /** Route de détail pour une entité auditée (seules Membre/Conflit ont une fiche dédiée). */
@@ -64,11 +59,12 @@ function fmt(v: unknown): string {
 
 /** Détail lisible d'une entrée : paires clé → valeur, différences surlignées. */
 function DiffDetails({ entry }: { entry: AuditEntry }) {
+  const { t } = useTranslation()
   const { donneesAvant: avant, donneesApres: apres } = entry
   const cles = [...new Set([...Object.keys(avant ?? {}), ...Object.keys(apres ?? {})])].sort()
 
   if (cles.length === 0) {
-    return <p className="text-sm text-faint">Aucune donnée capturée.</p>
+    return <p className="text-sm text-faint">{t('audit.diff.aucuneDonnee')}</p>
   }
 
   const compare = avant !== null && apres !== null // UPDATE
@@ -77,8 +73,8 @@ function DiffDetails({ entry }: { entry: AuditEntry }) {
     <div className="mt-1 space-y-1 rounded-xl border border-hairline bg-surface-2/40 p-3">
       {compare && (
         <div className="mb-1 grid grid-cols-[minmax(0,9rem)_1fr] gap-x-3 px-2 text-[0.68rem] uppercase tracking-wide text-faint">
-          <span>Champ</span>
-          <span>Avant → Après</span>
+          <span>{t('audit.diff.champ')}</span>
+          <span>{t('audit.diff.avantApres')}</span>
         </div>
       )}
       {cles.map((cle) => {
@@ -119,6 +115,7 @@ function DiffDetails({ entry }: { entry: AuditEntry }) {
 
 /** Journal d'audit (§5) — consultation ADMIN uniquement. */
 export function AuditLogPage() {
+  const { t } = useTranslation()
   const { user, accessToken } = useAuth()
 
   const [entiteType, setEntiteType] = useState('')
@@ -202,7 +199,7 @@ export function AuditLogPage() {
   const colonnes: Column<AuditEntry>[] = [
     {
       key: 'date',
-      header: 'Date',
+      header: t('audit.table.date'),
       width: '11.5rem',
       cell: (e) => (
         <span className="whitespace-nowrap text-muted-foreground">{formatDateHeure(e.dateAction)}</span>
@@ -210,22 +207,22 @@ export function AuditLogPage() {
     },
     {
       key: 'action',
-      header: 'Action',
+      header: t('audit.table.action'),
       cell: (e) => (
         <Badge tone={ACTION_TONE[e.action]} size="sm">
-          {ACTION_LABEL[e.action]}
+          {t(`audit.actions.${e.action}`)}
         </Badge>
       ),
     },
     {
       key: 'entite',
-      header: 'Entité',
+      header: t('audit.table.entite'),
       cell: (e) => {
         const lien = lienEntite(e.entiteType, e.entiteId)
         return (
           <span className="inline-flex items-center gap-1.5">
             <span className="font-medium text-foreground">
-              {ENTITE_LABELS[e.entiteType] ?? e.entiteType}
+              {t(`audit.entites.${e.entiteType}`, { defaultValue: e.entiteType })}
             </span>
             {lien ? (
               <Link
@@ -244,36 +241,36 @@ export function AuditLogPage() {
     },
     {
       key: 'acteur',
-      header: 'Acteur',
+      header: t('audit.table.acteur'),
       cell: (e) =>
-        e.acteur?.email ?? <span className="italic text-faint">système</span>,
+        e.acteur?.email ?? <span className="italic text-faint">{t('audit.table.systeme')}</span>,
     },
   ]
 
   return (
     <>
       <PageHeader
-        overline="Gouvernance"
-        title="Journal d’audit"
-        description={data ? `${total} entrée${total > 1 ? 's' : ''}` : undefined}
+        overline={t('audit.header.overline')}
+        title={t('audit.header.titre')}
+        description={data ? t('audit.header.entrees', { count: total }) : undefined}
       />
 
       {/* Filtres */}
       <Card className="nk-reveal nk-d2 mt-7 p-5">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Field label="Type d’entité">
+          <Field label={t('audit.filtres.typeEntite')}>
             <Select value={entiteType} onChange={(e) => filtrer(setEntiteType)(e.target.value)}>
-              <option value="">Toutes</option>
-              {ENTITES.map((t) => (
-                <option key={t} value={t}>
-                  {ENTITE_LABELS[t]}
+              <option value="">{t('audit.filtres.toutes')}</option>
+              {ENTITES.map((type) => (
+                <option key={type} value={type}>
+                  {t(`audit.entites.${type}`)}
                 </option>
               ))}
             </Select>
           </Field>
-          <Field label="Acteur">
+          <Field label={t('audit.filtres.acteur')}>
             <Select value={acteurId} onChange={(e) => filtrer(setActeurId)(e.target.value)}>
-              <option value="">Tous</option>
+              <option value="">{t('audit.filtres.tous')}</option>
               {utilisateurs.map((u) => (
                 <option key={u.id} value={u.id}>
                   {u.email}
@@ -281,17 +278,17 @@ export function AuditLogPage() {
               ))}
             </Select>
           </Field>
-          <Field label="Du">
+          <Field label={t('audit.filtres.du')}>
             <Input type="date" value={dateDebut} onChange={(e) => filtrer(setDateDebut)(e.target.value)} />
           </Field>
-          <Field label="Au">
+          <Field label={t('audit.filtres.au')}>
             <Input type="date" value={dateFin} onChange={(e) => filtrer(setDateFin)(e.target.value)} />
           </Field>
         </div>
         {filtresActifs && (
           <div className="mt-3 flex justify-end">
             <Button type="button" variant="ghost" icon={RotateCcw} onClick={reinitialiser}>
-              Réinitialiser
+              {t('audit.filtres.reinitialiser')}
             </Button>
           </div>
         )}
@@ -311,12 +308,10 @@ export function AuditLogPage() {
         {!loading && !error && data && data.donnees.length === 0 && (
           <EmptyState
             icon={ScrollText}
-            title="Aucune entrée"
+            title={t('audit.vide.titre')}
             className="min-h-[35vh] justify-center"
             description={
-              filtresActifs
-                ? 'Aucune écriture ne correspond à ces filtres.'
-                : 'Les écritures tracées apparaîtront ici.'
+              filtresActifs ? t('audit.vide.avecFiltres') : t('audit.vide.sansFiltres')
             }
           />
         )}
@@ -324,7 +319,7 @@ export function AuditLogPage() {
         {!loading && !error && data && data.donnees.length > 0 && (
           <Card className="overflow-hidden p-0">
             <DataTable
-              caption="Journal d'audit (déplier une ligne pour le détail avant/après)"
+              caption={t('audit.table.caption')}
               columns={colonnes}
               rows={data.donnees}
               rowKey={(e) => e.id}
@@ -334,7 +329,7 @@ export function AuditLogPage() {
             {/* Pagination */}
             <div className="flex items-center justify-between border-t border-hairline px-5 py-3">
               <span className="text-xs text-faint">
-                Page {data.page} / {totalPages}
+                {t('audit.pagination.page', { page: data.page, total: totalPages })}
               </span>
               <div className="flex gap-2">
                 <Button
@@ -344,7 +339,7 @@ export function AuditLogPage() {
                   disabled={data.page <= 1}
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                 >
-                  Précédent
+                  {t('audit.pagination.precedent')}
                 </Button>
                 <Button
                   type="button"
@@ -352,7 +347,7 @@ export function AuditLogPage() {
                   disabled={data.page >= totalPages}
                   onClick={() => setPage((p) => p + 1)}
                 >
-                  Suivant
+                  {t('audit.pagination.suivant')}
                   <ChevronRight className="h-4 w-4" aria-hidden="true" />
                 </Button>
               </div>

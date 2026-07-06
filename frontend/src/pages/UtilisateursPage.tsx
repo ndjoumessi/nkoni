@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Navigate } from 'react-router-dom'
 import { KeyRound, Mail, Power, ShieldUser, UserPlus } from 'lucide-react'
 import type { FormEvent } from 'react'
@@ -31,6 +32,7 @@ import { RowsSkeleton } from '@/components/ui/Skeleton'
  * activation/désactivation (soft) et changement de rôle. Feedback par toasts.
  */
 export function UtilisateursPage() {
+  const { t } = useTranslation()
   const { user, accessToken } = useAuth()
   const toast = useToast()
 
@@ -101,11 +103,11 @@ export function UtilisateursPage() {
     e.preventDefault()
     if (!accessToken) return
     if (!email.includes('@')) {
-      toast.error('Email invalide', 'Saisissez une adresse e-mail valide.')
+      toast.error(t('utilisateurs.toast.emailInvalide'), t('utilisateurs.toast.emailInvalideDetail'))
       return
     }
     if (password.length < 8) {
-      toast.error('Mot de passe trop court', 'Au moins 8 caractères.')
+      toast.error(t('utilisateurs.toast.motDePasseCourt'), t('utilisateurs.min8'))
       return
     }
     setCreating(true)
@@ -119,11 +121,11 @@ export function UtilisateursPage() {
       setPassword('')
       setRole('SECRETAIRE')
       setMembreId('')
-      toast.success('Compte créé', cree.email)
+      toast.success(t('utilisateurs.toast.compteCree'), cree.email)
     } catch (err) {
       toast.error(
-        'Création impossible',
-        err instanceof ApiError ? err.message : 'Réessayez plus tard.',
+        t('utilisateurs.toast.creationImpossible'),
+        err instanceof ApiError ? err.message : t('utilisateurs.toast.reessayer'),
       )
     } finally {
       setCreating(false)
@@ -139,19 +141,19 @@ export function UtilisateursPage() {
     e.preventDefault()
     if (!accessToken || !resetCible) return
     if (resetPassword.length < 8) {
-      toast.error('Mot de passe trop court', 'Au moins 8 caractères.')
+      toast.error(t('utilisateurs.toast.motDePasseCourt'), t('utilisateurs.min8'))
       return
     }
     setResetting(true)
     try {
       await utilisateursApi.reinitialiserMotDePasse(resetCible.id, resetPassword, accessToken)
-      toast.success('Mot de passe réinitialisé', resetCible.email)
+      toast.success(t('utilisateurs.toast.mdpReinitialise'), resetCible.email)
       setResetCible(null)
       setResetPassword('')
     } catch (err) {
       toast.error(
-        'Réinitialisation impossible',
-        err instanceof ApiError ? err.message : 'Réessayez plus tard.',
+        t('utilisateurs.toast.reinitImpossible'),
+        err instanceof ApiError ? err.message : t('utilisateurs.toast.reessayer'),
       )
     } finally {
       setResetting(false)
@@ -166,16 +168,16 @@ export function UtilisateursPage() {
       setUtilisateurs((prev) => (prev ? prev.map((x) => (x.id === u.id ? maj : x)) : prev))
       toast.success(
         body.actif === false
-          ? 'Compte désactivé'
+          ? t('utilisateurs.toast.compteDesactive')
           : body.actif === true
-            ? 'Compte réactivé'
-            : 'Compte mis à jour',
+            ? t('utilisateurs.toast.compteReactive')
+            : t('utilisateurs.toast.compteMaj'),
         maj.email,
       )
     } catch (err) {
       toast.error(
-        'Mise à jour impossible',
-        err instanceof ApiError ? err.message : 'Réessayez plus tard.',
+        t('utilisateurs.toast.majImpossible'),
+        err instanceof ApiError ? err.message : t('utilisateurs.toast.reessayer'),
       )
     } finally {
       setPendingId(null)
@@ -185,7 +187,7 @@ export function UtilisateursPage() {
   const colonnesComptes: Column<Utilisateur>[] = [
     {
       key: 'compte',
-      header: 'Compte',
+      header: t('utilisateurs.table.compte'),
       cell: (u) => {
         const estSoi = u.id === user?.id
         return (
@@ -194,12 +196,14 @@ export function UtilisateursPage() {
               <span className="truncate">{u.email}</span>
               {estSoi && (
                 <Badge tone="brass" size="sm">
-                  Vous
+                  {t('utilisateurs.table.vous')}
                 </Badge>
               )}
             </p>
             <p className="mt-0.5 text-xs text-faint">
-              {u.membre ? `Membre : ${u.membre.nom} ${u.membre.prenom}` : 'Aucun membre lié'}
+              {u.membre
+                ? t('utilisateurs.table.membre', { nom: u.membre.nom, prenom: u.membre.prenom })
+                : t('utilisateurs.table.aucunMembre')}
             </p>
           </div>
         )
@@ -207,7 +211,7 @@ export function UtilisateursPage() {
     },
     {
       key: 'role',
-      header: 'Rôle',
+      header: t('utilisateurs.table.role'),
       width: '13rem',
       cell: (u) => {
         const estSoi = u.id === user?.id
@@ -217,11 +221,11 @@ export function UtilisateursPage() {
             value={u.role}
             disabled={estSoi || busy}
             onChange={(e) => patch(u, { role: e.target.value })}
-            aria-label={`Rôle de ${u.email}`}
+            aria-label={t('utilisateurs.table.roleAria', { email: u.email })}
           >
             {ROLES.map((r) => (
               <option key={r.value} value={r.value}>
-                {r.label}
+                {t(`utilisateurs.roles.${r.value}`)}
               </option>
             ))}
           </Select>
@@ -230,21 +234,21 @@ export function UtilisateursPage() {
     },
     {
       key: 'statut',
-      header: 'Statut',
+      header: t('utilisateurs.table.statut'),
       cell: (u) =>
         u.actif ? (
           <Badge tone="jade" size="sm" dot>
-            Actif
+            {t('utilisateurs.table.actif')}
           </Badge>
         ) : (
           <Badge tone="neutral" size="sm">
-            Désactivé
+            {t('utilisateurs.table.desactive')}
           </Badge>
         ),
     },
     {
       key: 'actions',
-      header: <span className="sr-only">Actions</span>,
+      header: <span className="sr-only">{t('utilisateurs.table.actions')}</span>,
       align: 'right',
       cell: (u) => {
         const estSoi = u.id === user?.id
@@ -252,7 +256,7 @@ export function UtilisateursPage() {
         return (
           <div className="flex flex-wrap justify-end gap-2">
             <Button variant="ghost" size="sm" icon={KeyRound} disabled={busy} onClick={() => ouvrirReset(u)}>
-              Réinitialiser
+              {t('utilisateurs.table.reinitialiser')}
             </Button>
             <Button
               variant={u.actif ? 'danger' : 'jade'}
@@ -260,10 +264,10 @@ export function UtilisateursPage() {
               icon={Power}
               loading={busy}
               disabled={estSoi}
-              title={estSoi ? 'Vous ne pouvez pas désactiver votre propre compte.' : undefined}
+              title={estSoi ? t('utilisateurs.table.soiTitle') : undefined}
               onClick={() => patch(u, { actif: !u.actif })}
             >
-              {u.actif ? 'Désactiver' : 'Réactiver'}
+              {u.actif ? t('utilisateurs.table.desactiver') : t('utilisateurs.table.reactiver')}
             </Button>
           </div>
         )
@@ -274,11 +278,11 @@ export function UtilisateursPage() {
   return (
     <>
       <PageHeader
-        overline="Administration"
-        title="Utilisateurs"
+        overline={t('utilisateurs.header.overline')}
+        title={t('utilisateurs.header.titre')}
         description={
           utilisateurs
-            ? `${utilisateurs.length} compte${utilisateurs.length > 1 ? 's' : ''}`
+            ? t('utilisateurs.header.comptes', { count: utilisateurs.length })
             : undefined
         }
       />
@@ -287,12 +291,12 @@ export function UtilisateursPage() {
       <Card className="nk-reveal nk-d2 mt-7 p-6">
         <div className="flex items-center gap-2">
           <UserPlus className="h-4 w-4 text-brass" aria-hidden="true" />
-          <Overline>Créer un compte</Overline>
+          <Overline>{t('utilisateurs.creer.titre')}</Overline>
         </div>
         <form onSubmit={handleCreate} className="mt-5 space-y-4">
           {/* Section 1 — Identifiants de connexion */}
-          <FormSection icon={Mail} title="Identifiants de connexion">
-            <Field label="Adresse e-mail" required>
+          <FormSection icon={Mail} title={t('utilisateurs.creer.identifiants')}>
+            <Field label={t('utilisateurs.creer.email')} required>
               <div className="relative">
                 <Mail
                   className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-faint"
@@ -304,12 +308,16 @@ export function UtilisateursPage() {
                   autoComplete="off"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="compte@exemple.com"
+                  placeholder={t('utilisateurs.creer.emailPlaceholder')}
                   className="pl-10"
                 />
               </div>
             </Field>
-            <Field label="Mot de passe temporaire" required hint="Au moins 8 caractères.">
+            <Field
+              label={t('utilisateurs.creer.motDePasse')}
+              required
+              hint={t('utilisateurs.min8')}
+            >
               <PasswordInput
                 name="new-password"
                 autoComplete="new-password"
@@ -322,19 +330,19 @@ export function UtilisateursPage() {
           </FormSection>
 
           {/* Section 2 — Rôle & rattachement */}
-          <FormSection icon={ShieldUser} title="Rôle & rattachement">
-            <Field label="Rôle" required>
+          <FormSection icon={ShieldUser} title={t('utilisateurs.creer.roleRattachement')}>
+            <Field label={t('utilisateurs.creer.role')} required>
               <Select value={role} onChange={(e) => setRole(e.target.value)}>
                 {ROLES.map((r) => (
                   <option key={r.value} value={r.value}>
-                    {r.label}
+                    {t(`utilisateurs.roles.${r.value}`)}
                   </option>
                 ))}
               </Select>
             </Field>
-            <Field label="Membre lié" hint="Optionnel — rattache le compte à une fiche membre.">
+            <Field label={t('utilisateurs.creer.membreLie')} hint={t('utilisateurs.creer.membreLieHint')}>
               <Select value={membreId} onChange={(e) => setMembreId(e.target.value)}>
-                <option value="">Aucun</option>
+                <option value="">{t('utilisateurs.creer.aucun')}</option>
                 {membresLibres.map((m) => (
                   <option key={m.id} value={m.id}>
                     {m.nom} {m.prenom}
@@ -346,7 +354,7 @@ export function UtilisateursPage() {
 
           <div className="flex justify-end pt-1">
             <Button type="submit" icon={UserPlus} loading={creating}>
-              Créer le compte
+              {t('utilisateurs.creer.bouton')}
             </Button>
           </div>
         </form>
@@ -367,12 +375,12 @@ export function UtilisateursPage() {
         {!loading && !error && utilisateurs && utilisateurs.length === 0 && (
           <EmptyState
             icon={ShieldUser}
-            title="Aucun compte"
+            title={t('utilisateurs.vide.titre')}
             className="min-h-[40vh] justify-center"
-            description="Créez le premier compte de connexion ci-dessus."
+            description={t('utilisateurs.vide.description')}
             tips={[
-              { icon: UserPlus, label: 'Secrétaire, trésorière, commissaire…' },
-              { icon: KeyRound, label: 'Mot de passe temporaire à changer' },
+              { icon: UserPlus, label: t('utilisateurs.vide.tip1') },
+              { icon: KeyRound, label: t('utilisateurs.vide.tip2') },
             ]}
           />
         )}
@@ -380,7 +388,7 @@ export function UtilisateursPage() {
         {!loading && !error && utilisateurs && utilisateurs.length > 0 && (
           <Card className="overflow-hidden p-0">
             <DataTable
-              caption="Comptes de connexion"
+              caption={t('utilisateurs.table.caption')}
               columns={colonnesComptes}
               rows={utilisateurs}
               rowKey={(u) => u.id}
@@ -393,15 +401,15 @@ export function UtilisateursPage() {
       <Modal
         open={resetCible !== null}
         onClose={() => (resetting ? undefined : setResetCible(null))}
-        title="Réinitialiser le mot de passe"
+        title={t('utilisateurs.reset.titre')}
       >
         <form onSubmit={handleReset} className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            Définir un nouveau mot de passe pour{' '}
-            <span className="font-medium text-foreground">{resetCible?.email}</span>. L'ancien
-            mot de passe n'est pas requis.
+            {t('utilisateurs.reset.intro')}{' '}
+            <span className="font-medium text-foreground">{resetCible?.email}</span>
+            {t('utilisateurs.reset.introSuite')}
           </p>
-          <Field label="Nouveau mot de passe" required hint="Au moins 8 caractères.">
+          <Field label={t('utilisateurs.reset.nouveau')} required hint={t('utilisateurs.min8')}>
             <PasswordInput
               name="reset-new-password"
               autoComplete="new-password"
@@ -419,10 +427,10 @@ export function UtilisateursPage() {
               disabled={resetting}
               onClick={() => setResetCible(null)}
             >
-              Annuler
+              {t('utilisateurs.reset.annuler')}
             </Button>
             <Button type="submit" icon={KeyRound} loading={resetting}>
-              Réinitialiser
+              {t('utilisateurs.reset.bouton')}
             </Button>
           </div>
         </form>

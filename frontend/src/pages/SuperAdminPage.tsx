@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { Building2, LogOut, PauseCircle, PlayCircle, ShieldAlert } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
@@ -34,6 +35,7 @@ function formatDate(iso: string): string {
  * réactiver un espace. Aucune donnée métier n'est exposée : uniquement statut, date et volume.
  */
 export function SuperAdminPage() {
+  const { t } = useTranslation()
   const { user, accessToken, logout } = useAuth()
   const toast = useToast()
   const navigate = useNavigate()
@@ -76,10 +78,13 @@ export function SuperAdminPage() {
     const total = organisations.length
     const actives = organisations.filter((o) => o.actif).length
     const suspendues = total - actives
-    const parts = [`${total} organisation${total > 1 ? 's' : ''}`, `${actives} active${actives > 1 ? 's' : ''}`]
-    if (suspendues > 0) parts.push(`${suspendues} suspendue${suspendues > 1 ? 's' : ''}`)
+    const parts = [
+      t('superAdmin.resume.organisations', { count: total }),
+      t('superAdmin.resume.actives', { count: actives }),
+    ]
+    if (suspendues > 0) parts.push(t('superAdmin.resume.suspendues', { count: suspendues }))
     return parts.join(' · ')
-  }, [organisations])
+  }, [organisations, t])
 
   /** Met à jour une organisation dans la liste après une mutation de statut. */
   const appliquerStatut = (id: string, actif: boolean) => {
@@ -93,12 +98,12 @@ export function SuperAdminPage() {
     try {
       await platformApi.suspendre(cible.id, accessToken)
       appliquerStatut(cible.id, false)
-      toast.success('Organisation suspendue', cible.nom)
+      toast.success(t('superAdmin.toast.suspendue'), cible.nom)
       setCibleSuspension(null)
     } catch (err) {
       toast.error(
-        'Suspension impossible',
-        err instanceof ApiError ? err.message : 'Réessayez plus tard.',
+        t('superAdmin.toast.suspensionImpossible'),
+        err instanceof ApiError ? err.message : t('superAdmin.toast.reessayer'),
       )
     } finally {
       setSuspending(false)
@@ -111,11 +116,11 @@ export function SuperAdminPage() {
     try {
       await platformApi.reactiver(org.id, accessToken)
       appliquerStatut(org.id, true)
-      toast.success('Organisation réactivée', org.nom)
+      toast.success(t('superAdmin.toast.reactivee'), org.nom)
     } catch (err) {
       toast.error(
-        'Réactivation impossible',
-        err instanceof ApiError ? err.message : 'Réessayez plus tard.',
+        t('superAdmin.toast.reactivationImpossible'),
+        err instanceof ApiError ? err.message : t('superAdmin.toast.reessayer'),
       )
     } finally {
       setPendingId(null)
@@ -130,7 +135,7 @@ export function SuperAdminPage() {
   const colonnes: Column<PlatformOrganisation>[] = [
     {
       key: 'organisation',
-      header: 'Organisation',
+      header: t('superAdmin.table.organisation'),
       cell: (o) => (
         <div className="min-w-0">
           <p className="truncate font-medium text-foreground">{o.nom}</p>
@@ -142,34 +147,34 @@ export function SuperAdminPage() {
     },
     {
       key: 'membres',
-      header: 'Membres',
+      header: t('superAdmin.table.membres'),
       width: '7rem',
       cell: (o) => <span className="tabular-nums text-muted-foreground">{o.nbMembres}</span>,
     },
     {
       key: 'creee',
-      header: 'Créée le',
+      header: t('superAdmin.table.creeeLe'),
       width: '10rem',
       cell: (o) => <span className="text-muted-foreground">{formatDate(o.createdAt)}</span>,
     },
     {
       key: 'statut',
-      header: 'Statut',
+      header: t('superAdmin.table.statut'),
       width: '9rem',
       cell: (o) =>
         o.actif ? (
           <Badge tone="jade" size="sm" dot>
-            Active
+            {t('superAdmin.table.active')}
           </Badge>
         ) : (
           <Badge tone="neutral" size="sm">
-            Suspendue
+            {t('superAdmin.table.suspendue')}
           </Badge>
         ),
     },
     {
       key: 'actions',
-      header: <span className="sr-only">Actions</span>,
+      header: <span className="sr-only">{t('superAdmin.table.actions')}</span>,
       align: 'right',
       cell: (o) => {
         const busy = pendingId === o.id
@@ -181,7 +186,7 @@ export function SuperAdminPage() {
             disabled={busy}
             onClick={() => setCibleSuspension(o)}
           >
-            Suspendre
+            {t('superAdmin.table.suspendre')}
           </Button>
         ) : (
           <Button
@@ -191,7 +196,7 @@ export function SuperAdminPage() {
             loading={busy}
             onClick={() => reactiver(o)}
           >
-            Réactiver
+            {t('superAdmin.table.reactiver')}
           </Button>
         )
       },
@@ -209,20 +214,24 @@ export function SuperAdminPage() {
               NKONI
             </span>
             <Badge tone="brass" size="sm">
-              Plateforme
+              {t('superAdmin.header.plateforme')}
             </Badge>
           </div>
           <div className="flex items-center gap-3">
             <span className="hidden text-sm text-muted-foreground sm:inline">{user?.email}</span>
             <Button variant="ghost" size="sm" icon={LogOut} onClick={handleLogout}>
-              Déconnexion
+              {t('superAdmin.header.deconnexion')}
             </Button>
           </div>
         </div>
       </header>
 
       <div className="mx-auto max-w-5xl px-6 py-10">
-        <PageHeader overline="Plateforme" title="Organisations" description={resume} />
+        <PageHeader
+          overline={t('superAdmin.header.overline')}
+          title={t('superAdmin.header.titre')}
+          description={resume}
+        />
 
         <div className="nk-reveal nk-d2 mt-7">
           {loading && (
@@ -238,16 +247,16 @@ export function SuperAdminPage() {
           {!loading && !error && organisations && organisations.length === 0 && (
             <EmptyState
               icon={Building2}
-              title="Aucune organisation"
+              title={t('superAdmin.vide.titre')}
               className="min-h-[40vh] justify-center"
-              description="Aucun espace client n'a encore été créé via l'auto-inscription."
+              description={t('superAdmin.vide.description')}
             />
           )}
 
           {!loading && !error && organisations && organisations.length > 0 && (
             <Card className="overflow-hidden p-0">
               <DataTable
-                caption="Organisations clientes"
+                caption={t('superAdmin.table.caption')}
                 columns={colonnes}
                 rows={organisations}
                 rowKey={(o) => o.id}
@@ -261,16 +270,17 @@ export function SuperAdminPage() {
       <Modal
         open={cibleSuspension !== null}
         onClose={() => (suspending ? undefined : setCibleSuspension(null))}
-        title="Suspendre l'organisation"
+        title={t('superAdmin.modal.titre')}
       >
         <div className="space-y-4">
           <div className="flex items-start gap-3 rounded-xl border border-amber/30 bg-amber/[0.08] px-3.5 py-3">
             <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-amber" aria-hidden="true" />
             <p className="text-sm text-muted-foreground">
-              Les utilisateurs de{' '}
-              <span className="font-medium text-foreground">{cibleSuspension?.nom}</span> ne
-              pourront plus se connecter. <span className="text-foreground">Aucune donnée n'est
-              supprimée</span> — vous pourrez réactiver l'espace à tout moment.
+              {t('superAdmin.modal.avertDebut')}
+              <span className="font-medium text-foreground">{cibleSuspension?.nom}</span>
+              {t('superAdmin.modal.avertMilieu')}
+              <span className="text-foreground">{t('superAdmin.modal.avertSupprimee')}</span>
+              {t('superAdmin.modal.avertFin')}
             </p>
           </div>
           <div className="flex justify-end gap-2">
@@ -280,7 +290,7 @@ export function SuperAdminPage() {
               disabled={suspending}
               onClick={() => setCibleSuspension(null)}
             >
-              Annuler
+              {t('superAdmin.modal.annuler')}
             </Button>
             <Button
               type="button"
@@ -289,7 +299,7 @@ export function SuperAdminPage() {
               loading={suspending}
               onClick={confirmerSuspension}
             >
-              Suspendre l'accès
+              {t('superAdmin.modal.suspendreAcces')}
             </Button>
           </div>
         </div>

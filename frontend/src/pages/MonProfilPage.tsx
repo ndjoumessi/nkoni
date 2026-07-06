@@ -84,22 +84,13 @@ function SelecteurLangue() {
   )
 }
 
-const ROLE_LABEL: Record<string, string> = {
-  ADMIN: 'Administrateur',
-  PRESIDENT: 'Président',
-  SECRETAIRE: 'Secrétaire',
-  TRESORIERE: 'Trésorière',
-  COMMISSAIRE_COMPTES: 'Commissaire aux comptes',
-  GUIDE_RELIGIEUX: 'Guide religieux',
-  MEMBRE_SIMPLE: 'Membre',
-}
-
 /**
  * « Mon profil » — accessible à tout utilisateur connecté. Permet de changer soi-même
  * son mot de passe (ancien vérifié côté back via POST /auth/changer-mot-de-passe).
  * La réinitialisation SANS ancien mot de passe est réservée à l'ADMIN (UtilisateursPage).
  */
 export function MonProfilPage() {
+  const { t } = useTranslation()
   const { user, accessToken } = useAuth()
   const toast = useToast()
 
@@ -119,15 +110,15 @@ export function MonProfilPage() {
     if (!accessToken) return
 
     // Validation inline par champ + focus sur le 1er en erreur (§8).
-    const eAncien = ancien.length === 0 ? 'Saisissez votre mot de passe actuel.' : undefined
+    const eAncien = ancien.length === 0 ? t('profil.motDePasse.ancienRequis') : undefined
     const eNouveau =
       nouveau.length < 8
-        ? 'Au moins 8 caractères.'
+        ? t('profil.motDePasse.min8')
         : nouveau === ancien
-          ? 'Doit être différent de l’actuel.'
+          ? t('profil.motDePasse.different')
           : undefined
     const eConfirmation =
-      !eNouveau && nouveau !== confirmation ? 'La confirmation ne correspond pas.' : undefined
+      !eNouveau && nouveau !== confirmation ? t('profil.motDePasse.confirmationInvalide') : undefined
     setErrAncien(eAncien)
     setErrNouveau(eNouveau)
     setErrConfirmation(eConfirmation)
@@ -139,17 +130,17 @@ export function MonProfilPage() {
     setSubmitting(true)
     try {
       await authApi.changerMotDePasse(ancien, nouveau, accessToken)
-      toast.success('Mot de passe modifié', 'Votre nouveau mot de passe est actif.')
+      toast.success(t('profil.motDePasse.succes'), t('profil.motDePasse.succesDetail'))
       setAncien('')
       setNouveau('')
       setConfirmation('')
     } catch (err) {
       // 401 = mot de passe actuel incorrect → erreur ciblée sur le champ « actuel ».
       if (err instanceof ApiError && err.status === 401) {
-        setErrAncien('Mot de passe actuel incorrect.')
+        setErrAncien(t('profil.motDePasse.ancienIncorrect'))
         requestAnimationFrame(() => focusPremierChampInvalide(formRef.current))
       } else {
-        setError(err instanceof ApiError ? err.message : 'Une erreur est survenue. Réessayez.')
+        setError(err instanceof ApiError ? err.message : t('profil.motDePasse.erreur'))
       }
     } finally {
       setSubmitting(false)
@@ -158,25 +149,27 @@ export function MonProfilPage() {
 
   return (
     <>
-      <PageHeader overline="Compte" title="Mon profil" />
+      <PageHeader overline={t('profil.header.overline')} title={t('profil.header.titre')} />
 
       {/* Identité (lecture seule) */}
       <Card className="nk-reveal nk-d1 mt-7 p-6">
         <div className="flex items-center gap-2">
           <UserCircle className="h-4 w-4 text-brass" aria-hidden="true" />
-          <Overline>Identité</Overline>
+          <Overline>{t('profil.identite.titre')}</Overline>
         </div>
         <dl className="mt-4 space-y-3 text-sm">
           <div className="flex min-w-0 items-center gap-3">
             <Mail className="h-4 w-4 shrink-0 text-faint" aria-hidden="true" />
-            <dt className="sr-only">Adresse e-mail</dt>
+            <dt className="sr-only">{t('profil.identite.email')}</dt>
             <dd className="min-w-0 break-words text-foreground">{user?.email}</dd>
           </div>
           <div className="flex items-center gap-3">
             <ShieldCheck className="h-4 w-4 text-faint" aria-hidden="true" />
-            <dt className="sr-only">Rôle</dt>
+            <dt className="sr-only">{t('profil.identite.role')}</dt>
             <dd className="text-muted-foreground">
-              {ROLE_LABEL[user?.role ?? ''] ?? user?.role}
+              {user?.role
+                ? t(`profil.roles.${user.role}`, { defaultValue: user.role })
+                : user?.role}
             </dd>
           </div>
         </dl>
@@ -189,11 +182,11 @@ export function MonProfilPage() {
       <Card className="nk-reveal nk-d2 mt-6 p-6">
         <div className="flex items-center gap-2">
           <KeyRound className="h-4 w-4 text-brass" aria-hidden="true" />
-          <Overline>Changer mon mot de passe</Overline>
+          <Overline>{t('profil.motDePasse.titre')}</Overline>
         </div>
         <form ref={formRef} onSubmit={handleSubmit} noValidate className="mt-5 space-y-4">
-          <FormSection icon={Lock} title="Sécurité">
-            <Field label="Mot de passe actuel" required error={errAncien}>
+          <FormSection icon={Lock} title={t('profil.motDePasse.securite')}>
+            <Field label={t('profil.motDePasse.actuel')} required error={errAncien}>
               <PasswordInput
                 name="current-password"
                 autoComplete="current-password"
@@ -207,9 +200,9 @@ export function MonProfilPage() {
               />
             </Field>
             <Field
-              label="Nouveau mot de passe"
+              label={t('profil.motDePasse.nouveau')}
               required
-              hint="Au moins 8 caractères."
+              hint={t('profil.motDePasse.min8')}
               error={errNouveau}
             >
               <PasswordInput
@@ -224,7 +217,7 @@ export function MonProfilPage() {
                 leftIcon={KeyRound}
               />
             </Field>
-            <Field label="Confirmer le nouveau mot de passe" required error={errConfirmation}>
+            <Field label={t('profil.motDePasse.confirmer')} required error={errConfirmation}>
               <PasswordInput
                 name="confirm-password"
                 autoComplete="new-password"
@@ -250,7 +243,7 @@ export function MonProfilPage() {
 
           <div className="flex justify-end pt-1">
             <Button type="submit" icon={KeyRound} loading={submitting}>
-              Mettre à jour le mot de passe
+              {t('profil.motDePasse.bouton')}
             </Button>
           </div>
         </form>

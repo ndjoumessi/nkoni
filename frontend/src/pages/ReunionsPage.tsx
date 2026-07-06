@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Link, Navigate } from 'react-router-dom'
 import { CalendarRange, CheckCircle2, ListChecks, MapPin, Plus, Gavel } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
@@ -15,6 +16,7 @@ import { StatutReunionBadge, TypeReunionBadge } from '@/components/reunions/Stat
 
 /** Liste des réunions (§5) — triée par date décroissante. Lecture pour tous les rôles. */
 export function ReunionsPage() {
+  const { t } = useTranslation()
   const { user, accessToken } = useAuth()
 
   const [reunions, setReunions] = useState<ReunionListItem[] | null>(null)
@@ -53,16 +55,16 @@ export function ReunionsPage() {
   return (
     <>
       <PageHeader
-        overline="Vie associative"
-        title="Réunions"
+        overline={t('reunions.overline')}
+        title={t('reunions.liste.titre')}
         description={
-          reunions ? `${reunions.length} réunion${reunions.length > 1 ? 's' : ''}` : undefined
+          reunions ? t('reunions.liste.compteur', { count: reunions.length }) : undefined
         }
         actions={
           // Masqué quand la liste est vide : l'EmptyState porte déjà le CTA (pas de doublon).
           gestion && (!reunions || reunions.length > 0) && (
             <ButtonLink to="/reunions/nouvelle" icon={Plus}>
-              Nouvelle réunion
+              {t('reunions.actions.nouvelle')}
             </ButtonLink>
           )
         }
@@ -70,15 +72,15 @@ export function ReunionsPage() {
 
       {reunions && reunions.length > 0 && (
         <div className="nk-reveal nk-d2 mt-7 grid grid-cols-3 gap-3">
-          <StatCard label="Réunions" value={String(reunions.length)} icon={CalendarRange} />
+          <StatCard label={t('reunions.stats.total')} value={String(reunions.length)} icon={CalendarRange} />
           <StatCard
-            label="Planifiées"
+            label={t('reunions.stats.planifiees')}
             value={String(reunions.filter((r) => r.statut === 'PLANIFIEE').length)}
             tone="brass"
             icon={CalendarRange}
           />
           <StatCard
-            label="Tenues"
+            label={t('reunions.stats.tenues')}
             value={String(reunions.filter((r) => r.statut === 'TENUE').length)}
             tone="jade"
             icon={CheckCircle2}
@@ -100,23 +102,23 @@ export function ReunionsPage() {
         {!loading && !error && reunions && reunions.length === 0 && (
           <EmptyState
             icon={CalendarRange}
-            title="Aucune réunion"
+            title={t('reunions.vide.titre')}
             className="min-h-[45vh] justify-center"
             description={
               gestion
-                ? 'Planifiez la première réunion et composez son ordre du jour.'
-                : 'Les réunions planifiées apparaîtront ici.'
+                ? t('reunions.vide.descriptionGestion')
+                : t('reunions.vide.description')
             }
             action={
               gestion && (
                 <ButtonLink to="/reunions/nouvelle" icon={Plus}>
-                  Nouvelle réunion
+                  {t('reunions.actions.nouvelle')}
                 </ButtonLink>
               )
             }
             tips={[
-              { icon: ListChecks, label: 'Ordre du jour réordonnable' },
-              { icon: Gavel, label: 'Résolutions archivées' },
+              { icon: ListChecks, label: t('reunions.vide.tips.ordreDuJour') },
+              { icon: Gavel, label: t('reunions.vide.tips.resolutions') },
             ]}
           />
         )}
@@ -147,11 +149,11 @@ export function ReunionsPage() {
                     <div className="flex shrink-0 gap-4 text-xs text-faint">
                       <span className="inline-flex items-center gap-1.5">
                         <ListChecks className="h-3.5 w-3.5" aria-hidden="true" />
-                        {r._count.pointsOrdreDuJour} point{r._count.pointsOrdreDuJour > 1 ? 's' : ''}
+                        {t('reunions.carte.points', { count: r._count.pointsOrdreDuJour })}
                       </span>
                       <span className="inline-flex items-center gap-1.5">
                         <Gavel className="h-3.5 w-3.5" aria-hidden="true" />
-                        {r._count.resolutions} résolution{r._count.resolutions > 1 ? 's' : ''}
+                        {t('resolutions.compteur', { count: r._count.resolutions })}
                       </span>
                     </div>
                   </div>

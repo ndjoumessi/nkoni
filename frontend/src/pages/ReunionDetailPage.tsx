@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Navigate, useParams } from 'react-router-dom'
 import {
   ArrowDown,
@@ -42,21 +43,14 @@ import {
   TypeReunionBadge,
 } from '@/components/reunions/StatutBadges'
 
-const STATUTS_REUNION: { value: StatutReunion; label: string }[] = [
-  { value: 'PLANIFIEE', label: 'Planifiée' },
-  { value: 'TENUE', label: 'Tenue' },
-  { value: 'ANNULEE', label: 'Annulée' },
-]
+const STATUTS_REUNION: StatutReunion[] = ['PLANIFIEE', 'TENUE', 'ANNULEE']
 
-const STATUTS_RESOLUTION: { value: StatutResolution; label: string }[] = [
-  { value: 'ADOPTEE', label: 'Adoptée' },
-  { value: 'REJETEE', label: 'Rejetée' },
-  { value: 'REPORTEE', label: 'Reportée' },
-]
+const STATUTS_RESOLUTION: StatutResolution[] = ['ADOPTEE', 'REJETEE', 'REPORTEE']
 
 /** Détail d'une réunion (§5) : infos + statut, compte-rendu, ordre du jour, résolutions. */
 export function ReunionDetailPage() {
   const { id = '' } = useParams()
+  const { t } = useTranslation()
   const { user, accessToken } = useAuth()
   const toast = useToast()
 
@@ -128,7 +122,7 @@ export function ReunionDetailPage() {
   }
 
   const erreurMetier = (err: unknown, fallback: string) =>
-    toast.error(fallback, err instanceof ApiError ? err.message : 'Réessayez plus tard.')
+    toast.error(fallback, err instanceof ApiError ? err.message : t('reunions.toast.reessayer'))
 
   const changerStatut = async (statut: StatutReunion) => {
     if (!accessToken || !reunion || statut === reunion.statut) return
@@ -136,9 +130,9 @@ export function ReunionDetailPage() {
     try {
       const maj = await reunionsApi.update(reunion.id, { statut }, accessToken)
       setReunion(maj)
-      toast.success('Statut mis à jour', STATUTS_REUNION.find((s) => s.value === statut)?.label)
+      toast.success(t('reunions.toast.statutMaj'), t(`reunions.statuts.${statut}`))
     } catch (err) {
-      erreurMetier(err, 'Changement de statut impossible')
+      erreurMetier(err, t('reunions.toast.statutImpossible'))
     } finally {
       setStatutSaving(false)
     }
@@ -154,9 +148,9 @@ export function ReunionDetailPage() {
         accessToken,
       )
       setReunion(maj)
-      toast.success('Compte-rendu enregistré')
+      toast.success(t('reunions.toast.crEnregistre'))
     } catch (err) {
-      erreurMetier(err, 'Enregistrement impossible')
+      erreurMetier(err, t('reunions.toast.crImpossible'))
     } finally {
       setCrSaving(false)
     }
@@ -166,7 +160,7 @@ export function ReunionDetailPage() {
     e.preventDefault()
     if (!accessToken || !reunion) return
     if (nouveauPoint.trim().length === 0) {
-      setErrPoint('Saisissez l’intitulé du point.')
+      setErrPoint(t('reunions.ordreDuJour.intituleRequis'))
       requestAnimationFrame(() => focusPremierChampInvalide(pointFormRef.current))
       return
     }
@@ -176,7 +170,7 @@ export function ReunionDetailPage() {
       setReunion({ ...reunion, pointsOrdreDuJour: [...reunion.pointsOrdreDuJour, point] })
       setNouveauPoint('')
     } catch (err) {
-      erreurMetier(err, 'Ajout du point impossible')
+      erreurMetier(err, t('reunions.toast.pointAjoutImpossible'))
     } finally {
       setAddingPoint(false)
     }
@@ -196,7 +190,7 @@ export function ReunionDetailPage() {
         ),
       })
     } catch (err) {
-      erreurMetier(err, 'Suppression du point impossible')
+      erreurMetier(err, t('reunions.toast.pointSuppressionImpossible'))
     } finally {
       setPointPending(null)
     }
@@ -214,7 +208,7 @@ export function ReunionDetailPage() {
       const maj = await reunionsApi.reorderPoints(reunion.id, ordreIds, accessToken)
       setReunion(maj)
     } catch (err) {
-      erreurMetier(err, 'Réordonnancement impossible')
+      erreurMetier(err, t('reunions.toast.reordonnancementImpossible'))
     } finally {
       setReorderPending(false)
     }
@@ -224,7 +218,7 @@ export function ReunionDetailPage() {
     e.preventDefault()
     if (!accessToken || !reunion) return
     if (resTexte.trim().length === 0) {
-      setErrRes('Le texte de la résolution est requis.')
+      setErrRes(t('resolutions.texteRequis'))
       requestAnimationFrame(() => focusPremierChampInvalide(resFormRef.current))
       return
     }
@@ -243,10 +237,10 @@ export function ReunionDetailPage() {
       setResTexte('')
       setResStatut('ADOPTEE')
       setResPointId('')
-      toast.success('Résolution ajoutée')
+      toast.success(t('resolutions.toast.ajoutee'))
     } catch (err) {
       // Erreur métier possible : point d'ordre du jour d'une autre réunion (400).
-      erreurMetier(err, 'Ajout de la résolution impossible')
+      erreurMetier(err, t('resolutions.toast.ajoutImpossible'))
     } finally {
       setResSubmitting(false)
     }
@@ -262,7 +256,7 @@ export function ReunionDetailPage() {
         resolutions: reunion.resolutions.filter((r) => r.id !== res.id),
       })
     } catch (err) {
-      erreurMetier(err, 'Suppression de la résolution impossible')
+      erreurMetier(err, t('resolutions.toast.suppressionImpossible'))
     } finally {
       setResPending(null)
     }
@@ -272,9 +266,9 @@ export function ReunionDetailPage() {
     return (
       <>
         <PageHeader
-          overline="Vie associative"
-          title="Réunion"
-          back={{ to: '/reunions', label: 'Retour aux réunions' }}
+          overline={t('reunions.overline')}
+          title={t('reunions.detail.titre')}
+          back={{ to: '/reunions', label: t('reunions.detail.retour') }}
         />
         <Card className="nk-reveal nk-d2 mt-7 h-48 animate-pulse bg-surface-2/40" />
       </>
@@ -285,12 +279,12 @@ export function ReunionDetailPage() {
     return (
       <>
         <PageHeader
-          overline="Vie associative"
-          title="Réunion"
-          back={{ to: '/reunions', label: 'Retour aux réunions' }}
+          overline={t('reunions.overline')}
+          title={t('reunions.detail.titre')}
+          back={{ to: '/reunions', label: t('reunions.detail.retour') }}
         />
         <Card className="nk-reveal nk-d2 mt-7 border-terra/30 bg-terra/[0.07] p-5 text-terra">
-          {error ?? 'Réunion introuvable.'}
+          {error ?? t('reunions.detail.introuvable')}
         </Card>
       </>
     )
@@ -301,7 +295,7 @@ export function ReunionDetailPage() {
   return (
     <>
       <PageHeader
-        overline="Vie associative"
+        overline={t('reunions.overline')}
         title={formatDateFR(reunion.date)}
         description={
           <span className="inline-flex items-center gap-1.5">
@@ -309,7 +303,7 @@ export function ReunionDetailPage() {
             {reunion.lieu}
           </span>
         }
-        back={{ to: '/reunions', label: 'Retour aux réunions' }}
+        back={{ to: '/reunions', label: t('reunions.detail.retour') }}
         actions={
           <div className="flex items-center gap-2">
             <StatutReunionBadge statut={reunion.statut} />
@@ -323,18 +317,18 @@ export function ReunionDetailPage() {
         <Card className="nk-reveal nk-d2 mt-7 p-6">
           <div className="flex items-center gap-2">
             <CalendarRange className="h-4 w-4 text-brass" aria-hidden="true" />
-            <Overline>Statut de la réunion</Overline>
+            <Overline>{t('reunions.detail.statutSection')}</Overline>
           </div>
           <div className="mt-4 max-w-xs">
-            <Field label="Statut">
+            <Field label={t('reunions.detail.statutLabel')}>
               <Select
                 value={reunion.statut}
                 disabled={statutSaving}
                 onChange={(e) => changerStatut(e.target.value as StatutReunion)}
               >
                 {STATUTS_REUNION.map((s) => (
-                  <option key={s.value} value={s.value}>
-                    {s.label}
+                  <option key={s} value={s}>
+                    {t(`reunions.statuts.${s}`)}
                   </option>
                 ))}
               </Select>
@@ -347,18 +341,20 @@ export function ReunionDetailPage() {
       <Card className="nk-reveal nk-d2 mt-6 p-6">
         <div className="flex items-center gap-2">
           <FileText className="h-4 w-4 text-brass" aria-hidden="true" />
-          <Overline>Compte-rendu</Overline>
+          <Overline>{t('reunions.detail.compteRendu')}</Overline>
         </div>
         {crReadOnly ? (
           <p className="mt-4 whitespace-pre-wrap break-words text-pretty text-sm leading-relaxed text-muted-foreground">
-            {reunion.compteRenduTexte?.trim() ? reunion.compteRenduTexte : 'Aucun compte-rendu.'}
+            {reunion.compteRenduTexte?.trim()
+              ? reunion.compteRenduTexte
+              : t('reunions.detail.aucunCompteRendu')}
           </p>
         ) : (
           <div className="mt-4 space-y-3">
             <Textarea
               value={compteRendu}
               onChange={(e) => setCompteRendu(e.target.value)}
-              placeholder="Rédigez le compte-rendu de la séance…"
+              placeholder={t('reunions.detail.crPlaceholder')}
               rows={6}
             />
             <div className="flex justify-end">
@@ -369,7 +365,7 @@ export function ReunionDetailPage() {
                 disabled={compteRendu === (reunion.compteRenduTexte ?? '')}
                 onClick={enregistrerCompteRendu}
               >
-                Enregistrer le compte-rendu
+                {t('reunions.detail.crEnregistrer')}
               </Button>
             </div>
           </div>
@@ -380,11 +376,11 @@ export function ReunionDetailPage() {
       <Card className="nk-reveal nk-d3 mt-6 p-6">
         <div className="flex items-center gap-2">
           <ListChecks className="h-4 w-4 text-brass" aria-hidden="true" />
-          <Overline>Ordre du jour</Overline>
+          <Overline>{t('reunions.ordreDuJour.titre')}</Overline>
         </div>
 
         {reunion.pointsOrdreDuJour.length === 0 ? (
-          <p className="mt-4 text-sm text-faint">Aucun point à l’ordre du jour.</p>
+          <p className="mt-4 text-sm text-faint">{t('reunions.ordreDuJour.aucun')}</p>
         ) : (
           <ul className="mt-4 space-y-2">
             {reunion.pointsOrdreDuJour.map((p, index) => (
@@ -409,7 +405,7 @@ export function ReunionDetailPage() {
                       type="button"
                       onClick={() => deplacerPoint(index, -1)}
                       disabled={index === 0 || reorderPending}
-                      aria-label="Monter le point"
+                      aria-label={t('reunions.ordreDuJour.monter')}
                       className="flex h-7 w-7 items-center justify-center rounded-lg text-faint transition-colors hover:text-foreground disabled:opacity-30"
                     >
                       <ArrowUp className="h-4 w-4" aria-hidden="true" />
@@ -418,7 +414,7 @@ export function ReunionDetailPage() {
                       type="button"
                       onClick={() => deplacerPoint(index, 1)}
                       disabled={index === reunion.pointsOrdreDuJour.length - 1 || reorderPending}
-                      aria-label="Descendre le point"
+                      aria-label={t('reunions.ordreDuJour.descendre')}
                       className="flex h-7 w-7 items-center justify-center rounded-lg text-faint transition-colors hover:text-foreground disabled:opacity-30"
                     >
                       <ArrowDown className="h-4 w-4" aria-hidden="true" />
@@ -427,7 +423,7 @@ export function ReunionDetailPage() {
                       type="button"
                       onClick={() => supprimerPoint(p.id)}
                       disabled={pointPending === p.id}
-                      aria-label="Supprimer le point"
+                      aria-label={t('reunions.ordreDuJour.supprimer')}
                       className="flex h-7 w-7 items-center justify-center rounded-lg text-faint transition-colors hover:text-terra disabled:opacity-40"
                     >
                       <Trash2 className="h-4 w-4" aria-hidden="true" />
@@ -448,13 +444,13 @@ export function ReunionDetailPage() {
                   setNouveauPoint(e.target.value)
                   setErrPoint(undefined)
                 }}
-                placeholder="Ajouter un point à l’ordre du jour…"
-                aria-label="Intitulé du nouveau point"
+                placeholder={t('reunions.ordreDuJour.ajouterPlaceholder')}
+                aria-label={t('reunions.ordreDuJour.nouveauAria')}
                 aria-invalid={errPoint ? true : undefined}
                 aria-describedby={errPoint ? 'point-err' : undefined}
               />
               <Button type="submit" variant="ghost" icon={Plus} loading={addingPoint}>
-                Ajouter
+                {t('reunions.ordreDuJour.ajouter')}
               </Button>
             </div>
             {errPoint && (
@@ -470,19 +466,19 @@ export function ReunionDetailPage() {
       <Card className="nk-reveal nk-d3 mt-6 p-6">
         <div className="flex items-center gap-2">
           <Gavel className="h-4 w-4 text-brass" aria-hidden="true" />
-          <Overline>Résolutions</Overline>
+          <Overline>{t('resolutions.titre')}</Overline>
         </div>
 
         {reunion.resolutions.length === 0 ? (
           <EmptyState
             icon={Gavel}
             tone="jade"
-            title="Aucune résolution"
+            title={t('resolutions.vide.titre')}
             className="mt-4"
             description={
               gestion
-                ? 'Consignez les décisions prises pendant la séance.'
-                : 'Les décisions consignées apparaîtront ici.'
+                ? t('resolutions.vide.descriptionGestion')
+                : t('resolutions.vide.description')
             }
           />
         ) : (
@@ -496,7 +492,7 @@ export function ReunionDetailPage() {
                       type="button"
                       onClick={() => supprimerResolution(r)}
                       disabled={resPending === r.id}
-                      aria-label="Supprimer la résolution"
+                      aria-label={t('resolutions.supprimerAria')}
                       className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-faint transition-colors hover:text-terra disabled:opacity-40"
                     >
                       <Trash2 className="h-4 w-4" aria-hidden="true" />
@@ -524,34 +520,34 @@ export function ReunionDetailPage() {
             noValidate
             className="mt-5 space-y-3 border-t border-hairline pt-5"
           >
-            <Overline>Ajouter une résolution</Overline>
-            <Field label="Texte de la résolution" required error={errRes}>
+            <Overline>{t('resolutions.form.titre')}</Overline>
+            <Field label={t('resolutions.form.texteLabel')} required error={errRes}>
               <Textarea
                 value={resTexte}
                 onChange={(e) => {
                   setResTexte(e.target.value)
                   setErrRes(undefined)
                 }}
-                placeholder="Décision adoptée par l’assemblée…"
+                placeholder={t('resolutions.form.textePlaceholder')}
                 rows={3}
               />
             </Field>
             <div className="grid gap-3 sm:grid-cols-2">
-              <Field label="Statut">
+              <Field label={t('resolutions.form.statutLabel')}>
                 <Select
                   value={resStatut}
                   onChange={(e) => setResStatut(e.target.value as StatutResolution)}
                 >
                   {STATUTS_RESOLUTION.map((s) => (
-                    <option key={s.value} value={s.value}>
-                      {s.label}
+                    <option key={s} value={s}>
+                      {t(`resolutions.statuts.${s}`)}
                     </option>
                   ))}
                 </Select>
               </Field>
-              <Field label="Point d’ordre du jour lié" hint="Optionnel.">
+              <Field label={t('resolutions.form.pointLabel')} hint={t('resolutions.form.pointHint')}>
                 <Select value={resPointId} onChange={(e) => setResPointId(e.target.value)}>
-                  <option value="">Aucun</option>
+                  <option value="">{t('resolutions.form.pointAucun')}</option>
                   {reunion.pointsOrdreDuJour.map((p, i) => (
                     <option key={p.id} value={p.id}>
                       {i + 1}. {p.titre}
@@ -562,7 +558,7 @@ export function ReunionDetailPage() {
             </div>
             <div className="flex justify-end">
               <Button type="submit" icon={Plus} loading={resSubmitting}>
-                Ajouter la résolution
+                {t('resolutions.form.soumettre')}
               </Button>
             </div>
           </form>

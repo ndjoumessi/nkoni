@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
+import { useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 import { Download, FileText, Image as ImageIcon, Paperclip, Trash2, Upload, X } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
 import {
@@ -23,10 +25,10 @@ const MIMES: Record<string, string> = {
 }
 const ACCEPT = '.pdf,.jpg,.jpeg,.png,.docx,' + Object.keys(MIMES).join(',')
 
-function formatTaille(octets: number): string {
-  if (octets < 1024) return `${octets} o`
-  if (octets < 1024 * 1024) return `${(octets / 1024).toFixed(0)} Ko`
-  return `${(octets / (1024 * 1024)).toFixed(1)} Mo`
+function formatTaille(octets: number, t: TFunction): string {
+  if (octets < 1024) return `${octets} ${t('documents.taille.o')}`
+  if (octets < 1024 * 1024) return `${(octets / 1024).toFixed(0)} ${t('documents.taille.ko')}`
+  return `${(octets / (1024 * 1024)).toFixed(1)} ${t('documents.taille.mo')}`
 }
 
 function IconeFichier({ mime }: { mime: string }) {
@@ -50,6 +52,7 @@ export function DocumentsSection({
 }) {
   const { accessToken } = useAuth()
   const toast = useToast()
+  const { t } = useTranslation()
 
   const [docs, setDocs] = useState<DocumentMeta[] | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -90,11 +93,11 @@ export function DocumentsSection({
     if (!file) return
     // Pré-validation client (le serveur reste l'autorité).
     if (!MIMES[file.type]) {
-      toast.error('Type non autorisé', 'PDF, JPEG, PNG ou DOCX uniquement.')
+      toast.error(t('documents.toast.typeNonAutoriseTitre'), t('documents.toast.typeNonAutoriseDetail'))
       return
     }
     if (file.size > TAILLE_MAX) {
-      toast.error('Fichier trop volumineux', '10 Mo maximum.')
+      toast.error(t('documents.toast.tropVolumineuxTitre'), t('documents.toast.tropVolumineuxDetail'))
       return
     }
     setSelection(file)
@@ -112,7 +115,7 @@ export function DocumentsSection({
     e.preventDefault()
     if (!accessToken || !selection) return
     // Validation inline du nom + focus (§8).
-    const eNom = nom.trim().length === 0 ? 'Le nom est requis.' : undefined
+    const eNom = nom.trim().length === 0 ? t('documents.nomRequis') : undefined
     setErrNom(eNom)
     if (eNom) {
       requestAnimationFrame(() => focusPremierChampInvalide(uploadFormRef.current))
@@ -131,10 +134,10 @@ export function DocumentsSection({
         accessToken,
       )
       setDocs((prev) => [cree, ...(prev ?? [])])
-      toast.success('Document ajouté', cree.nom)
+      toast.success(t('documents.toast.ajouteTitre'), cree.nom)
       annuler()
     } catch (err) {
-      toast.error('Téléversement impossible', err instanceof ApiError ? err.message : messageErreur(err))
+      toast.error(t('documents.toast.televersementImpossible'), err instanceof ApiError ? err.message : messageErreur(err))
     } finally {
       setUploading(false)
     }
@@ -149,7 +152,7 @@ export function DocumentsSection({
       window.open(url, '_blank', 'noopener')
       setTimeout(() => URL.revokeObjectURL(url), 60_000)
     } catch (err) {
-      toast.error('Téléchargement impossible', err instanceof ApiError ? err.message : messageErreur(err))
+      toast.error(t('documents.toast.telechargementImpossible'), err instanceof ApiError ? err.message : messageErreur(err))
     } finally {
       setDownloadId(null)
     }
@@ -161,9 +164,9 @@ export function DocumentsSection({
     try {
       await documentsApi.remove(doc.id, accessToken)
       setDocs((prev) => (prev ?? []).filter((d) => d.id !== doc.id))
-      toast.success('Document supprimé', doc.nom)
+      toast.success(t('documents.toast.supprimeTitre'), doc.nom)
     } catch (err) {
-      toast.error('Suppression impossible', err instanceof ApiError ? err.message : messageErreur(err))
+      toast.error(t('documents.toast.suppressionImpossible'), err instanceof ApiError ? err.message : messageErreur(err))
     } finally {
       setPendingId(null)
     }
@@ -173,13 +176,13 @@ export function DocumentsSection({
     <Card className="nk-reveal nk-d3 mt-6 p-6">
       <div className="flex items-center gap-2">
         <Paperclip className="h-4 w-4 text-brass" aria-hidden="true" />
-        <Overline>Documents</Overline>
+        <Overline>{t('documents.titre')}</Overline>
       </div>
 
       {error && <p className="mt-4 text-sm text-terra">{error}</p>}
 
       {!error && docs && docs.length === 0 && (
-        <p className="mt-4 text-sm text-faint">Aucun document rattaché.</p>
+        <p className="mt-4 text-sm text-faint">{t('documents.aucun')}</p>
       )}
 
       {!error && docs && docs.length > 0 && (
@@ -193,7 +196,7 @@ export function DocumentsSection({
               <div className="min-w-0 flex-1">
                 <p className="truncate font-medium text-foreground">{d.nom}</p>
                 <p className="mt-0.5 truncate text-xs text-faint">
-                  {MIMES[d.typeFichier] ?? d.typeFichier} · {formatTaille(d.tailleOctets)} ·{' '}
+                  {MIMES[d.typeFichier] ?? d.typeFichier} · {formatTaille(d.tailleOctets, t)} ·{' '}
                   {formatDateFR(d.dateTeleversement)}
                   {d.televersePar ? ` · ${d.televersePar.email}` : ''}
                 </p>
@@ -205,7 +208,7 @@ export function DocumentsSection({
                 type="button"
                 onClick={() => telecharger(d)}
                 disabled={downloadId === d.id}
-                aria-label="Télécharger"
+                aria-label={t('documents.aria.telecharger')}
                 className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-faint transition-colors hover:text-brass disabled:opacity-40"
               >
                 <Download className="h-4 w-4" aria-hidden="true" />
@@ -215,7 +218,7 @@ export function DocumentsSection({
                   type="button"
                   onClick={() => supprimer(d)}
                   disabled={pendingId === d.id}
-                  aria-label="Supprimer le document"
+                  aria-label={t('documents.aria.supprimer')}
                   className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-faint transition-colors hover:text-terra disabled:opacity-40"
                 >
                   <Trash2 className="h-4 w-4" aria-hidden="true" />
@@ -239,27 +242,27 @@ export function DocumentsSection({
                 className="hidden"
               />
               <Button type="button" variant="ghost" icon={Upload} onClick={() => fileRef.current?.click()}>
-                Ajouter un document
+                {t('documents.ajouter')}
               </Button>
-              <p className="mt-2 text-xs text-faint">PDF, JPEG, PNG ou DOCX · 10 Mo maximum.</p>
+              <p className="mt-2 text-xs text-faint">{t('documents.contraintes')}</p>
             </>
           ) : (
             <form ref={uploadFormRef} onSubmit={televerser} noValidate className="space-y-3">
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <IconeFichier mime={selection.type} />
                 <span className="truncate">
-                  {selection.name} · {formatTaille(selection.size)}
+                  {selection.name} · {formatTaille(selection.size, t)}
                 </span>
                 <button
                   type="button"
                   onClick={annuler}
-                  aria-label="Retirer le fichier"
+                  aria-label={t('documents.aria.retirer')}
                   className="ml-auto flex h-7 w-7 items-center justify-center rounded-lg text-faint hover:text-foreground"
                 >
                   <X className="h-4 w-4" aria-hidden="true" />
                 </button>
               </div>
-              <Field label="Nom" required error={errNom}>
+              <Field label={t('documents.champ.nom')} required error={errNom}>
                 <Input
                   value={nom}
                   onChange={(e) => {
@@ -269,19 +272,19 @@ export function DocumentsSection({
                   maxLength={300}
                 />
               </Field>
-              <Field label="Description" hint="Optionnel.">
+              <Field label={t('documents.champ.description')} hint={t('documents.champ.descriptionHint')}>
                 <Input
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Brève description…"
+                  placeholder={t('documents.champ.descriptionPlaceholder')}
                 />
               </Field>
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="ghost" onClick={annuler}>
-                  Annuler
+                  {t('documents.annuler')}
                 </Button>
                 <Button type="submit" icon={Upload} loading={uploading}>
-                  Téléverser
+                  {t('documents.televerser')}
                 </Button>
               </div>
             </form>

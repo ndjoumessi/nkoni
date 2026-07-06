@@ -1,6 +1,7 @@
 import '@fastify/jwt' // charge l'augmentation de type (req.jwtVerify, req.user)
 import type { FastifyReply, FastifyRequest } from 'fastify'
 import type { Role } from './permissions'
+import type { Langue } from '../lib/i18n'
 import { auditContext } from '../lib/audit-context'
 import { orgContext } from '../lib/org-context'
 
@@ -40,7 +41,14 @@ export async function authenticate(
 // `user` (sortie de vérification de l'access token, exposé en req.user) porte le rôle.
 declare module '@fastify/jwt' {
   interface FastifyJWT {
-    payload: { sub: string; role?: Role; membreId?: string; organisationId?: string; typ?: 'refresh' }
-    user: { sub?: string; role: Role; membreId?: string; organisationId?: string }
+    payload: {
+      sub: string
+      role?: Role
+      membreId?: string
+      organisationId?: string
+      langue?: Langue // §4 i18n — préférence de langue portée par l'access token
+      typ?: 'refresh'
+    }
+    user: { sub?: string; role: Role; membreId?: string; organisationId?: string; langue?: Langue }
   }
 }

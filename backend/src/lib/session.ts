@@ -7,6 +7,7 @@ import {
   REFRESH_TTL_REMEMBER_SECONDS,
 } from './env'
 import type { Role } from '../middlewares/permissions'
+import type { Langue } from './i18n'
 import type { AuthenticatedUser } from '../services/auth.service'
 
 /**
@@ -35,13 +36,22 @@ export async function signAccessToken(
   reply: FastifyReply,
   user: AuthenticatedUser,
 ): Promise<string> {
-  const payload: { sub: string; role: Role; membreId?: string; organisationId?: string } = {
+  const payload: {
+    sub: string
+    role: Role
+    membreId?: string
+    organisationId?: string
+    langue?: Langue
+  } = {
     sub: user.id,
     role: user.role,
   }
   if (user.membreId) payload.membreId = user.membreId
   // Porté dans l'access token → l'authenticate établit le contexte d'isolation (SaaS §2.2).
   if (user.organisationId) payload.organisationId = user.organisationId
+  // §4 i18n : la préférence de langue voyage dans le token → messages serveur traduits sans
+  // requête DB (voir lib/i18n.ts `langueDeRequete`). Absente si l'utilisateur ne l'a pas fixée.
+  if (user.langue) payload.langue = user.langue
   return reply.jwtSign(payload)
 }
 

@@ -1,8 +1,9 @@
 import { useRef, useState, type FormEvent } from 'react'
-import { KeyRound, Lock, Mail, ShieldCheck, UserCircle } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
+import { KeyRound, Languages, Lock, Mail, ShieldCheck, UserCircle } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
 import { authApi, ApiError } from '@/lib/api'
-import { focusPremierChampInvalide } from '@/lib/utils'
+import { cn, focusPremierChampInvalide } from '@/lib/utils'
 import { useToast } from '@/components/ui/Toast'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, Overline } from '@/components/ui/Card'
@@ -11,6 +12,77 @@ import { Field } from '@/components/ui/Field'
 import { PasswordInput } from '@/components/ui/PasswordInput'
 import { FormSection } from '@/components/ui/FormSection'
 import { NotificationPreferences } from '@/components/NotificationPreferences'
+
+/**
+ * Sélecteur de langue de l'interface (§4) — préférence PERSONNELLE. Persistée côté serveur
+ * (`changerLangue` → PATCH /auth/me/langue) et appliquée immédiatement à l'UI via react-i18next.
+ */
+function SelecteurLangue() {
+  const { t, i18n } = useTranslation()
+  const { changerLangue } = useAuth()
+  const toast = useToast()
+  const [enCours, setEnCours] = useState<'FR' | 'EN' | null>(null)
+  const courante: 'FR' | 'EN' = i18n.language === 'en' ? 'EN' : 'FR'
+  const langues: { code: 'FR' | 'EN'; label: string }[] = [
+    { code: 'FR', label: t('commun.langue.fr') },
+    { code: 'EN', label: t('commun.langue.en') },
+  ]
+
+  const choisir = async (code: 'FR' | 'EN') => {
+    if (code === courante || enCours) return
+    setEnCours(code)
+    try {
+      await changerLangue(code)
+      toast.success(
+        t('profil.langue.enregistree'),
+        t('profil.langue.enregistreeDetail', {
+          langue: code === 'EN' ? t('commun.langue.en') : t('commun.langue.fr'),
+        }),
+      )
+    } catch {
+      toast.error(t('profil.langue.erreur'))
+    } finally {
+      setEnCours(null)
+    }
+  }
+
+  return (
+    <Card className="nk-reveal nk-d1 mt-6 p-6">
+      <div className="flex items-center gap-2">
+        <Languages className="h-4 w-4 text-brass" aria-hidden="true" />
+        <Overline>{t('profil.langue.overline')}</Overline>
+      </div>
+      <p className="mt-3 text-sm font-medium text-foreground">{t('profil.langue.titre')}</p>
+      <p className="mt-1 text-sm text-muted-foreground">{t('profil.langue.description')}</p>
+      <div
+        role="group"
+        aria-label={t('profil.langue.titre')}
+        className="mt-4 inline-flex rounded-xl border border-hairline bg-surface/60 p-1"
+      >
+        {langues.map(({ code, label }) => {
+          const actif = code === courante
+          return (
+            <button
+              key={code}
+              type="button"
+              onClick={() => void choisir(code)}
+              disabled={enCours !== null}
+              aria-pressed={actif}
+              className={cn(
+                'rounded-lg px-4 py-1.5 text-sm font-medium transition-colors disabled:opacity-60',
+                actif
+                  ? 'bg-surface-2 text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {label}
+            </button>
+          )
+        })}
+      </div>
+    </Card>
+  )
+}
 
 const ROLE_LABEL: Record<string, string> = {
   ADMIN: 'Administrateur',
@@ -109,6 +181,9 @@ export function MonProfilPage() {
           </div>
         </dl>
       </Card>
+
+      {/* Langue de l'interface (§4) */}
+      <SelecteurLangue />
 
       {/* Changement de mot de passe */}
       <Card className="nk-reveal nk-d2 mt-6 p-6">

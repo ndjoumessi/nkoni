@@ -7,9 +7,11 @@ import {
   verifyCredentials,
   findUserById,
   changerMotDePasse,
+  definirLangue,
   AncienMotDePasseIncorrectError,
 } from '../services/auth.service'
 import { chargerOrganisationActif } from '../services/organisation.service'
+import { t, langueDeRequete } from '../lib/i18n'
 
 /**
  * Module d'authentification (§4.5) :
@@ -63,6 +65,21 @@ interface ChangerMdpBody {
   nouveauMotDePasse: string
 }
 
+const langueBodySchema = {
+  body: {
+    type: 'object',
+    required: ['langue'],
+    additionalProperties: false,
+    properties: {
+      langue: { type: 'string', enum: ['FR', 'EN'] },
+    },
+  },
+} as const
+
+interface LangueBody {
+  langue: 'FR' | 'EN'
+}
+
 export const authRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
   // POST /auth/login
   app.post<{ Body: LoginBody }>(
@@ -106,7 +123,7 @@ export const authRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
 
       return reply.code(200).send({
         accessToken,
-        user: { id: user.id, email: user.email, role: user.role },
+        user: { id: user.id, email: user.email, role: user.role, langue: user.langue },
       })
     },
   )
@@ -181,8 +198,39 @@ export const authRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
       email: user.email,
       role: user.role,
       membreId: user.membreId,
+      // §4 i18n : préférence de langue perso (null = non exprimée → le front retombe sur son
+      // choix localStorage/navigateur). Le front applique cette langue au montage.
+      langue: user.langue,
     }
   })
+
+  // PATCH /auth/me/langue — l'utilisateur connecté fixe SA préférence de langue (§4).
+  // Réémet un access token portant la nouvelle langue (le front remplace son token en mémoire),
+  // pour que les messages serveur suivants soient rendus dans la bonne langue sans reconnexion.
+  app.patch<{ Body: LangueBody }>(
+    '/me/langue',
+    { schema: langueBodySchema, preHandler: [authenticate] },
+    async (req, reply) => {
+      const sub = req.user.sub
+      if (!sub) {
+        return reply
+          .code(401)
+          .send({ error: 'Unauthorized', message: t(langueDeRequete(req), 'commun.tokenInvalide') })
+      }
+      // `runUnscoped` : mise à jour du PROPRE compte (sub du JWT). Nécessaire pour un SUPER_ADMIN
+      // (sans contexte org, sinon fail-close sur Utilisateur scopé) ; sûr pour tous.
+      const user = await orgContext.runUnscoped(async () =>
+        definirLangue(app.prisma, sub, req.body.langue),
+      )
+      if (!user) {
+        return reply
+          .code(401)
+          .send({ error: 'Unauthorized', message: t(req.body.langue, 'commun.tokenInvalide') })
+      }
+      const accessToken = await signAccessToken(reply, user)
+      return reply.code(200).send({ accessToken, langue: user.langue })
+    },
+  )
 
   // POST /auth/changer-mot-de-passe — l'utilisateur connecté change SON propre mot de
   // passe. L'ancien est vérifié (argon2) avant d'accepter ; 401 s'il est incorrect.

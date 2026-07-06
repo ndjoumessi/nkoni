@@ -305,3 +305,104 @@ describe('POST /auth/changer-mot-de-passe (self-service)', () => {
     expect(res.statusCode).toBe(400)
   })
 })
+
+describe('PATCH /auth/me/langue (préférence de langue perso, §4)', () => {
+  let app: FastifyInstance
+  const EMAIL = 'langue@nkoni.local'
+  const PASSWORD = 'secret-langue-1'
+
+  // `update` mutable : la langue fixée doit se refléter sur les lectures /login /me suivantes.
+  function buildMock(passwordHash: string) {
+    const user: Record<string, unknown> = {
+      id: 'u-lang',
+      email: EMAIL,
+      role: 'ADMIN',
+      actif: true,
+      organisationId: 'org-1',
+      langue: null,
+      passwordHash,
+      membre: null,
+    }
+    return {
+      utilisateur: {
+        findUnique: async (args: { where: { email?: string; id?: string } }) => {
+          const { email, id } = args.where
+          if (email === EMAIL || id === 'u-lang') return user
+          return null
+        },
+        update: async (args: { where: { id: string }; data: Record<string, unknown> }) => {
+          if (args.where.id === 'u-lang') Object.assign(user, args.data)
+          return user
+        },
+      },
+      // L'org-context de login vérifie que l'espace est actif (§2.3) : org active dans ce mock.
+      organisation: {
+        findUnique: async () => ({ actif: true }),
+      },
+    }
+  }
+
+  beforeEach(async () => {
+    const passwordHash = await hashPassword(PASSWORD)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    app = await buildApp({ prisma: buildMock(passwordHash) as any, logger: false })
+    await app.ready()
+  })
+  afterEach(async () => {
+    await app.close()
+  })
+
+  const bearer = () => ({
+    authorization: `Bearer ${app.jwt.sign({ sub: 'u-lang', role: 'ADMIN', organisationId: 'org-1' })}`,
+  })
+
+  it('langue par défaut null → /auth/me expose langue: null', async () => {
+    const res = await app.inject({ method: 'GET', url: '/auth/me', headers: bearer() })
+    expect(res.statusCode).toBe(200)
+    expect(res.json().langue).toBeNull()
+  })
+
+  it('PATCH langue=EN → 200 { accessToken, langue } et /auth/me reflète EN', async () => {
+    const patch = await app.inject({
+      method: 'PATCH',
+      url: '/auth/me/langue',
+      headers: bearer(),
+      payload: { langue: 'EN' },
+    })
+    expect(patch.statusCode).toBe(200)
+    const body = patch.json()
+    expect(body.langue).toBe('EN')
+    expect(typeof body.accessToken).toBe('string')
+
+    // Le token réémis porte la nouvelle langue → une lecture ultérieure la voit.
+    const me = await app.inject({ method: 'GET', url: '/auth/me', headers: bearer() })
+    expect(me.json().langue).toBe('EN')
+
+    // La préférence remonte aussi dans la réponse de login.
+    const login = await app.inject({
+      method: 'POST',
+      url: '/auth/login',
+      payload: { email: EMAIL, password: PASSWORD },
+    })
+    expect(login.json().user.langue).toBe('EN')
+  })
+
+  it('langue non supportée → 400 (validation de schéma)', async () => {
+    const res = await app.inject({
+      method: 'PATCH',
+      url: '/auth/me/langue',
+      headers: bearer(),
+      payload: { langue: 'ES' },
+    })
+    expect(res.statusCode).toBe(400)
+  })
+
+  it('sans token → 401', async () => {
+    const res = await app.inject({
+      method: 'PATCH',
+      url: '/auth/me/langue',
+      payload: { langue: 'EN' },
+    })
+    expect(res.statusCode).toBe(401)
+  })
+})

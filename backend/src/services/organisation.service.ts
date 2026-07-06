@@ -75,8 +75,11 @@ export async function inscrireOrganisation(
         email,
         passwordHash,
         role: 'ADMIN',
+        // §4 i18n : l'admin fondateur hérite de la langue choisie à l'inscription comme
+        // préférence perso (il la verra dès sa 1re session, modifiable ensuite dans Mon profil).
+        langue: params.langue,
       },
-      select: { id: true, email: true, role: true, organisationId: true },
+      select: { id: true, email: true, role: true, organisationId: true, langue: true },
     })
   })
 
@@ -87,6 +90,7 @@ export async function inscrireOrganisation(
     membreId: null,
     organisationId: admin.organisationId,
     actif: true,
+    langue: admin.langue,
   }
 }
 

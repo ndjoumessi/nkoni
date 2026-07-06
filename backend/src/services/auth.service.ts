@@ -1,5 +1,6 @@
 import argon2 from 'argon2'
 import type { Role } from '../middlewares/permissions'
+import type { Langue } from '../lib/i18n'
 
 /**
  * Logique d'authentification, découplée de Fastify et testable avec un Prisma mocké.
@@ -14,6 +15,8 @@ export interface AuthenticatedUser {
   /** Organisation d'appartenance (SaaS §2). Null pour un futur Super-Admin transverse (§2.3). */
   organisationId: string | null
   actif: boolean
+  /** Préférence de langue perso (§4). Null = non exprimée (→ Accept-Language/FR côté i18n). */
+  langue: Langue | null
 }
 
 /**
@@ -58,6 +61,7 @@ function toAuthUser(record: Record<string, unknown>): AuthenticatedUser {
     membreId: membre?.id ?? null,
     organisationId: (record['organisationId'] as string | null | undefined) ?? null,
     actif: record['actif'] as boolean,
+    langue: (record['langue'] as Langue | null | undefined) ?? null,
   }
 }
 
@@ -82,6 +86,7 @@ export async function verifyCredentials(
       role: true,
       actif: true,
       organisationId: true,
+      langue: true,
       passwordHash: true,
       membre: { select: { id: true } },
     },
@@ -135,9 +140,24 @@ export async function findUserById(
       role: true,
       actif: true,
       organisationId: true,
+      langue: true,
       membre: { select: { id: true } },
     },
   })
   if (!record) return null
   return toAuthUser(record)
+}
+
+/**
+ * Fixe la préférence de langue perso (§4) du compte et renvoie l'utilisateur rechargé
+ * (pour ré-émettre un access token portant la nouvelle langue). Keyé sur l'id du compte
+ * authentifié → appelé en `runUnscoped` par la route (sûr, y compris pour un SUPER_ADMIN).
+ */
+export async function definirLangue(
+  prisma: AuthPrisma,
+  userId: string,
+  langue: Langue,
+): Promise<AuthenticatedUser | null> {
+  await prisma.utilisateur.update({ where: { id: userId }, data: { langue } })
+  return findUserById(prisma, userId)
 }

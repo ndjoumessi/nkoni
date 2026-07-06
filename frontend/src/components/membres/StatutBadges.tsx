@@ -1,18 +1,19 @@
+import { useTranslation } from 'react-i18next'
 import type { StatutContribution, StatutMembre } from '@/lib/api'
 import { Badge, type BadgeProps } from '@/components/ui/Badge'
 
 /** Badges de statut réutilisés dans la liste et la fiche membre (palette Laiton & Jade). */
 
-const COTISATION: Record<StatutContribution, { label: string; tone: BadgeProps['tone'] }> = {
-  A_JOUR: { label: 'À jour', tone: 'jade' },
-  PARTIEL: { label: 'Partiel', tone: 'amber' },
-  NON_A_JOUR: { label: 'Non à jour', tone: 'terra' },
+const COTISATION_TONE: Record<StatutContribution, BadgeProps['tone']> = {
+  A_JOUR: 'jade',
+  PARTIEL: 'amber',
+  NON_A_JOUR: 'terra',
 }
 
-const MEMBRE: Record<StatutMembre, { label: string; tone: BadgeProps['tone'] }> = {
-  ACTIF: { label: 'Actif', tone: 'info' },
-  INACTIF: { label: 'Inactif', tone: 'neutral' },
-  DECEDE: { label: 'Décédé', tone: 'neutral' },
+const MEMBRE_TONE: Record<StatutMembre, BadgeProps['tone']> = {
+  ACTIF: 'info',
+  INACTIF: 'neutral',
+  DECEDE: 'neutral',
 }
 
 export function StatutCotisationBadge({
@@ -22,10 +23,10 @@ export function StatutCotisationBadge({
   statut: StatutContribution
   size?: BadgeProps['size']
 }) {
-  const s = COTISATION[statut]
+  const { t } = useTranslation()
   return (
-    <Badge tone={s.tone} size={size} dot>
-      {s.label}
+    <Badge tone={COTISATION_TONE[statut]} size={size} dot>
+      {t(`membres.badge.cotisation.${statut}`)}
     </Badge>
   )
 }
@@ -37,10 +38,10 @@ export function StatutMembreBadge({
   statut: StatutMembre
   size?: BadgeProps['size']
 }) {
-  const s = MEMBRE[statut]
+  const { t } = useTranslation()
   return (
-    <Badge tone={s.tone} size={size} dot={statut === 'ACTIF'}>
-      {s.label}
+    <Badge tone={MEMBRE_TONE[statut]} size={size} dot={statut === 'ACTIF'}>
+      {t(`membres.badge.membre.${statut}`)}
     </Badge>
   )
 }

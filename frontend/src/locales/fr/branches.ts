@@ -1,4 +1,6 @@
-/** Chaînes FR du domaine « branches » (§4 i18n). Rempli au lot correspondant. */
+/** Chaînes FR du domaine « branches » (§4 i18n). */
 export default {
-  branches: {},
+  branches: {
+    sansBranche: 'Sans branche',
+  },
 }

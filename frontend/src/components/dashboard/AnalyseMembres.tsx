@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { ArrowRight, BellRing, GitBranch } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
@@ -28,10 +29,6 @@ const RELANCE_TONE: Record<'PARTIEL' | 'NON_A_JOUR', BadgeProps['tone']> = {
   PARTIEL: 'amber',
   NON_A_JOUR: 'terra',
 }
-const RELANCE_LABEL: Record<'PARTIEL' | 'NON_A_JOUR', string> = {
-  PARTIEL: 'Partiel',
-  NON_A_JOUR: 'Non à jour',
-}
 
 function barColor(taux: number): string {
   if (taux >= 80) return 'bg-jade'
@@ -40,6 +37,7 @@ function barColor(taux: number): string {
 }
 
 export function AnalyseMembres() {
+  const { t } = useTranslation()
   const { accessToken } = useAuth()
   const [membres, setMembres] = useState<MembreStatut[] | null>(null)
   const [failed, setFailed] = useState(false)
@@ -68,7 +66,7 @@ export function AnalyseMembres() {
     const map = new Map<string, BrancheStat>()
     for (const m of membres) {
       const id = m.branche?.id ?? '—'
-      const nom = m.branche?.nom ?? 'Sans branche'
+      const nom = m.branche?.nom ?? t('branches.sansBranche')
       const cur = map.get(id) ?? { id, nom, attendu: 0, valorise: 0, taux: 0 }
       cur.attendu += m.totalAttenduCumule
       cur.valorise += m.totalValoriseCumule
@@ -78,7 +76,7 @@ export function AnalyseMembres() {
       .filter((b) => b.attendu > 0)
       .map((b) => ({ ...b, taux: Math.min(100, (b.valorise / b.attendu) * 100) }))
       .sort((a, b) => a.taux - b.taux)
-  }, [membres])
+  }, [membres, t])
 
   const relance = useMemo(() => {
     if (!membres) return []
@@ -117,7 +115,7 @@ export function AnalyseMembres() {
         <Card className="p-5">
           <div className="flex items-center gap-2">
             <GitBranch className="h-4 w-4 text-brass" aria-hidden="true" />
-            <Overline>Recouvrement par branche</Overline>
+            <Overline>{t('dashboard.analyse.recouvrementBranche')}</Overline>
           </div>
           <ul className="mt-4 space-y-3.5">
             {branches.map((b) => (
@@ -153,7 +151,7 @@ export function AnalyseMembres() {
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <BellRing className="h-4 w-4 text-terra" aria-hidden="true" />
-            <Overline>À relancer</Overline>
+            <Overline>{t('dashboard.analyse.aRelancer')}</Overline>
           </div>
           {relance.length > 0 && (
             <Badge tone="terra" size="sm">
@@ -163,7 +161,7 @@ export function AnalyseMembres() {
         </div>
 
         {relance.length === 0 ? (
-          <p className="mt-4 text-sm text-jade">Tous les membres actifs sont à jour. 🎉</p>
+          <p className="mt-4 text-sm text-jade">{t('dashboard.analyse.tousAJour')}</p>
         ) : (
           <>
             <ul className="mt-4 divide-y divide-hairline">
@@ -178,12 +176,12 @@ export function AnalyseMembres() {
                         {m.nom} {m.prenom}
                       </span>
                       <span className="num block truncate text-xs text-faint">
-                        Reste {formatFcfa(m.manque)}
+                        {t('dashboard.analyse.reste', { montant: formatFcfa(m.manque) })}
                         {m.branche ? ` · ${m.branche.nom}` : ''}
                       </span>
                     </span>
                     <Badge tone={RELANCE_TONE[m.statutCotisation as 'PARTIEL' | 'NON_A_JOUR']} size="sm">
-                      {RELANCE_LABEL[m.statutCotisation as 'PARTIEL' | 'NON_A_JOUR']}
+                      {t(`dashboard.statut.${m.statutCotisation as 'PARTIEL' | 'NON_A_JOUR'}`)}
                     </Badge>
                   </Link>
                 </li>
@@ -194,7 +192,7 @@ export function AnalyseMembres() {
                 to="/membres?cotisation=NON_A_JOUR"
                 className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-brass transition-colors hover:text-amber"
               >
-                Voir tous les membres à relancer
+                {t('dashboard.analyse.voirTous')}
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </Link>
             )}

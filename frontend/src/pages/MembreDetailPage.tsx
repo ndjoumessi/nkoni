@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ChevronDown, ChevronRight, Pencil, Plus, Scale } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
@@ -49,6 +50,7 @@ function formatDate(iso: string | null): string {
  * contributions (versements dépliables). Accès en couches selon la matrice §2.
  */
 export function MembreDetailPage() {
+  const { t } = useTranslation()
   const { id } = useParams<{ id: string }>()
   const { user, accessToken } = useAuth()
   const navigate = useNavigate()
@@ -83,7 +85,7 @@ export function MembreDetailPage() {
           return
         }
         if (active) {
-          setError(e instanceof ApiError ? e.message : 'Erreur de chargement de la fiche.')
+          setError(e instanceof ApiError ? e.message : t('membres.detail.erreurChargement'))
           setLoading(false)
         }
         return
@@ -123,7 +125,7 @@ export function MembreDetailPage() {
       active = false
       controller.abort()
     }
-  }, [accessToken, id, navigate])
+  }, [accessToken, id, navigate, t])
 
   const brancheNom = useMemo(() => {
     if (!membre?.brancheId) return '—'
@@ -147,7 +149,7 @@ export function MembreDetailPage() {
   if (error) {
     return (
       <div className="mx-auto max-w-3xl">
-        <PageHeader title="Fiche membre" back={{ to: '/membres', label: 'Membres' }} />
+        <PageHeader title={t('membres.detail.fiche')} back={{ to: '/membres', label: t('membres.detail.retour') }} />
         <Card className="mt-6 border-terra/30 bg-terra/[0.07] p-5 text-terra">{error}</Card>
       </div>
     )
@@ -158,7 +160,7 @@ export function MembreDetailPage() {
   return (
     <div className="mx-auto max-w-3xl">
       <PageHeader
-        back={{ to: '/membres', label: 'Membres' }}
+        back={{ to: '/membres', label: t('membres.detail.retour') }}
         title={
           <>
             {membre.nom} <span className="text-muted-foreground">{membre.prenom}</span>
@@ -178,12 +180,12 @@ export function MembreDetailPage() {
                 variant="outline"
                 icon={Scale}
               >
-                Équilibrer les cotisations
+                {t('membres.detail.equilibrer')}
               </ButtonLink>
             )}
             {peutGererMembres(user?.role) && (
               <ButtonLink to={`/membres/${membre.id}/editer`} variant="outline" icon={Pencil}>
-                Modifier
+                {t('membres.detail.modifier')}
               </ButtonLink>
             )}
           </>
@@ -193,13 +195,13 @@ export function MembreDetailPage() {
       {statut && (
         <section className="nk-reveal nk-d2 mt-7 grid gap-4 sm:grid-cols-2">
           <Card className="p-5">
-            <Overline>Total attendu (cumulé)</Overline>
+            <Overline>{t('membres.detail.totalAttendu')}</Overline>
             <p className="num mt-2 text-xl font-semibold text-foreground">
               {formatFcfa(statut.totalAttenduCumule)}
             </p>
           </Card>
           <Card className="p-5">
-            <Overline>Total valorisé (cumulé)</Overline>
+            <Overline>{t('membres.detail.totalValorise')}</Overline>
             <p className="num mt-2 text-xl font-semibold text-jade">
               {formatFcfa(statut.totalValoriseCumule)}
             </p>
@@ -208,17 +210,17 @@ export function MembreDetailPage() {
       )}
 
       <Card className="nk-reveal nk-d3 mt-4 p-6">
-        <Overline>Informations</Overline>
+        <Overline>{t('membres.detail.informations')}</Overline>
         <dl className="mt-4 grid gap-5 sm:grid-cols-2">
-          <Info label="Sexe" value={membre.sexe ?? '—'} />
-          <Info label="Date de naissance" value={formatDate(membre.dateNaissance)} />
-          <Info label="Fonction sociale" value={membre.fonctionSociale ?? '—'} />
-          <Info label="Branche familiale" value={brancheNom} />
-          <Info label="Téléphone" value={membre.telephone ?? '—'} />
-          <Info label="Adresse" value={membre.adresse ?? '—'} />
-          <Info label="Année d'adhésion" value={String(membre.anneeAdhesion)} />
+          <Info label={t('membres.detail.info.sexe')} value={membre.sexe ?? '—'} />
+          <Info label={t('membres.detail.info.dateNaissance')} value={formatDate(membre.dateNaissance)} />
+          <Info label={t('membres.detail.info.fonctionSociale')} value={membre.fonctionSociale ?? '—'} />
+          <Info label={t('membres.detail.info.brancheFamiliale')} value={brancheNom} />
+          <Info label={t('membres.detail.info.telephone')} value={membre.telephone ?? '—'} />
+          <Info label={t('membres.detail.info.adresse')} value={membre.adresse ?? '—'} />
+          <Info label={t('membres.detail.info.anneeAdhesion')} value={String(membre.anneeAdhesion)} />
           <Info
-            label="Fin de contribution"
+            label={t('membres.detail.info.finContribution')}
             value={membre.anneeFinContribution ? String(membre.anneeFinContribution) : '—'}
           />
         </dl>
@@ -227,7 +229,7 @@ export function MembreDetailPage() {
       {financierAccessible && (
         <Card className="nk-reveal nk-d4 mt-4 p-6">
           <div className="flex items-center justify-between gap-3">
-            <Overline>Contributions &amp; versements</Overline>
+            <Overline>{t('membres.detail.contributions')}</Overline>
             {peutSaisirVersement(user?.role) && (
               <ButtonLink
                 to={`/membres/${membre.id}/versements/nouveau`}
@@ -235,14 +237,13 @@ export function MembreDetailPage() {
                 size="sm"
                 icon={Plus}
               >
-                Saisir un versement
+                {t('membres.detail.saisirVersement')}
               </ButtonLink>
             )}
           </div>
           {contributions.length === 0 ? (
             <p className="mt-4 text-sm text-faint">
-              Aucune contribution enregistrée. Utilisez « Saisir un versement » pour ouvrir une
-              année.
+              {t('membres.detail.aucuneContribution')}
             </p>
           ) : (
             <ul className="mt-4 space-y-2">
@@ -265,12 +266,12 @@ export function MembreDetailPage() {
                         ) : (
                           <ChevronRight className="h-4 w-4 text-faint" aria-hidden="true" />
                         )}
-                        Année {c.annee}
+                        {t('membres.detail.annee', { annee: c.annee })}
                       </button>
                       <div className="num flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                        <span>Attendu {formatFcfa(c.montantAttendu)}</span>
-                        <span>Versé {formatFcfa(c.montantVerse)}</span>
-                        <span className="text-jade">Valorisé {formatFcfa(c.montantValorise)}</span>
+                        <span>{t('membres.detail.attendu', { montant: formatFcfa(c.montantAttendu) })}</span>
+                        <span>{t('membres.detail.verse', { montant: formatFcfa(c.montantVerse) })}</span>
+                        <span className="text-jade">{t('membres.detail.valorise', { montant: formatFcfa(c.montantValorise) })}</span>
                       </div>
                       {peutSaisirVersement(user?.role) && (
                         <Link
@@ -278,7 +279,7 @@ export function MembreDetailPage() {
                           className="inline-flex items-center gap-1.5 rounded-full border border-hairline-strong bg-surface-2/60 px-3 py-1 text-xs font-medium text-foreground transition-colors hover:border-brass/40 hover:bg-surface-3"
                         >
                           <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-                          Versement
+                          {t('membres.detail.versement')}
                         </Link>
                       )}
                     </div>
@@ -298,12 +299,12 @@ export function MembreDetailPage() {
       {/* Équilibrages appliqués — lecture seule (ADMIN/PRESIDENT/TRESORIERE/COMMISSAIRE). */}
       {equilibrages && equilibrages.length > 0 && (
         <Card className="nk-reveal nk-d5 mt-4 p-6">
-          <Overline>Équilibrages appliqués</Overline>
+          <Overline>{t('membres.detail.equilibragesAppliques')}</Overline>
           <div className="mt-4 overflow-hidden rounded-xl border border-hairline">
             <div className="grid grid-cols-[1fr_1.3fr_1fr] gap-3 border-b border-hairline bg-surface-2/40 px-4 py-2.5 text-[0.7rem] font-medium uppercase tracking-[0.12em] text-faint">
-              <span>Plage</span>
-              <span>Total période</span>
-              <span>Appliqué le</span>
+              <span>{t('membres.detail.col.plage')}</span>
+              <span>{t('membres.detail.col.totalPeriode')}</span>
+              <span>{t('membres.detail.col.appliqueLe')}</span>
             </div>
             <ul className="divide-y divide-hairline">
               {equilibrages.map((eq) => (

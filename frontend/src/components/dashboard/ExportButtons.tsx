@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { FileSpreadsheet, FileText } from 'lucide-react'
 import { downloadExportContributions, ApiError } from '@/lib/api'
 import { useAuth } from '@/contexts/auth-context'
@@ -11,6 +12,7 @@ import { Button } from '@/components/ui/Button'
  * authentifié (token en mémoire) → Blob → enregistrement forcé. Feedback via toasts.
  */
 export function ExportButtons({ annee }: { annee?: number }) {
+  const { t } = useTranslation()
   const { accessToken } = useAuth()
   const toast = useToast()
   const [enCours, setEnCours] = useState<'xlsx' | 'pdf' | null>(null)
@@ -20,9 +22,9 @@ export function ExportButtons({ annee }: { annee?: number }) {
     setEnCours(format)
     try {
       await downloadExportContributions({ format, annee }, accessToken)
-      toast.success('Export prêt', `Le fichier ${format.toUpperCase()} a été téléchargé.`)
+      toast.success(t('dashboard.export.pretTitre'), t('dashboard.export.pretDetail', { format: format.toUpperCase() }))
     } catch (e) {
-      toast.error('Échec de l’export', e instanceof ApiError ? e.message : 'Réessayez plus tard.')
+      toast.error(t('dashboard.export.echec'), e instanceof ApiError ? e.message : t('dashboard.export.reessayez'))
     } finally {
       setEnCours(null)
     }
@@ -30,7 +32,7 @@ export function ExportButtons({ annee }: { annee?: number }) {
 
   return (
     <Card className="p-5">
-      <Overline>Exporter les contributions</Overline>
+      <Overline>{t('dashboard.export.titre')}</Overline>
       <div className="mt-4 flex flex-wrap gap-3">
         <Button
           variant="outline"
@@ -39,7 +41,7 @@ export function ExportButtons({ annee }: { annee?: number }) {
           disabled={enCours !== null}
           onClick={() => exporter('xlsx')}
         >
-          Excel
+          {t('dashboard.export.excel')}
         </Button>
         <Button
           variant="outline"
@@ -48,7 +50,7 @@ export function ExportButtons({ annee }: { annee?: number }) {
           disabled={enCours !== null}
           onClick={() => exporter('pdf')}
         >
-          PDF
+          {t('dashboard.export.pdf')}
         </Button>
       </div>
     </Card>

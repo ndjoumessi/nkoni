@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Coins, Wallet } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { formatFcfa, formatPourcent } from '@/lib/format'
@@ -6,6 +7,7 @@ import { prefersReducedMotion } from '@/lib/utils'
 
 /** Jauge circulaire laiton→jade pour le taux de recouvrement. */
 function Gauge({ value }: { value: number }) {
+  const { t } = useTranslation()
   const pct = Math.max(0, Math.min(100, value))
   const size = 148
   const stroke = 13
@@ -60,7 +62,7 @@ function Gauge({ value }: { value: number }) {
           {formatPourcent(Math.round(pct))}
         </span>
         <span className="mt-0.5 text-[0.65rem] uppercase tracking-[0.12em] text-faint">
-          recouvré
+          {t('dashboard.hero.recouvre')}
         </span>
       </div>
     </div>
@@ -77,10 +79,11 @@ export function RecouvrementHero({
   collecte: number
   attendu: number
 }) {
+  const { t } = useTranslation()
   return (
     <Card variant="feature" className="p-6 sm:p-7">
       <p className="text-[0.7rem] font-medium uppercase tracking-[0.14em] text-brass/80">
-        Indicateur clé
+        {t('dashboard.hero.indicateur')}
       </p>
       <div className="mt-5 flex flex-col items-center gap-7 sm:flex-row sm:gap-9">
         <Gauge value={taux} />
@@ -90,7 +93,7 @@ export function RecouvrementHero({
               <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-surface-2 text-jade">
                 <Coins className="h-4 w-4" aria-hidden="true" />
               </span>
-              Total collecté
+              {t('dashboard.hero.totalCollecte')}
             </span>
             <span className="num text-lg font-semibold text-foreground">{formatFcfa(collecte)}</span>
           </div>
@@ -99,7 +102,7 @@ export function RecouvrementHero({
               <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-surface-2 text-brass">
                 <Wallet className="h-4 w-4" aria-hidden="true" />
               </span>
-              Total attendu
+              {t('dashboard.hero.totalAttendu')}
             </span>
             <span className="num text-lg font-semibold text-foreground">{formatFcfa(attendu)}</span>
           </div>

@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { AlertTriangle, ArrowRight, Check, Scale } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
@@ -22,17 +24,17 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { Skeleton } from '@/components/ui/Skeleton'
 
 /** Message métier clair à partir d'une erreur backend (§4.3), plutôt que le message brut. */
-function messageEquilibrage(e: unknown): string {
+function messageEquilibrage(e: unknown, t: TFunction): string {
   if (e instanceof ApiError) {
     if (/aucune contribution pour l'année/i.test(e.message))
-      return 'La plage sélectionnée contient une année sans cotisation ouverte. Ouvrez cette année ou réduisez la plage.'
+      return t('equilibrages.message.anneeSansCotisation')
     if (/somme des montants ajustés|total de la période/i.test(e.message))
-      return 'La répartition ajustée doit être exactement égale au total de la période.'
+      return t('equilibrages.message.sommeExacte')
     if (/plage d'années invalide/i.test(e.message))
-      return "La plage d'années est invalide : l'année de début doit précéder celle de fin."
+      return t('equilibrages.message.plageInvalide')
     return e.message
   }
-  return 'Une erreur est survenue. Réessayez plus tard.'
+  return t('equilibrages.message.generique')
 }
 
 /**
@@ -41,6 +43,7 @@ function messageEquilibrage(e: unknown): string {
  * « somme === totalPeriode » → application réelle. Après succès, retour à la fiche.
  */
 export function EquilibrageFormPage() {
+  const { t } = useTranslation()
   const { id } = useParams<{ id: string }>()
   const { user, accessToken } = useAuth()
   const navigate = useNavigate()
@@ -80,7 +83,7 @@ export function EquilibrageFormPage() {
         }
       } catch (e) {
         if (e instanceof DOMException && e.name === 'AbortError') return
-        if (active) toast.error('Chargement impossible', e instanceof ApiError ? e.message : undefined)
+        if (active) toast.error(t('equilibrages.toast.chargementImpossible'), e instanceof ApiError ? e.message : undefined)
       } finally {
         if (active) setLoading(false)
       }
@@ -89,7 +92,7 @@ export function EquilibrageFormPage() {
       active = false
       controller.abort()
     }
-  }, [accessToken, id, toast])
+  }, [accessToken, id, toast, t])
 
   const annees = useMemo(() => contributions.map((c) => c.annee), [contributions])
   const anneesSet = useMemo(() => new Set(annees), [annees])
@@ -126,7 +129,7 @@ export function EquilibrageFormPage() {
       setSimulation(res)
       setMontants(res.repartition.map((l) => String(l.montantPropose)))
     } catch (e) {
-      toast.error('Simulation impossible', messageEquilibrage(e))
+      toast.error(t('equilibrages.toast.simulationImpossible'), messageEquilibrage(e, t))
     } finally {
       setSimulating(false)
     }
@@ -159,12 +162,16 @@ export function EquilibrageFormPage() {
         accessToken,
       )
       toast.success(
-        'Équilibrage appliqué',
-        `Années ${anneeDebut}–${anneeFin} · ${formatFcfa(totalPeriode)} redistribués.`,
+        t('equilibrages.toast.applique'),
+        t('equilibrages.toast.appliqueDetail', {
+          debut: anneeDebut,
+          fin: anneeFin,
+          total: formatFcfa(totalPeriode),
+        }),
       )
       navigate(`/membres/${id}`, { replace: true })
     } catch (e) {
-      toast.error('Application impossible', messageEquilibrage(e))
+      toast.error(t('equilibrages.toast.applicationImpossible'), messageEquilibrage(e, t))
     } finally {
       setApplying(false)
     }
@@ -179,10 +186,10 @@ export function EquilibrageFormPage() {
   return (
     <div className="mx-auto max-w-2xl">
       <PageHeader
-        overline="Trésorerie"
-        title="Équilibrer les cotisations"
+        overline={t('equilibrages.header.overline')}
+        title={t('equilibrages.header.titre')}
         description={membreNom || undefined}
-        back={{ to: backTo, label: 'Fiche du membre' }}
+        back={{ to: backTo, label: t('equilibrages.header.back') }}
       />
 
       {loading ? (
@@ -194,21 +201,20 @@ export function EquilibrageFormPage() {
         <div className="mt-7">
           <EmptyState
             icon={Scale}
-            title="Aucune cotisation à équilibrer"
-            description="Ce membre n'a pas encore de contributions. Ouvrez une année (via un versement) avant d'équilibrer."
+            title={t('equilibrages.empty.titre')}
+            description={t('equilibrages.empty.description')}
           />
         </div>
       ) : (
         <>
           {/* Plage à équilibrer */}
           <Card className="nk-reveal nk-d2 mt-7 p-6">
-            <Overline>Plage à équilibrer</Overline>
+            <Overline>{t('equilibrages.plage.titre')}</Overline>
             <p className="mt-1.5 text-sm text-muted-foreground">
-              La valorisation est lissée sur la plage choisie ; les versements réels ne sont jamais
-              modifiés. Seules les années avec cotisation ouverte sont proposées.
+              {t('equilibrages.plage.description')}
             </p>
             <div className="mt-4 flex flex-wrap items-end gap-3">
-              <Field label="Année de début" required className="w-40">
+              <Field label={t('equilibrages.plage.anneeDebut')} required className="w-40">
                 <Select
                   value={anneeDebut ?? ''}
                   onChange={(e) => changerPlage(setAnneeDebut)(Number(e.target.value))}
@@ -220,7 +226,7 @@ export function EquilibrageFormPage() {
                   ))}
                 </Select>
               </Field>
-              <Field label="Année de fin" required className="w-40">
+              <Field label={t('equilibrages.plage.anneeFin')} required className="w-40">
                 <Select
                   value={anneeFin ?? ''}
                   onChange={(e) => changerPlage(setAnneeFin)(Number(e.target.value))}
@@ -239,21 +245,20 @@ export function EquilibrageFormPage() {
                 onClick={handleSimuler}
                 className="mb-[1px]"
               >
-                Simuler
+                {t('equilibrages.plage.simuler')}
               </Button>
             </div>
 
             {anneeDebut !== null && anneeFin !== null && anneeDebut > anneeFin && (
               <p className="mt-3 text-sm text-terra">
-                L'année de début doit précéder (ou égaler) l'année de fin.
+                {t('equilibrages.plage.debutApresFin')}
               </p>
             )}
             {anneesManquantes.length > 0 && (
               <div className="mt-3 flex items-start gap-2.5 rounded-xl border border-amber/30 bg-amber/[0.07] px-3.5 py-2.5 text-sm text-amber">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
                 <span>
-                  Sans cotisation pour {anneesManquantes.join(', ')} : cette/ces année(s) doi(ven)t
-                  être ouverte(s), ou réduisez la plage.
+                  {t('equilibrages.plage.manquantes', { annees: anneesManquantes.join(', ') })}
                 </span>
               </div>
             )}
@@ -263,18 +268,18 @@ export function EquilibrageFormPage() {
           {simulation && (
             <Card className="nk-reveal mt-4 p-6">
               <div className="flex items-center justify-between gap-3">
-                <Overline>Répartition proposée</Overline>
+                <Overline>{t('equilibrages.repartition.titre')}</Overline>
                 <span className="text-xs text-faint">
-                  Simulation — aucune écriture avant « Appliquer »
+                  {t('equilibrages.repartition.simulationNote')}
                 </span>
               </div>
 
               {/* En-tête de tableau */}
               <div className="mt-4 hidden grid-cols-[1fr_1.3fr_auto_1.3fr] items-center gap-3 px-1 text-[0.7rem] font-medium uppercase tracking-[0.12em] text-faint sm:grid">
-                <span>Année</span>
-                <span>Avant</span>
+                <span>{t('equilibrages.repartition.colAnnee')}</span>
+                <span>{t('equilibrages.repartition.colAvant')}</span>
                 <span className="sr-only">→</span>
-                <span>Après (ajustable)</span>
+                <span>{t('equilibrages.repartition.colApres')}</span>
               </div>
 
               <ul className="mt-2 space-y-2">
@@ -300,7 +305,7 @@ export function EquilibrageFormPage() {
                           value={montants[i] ?? ''}
                           onChange={(e) => setMontant(i, e.target.value)}
                           className="num"
-                          aria-label={`Montant après pour ${l.annee}`}
+                          aria-label={t('equilibrages.repartition.montantAria', { annee: l.annee })}
                           aria-invalid={(nums[i] ?? 0) < 0 ? true : undefined}
                         />
                         {delta !== 0 && (
@@ -318,25 +323,25 @@ export function EquilibrageFormPage() {
               {/* Récapitulatif somme vs total */}
               <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-hairline bg-surface-2/50 px-4 py-3">
                 <div className="text-sm">
-                  <span className="text-muted-foreground">Total de la période : </span>
+                  <span className="text-muted-foreground">{t('equilibrages.recap.totalPeriode')}</span>
                   <span className="num font-semibold text-foreground">
                     {formatFcfa(totalPeriode)}
                   </span>
                 </div>
                 <div className="flex items-center gap-3 text-sm">
                   <span className="text-muted-foreground">
-                    Somme répartie :{' '}
+                    {t('equilibrages.recap.sommeRepartie')}{' '}
                     <span className={`num font-semibold ${exact ? 'text-foreground' : 'text-terra'}`}>
                       {formatFcfa(somme)}
                     </span>
                   </span>
                   {exact ? (
                     <Badge tone="jade" size="sm" dot>
-                      Équilibré
+                      {t('equilibrages.recap.equilibre')}
                     </Badge>
                   ) : (
                     <Badge tone="terra" size="sm">
-                      Écart {ecart > 0 ? '+' : '−'}
+                      {t('equilibrages.recap.ecart')} {ecart > 0 ? '+' : '−'}
                       {formatFcfa(Math.abs(ecart))}
                     </Badge>
                   )}
@@ -345,19 +350,18 @@ export function EquilibrageFormPage() {
 
               {!exact && (
                 <p className="mt-2 text-xs text-faint">
-                  Ajustez les montants pour que la somme répartie soit exactement égale au total de
-                  la période — c'est la contrainte pour pouvoir appliquer l'équilibrage.
+                  {t('equilibrages.recap.ajusterHint')}
                 </p>
               )}
 
               <div className="mt-5 flex items-center justify-end gap-3">
                 <Button variant="ghost" onClick={reinitialiser}>
-                  Réinitialiser
+                  {t('equilibrages.action.reinitialiser')}
                 </Button>
                 {/* Visible uniquement quand la somme est exacte (§4.3). */}
                 {exact && (
                   <Button icon={Check} loading={applying} onClick={handleAppliquer}>
-                    Appliquer l'équilibrage
+                    {t('equilibrages.action.appliquer')}
                   </Button>
                 )}
               </div>

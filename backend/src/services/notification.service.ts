@@ -11,6 +11,8 @@
  * le scheduler ne parcourt que les membres à compte lié).
  */
 
+import { t, type Langue } from '../lib/i18n'
+
 export type TypeNotification = 'VERSEMENT_RECU' | 'COTISATION_RETARD'
 
 /** Tous les types de notification (source unique pour les préférences). */
@@ -119,6 +121,24 @@ export async function majPreferences(
     data: { notificationsActives: fusionne },
   })
   return normaliserPreferences(fusionne)
+}
+
+/**
+ * Langue EFFECTIVE du DESTINATAIRE d'une notification (§4) : sa préférence perso sinon le défaut
+ * de son organisation, sinon FR. Point crucial : une notification est toujours rendue dans la
+ * langue de CELUI QUI LA REÇOIT (le membre concerné), jamais de l'acteur qui déclenche l'action
+ * (ex. un versement saisi par la trésorière notifie le membre dans LA LANGUE DU MEMBRE).
+ */
+export async function resoudreLangueDestinataire(
+  prisma: NotificationPrisma,
+  destinataireId: string,
+): Promise<Langue> {
+  const u = await prisma.utilisateur.findUnique({
+    where: { id: destinataireId },
+    select: { langue: true, organisation: { select: { langueDefaut: true } } },
+  })
+  const langue = u?.langue ?? u?.organisation?.langueDefaut
+  return langue === 'EN' || langue === 'FR' ? langue : 'FR'
 }
 
 /** Le type est-il actif pour cet utilisateur ? (lecture ciblée avant création d'une notif.) */
@@ -245,11 +265,16 @@ export async function notifierVersement(
   // Préférence : si l'utilisateur a désactivé ce type, on ne crée RIEN (pas de notif fantôme).
   if (!(await estTypeActifPour(prisma, destinataireId, 'VERSEMENT_RECU'))) return
 
+  // §4 : rendu dans la langue du DESTINATAIRE (le membre), pas de l'acteur du versement.
+  const langue = await resoudreLangueDestinataire(prisma, destinataireId)
   await creerNotification(prisma, {
     destinataireId,
     type: 'VERSEMENT_RECU',
-    titre: 'Versement enregistré',
-    message: `Votre versement de ${fcfa(params.montant)} pour l'année ${params.annee} a été enregistré.`,
+    titre: t(langue, 'notifications.versementRecu.titre'),
+    message: t(langue, 'notifications.versementRecu.message', {
+      montant: fcfa(params.montant),
+      annee: params.annee,
+    }),
     entiteType: 'Versement',
     entiteId: params.versementId,
   })

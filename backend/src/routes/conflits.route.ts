@@ -140,7 +140,7 @@ export const conflitsRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
       if (!auteurId) {
         return reply
           .code(401)
-          .send({ error: 'Unauthorized', message: t(langueDeRequete(req), 'conflits.tokenInvalide') })
+          .send({ error: 'Unauthorized', message: t(langueDeRequete(req), 'commun.tokenInvalide') })
       }
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -6,5 +6,4 @@ export const messages = {
     'Un responsable de suivi ne peut être désigné que pour un conflit CONFIDENTIEL.',
   'conflits.responsableIntrouvable': 'Le responsable de suivi désigné est introuvable.',
   'conflits.membreConcerneIntrouvable': 'Un membre concerné est introuvable.',
-  'conflits.tokenInvalide': 'Token invalide.',
 } as const

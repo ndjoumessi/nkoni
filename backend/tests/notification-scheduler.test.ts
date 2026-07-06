@@ -63,6 +63,20 @@ describe('executerVerificationRetards (§5)', () => {
     expect(creees[0]).toMatchObject({ destinataireId: 'u1', type: 'COTISATION_RETARD' })
   })
 
+  it('rappel rendu dans la langue du membre DESTINATAIRE (EN)', async () => {
+    // §4 : chaque membre est notifié dans SA langue. Ici m1 (NON_A_JOUR) a un compte EN.
+    const { prisma, notifs } = buildNotificationsMock({
+      membres: [MEMBRES[0]], // m1 NON_A_JOUR → u1
+      baremes,
+      utilisateurs: [{ id: 'u1', langue: 'EN' }],
+    })
+    const res = await executerVerificationRetards(prisma, ANNEE, NOW)
+    expect(res.notifies).toBe(1)
+    const n = [...notifs.values()][0]
+    expect(n.titre).toBe('Contribution overdue')
+    expect(n.message).toBe('Your contribution is not up to date.')
+  })
+
   it('anti-spam : pas de nouvelle notif si une COTISATION_RETARD non lue < 7 j existe déjà', async () => {
     const { prisma, notifs } = buildNotificationsMock({
       membres: [MEMBRES[0]], // m1 NON_A_JOUR

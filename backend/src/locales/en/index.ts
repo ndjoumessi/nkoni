@@ -9,6 +9,7 @@ import { messages as authMsgs } from './auth'
 import { messages as utilisateursMsgs } from './utilisateurs'
 import { messages as organisationsMsgs } from './organisations'
 import { messages as platformMsgs } from './platform'
+import { messages as notificationsMsgs } from './notifications'
 import { messages as membresMsgs } from './membres'
 import { messages as branchesMsgs } from './branches'
 import { messages as fonctionsMsgs } from './fonctions'
@@ -35,6 +36,7 @@ export const en: Messages = {
   ...utilisateursMsgs,
   ...organisationsMsgs,
   ...platformMsgs,
+  ...notificationsMsgs,
   ...membresMsgs,
   ...branchesMsgs,
   ...fonctionsMsgs,

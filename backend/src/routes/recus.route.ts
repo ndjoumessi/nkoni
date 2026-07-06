@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
 import { Prisma } from '../generated/prisma/client'
+import { t, langueDeRequete } from '../lib/i18n'
 import { authenticate } from '../middlewares/authenticate'
 import { requirePermission } from '../middlewares/permissions'
 import { genererRecu, VersementIntrouvableError } from '../services/recu.service'
@@ -46,14 +47,15 @@ export const recusRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
           },
         })
         if (!v) {
-          return reply
-            .code(404)
-            .send({ error: 'Not Found', message: 'Versement introuvable.' })
+          return reply.code(404).send({
+            error: 'Not Found',
+            message: t(langueDeRequete(req), 'recus.versementIntrouvable'),
+          })
         }
         if (v.contribution?.membre?.compteUtilisateurId !== req.user.sub) {
           return reply.code(403).send({
             error: 'Forbidden',
-            message: 'Accès limité à vos propres versements.',
+            message: t(langueDeRequete(req), 'recus.accesVersementsLimite'),
           })
         }
       }
@@ -63,7 +65,12 @@ export const recusRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
         return reply.code(201).send(recu)
       } catch (err) {
         if (err instanceof VersementIntrouvableError) {
-          return reply.code(404).send({ error: 'Not Found', message: err.message })
+          return reply.code(404).send({
+            error: 'Not Found',
+            message: t(langueDeRequete(req), 'recus.versementIntrouvableGeneration', {
+              versementId: err.versementId,
+            }),
+          })
         }
         throw err
       }

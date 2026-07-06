@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
 import { Prisma } from '../generated/prisma/client'
+import { t, langueDeRequete } from '../lib/i18n'
 import { authenticate } from '../middlewares/authenticate'
 import { requirePermission } from '../middlewares/permissions'
 
@@ -69,7 +70,7 @@ export const baremeRoutes: FastifyPluginAsync = async (app: FastifyInstance) => 
         ) {
           return reply.code(409).send({
             error: 'Conflict',
-            message: `Un barème existe déjà pour l'année ${annee}.`,
+            message: t(langueDeRequete(req), 'bareme.existeDejaAnnee', { annee }),
           })
         }
         throw err
@@ -93,14 +94,15 @@ export const baremeRoutes: FastifyPluginAsync = async (app: FastifyInstance) => 
       } catch (err) {
         if (err instanceof Prisma.PrismaClientKnownRequestError) {
           if (err.code === 'P2025') {
-            return reply
-              .code(404)
-              .send({ error: 'Not Found', message: 'Barème introuvable.' })
+            return reply.code(404).send({
+              error: 'Not Found',
+              message: t(langueDeRequete(req), 'bareme.introuvable'),
+            })
           }
           if (err.code === 'P2002') {
             return reply.code(409).send({
               error: 'Conflict',
-              message: 'Un barème existe déjà pour cette année.',
+              message: t(langueDeRequete(req), 'bareme.existeDeja'),
             })
           }
         }

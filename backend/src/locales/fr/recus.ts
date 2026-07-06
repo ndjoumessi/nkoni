@@ -1,2 +1,7 @@
-/** Messages FR du domaine « recus » (§4 i18n). Rempli au lot correspondant. */
-export const messages = {} as const
+/** Messages FR du domaine « recus » (§4 i18n). */
+export const messages = {
+  'recus.versementIntrouvable': 'Versement introuvable.',
+  'recus.accesVersementsLimite': 'Accès limité à vos propres versements.',
+  'recus.versementIntrouvableGeneration':
+    'Versement {versementId} introuvable : impossible de générer un reçu.',
+} as const

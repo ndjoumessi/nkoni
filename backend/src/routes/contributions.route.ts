@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
 import { Prisma } from '../generated/prisma/client'
+import { t, langueDeRequete } from '../lib/i18n'
 import { authenticate } from '../middlewares/authenticate'
 import { requirePermission } from '../middlewares/permissions'
 import {
@@ -51,7 +52,12 @@ export const contributionsRoutes: FastifyPluginAsync = async (
         return reply.code(201).send(result)
       } catch (err) {
         if (err instanceof BaremeIntrouvableError) {
-          return reply.code(400).send({ error: 'Bad Request', message: err.message })
+          return reply.code(400).send({
+            error: 'Bad Request',
+            message: t(langueDeRequete(req), 'contributions.baremeIntrouvable', {
+              annee: err.annee,
+            }),
+          })
         }
         throw err
       }
@@ -95,9 +101,10 @@ export const contributionsRoutes: FastifyPluginAsync = async (
         },
       })
       if (!membre) {
-        return reply
-          .code(404)
-          .send({ error: 'Not Found', message: 'Membre introuvable.' })
+        return reply.code(404).send({
+          error: 'Not Found',
+          message: t(langueDeRequete(req), 'contributions.membreIntrouvable'),
+        })
       }
       if (
         req.user.role === 'MEMBRE_SIMPLE' &&
@@ -105,7 +112,7 @@ export const contributionsRoutes: FastifyPluginAsync = async (
       ) {
         return reply.code(403).send({
           error: 'Forbidden',
-          message: 'Accès limité à votre propre statut.',
+          message: t(langueDeRequete(req), 'contributions.accesStatutLimite'),
         })
       }
 

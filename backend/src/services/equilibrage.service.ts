@@ -60,7 +60,27 @@ export class EquilibrageAnneeManquanteError extends Error {
 export class EquilibrageSommeInvalideError extends Error {
   readonly sommeAjustee: number
   readonly totalPeriode: number
-  constructor(sommeAjustee: number, totalPeriode: number, detail?: string) {
+  /**
+   * Contexte de la variante « nombre de montants ≠ nombre d'années » (i18n §4) : permet à
+   * la route de ré-interpoler le message dans la langue du destinataire. `undefined` pour la
+   * variante « somme ≠ total » (le message par défaut suffit, reconstruit depuis sommeAjustee/
+   * totalPeriode). Le `super()` reste i18n-agnostique (français), inchangé.
+   */
+  readonly nombreAnnees?: number
+  readonly anneeDebut?: number
+  readonly anneeFin?: number
+  readonly nombreFournis?: number
+  constructor(
+    sommeAjustee: number,
+    totalPeriode: number,
+    detail?: string,
+    contexte?: {
+      nombreAnnees: number
+      anneeDebut: number
+      anneeFin: number
+      nombreFournis: number
+    },
+  ) {
     super(
       detail ??
         `La somme des montants ajustés (${sommeAjustee}) doit être égale au total de la période (${totalPeriode}).`,
@@ -68,6 +88,12 @@ export class EquilibrageSommeInvalideError extends Error {
     this.name = 'EquilibrageSommeInvalideError'
     this.sommeAjustee = sommeAjustee
     this.totalPeriode = totalPeriode
+    if (contexte) {
+      this.nombreAnnees = contexte.nombreAnnees
+      this.anneeDebut = contexte.anneeDebut
+      this.anneeFin = contexte.anneeFin
+      this.nombreFournis = contexte.nombreFournis
+    }
   }
 }
 
@@ -165,6 +191,12 @@ export function preparerRepartition(
         NaN,
         totalPeriode,
         `Il faut exactement ${nombreAnnees} montant(s) ajusté(s) pour la plage ${anneeDebut}-${anneeFin}, ${montantsAjustes.length} fourni(s).`,
+        {
+          nombreAnnees,
+          anneeDebut,
+          anneeFin,
+          nombreFournis: montantsAjustes.length,
+        },
       )
     }
     const sommeAjustee = montantsAjustes.reduce((s, m) => s + m, 0)

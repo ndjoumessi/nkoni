@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
   BarChart3,
@@ -33,15 +34,6 @@ import {
 import { cn } from '@/lib/utils'
 import { NkoniMark } from '@/components/ui/NkoniMark'
 
-const ROLE_LABEL: Record<string, string> = {
-  ADMIN: 'Administrateur',
-  PRESIDENT: 'Président',
-  SECRETAIRE: 'Secrétaire',
-  TRESORIERE: 'Trésorière',
-  COMMISSAIRE_COMPTES: 'Commissaire aux comptes',
-  MEMBRE_SIMPLE: 'Membre',
-}
-
 interface NavItem {
   to: string
   label: string
@@ -50,45 +42,47 @@ interface NavItem {
 
 function useNavItems(): NavItem[] {
   const { user } = useAuth()
+  const { t } = useTranslation()
   const items: NavItem[] = [
-    { to: '/dashboard', label: 'Tableau de bord', icon: LayoutDashboard },
+    { to: '/dashboard', label: t('shell.nav.tableauDeBord'), icon: LayoutDashboard },
     {
       to: '/membres',
-      label: estMembreSimple(user?.role) ? 'Ma fiche' : 'Membres',
+      label: estMembreSimple(user?.role) ? t('shell.nav.maFiche') : t('shell.nav.membres'),
       icon: Users,
     },
   ]
   if (peutVoirReunions(user?.role)) {
-    items.push({ to: '/reunions', label: 'Réunions', icon: Gavel })
+    items.push({ to: '/reunions', label: t('shell.nav.reunions'), icon: Gavel })
   }
   if (peutVoirFonctions(user?.role)) {
-    items.push({ to: '/fonctions', label: 'Fonctions', icon: Landmark })
+    items.push({ to: '/fonctions', label: t('shell.nav.fonctions'), icon: Landmark })
   }
   if (peutVoirConflits(user?.role)) {
-    items.push({ to: '/conflits', label: 'Conflits', icon: ShieldAlert })
+    items.push({ to: '/conflits', label: t('shell.nav.conflits'), icon: ShieldAlert })
   }
   if (peutVoirCommemorations(user?.role)) {
-    items.push({ to: '/commemorations', label: 'Commémorations', icon: Flame })
+    items.push({ to: '/commemorations', label: t('shell.nav.commemorations'), icon: Flame })
   }
   if (peutVoirBareme(user?.role)) {
-    items.push({ to: '/bareme', label: 'Barème annuel', icon: CalendarRange })
+    items.push({ to: '/bareme', label: t('shell.nav.baremeAnnuel'), icon: CalendarRange })
   }
   if (peutVoirRapports(user?.role)) {
-    items.push({ to: '/rapports', label: 'Rapports', icon: BarChart3 })
+    items.push({ to: '/rapports', label: t('shell.nav.rapports'), icon: BarChart3 })
   }
   if (peutGererUtilisateurs(user?.role)) {
-    items.push({ to: '/utilisateurs', label: 'Utilisateurs', icon: ShieldUser })
+    items.push({ to: '/utilisateurs', label: t('shell.nav.utilisateurs'), icon: ShieldUser })
   }
   if (peutVoirAudit(user?.role)) {
-    items.push({ to: '/audit', label: 'Audit', icon: ScrollText })
+    items.push({ to: '/audit', label: t('shell.nav.audit'), icon: ScrollText })
   }
   return items
 }
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const items = useNavItems()
+  const { t } = useTranslation()
   return (
-    <nav aria-label="Navigation principale" className="flex flex-col gap-1">
+    <nav aria-label={t('shell.nav.ariaPrincipale')} className="flex flex-col gap-1">
       {items.map((item) => {
         const Icon = item.icon
         return (
@@ -129,12 +123,13 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
 
 function UserChip({ onNavigate }: { onNavigate?: () => void }) {
   const { user } = useAuth()
+  const { t } = useTranslation()
   const initials = (user?.email ?? '?').slice(0, 2).toUpperCase()
   return (
     <Link
       to="/mon-profil"
       onClick={onNavigate}
-      title="Mon profil"
+      title={t('shell.monProfil')}
       className="flex items-center gap-3 rounded-xl border border-hairline bg-surface/60 px-3 py-2.5 transition-colors hover:border-hairline-strong hover:bg-surface-2/70"
     >
       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-surface-2 text-xs font-semibold text-brass">
@@ -142,7 +137,9 @@ function UserChip({ onNavigate }: { onNavigate?: () => void }) {
       </span>
       <div className="min-w-0">
         <p className="truncate text-sm font-medium text-foreground">{user?.email}</p>
-        <p className="truncate text-xs text-faint">{ROLE_LABEL[user?.role ?? ''] ?? user?.role}</p>
+        <p className="truncate text-xs text-faint">
+          {user?.role ? t(`shell.roles.${user.role}`, { defaultValue: user.role }) : user?.role}
+        </p>
       </div>
     </Link>
   )
@@ -150,6 +147,7 @@ function UserChip({ onNavigate }: { onNavigate?: () => void }) {
 
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const { logout } = useAuth()
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [signingOut, setSigningOut] = useState(false)
 
@@ -165,7 +163,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       <Link
         to="/"
         onClick={onNavigate}
-        title="Retour à l’accueil public"
+        title={t('shell.retourAccueilPublic')}
         className="flex shrink-0 items-center gap-2.5 rounded-lg px-2 py-1 transition-colors hover:text-brass"
       >
         <NkoniMark className="h-9 w-9 text-lg" />
@@ -184,7 +182,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         className="mt-6 flex shrink-0 items-center gap-2.5 rounded-xl border border-hairline bg-surface/50 px-3 py-2 text-sm text-muted-foreground transition-colors hover:border-hairline-strong hover:text-foreground"
       >
         <Search className="h-4 w-4 text-faint" aria-hidden="true" />
-        <span className="flex-1 text-left">Rechercher…</span>
+        <span className="flex-1 text-left">{t('shell.rechercher')}</span>
         <kbd className="rounded border border-hairline-strong px-1.5 py-0.5 text-[0.6rem] text-faint">
           ⌘K
         </kbd>
@@ -195,7 +193,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
           requis pour qu'un enfant flex puisse défiler au lieu de pousser le reste). */}
       <div className="mt-6 min-h-0 flex-1 overflow-y-auto">
         <p className="mb-2 px-3 text-[0.68rem] font-medium uppercase tracking-[0.14em] text-faint">
-          Navigation
+          {t('shell.nav.titre')}
         </p>
         <NavLinks onNavigate={onNavigate} />
       </div>
@@ -211,7 +209,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
           className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-terra/10 hover:text-terra disabled:opacity-60"
         >
           <LogOut className="h-[1.15rem] w-[1.15rem]" aria-hidden="true" />
-          {signingOut ? 'Déconnexion…' : 'Se déconnecter'}
+          {signingOut ? t('shell.deconnexionEnCours') : t('shell.seDeconnecter')}
         </button>
       </div>
     </div>
@@ -224,6 +222,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
  */
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [drawer, setDrawer] = useState(false)
+  const { t } = useTranslation()
   const location = useLocation()
 
   // Ferme le drawer à chaque changement de route.
@@ -240,7 +239,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Topbar mobile */}
       <header className="sticky top-0 z-20 flex items-center justify-between border-b border-hairline bg-canvas/85 px-4 py-3 backdrop-blur-xl lg:hidden">
-        <Link to="/" title="Retour à l’accueil public" className="flex items-center gap-2">
+        <Link to="/" title={t('shell.retourAccueilPublic')} className="flex items-center gap-2">
           <NkoniMark className="h-8 w-8 text-base" />
           <span className="font-display text-lg font-semibold tracking-tight">NKONI</span>
         </Link>
@@ -248,7 +247,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           type="button"
           onClick={() => setDrawer(true)}
           className="flex h-9 w-9 items-center justify-center rounded-lg border border-hairline-strong bg-surface-2 text-foreground"
-          aria-label="Ouvrir le menu"
+          aria-label={t('shell.ouvrirMenu')}
         >
           <Menu className="h-5 w-5" aria-hidden="true" />
         </button>
@@ -261,14 +260,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             type="button"
             className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             onClick={() => setDrawer(false)}
-            aria-label="Fermer le menu"
+            aria-label={t('shell.fermerMenu')}
           />
           <div className="nk-toast-in absolute inset-y-0 left-0 w-[17rem] border-r border-hairline bg-canvas p-4">
             <button
               type="button"
               onClick={() => setDrawer(false)}
               className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground"
-              aria-label="Fermer"
+              aria-label={t('shell.fermer')}
             >
               <X className="h-5 w-5" aria-hidden="true" />
             </button>

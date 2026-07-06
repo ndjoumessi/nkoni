@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import {
   CornerDownLeft,
@@ -30,7 +31,8 @@ import { cn } from '@/lib/utils'
 
 interface Item {
   id: string
-  type: string
+  /** Clé de type (résolue en libellé traduit à l'affichage). */
+  typeKey: 'membre' | 'reunion' | 'conflit' | 'fonction' | 'commemoration'
   label: string
   sub?: string
   to: string
@@ -44,6 +46,7 @@ interface Item {
  */
 export function CommandPalette() {
   const { user, accessToken } = useAuth()
+  const { t } = useTranslation()
   const navigate = useNavigate()
 
   const [open, setOpen] = useState(false)
@@ -89,7 +92,7 @@ export function CommandPalette() {
               l.forEach((m) =>
                 acc.push({
                   id: `mem-${m.id}`,
-                  type: 'Membre',
+                  typeKey: 'membre',
                   label: `${m.prenom} ${m.nom}`,
                   sub: m.branche?.nom ?? undefined,
                   to: `/membres/${m.id}`,
@@ -108,7 +111,7 @@ export function CommandPalette() {
               l.forEach((r) =>
                 acc.push({
                   id: `reu-${r.id}`,
-                  type: 'Réunion',
+                  typeKey: 'reunion',
                   label: `${r.lieu}`,
                   sub: formatDateFR(r.date),
                   to: `/reunions/${r.id}`,
@@ -127,7 +130,7 @@ export function CommandPalette() {
               l.forEach((c) =>
                 acc.push({
                   id: `con-${c.id}`,
-                  type: 'Conflit',
+                  typeKey: 'conflit',
                   label: c.titre,
                   sub: c.statut,
                   to: `/conflits/${c.id}`,
@@ -146,11 +149,11 @@ export function CommandPalette() {
               l.forEach((f) =>
                 acc.push({
                   id: `fon-${f.id}`,
-                  type: 'Fonction',
+                  typeKey: 'fonction',
                   label: f.nom,
                   sub: f.affectations[0]?.membre
                     ? `${f.affectations[0].membre.prenom} ${f.affectations[0].membre.nom}`
-                    : 'Vacante',
+                    : t('shell.recherche.vacante'),
                   to: `/fonctions/${f.id}`,
                   icon: Landmark,
                 }),
@@ -167,7 +170,7 @@ export function CommandPalette() {
               l.forEach((c) =>
                 acc.push({
                   id: `com-${c.id}`,
-                  type: 'Commémoration',
+                  typeKey: 'commemoration',
                   label: c.titre,
                   sub: formatDateFR(c.date),
                   to: `/commemorations/${c.id}`,
@@ -187,7 +190,7 @@ export function CommandPalette() {
     return () => {
       vivant = false
     }
-  }, [open, items, accessToken, user?.role])
+  }, [open, items, accessToken, user?.role, t])
 
   // Focus + reset à l'ouverture.
   useEffect(() => {
@@ -202,10 +205,14 @@ export function CommandPalette() {
     const query = q.trim().toLowerCase()
     const base = items ?? []
     const filtres = query
-      ? base.filter((it) => `${it.label} ${it.sub ?? ''} ${it.type}`.toLowerCase().includes(query))
+      ? base.filter((it) =>
+          `${it.label} ${it.sub ?? ''} ${t(`shell.recherche.types.${it.typeKey}`)}`
+            .toLowerCase()
+            .includes(query),
+        )
       : base
     return filtres.slice(0, 40)
-  }, [items, q])
+  }, [items, q, t])
 
   useEffect(() => setActif(0), [q])
 
@@ -235,11 +242,11 @@ export function CommandPalette() {
       className="fixed inset-0 z-[100] flex items-start justify-center px-4 pt-[12vh]"
       role="dialog"
       aria-modal="true"
-      aria-label="Recherche transverse"
+      aria-label={t('shell.recherche.ariaDialog')}
     >
       <button
         type="button"
-        aria-label="Fermer la recherche"
+        aria-label={t('shell.recherche.ariaFermer')}
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
         onClick={() => setOpen(false)}
       />
@@ -251,21 +258,25 @@ export function CommandPalette() {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={onKeyDown}
-            placeholder="Rechercher un membre, une réunion, un conflit…"
+            placeholder={t('shell.recherche.placeholder')}
             className="w-full bg-transparent py-3.5 text-sm text-foreground outline-none placeholder:text-faint"
-            aria-label="Terme de recherche"
+            aria-label={t('shell.recherche.ariaTerme')}
           />
           <kbd className="hidden shrink-0 rounded border border-hairline-strong px-1.5 py-0.5 text-[0.65rem] text-faint sm:block">
-            Échap
+            {t('shell.recherche.echap')}
           </kbd>
         </div>
 
         <div className="max-h-[52vh] overflow-y-auto py-1">
           {chargement && !items && (
-            <p className="px-4 py-6 text-center text-sm text-faint">Chargement…</p>
+            <p className="px-4 py-6 text-center text-sm text-faint">
+              {t('shell.recherche.chargement')}
+            </p>
           )}
           {items && resultats.length === 0 && (
-            <p className="px-4 py-6 text-center text-sm text-faint">Aucun résultat.</p>
+            <p className="px-4 py-6 text-center text-sm text-faint">
+              {t('shell.recherche.aucunResultat')}
+            </p>
           )}
           <ul>
             {resultats.map((it, i) => {
@@ -287,7 +298,7 @@ export function CommandPalette() {
                       {it.sub && <span className="block truncate text-xs text-faint">{it.sub}</span>}
                     </span>
                     <span className="shrink-0 text-[0.65rem] uppercase tracking-wide text-faint">
-                      {it.type}
+                      {t(`shell.recherche.types.${it.typeKey}`)}
                     </span>
                     {i === actif && (
                       <CornerDownLeft className="h-3.5 w-3.5 shrink-0 text-faint" aria-hidden="true" />

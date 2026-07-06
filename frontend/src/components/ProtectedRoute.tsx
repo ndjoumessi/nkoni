@@ -1,5 +1,6 @@
 import { Navigate } from 'react-router-dom'
 import type { ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Loader2 } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
 import { estSuperAdmin } from '@/lib/roles'
@@ -13,11 +14,12 @@ import { estSuperAdmin } from '@/lib/roles'
  */
 export function ProtectedRoute({ children }: { children: ReactNode }) {
   const { isAuthenticated, loading, user } = useAuth()
+  const { t } = useTranslation()
 
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background text-muted-foreground">
-        <Loader2 className="h-6 w-6 animate-spin text-brass" aria-label="Chargement" />
+        <Loader2 className="h-6 w-6 animate-spin text-brass" aria-label={t('commun.chargement')} />
       </div>
     )
   }

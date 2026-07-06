@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify'
 import { authenticate } from '../middlewares/authenticate'
+import { t, langueDeRequete } from '../lib/i18n'
 import {
   televerserDocument,
   listerDocumentsVisibles,
@@ -46,16 +47,31 @@ function demandeur(req: FastifyRequest): DemandeurDocument {
 }
 
 function reply4xxSiMetier(err: unknown, reply: FastifyReply): boolean {
-  if (err instanceof DocumentIntrouvableError || err instanceof EntiteParenteIntrouvableError) {
-    reply.code(404).send({ error: 'Not Found', message: err.message })
+  const langue = langueDeRequete(reply.request)
+  if (err instanceof DocumentIntrouvableError) {
+    reply.code(404).send({ error: 'Not Found', message: t(langue, 'documents.introuvable') })
+    return true
+  }
+  if (err instanceof EntiteParenteIntrouvableError) {
+    reply
+      .code(404)
+      .send({ error: 'Not Found', message: t(langue, 'documents.entiteParenteIntrouvable') })
     return true
   }
   if (err instanceof AccesDocumentRefuseError) {
-    reply.code(403).send({ error: 'Forbidden', message: err.message })
+    reply.code(403).send({ error: 'Forbidden', message: t(langue, 'documents.accesRefuse') })
     return true
   }
-  if (err instanceof TypeFichierNonAutoriseError || err instanceof FichierTropVolumineuxError) {
-    reply.code(400).send({ error: 'Bad Request', message: err.message })
+  if (err instanceof TypeFichierNonAutoriseError) {
+    reply
+      .code(400)
+      .send({ error: 'Bad Request', message: t(langue, 'documents.typeFichierNonAutorise') })
+    return true
+  }
+  if (err instanceof FichierTropVolumineuxError) {
+    reply
+      .code(400)
+      .send({ error: 'Bad Request', message: t(langue, 'documents.fichierTropVolumineux') })
     return true
   }
   return false
@@ -87,7 +103,9 @@ export const documentsRoutes: FastifyPluginAsync = async (app: FastifyInstance) 
         )
         const amont = await fetch(url)
         if (!amont.ok) {
-          return reply.code(502).send({ error: 'Bad Gateway', message: 'Fichier indisponible.' })
+          return reply
+            .code(502)
+            .send({ error: 'Bad Gateway', message: t(langueDeRequete(req), 'documents.fichierIndisponible') })
         }
         const buffer = Buffer.from(await amont.arrayBuffer())
         reply.header('Content-Type', typeFichier)
@@ -118,11 +136,13 @@ export const documentsRoutes: FastifyPluginAsync = async (app: FastifyInstance) 
       // Dépassement de la limite de taille au parsing multipart.
       return reply
         .code(400)
-        .send({ error: 'Bad Request', message: 'Fichier trop volumineux (10 Mo maximum).' })
+        .send({ error: 'Bad Request', message: t(langueDeRequete(req), 'documents.fichierTropVolumineux') })
     }
 
     if (!fichier) {
-      return reply.code(400).send({ error: 'Bad Request', message: 'Aucun fichier fourni.' })
+      return reply
+        .code(400)
+        .send({ error: 'Bad Request', message: t(langueDeRequete(req), 'documents.aucunFichier') })
     }
     const entiteType = fields['entiteType'] as EntiteDocument | undefined
     const entiteId = fields['entiteId']
@@ -130,7 +150,7 @@ export const documentsRoutes: FastifyPluginAsync = async (app: FastifyInstance) 
     if (!entiteType || !ENTITES.includes(entiteType) || !entiteId || !nom) {
       return reply.code(400).send({
         error: 'Bad Request',
-        message: 'Champs requis manquants ou invalides (entiteType, entiteId, nom).',
+        message: t(langueDeRequete(req), 'documents.champsRequisManquants'),
       })
     }
 

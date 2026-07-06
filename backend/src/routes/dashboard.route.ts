@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
 import { authenticate } from '../middlewares/authenticate'
+import { t, langueDeRequete } from '../lib/i18n'
 import {
   calculerDashboardComplet,
   calculerDashboardFinancier,
@@ -56,14 +57,19 @@ export const dashboardRoutes: FastifyPluginAsync = async (app: FastifyInstance) 
           if (!membre) {
             return reply.code(404).send({
               error: 'Not Found',
-              message: 'Aucun membre n’est rattaché à ce compte.',
+              message: t(langueDeRequete(req), 'dashboard.aucunMembreRattache'),
             })
           }
           try {
             return await calculerDashboardPerso(app.prisma, membre.id, annee)
           } catch (err) {
             if (err instanceof MembreIntrouvableError) {
-              return reply.code(404).send({ error: 'Not Found', message: err.message })
+              return reply.code(404).send({
+                error: 'Not Found',
+                message: t(langueDeRequete(req), 'dashboard.membreIntrouvable', {
+                  membreId: err.membreId,
+                }),
+              })
             }
             throw err
           }
@@ -73,7 +79,7 @@ export const dashboardRoutes: FastifyPluginAsync = async (app: FastifyInstance) 
           // GUIDE_RELIGIEUX et tout rôle non prévu : aucune vue définie en MVP.
           return reply.code(403).send({
             error: 'Forbidden',
-            message: `Aucun tableau de bord n'est défini pour le rôle ${role}.`,
+            message: t(langueDeRequete(req), 'dashboard.aucunTableauBord', { role }),
           })
       }
     },

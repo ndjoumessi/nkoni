@@ -6,6 +6,7 @@ import type {
   preHandlerHookHandler,
 } from 'fastify'
 import { authenticate } from '../middlewares/authenticate'
+import { t, langueDeRequete } from '../lib/i18n'
 import { listerAuditLog, type FiltresAudit } from '../services/audit.service'
 
 /**
@@ -20,7 +21,7 @@ const requireAdmin: preHandlerHookHandler = async (req: FastifyRequest, reply: F
   if (req.user.role !== 'ADMIN') {
     reply.code(403).send({
       error: 'Forbidden',
-      message: "Le journal d'audit est réservé à l'administrateur.",
+      message: t(langueDeRequete(req), 'audit.reserveAdmin'),
     })
   }
 }

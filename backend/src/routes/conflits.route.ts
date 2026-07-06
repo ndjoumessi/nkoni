@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify'
 import { authenticate } from '../middlewares/authenticate'
 import { requirePermission } from '../middlewares/permissions'
+import { t, langueDeRequete } from '../lib/i18n'
 import {
   creerConflit,
   listerConflitsVisibles,
@@ -72,20 +73,31 @@ function demandeur(req: FastifyRequest): DemandeurConflit {
 
 /** Mappe les erreurs métier du service en réponses 4xx ; renvoie true si traité. */
 function reply4xxSiMetier(err: unknown, reply: FastifyReply): boolean {
+  const langue = langueDeRequete(reply.request)
   if (err instanceof ConflitIntrouvableError) {
-    reply.code(404).send({ error: 'Not Found', message: err.message })
+    reply.code(404).send({ error: 'Not Found', message: t(langue, 'conflits.introuvable') })
     return true
   }
   if (err instanceof AccesConflitRefuseError) {
-    reply.code(403).send({ error: 'Forbidden', message: err.message })
+    reply.code(403).send({ error: 'Forbidden', message: t(langue, 'conflits.accesRefuse') })
     return true
   }
-  if (
-    err instanceof NiveauResponsableIncoherentError ||
-    err instanceof ResponsableIntrouvableError ||
-    err instanceof MembreConcerneIntrouvableError
-  ) {
-    reply.code(400).send({ error: 'Bad Request', message: err.message })
+  if (err instanceof NiveauResponsableIncoherentError) {
+    reply
+      .code(400)
+      .send({ error: 'Bad Request', message: t(langue, 'conflits.niveauResponsableIncoherent') })
+    return true
+  }
+  if (err instanceof ResponsableIntrouvableError) {
+    reply
+      .code(400)
+      .send({ error: 'Bad Request', message: t(langue, 'conflits.responsableIntrouvable') })
+    return true
+  }
+  if (err instanceof MembreConcerneIntrouvableError) {
+    reply
+      .code(400)
+      .send({ error: 'Bad Request', message: t(langue, 'conflits.membreConcerneIntrouvable') })
     return true
   }
   return false
@@ -126,7 +138,9 @@ export const conflitsRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
     async (req, reply) => {
       const auteurId = req.user.sub
       if (!auteurId) {
-        return reply.code(401).send({ error: 'Unauthorized', message: 'Token invalide.' })
+        return reply
+          .code(401)
+          .send({ error: 'Unauthorized', message: t(langueDeRequete(req), 'conflits.tokenInvalide') })
       }
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any

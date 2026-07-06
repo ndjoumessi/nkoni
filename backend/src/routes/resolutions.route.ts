@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyPluginAsync, FastifyReply } from 'fastify'
 import { authenticate } from '../middlewares/authenticate'
 import { requirePermission } from '../middlewares/permissions'
+import { t, langueDeRequete } from '../lib/i18n'
 import {
   listerResolutions,
   creerResolution,
@@ -57,16 +58,27 @@ const updateResolutionSchema = {
 
 /** Mappe les erreurs métier du service en réponses 4xx ; renvoie true si traité. */
 function reply4xxSiMetier(err: unknown, reply: FastifyReply): boolean {
-  if (
-    err instanceof ResolutionIntrouvableError ||
-    err instanceof ReunionIntrouvableError ||
-    err instanceof PointIntrouvableError
-  ) {
-    reply.code(404).send({ error: 'Not Found', message: err.message })
+  const langue = langueDeRequete(reply.request)
+  if (err instanceof ResolutionIntrouvableError) {
+    reply.code(404).send({ error: 'Not Found', message: t(langue, 'resolutions.introuvable') })
+    return true
+  }
+  if (err instanceof ReunionIntrouvableError) {
+    reply
+      .code(404)
+      .send({ error: 'Not Found', message: t(langue, 'resolutions.reunionIntrouvable') })
+    return true
+  }
+  if (err instanceof PointIntrouvableError) {
+    reply
+      .code(404)
+      .send({ error: 'Not Found', message: t(langue, 'resolutions.pointIntrouvable') })
     return true
   }
   if (err instanceof PointHorsReunionError) {
-    reply.code(400).send({ error: 'Bad Request', message: err.message })
+    reply
+      .code(400)
+      .send({ error: 'Bad Request', message: t(langue, 'resolutions.pointHorsReunion') })
     return true
   }
   return false

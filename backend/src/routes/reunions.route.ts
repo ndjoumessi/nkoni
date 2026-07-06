@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyPluginAsync, FastifyReply } from 'fastify'
 import { authenticate } from '../middlewares/authenticate'
 import { requirePermission } from '../middlewares/permissions'
+import { t, langueDeRequete } from '../lib/i18n'
 import {
   listerReunions,
   getReunion,
@@ -97,12 +98,19 @@ const reorderSchema = {
 
 /** Mappe les erreurs métier du service en réponses 4xx ; renvoie true si traité. */
 function reply4xxSiMetier(err: unknown, reply: FastifyReply): boolean {
-  if (err instanceof ReunionIntrouvableError || err instanceof PointIntrouvableError) {
-    reply.code(404).send({ error: 'Not Found', message: err.message })
+  const langue = langueDeRequete(reply.request)
+  if (err instanceof ReunionIntrouvableError) {
+    reply.code(404).send({ error: 'Not Found', message: t(langue, 'reunions.introuvable') })
+    return true
+  }
+  if (err instanceof PointIntrouvableError) {
+    reply.code(404).send({ error: 'Not Found', message: t(langue, 'reunions.pointIntrouvable') })
     return true
   }
   if (err instanceof ReordonnancementInvalideError) {
-    reply.code(400).send({ error: 'Bad Request', message: err.message })
+    reply
+      .code(400)
+      .send({ error: 'Bad Request', message: t(langue, 'reunions.reordonnancementInvalide') })
     return true
   }
   return false

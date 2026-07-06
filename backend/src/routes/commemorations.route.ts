@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyPluginAsync, FastifyReply } from 'fastify'
 import { authenticate } from '../middlewares/authenticate'
 import { requirePermission } from '../middlewares/permissions'
+import { t, langueDeRequete } from '../lib/i18n'
 import {
   listerCommemorations,
   listerMembresSelectionnables,
@@ -67,12 +68,15 @@ const updateSchema = {
 
 /** Mappe les erreurs métier du service en réponses 4xx ; renvoie true si traité. */
 function reply4xxSiMetier(err: unknown, reply: FastifyReply): boolean {
+  const langue = langueDeRequete(reply.request)
   if (err instanceof CommemorationIntrouvableError) {
-    reply.code(404).send({ error: 'Not Found', message: err.message })
+    reply.code(404).send({ error: 'Not Found', message: t(langue, 'commemorations.introuvable') })
     return true
   }
   if (err instanceof MembreConcerneIntrouvableError) {
-    reply.code(400).send({ error: 'Bad Request', message: err.message })
+    reply
+      .code(400)
+      .send({ error: 'Bad Request', message: t(langue, 'commemorations.membreConcerneIntrouvable') })
     return true
   }
   return false

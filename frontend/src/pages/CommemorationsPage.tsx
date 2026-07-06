@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Link, Navigate } from 'react-router-dom'
 import { CalendarRange, CheckCircle2, Flame, MapPin, Plus, Users } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
@@ -18,6 +19,7 @@ import {
 
 /** Liste des commémorations / cérémonies (V2) — triée par date décroissante. */
 export function CommemorationsPage() {
+  const { t } = useTranslation()
   const { user, accessToken } = useAuth()
 
   const [items, setItems] = useState<Commemoration[] | null>(null)
@@ -56,14 +58,14 @@ export function CommemorationsPage() {
   return (
     <>
       <PageHeader
-        overline="Mémoire familiale"
-        title="Commémorations & cérémonies"
-        description={items ? `${items.length} événement${items.length > 1 ? 's' : ''}` : undefined}
+        overline={t('commemorations.overline')}
+        title={t('commemorations.liste.titre')}
+        description={items ? t('commemorations.liste.evenements', { count: items.length }) : undefined}
         actions={
           // Masqué quand la liste est vide : l'EmptyState porte déjà le CTA (pas de doublon).
           gestion && (!items || items.length > 0) && (
             <ButtonLink to="/commemorations/nouvelle" icon={Plus}>
-              Nouvelle
+              {t('commemorations.liste.nouvelle')}
             </ButtonLink>
           )
         }
@@ -71,21 +73,21 @@ export function CommemorationsPage() {
 
       {items && items.length > 0 && (
         <div className="nk-reveal nk-d2 mt-7 grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <StatCard label="Événements" value={String(items.length)} icon={Flame} />
+          <StatCard label={t('commemorations.liste.stats.evenements')} value={String(items.length)} icon={Flame} />
           <StatCard
-            label="Planifiées"
+            label={t('commemorations.liste.stats.planifiees')}
             value={String(items.filter((c) => c.statut === 'PLANIFIEE').length)}
             tone="brass"
             icon={CalendarRange}
           />
           <StatCard
-            label="Tenues"
+            label={t('commemorations.liste.stats.tenues')}
             value={String(items.filter((c) => c.statut === 'TENUE').length)}
             tone="jade"
             icon={CheckCircle2}
           />
           <StatCard
-            label="Cérémonies"
+            label={t('commemorations.liste.stats.ceremonies')}
             value={String(items.filter((c) => c.type === 'CEREMONIE').length)}
             icon={Users}
           />
@@ -106,17 +108,17 @@ export function CommemorationsPage() {
         {!loading && !error && items && items.length === 0 && (
           <EmptyState
             icon={Flame}
-            title="Aucune commémoration"
+            title={t('commemorations.liste.videTitre')}
             className="min-h-[45vh] justify-center"
             description={
               gestion
-                ? 'Planifiez une commémoration ou une cérémonie pour la famille.'
-                : 'Les commémorations et cérémonies apparaîtront ici.'
+                ? t('commemorations.liste.videDescriptionGestion')
+                : t('commemorations.liste.videDescription')
             }
             action={
               gestion && (
                 <ButtonLink to="/commemorations/nouvelle" icon={Plus}>
-                  Nouvelle
+                  {t('commemorations.liste.nouvelle')}
                 </ButtonLink>
               )
             }
@@ -155,8 +157,7 @@ export function CommemorationsPage() {
                         {c.membresConcernes.length > 0 && (
                           <span className="inline-flex items-center gap-1.5">
                             <Users className="h-3.5 w-3.5 text-faint" aria-hidden="true" />
-                            {c.membresConcernes.length} honoré
-                            {c.membresConcernes.length > 1 ? 's' : ''}
+                            {t('commemorations.liste.honores', { count: c.membresConcernes.length })}
                           </span>
                         )}
                       </p>

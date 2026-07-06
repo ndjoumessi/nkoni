@@ -1,17 +1,18 @@
+import { useTranslation } from 'react-i18next'
 import type { StatutCommemoration, TypeCommemoration } from '@/lib/api'
 import { Badge, type BadgeProps } from '@/components/ui/Badge'
 
 /** Badges V2 — type + statut d'une commémoration/cérémonie. */
 
-const TYPE: Record<TypeCommemoration, { label: string; tone: BadgeProps['tone'] }> = {
-  COMMEMORATION: { label: 'Commémoration', tone: 'brass' },
-  CEREMONIE: { label: 'Cérémonie', tone: 'jade' },
+const TYPE_META: Record<TypeCommemoration, { tone: BadgeProps['tone'] }> = {
+  COMMEMORATION: { tone: 'brass' },
+  CEREMONIE: { tone: 'jade' },
 }
 
-const STATUT: Record<StatutCommemoration, { label: string; tone: BadgeProps['tone'] }> = {
-  PLANIFIEE: { label: 'Planifiée', tone: 'info' },
-  TENUE: { label: 'Tenue', tone: 'jade' },
-  ANNULEE: { label: 'Annulée', tone: 'terra' },
+const STATUT_META: Record<StatutCommemoration, { tone: BadgeProps['tone'] }> = {
+  PLANIFIEE: { tone: 'info' },
+  TENUE: { tone: 'jade' },
+  ANNULEE: { tone: 'terra' },
 }
 
 export function TypeCommemorationBadge({
@@ -21,10 +22,11 @@ export function TypeCommemorationBadge({
   type: TypeCommemoration
   size?: BadgeProps['size']
 }) {
-  const t = TYPE[type]
+  const { t } = useTranslation()
+  const meta = TYPE_META[type]
   return (
-    <Badge tone={t.tone} size={size}>
-      {t.label}
+    <Badge tone={meta.tone} size={size}>
+      {t(`commemorations.type.${type}`)}
     </Badge>
   )
 }
@@ -36,13 +38,11 @@ export function StatutCommemorationBadge({
   statut: StatutCommemoration
   size?: BadgeProps['size']
 }) {
-  const s = STATUT[statut]
+  const { t } = useTranslation()
+  const s = STATUT_META[statut]
   return (
     <Badge tone={s.tone} size={size} dot>
-      {s.label}
+      {t(`commemorations.statut.${statut}`)}
     </Badge>
   )
 }
-
-export const TYPE_COMMEMORATION_LABELS = TYPE
-export const STATUT_COMMEMORATION_LABELS = STATUT

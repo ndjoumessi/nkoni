@@ -15,6 +15,8 @@ export interface AuthUser {
   membreId?: string | null
   /** Préférence de langue perso (§4). null/absent = non exprimée (le front suit son localStorage). */
   langue?: 'FR' | 'EN' | null
+  /** Devise de l'organisation (§5, immuable) → formatage des montants (F6). null pour le SUPER_ADMIN. */
+  devise?: 'FCFA' | 'EUR' | 'USD' | 'CAD' | null
 }
 
 /** Réponse de PATCH /auth/me/langue : nouveau token (portant la langue) + langue enregistrée. */

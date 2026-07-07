@@ -16,7 +16,7 @@ import {
   type VersementCree,
 } from '@/lib/api'
 import { peutSaisirVersement, peutOuvrirAnnee } from '@/lib/roles'
-import { formatFcfa } from '@/lib/format'
+import { formatMontant } from '@/lib/format'
 import { useToast } from '@/components/ui/Toast'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, Overline } from '@/components/ui/Card'
@@ -166,7 +166,7 @@ export function VersementFormPage() {
       setResultat(res)
       toast.success(
         t('versements.toast.enregistre'),
-        t('versements.resume', { montant: formatFcfa(res.versement.montant), annee: res.contribution.annee }),
+        t('versements.resume', { montant: formatMontant(res.versement.montant), annee: res.contribution.annee }),
       )
     } catch (e) {
       toast.error(
@@ -230,7 +230,7 @@ export function VersementFormPage() {
             </div>
             <p className="num mt-3 text-sm text-foreground/85">
               {t('versements.resume', {
-                montant: formatFcfa(resultat.versement.montant),
+                montant: formatMontant(resultat.versement.montant),
                 annee: resultat.contribution.annee,
               })}
             </p>
@@ -240,7 +240,7 @@ export function VersementFormPage() {
                   {t('versements.form.totalVerse')}
                 </dt>
                 <dd className="num mt-1 font-semibold text-foreground">
-                  {formatFcfa(resultat.contribution.montantVerse)}
+                  {formatMontant(resultat.contribution.montantVerse)}
                 </dd>
               </div>
               <div>
@@ -248,7 +248,7 @@ export function VersementFormPage() {
                   {t('versements.form.totalValorise')}
                 </dt>
                 <dd className="num mt-1 font-semibold text-foreground">
-                  {formatFcfa(resultat.contribution.montantValorise)}
+                  {formatMontant(resultat.contribution.montantValorise)}
                 </dd>
               </div>
             </dl>
@@ -291,8 +291,8 @@ export function VersementFormPage() {
                     <option key={c.id} value={c.id}>
                       {t('versements.form.option', {
                         annee: c.annee,
-                        verse: formatFcfa(c.montantVerse),
-                        attendu: formatFcfa(c.montantAttendu),
+                        verse: formatMontant(c.montantVerse),
+                        attendu: formatMontant(c.montantAttendu),
                       })}
                     </option>
                   ))}

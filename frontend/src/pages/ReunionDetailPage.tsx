@@ -30,7 +30,7 @@ import {
   peutGererDocument,
 } from '@/lib/roles'
 import { DocumentsSection } from '@/components/documents/DocumentsSection'
-import { formatDateFR, focusPremierChampInvalide } from '@/lib/utils'
+import { formatDate, focusPremierChampInvalide } from '@/lib/utils'
 import { useToast } from '@/components/ui/Toast'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, Overline } from '@/components/ui/Card'
@@ -296,7 +296,7 @@ export function ReunionDetailPage() {
     <>
       <PageHeader
         overline={t('reunions.overline')}
-        title={formatDateFR(reunion.date)}
+        title={formatDate(reunion.date)}
         description={
           <span className="inline-flex items-center gap-1.5">
             <MapPin className="h-3.5 w-3.5 text-faint" aria-hidden="true" />

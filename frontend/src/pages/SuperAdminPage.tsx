@@ -19,13 +19,10 @@ import { DataTable, type Column } from '@/components/ui/DataTable'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { RowsSkeleton } from '@/components/ui/Skeleton'
 import { NkoniMark } from '@/components/ui/NkoniMark'
+import { formatDate } from '@/lib/utils'
 
-/** Format court d'une date de création (ex. « 4 juil. 2026 »). */
-function formatDate(iso: string): string {
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return '—'
-  return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })
-}
+/** Format court d'une date de création selon la langue courante (ex. « 4 juil. 2026 »). */
+const DATE_COURTE = { day: 'numeric', month: 'short', year: 'numeric' } as const
 
 /**
  * Console PLATEFORME (SaaS §2.3) — réservée au SUPER_ADMIN (garde SuperAdminRoute).
@@ -155,7 +152,7 @@ export function SuperAdminPage() {
       key: 'creee',
       header: t('superAdmin.table.creeeLe'),
       width: '10rem',
-      cell: (o) => <span className="text-muted-foreground">{formatDate(o.createdAt)}</span>,
+      cell: (o) => <span className="text-muted-foreground">{formatDate(o.createdAt, DATE_COURTE)}</span>,
     },
     {
       key: 'statut',

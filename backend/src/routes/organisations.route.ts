@@ -65,7 +65,13 @@ export const organisationsRoutes: FastifyPluginAsync = async (app: FastifyInstan
         const accessToken = await emettreSession(reply, admin)
         return reply.code(201).send({
           accessToken,
-          user: { id: admin.id, email: admin.email, role: admin.role, langue: langueEffective(admin) },
+          user: {
+            id: admin.id,
+            email: admin.email,
+            role: admin.role,
+            langue: langueEffective(admin),
+            devise: admin.devise,
+          },
         })
       } catch (err) {
         if (err instanceof EmailDejaUtiliseError) {

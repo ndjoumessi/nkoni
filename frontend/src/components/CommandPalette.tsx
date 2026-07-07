@@ -26,7 +26,7 @@ import {
   peutVoirFonctions,
   peutVoirCommemorations,
 } from '@/lib/roles'
-import { formatDateFR } from '@/lib/utils'
+import { formatDate } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 
 interface Item {
@@ -113,7 +113,7 @@ export function CommandPalette() {
                   id: `reu-${r.id}`,
                   typeKey: 'reunion',
                   label: `${r.lieu}`,
-                  sub: formatDateFR(r.date),
+                  sub: formatDate(r.date),
                   to: `/reunions/${r.id}`,
                   icon: Gavel,
                 }),
@@ -172,7 +172,7 @@ export function CommandPalette() {
                   id: `com-${c.id}`,
                   typeKey: 'commemoration',
                   label: c.titre,
-                  sub: formatDateFR(c.date),
+                  sub: formatDate(c.date),
                   to: `/commemorations/${c.id}`,
                   icon: Flame,
                 }),

@@ -39,6 +39,8 @@ export interface UtilisateurSeed {
   langue?: 'FR' | 'EN' | null
   /** Langue par défaut de l'organisation du destinataire (§4). */
   organisationLangueDefaut?: 'FR' | 'EN' | null
+  /** Devise de l'organisation du destinataire (§5). null/absent = FCFA par défaut. */
+  organisationDevise?: 'FCFA' | 'EUR' | 'USD' | 'CAD' | null
 }
 
 export interface NotificationsMockOptions {
@@ -157,14 +159,15 @@ export function buildNotificationsMock(options: NotificationsMockOptions = {}) {
         const u = utilisateurs.get(where.id)
         if (!u) return null
         // Le mock ignore `select` : on renvoie tous les champs consommés (préférences + langue
-        // perso + langue par défaut de l'org via la relation `organisation`).
+        // perso + langue/devise par défaut de l'org via la relation `organisation`).
+        const org =
+          u.organisationLangueDefaut != null || u.organisationDevise != null
+            ? { langueDefaut: u.organisationLangueDefaut ?? null, devise: u.organisationDevise ?? null }
+            : null
         return {
           notificationsActives: u.notificationsActives ?? null,
           langue: u.langue ?? null,
-          organisation:
-            u.organisationLangueDefaut != null
-              ? { langueDefaut: u.organisationLangueDefaut }
-              : null,
+          organisation: org,
         }
       },
       update: async ({ where, data }: any) => {

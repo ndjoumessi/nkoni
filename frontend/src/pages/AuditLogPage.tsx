@@ -13,7 +13,7 @@ import {
   type Utilisateur,
 } from '@/lib/api'
 import { peutVoirAudit } from '@/lib/roles'
-import { cn } from '@/lib/utils'
+import { cn, formatDateHeure } from '@/lib/utils'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card } from '@/components/ui/Card'
 import { Badge, type BadgeProps } from '@/components/ui/Badge'
@@ -46,9 +46,6 @@ function lienEntite(entiteType: string, entiteId: string): string | null {
   return null
 }
 
-function formatDateHeure(iso: string): string {
-  return new Date(iso).toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' })
-}
 
 /** Formate une valeur de snapshot pour l'affichage. */
 function fmt(v: unknown): string {

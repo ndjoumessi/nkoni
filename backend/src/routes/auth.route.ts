@@ -125,7 +125,14 @@ export const authRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
       return reply.code(200).send({
         accessToken,
         // Langue EFFECTIVE (perso ↩ défaut org) → le front l'applique dès la connexion.
-        user: { id: user.id, email: user.email, role: user.role, langue: langueEffective(user) },
+        // Devise de l'org (§5) → formatage locale-aware des montants côté front (F6).
+        user: {
+          id: user.id,
+          email: user.email,
+          role: user.role,
+          langue: langueEffective(user),
+          devise: user.devise,
+        },
       })
     },
   )
@@ -203,6 +210,9 @@ export const authRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
       // §4 i18n : langue EFFECTIVE (préférence perso, sinon défaut de l'org). Le front l'applique
       // au montage. Null seulement pour un compte sans préférence ni org (SUPER_ADMIN).
       langue: langueEffective(user),
+      // §5 : devise de l'org → formatage locale-aware des montants côté front (F6). Null pour le
+      // SUPER_ADMIN (sans org). Rechargée ici → prise en compte dès la réhydratation.
+      devise: user.devise,
     }
   })
 

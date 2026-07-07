@@ -12,7 +12,7 @@ import {
 } from '@/lib/api'
 import { peutVoirConflits, peutGererDocument } from '@/lib/roles'
 import { DocumentsSection } from '@/components/documents/DocumentsSection'
-import { formatDateFR } from '@/lib/utils'
+import { formatDate } from '@/lib/utils'
 import { useToast } from '@/components/ui/Toast'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, Overline } from '@/components/ui/Card'
@@ -159,13 +159,13 @@ export function ConflitDetailPage() {
           <div className="flex items-center gap-2">
             <CalendarRange className="h-4 w-4 text-faint" aria-hidden="true" />
             <dt className="text-muted-foreground">{t('conflits.detail.ouvertLe')}</dt>
-            <dd className="text-foreground">{formatDateFR(conflit.dateOuverture)}</dd>
+            <dd className="text-foreground">{formatDate(conflit.dateOuverture)}</dd>
           </div>
           {conflit.dateResolution && (
             <div className="flex items-center gap-2">
               <CheckCircle2 className="h-4 w-4 text-jade" aria-hidden="true" />
               <dt className="text-muted-foreground">{t('conflits.detail.resoluLe')}</dt>
-              <dd className="text-foreground">{formatDateFR(conflit.dateResolution)}</dd>
+              <dd className="text-foreground">{formatDate(conflit.dateResolution)}</dd>
             </div>
           )}
           {conflit.auteur && (

@@ -22,7 +22,7 @@ import {
   type MembreStatut,
 } from '@/lib/api'
 import { peutVoirFonctions, peutGererFonctions, peutSupprimerFonction } from '@/lib/roles'
-import { formatDateFR, focusPremierChampInvalide } from '@/lib/utils'
+import { formatDate, focusPremierChampInvalide } from '@/lib/utils'
 import { useToast } from '@/components/ui/Toast'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, Overline } from '@/components/ui/Card'
@@ -263,7 +263,7 @@ export function FonctionDetailPage() {
               {nomMembre(active.membre)}
             </Badge>
             <span className="text-sm text-muted-foreground">
-              {t('fonctions.detail.enFonctionDepuis', { date: formatDateFR(active.dateDebut) })}
+              {t('fonctions.detail.enFonctionDepuis', { date: formatDate(active.dateDebut) })}
             </span>
           </div>
         ) : (
@@ -373,8 +373,8 @@ export function FonctionDetailPage() {
                       )}
                     </div>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      {formatDateFR(a.dateDebut)} →{' '}
-                      {a.dateFin ? formatDateFR(a.dateFin) : t('affectations.enCoursMinuscule')}
+                      {formatDate(a.dateDebut)} →{' '}
+                      {a.dateFin ? formatDate(a.dateFin) : t('affectations.enCoursMinuscule')}
                     </p>
                     {a.notes && (
                       <p className="mt-1 whitespace-pre-wrap break-words text-pretty text-sm text-faint">

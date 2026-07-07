@@ -26,7 +26,7 @@ import {
 } from '@/components/dashboard/StatutRepartition'
 import { AnalyseMembres } from '@/components/dashboard/AnalyseMembres'
 import { ExportButtons } from '@/components/dashboard/ExportButtons'
-import { formatFcfa, formatNombre } from '@/lib/format'
+import { formatMontant, formatNombre } from '@/lib/format'
 import type {
   Dashboard,
   DashboardComplet,
@@ -198,12 +198,12 @@ function VuePerso({ d }: { d: DashboardPerso }) {
       <div className="grid gap-4 sm:grid-cols-2">
         <StatCard
           label={t('dashboard.perso.totalAttendu')}
-          value={formatFcfa(d.totalAttenduCumule)}
+          value={formatMontant(d.totalAttenduCumule)}
           icon={Wallet}
         />
         <StatCard
           label={t('dashboard.perso.totalValorise')}
-          value={formatFcfa(d.totalValoriseCumule)}
+          value={formatMontant(d.totalValoriseCumule)}
           icon={Coins}
           tone="jade"
         />

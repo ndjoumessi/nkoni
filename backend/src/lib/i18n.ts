@@ -18,7 +18,32 @@ import { en } from '../locales/en'
 
 export type Langue = 'FR' | 'EN'
 
+/** Devises supportées (§5, `Organisation.devise`, immuable après création). */
+export type Devise = 'FCFA' | 'EUR' | 'USD' | 'CAD'
+
 const CATALOGUES: Record<Langue, Messages> = { FR: fr, EN: en }
+
+/**
+ * Code ISO 4217 par devise. `FCFA` n'EST PAS un code ISO → on formate via `XAF` (franc CFA
+ * d'Afrique centrale), dont `Intl` restitue justement le symbole « FCFA » en français. Sans ce
+ * mappage, `Intl.NumberFormat({ currency: 'FCFA' })` lèverait un `RangeError`.
+ */
+const ISO_PAR_DEVISE: Record<Devise, string> = { FCFA: 'XAF', EUR: 'EUR', USD: 'USD', CAD: 'CAD' }
+
+const LOCALE_PAR_LANGUE: Record<Langue, string> = { FR: 'fr', EN: 'en' }
+
+/**
+ * Montant entier formaté dans la langue ET la devise données (§4/§5). Ex. FR + FCFA →
+ * « 30 000 FCFA », FR + EUR → « 30 000 € », EN + USD → « $30,000 ». Sans décimales : les montants
+ * sont stockés en entiers dans l'unité principale, on n'invente pas de centimes.
+ */
+export function formatMontant(montant: number, langue: Langue, devise: Devise): string {
+  return new Intl.NumberFormat(LOCALE_PAR_LANGUE[langue] ?? 'fr', {
+    style: 'currency',
+    currency: ISO_PAR_DEVISE[devise] ?? 'XAF',
+    maximumFractionDigits: 0,
+  }).format(montant)
+}
 
 /** Remplace les jetons `{nom}` d'un gabarit par les paramètres fournis. */
 function interpole(gabarit: string, params?: Record<string, string | number>): string {

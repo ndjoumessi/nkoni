@@ -10,7 +10,7 @@ import {
   type DocumentMeta,
   type EntiteDocument,
 } from '@/lib/api'
-import { formatDateFR, focusPremierChampInvalide } from '@/lib/utils'
+import { formatDate, focusPremierChampInvalide } from '@/lib/utils'
 import { useToast } from '@/components/ui/Toast'
 import { Card, Overline } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -197,7 +197,7 @@ export function DocumentsSection({
                 <p className="truncate font-medium text-foreground">{d.nom}</p>
                 <p className="mt-0.5 truncate text-xs text-faint">
                   {MIMES[d.typeFichier] ?? d.typeFichier} · {formatTaille(d.tailleOctets, t)} ·{' '}
-                  {formatDateFR(d.dateTeleversement)}
+                  {formatDate(d.dateTeleversement)}
                   {d.televersePar ? ` · ${d.televersePar.email}` : ''}
                 </p>
                 {d.description && (

@@ -1,18 +1,54 @@
-/** Formatage FR pour les montants FCFA et les pourcentages du tableau de bord. */
+/**
+ * Formatage locale-aware des montants et nombres (§4/§5, lot F6).
+ *
+ * - La LANGUE suit l'interface (i18next) → grouping des nombres, symbole de devise placé selon
+ *   la locale (FR « 30 000 € » / EN « €30,000 »).
+ * - La DEVISE est celle de l'organisation courante (`Organisation.devise`), appliquée par le
+ *   contexte d'auth via `appliquerDevise()` à la connexion / réhydratation (miroir de la langue,
+ *   cf. `appliquerLangue`). Défaut FCFA avant connexion (aucun montant affiché sur le public).
+ */
+import i18n from '@/lib/i18n'
 
-const nombreFr = new Intl.NumberFormat('fr-FR')
+export type Devise = 'FCFA' | 'EUR' | 'USD' | 'CAD'
 
-/** Montant entier en FCFA, ex. `30000` → « 30 000 FCFA ». */
-export function formatFcfa(montant: number): string {
-  return `${nombreFr.format(montant)} FCFA`
+/**
+ * Code ISO 4217 par devise. `FCFA` n'EST PAS un code ISO → on formate via `XAF` (franc CFA
+ * d'Afrique centrale), dont `Intl` restitue justement le symbole « FCFA » en français. Sans ce
+ * mappage, `Intl.NumberFormat({ currency: 'FCFA' })` lèverait un `RangeError`.
+ */
+const ISO_PAR_DEVISE: Record<Devise, string> = { FCFA: 'XAF', EUR: 'EUR', USD: 'USD', CAD: 'CAD' }
+
+let deviseCourante: Devise = 'FCFA'
+
+/** Applique la devise de l'organisation courante à tout le formatage des montants (§5). */
+export function appliquerDevise(devise: Devise): void {
+  deviseCourante = devise
 }
 
-/** Nombre entier groupé à la française, ex. `1234` → « 1 234 ». */
+/** Locale courante (`fr`/`en`) dérivée de la langue d'interface (i18next). */
+function locale(): string {
+  return i18n.language?.toLowerCase().startsWith('en') ? 'en' : 'fr'
+}
+
+/**
+ * Montant entier formaté dans la langue courante ET la devise de l'organisation. Sans décimales :
+ * les montants sont stockés en entiers dans l'unité principale, on n'invente pas de centimes.
+ * Ex. FR/FCFA → « 30 000 FCFA », FR/EUR → « 30 000 € », EN/USD → « $30,000 ».
+ */
+export function formatMontant(montant: number): string {
+  return new Intl.NumberFormat(locale(), {
+    style: 'currency',
+    currency: ISO_PAR_DEVISE[deviseCourante] ?? 'XAF',
+    maximumFractionDigits: 0,
+  }).format(montant)
+}
+
+/** Nombre entier groupé selon la langue courante, ex. `1234` → « 1 234 » (fr) / « 1,234 » (en). */
 export function formatNombre(n: number): string {
-  return nombreFr.format(n)
+  return new Intl.NumberFormat(locale()).format(n)
 }
 
-/** Pourcentage, ex. `50` → « 50 % », `33.33` → « 33,33 % ». */
+/** Pourcentage, ex. `50` → « 50 % », `33.33` → « 33,33 % » (grouping selon la langue). */
 export function formatPourcent(valeur: number): string {
-  return `${nombreFr.format(valeur)} %`
+  return `${new Intl.NumberFormat(locale()).format(valeur)} %`
 }

@@ -5,7 +5,7 @@ import { CalendarRange, CheckCircle2, Flame, MapPin, Plus, Users } from 'lucide-
 import { useAuth } from '@/contexts/auth-context'
 import { commemorationsApi, messageErreur, type Commemoration } from '@/lib/api'
 import { peutVoirCommemorations, peutGererCommemorations } from '@/lib/roles'
-import { formatDateFR, staggerDelay } from '@/lib/utils'
+import { formatDate, staggerDelay } from '@/lib/utils'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card } from '@/components/ui/Card'
 import { StatCard } from '@/components/ui/StatCard'
@@ -146,7 +146,7 @@ export function CommemorationsPage() {
                       <p className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
                         <span className="inline-flex items-center gap-1.5">
                           <CalendarRange className="h-3.5 w-3.5 text-faint" aria-hidden="true" />
-                          {formatDateFR(c.date)}
+                          {formatDate(c.date)}
                         </span>
                         {c.lieu && (
                           <span className="inline-flex items-center gap-1.5">

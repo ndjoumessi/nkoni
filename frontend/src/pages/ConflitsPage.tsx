@@ -5,7 +5,7 @@ import { AlertTriangle, CalendarRange, Lock, Plus, ShieldAlert, ShieldCheck, Use
 import { useAuth } from '@/contexts/auth-context'
 import { conflitsApi, messageErreur, type Conflit } from '@/lib/api'
 import { peutVoirConflits, peutDeclarerConflit } from '@/lib/roles'
-import { formatDateFR, staggerDelay } from '@/lib/utils'
+import { formatDate, staggerDelay } from '@/lib/utils'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card } from '@/components/ui/Card'
 import { StatCard } from '@/components/ui/StatCard'
@@ -146,7 +146,7 @@ export function ConflitsPage() {
                       <p className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
                         <span className="inline-flex items-center gap-1.5">
                           <CalendarRange className="h-3.5 w-3.5 text-faint" aria-hidden="true" />
-                          {formatDateFR(c.dateOuverture)}
+                          {formatDate(c.dateOuverture)}
                         </span>
                         {c.membresConcernes.length > 0 && (
                           <span className="inline-flex items-center gap-1.5">

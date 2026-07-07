@@ -28,7 +28,7 @@ import {
   type VariationsComparaison,
 } from '@/lib/api'
 import { peutVoirRapports } from '@/lib/roles'
-import { formatFcfa, formatNombre, formatPourcent } from '@/lib/format'
+import { formatMontant, formatNombre, formatPourcent } from '@/lib/format'
 import { cn, prefersReducedMotion } from '@/lib/utils'
 import { useToast } from '@/components/ui/Toast'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -180,10 +180,10 @@ function TableEvolution({ annees }: { annees: RapportAnnee[] }) {
               <tr key={a.annee} className="transition-colors hover:bg-surface-2/50">
                 <td className="num px-4 py-3 font-medium text-foreground">{a.annee}</td>
                 <td className="num px-4 py-3 text-right text-muted-foreground">
-                  {formatFcfa(a.totalAttendu)}
+                  {formatMontant(a.totalAttendu)}
                 </td>
                 <td className="num px-4 py-3 text-right font-medium text-foreground">
-                  {formatFcfa(a.totalCollecte)}
+                  {formatMontant(a.totalCollecte)}
                 </td>
                 <td className="num px-4 py-3 text-right text-jade">
                   {formatPourcent(a.tauxRecouvrement)}
@@ -229,8 +229,8 @@ type MetriqueDef = {
 }
 
 const METRIQUES_COMPARAISON: MetriqueDef[] = [
-  { cle: 'totalAttendu', valeur: (r) => (r ? formatFcfa(r.totalAttendu) : '—'), vkey: 'totalAttendu' },
-  { cle: 'totalCollecte', valeur: (r) => (r ? formatFcfa(r.totalCollecte) : '—'), vkey: 'totalCollecte' },
+  { cle: 'totalAttendu', valeur: (r) => (r ? formatMontant(r.totalAttendu) : '—'), vkey: 'totalAttendu' },
+  { cle: 'totalCollecte', valeur: (r) => (r ? formatMontant(r.totalCollecte) : '—'), vkey: 'totalCollecte' },
   {
     cle: 'tauxRecouvrement',
     valeur: (r) => (r ? formatPourcent(r.tauxRecouvrement) : '—'),
@@ -649,14 +649,14 @@ export function RapportsPage() {
                     <div className="grid gap-4 sm:grid-cols-3">
                       <StatCard
                         label={t('rapports.synthese.totalCollecte')}
-                        value={formatFcfa(synthese.totCollecte)}
+                        value={formatMontant(synthese.totCollecte)}
                         hint={t('rapports.synthese.annees', { count: synthese.nbAnnees })}
                         icon={Coins}
                         tone="jade"
                       />
                       <StatCard
                         label={t('rapports.synthese.totalAttendu')}
-                        value={formatFcfa(synthese.totAttendu)}
+                        value={formatMontant(synthese.totAttendu)}
                         icon={Wallet}
                       />
                       <StatCard

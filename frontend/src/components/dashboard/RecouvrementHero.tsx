@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Coins, Wallet } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
-import { formatFcfa, formatPourcent } from '@/lib/format'
+import { formatMontant, formatPourcent } from '@/lib/format'
 import { prefersReducedMotion } from '@/lib/utils'
 
 /** Jauge circulaire laiton→jade pour le taux de recouvrement. */
@@ -95,7 +95,7 @@ export function RecouvrementHero({
               </span>
               {t('dashboard.hero.totalCollecte')}
             </span>
-            <span className="num text-lg font-semibold text-foreground">{formatFcfa(collecte)}</span>
+            <span className="num text-lg font-semibold text-foreground">{formatMontant(collecte)}</span>
           </div>
           <div className="flex items-center justify-between gap-4 rounded-xl border border-hairline bg-surface/60 px-4 py-3.5">
             <span className="flex items-center gap-2.5 text-sm text-muted-foreground">
@@ -104,7 +104,7 @@ export function RecouvrementHero({
               </span>
               {t('dashboard.hero.totalAttendu')}
             </span>
-            <span className="num text-lg font-semibold text-foreground">{formatFcfa(attendu)}</span>
+            <span className="num text-lg font-semibold text-foreground">{formatMontant(attendu)}</span>
           </div>
         </div>
       </div>

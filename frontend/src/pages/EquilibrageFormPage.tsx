@@ -13,7 +13,7 @@ import {
   type SimulationEquilibrage,
 } from '@/lib/api'
 import { peutEquilibrer } from '@/lib/roles'
-import { formatFcfa } from '@/lib/format'
+import { formatMontant } from '@/lib/format'
 import { useToast } from '@/components/ui/Toast'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, Overline } from '@/components/ui/Card'
@@ -166,7 +166,7 @@ export function EquilibrageFormPage() {
         t('equilibrages.toast.appliqueDetail', {
           debut: anneeDebut,
           fin: anneeFin,
-          total: formatFcfa(totalPeriode),
+          total: formatMontant(totalPeriode),
         }),
       )
       navigate(`/membres/${id}`, { replace: true })
@@ -292,7 +292,7 @@ export function EquilibrageFormPage() {
                     >
                       <span className="num font-medium text-foreground">{l.annee}</span>
                       <span className="num text-sm text-muted-foreground">
-                        {formatFcfa(l.montantAvant)}
+                        {formatMontant(l.montantAvant)}
                       </span>
                       <ArrowRight
                         className="hidden h-4 w-4 text-faint sm:block"
@@ -311,7 +311,7 @@ export function EquilibrageFormPage() {
                         {delta !== 0 && (
                           <Badge tone="info" size="sm">
                             {delta > 0 ? '+' : '−'}
-                            {formatFcfa(Math.abs(delta))}
+                            {formatMontant(Math.abs(delta))}
                           </Badge>
                         )}
                       </div>
@@ -325,14 +325,14 @@ export function EquilibrageFormPage() {
                 <div className="text-sm">
                   <span className="text-muted-foreground">{t('equilibrages.recap.totalPeriode')}</span>
                   <span className="num font-semibold text-foreground">
-                    {formatFcfa(totalPeriode)}
+                    {formatMontant(totalPeriode)}
                   </span>
                 </div>
                 <div className="flex items-center gap-3 text-sm">
                   <span className="text-muted-foreground">
                     {t('equilibrages.recap.sommeRepartie')}{' '}
                     <span className={`num font-semibold ${exact ? 'text-foreground' : 'text-terra'}`}>
-                      {formatFcfa(somme)}
+                      {formatMontant(somme)}
                     </span>
                   </span>
                   {exact ? (
@@ -342,7 +342,7 @@ export function EquilibrageFormPage() {
                   ) : (
                     <Badge tone="terra" size="sm">
                       {t('equilibrages.recap.ecart')} {ecart > 0 ? '+' : '−'}
-                      {formatFcfa(Math.abs(ecart))}
+                      {formatMontant(Math.abs(ecart))}
                     </Badge>
                   )}
                 </div>

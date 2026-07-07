@@ -24,7 +24,8 @@ import {
 import { DocumentsSection } from '@/components/documents/DocumentsSection'
 import { StatutCotisationBadge, StatutMembreBadge } from '@/components/membres/StatutBadges'
 import { VersementsList } from '@/components/VersementsList'
-import { formatFcfa } from '@/lib/format'
+import { formatMontant } from '@/lib/format'
+import { formatDate } from '@/lib/utils'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, Overline } from '@/components/ui/Card'
 import { ButtonLink } from '@/components/ui/Button'
@@ -39,11 +40,8 @@ function Info({ label, value }: { label: string; value: string }) {
   )
 }
 
-function formatDate(iso: string | null): string {
-  if (!iso) return '—'
-  const d = new Date(iso)
-  return Number.isNaN(d.getTime()) ? '—' : d.toLocaleDateString('fr-FR')
-}
+/** Format numérique court (jj/mm/aaaa) selon la langue courante. */
+const DATE_COURTE = { day: '2-digit', month: '2-digit', year: 'numeric' } as const
 
 /**
  * Fiche complète d'un membre : infos + statut cumulatif (§4.1) + historique des
@@ -197,13 +195,13 @@ export function MembreDetailPage() {
           <Card className="p-5">
             <Overline>{t('membres.detail.totalAttendu')}</Overline>
             <p className="num mt-2 text-xl font-semibold text-foreground">
-              {formatFcfa(statut.totalAttenduCumule)}
+              {formatMontant(statut.totalAttenduCumule)}
             </p>
           </Card>
           <Card className="p-5">
             <Overline>{t('membres.detail.totalValorise')}</Overline>
             <p className="num mt-2 text-xl font-semibold text-jade">
-              {formatFcfa(statut.totalValoriseCumule)}
+              {formatMontant(statut.totalValoriseCumule)}
             </p>
           </Card>
         </section>
@@ -213,7 +211,7 @@ export function MembreDetailPage() {
         <Overline>{t('membres.detail.informations')}</Overline>
         <dl className="mt-4 grid gap-5 sm:grid-cols-2">
           <Info label={t('membres.detail.info.sexe')} value={membre.sexe ?? '—'} />
-          <Info label={t('membres.detail.info.dateNaissance')} value={formatDate(membre.dateNaissance)} />
+          <Info label={t('membres.detail.info.dateNaissance')} value={formatDate(membre.dateNaissance, DATE_COURTE)} />
           <Info label={t('membres.detail.info.fonctionSociale')} value={membre.fonctionSociale ?? '—'} />
           <Info label={t('membres.detail.info.brancheFamiliale')} value={brancheNom} />
           <Info label={t('membres.detail.info.telephone')} value={membre.telephone ?? '—'} />
@@ -269,9 +267,9 @@ export function MembreDetailPage() {
                         {t('membres.detail.annee', { annee: c.annee })}
                       </button>
                       <div className="num flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                        <span>{t('membres.detail.attendu', { montant: formatFcfa(c.montantAttendu) })}</span>
-                        <span>{t('membres.detail.verse', { montant: formatFcfa(c.montantVerse) })}</span>
-                        <span className="text-jade">{t('membres.detail.valorise', { montant: formatFcfa(c.montantValorise) })}</span>
+                        <span>{t('membres.detail.attendu', { montant: formatMontant(c.montantAttendu) })}</span>
+                        <span>{t('membres.detail.verse', { montant: formatMontant(c.montantVerse) })}</span>
+                        <span className="text-jade">{t('membres.detail.valorise', { montant: formatMontant(c.montantValorise) })}</span>
                       </div>
                       {peutSaisirVersement(user?.role) && (
                         <Link
@@ -315,8 +313,8 @@ export function MembreDetailPage() {
                   <span className="num font-medium text-foreground">
                     {eq.anneeDebut}–{eq.anneeFin}
                   </span>
-                  <span className="num text-muted-foreground">{formatFcfa(eq.totalPeriode)}</span>
-                  <span className="num text-muted-foreground">{formatDate(eq.dateApplication)}</span>
+                  <span className="num text-muted-foreground">{formatMontant(eq.totalPeriode)}</span>
+                  <span className="num text-muted-foreground">{formatDate(eq.dateApplication, DATE_COURTE)}</span>
                 </li>
               ))}
             </ul>

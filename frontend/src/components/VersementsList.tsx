@@ -9,15 +9,14 @@ import {
   type Versement,
   type Recu,
 } from '@/lib/api'
-import { formatFcfa } from '@/lib/format'
+import { formatMontant } from '@/lib/format'
+import { formatDate } from '@/lib/utils'
 import { useToast } from '@/components/ui/Toast'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 
-function formatDate(iso: string): string {
-  const d = new Date(iso)
-  return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString('fr-FR')
-}
+/** Format numérique court (jj/mm/aaaa) selon la langue courante. */
+const DATE_COURTE = { day: '2-digit', month: '2-digit', year: 'numeric' } as const
 
 /**
  * Liste des versements d'une contribution avec, pour chacun, le numéro de reçu s'il
@@ -114,9 +113,9 @@ export function VersementsList({
           >
             <div className="min-w-0">
               <p className="num text-sm font-medium text-foreground">
-                {formatFcfa(v.montant)}
+                {formatMontant(v.montant)}
                 <span className="ml-2 text-xs font-normal text-faint">
-                  {formatDate(v.dateVersement)} · {t(`versements.modes.${v.mode}`)}
+                  {formatDate(v.dateVersement, DATE_COURTE)} · {t(`versements.modes.${v.mode}`)}
                 </span>
               </p>
               {v.note && <p className="mt-0.5 truncate text-xs text-faint">{v.note}</p>}

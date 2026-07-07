@@ -11,7 +11,7 @@
  * le scheduler ne parcourt que les membres à compte lié).
  */
 
-import { t, type Langue } from '../lib/i18n'
+import { t, formatMontant, type Langue, type Devise } from '../lib/i18n'
 
 export type TypeNotification = 'VERSEMENT_RECU' | 'COTISATION_RETARD'
 
@@ -141,6 +141,25 @@ export async function resoudreLangueDestinataire(
   return langue === 'EN' || langue === 'FR' ? langue : 'FR'
 }
 
+/**
+ * Devise EFFECTIVE du DESTINATAIRE d'une notification (§5) : celle de son organisation, sinon
+ * FCFA par défaut. Comme la langue, les montants d'une notification sont rendus dans la devise
+ * de CELUI QUI LA REÇOIT (le membre concerné), jamais dans une devise figée.
+ */
+export async function resoudreDeviseDestinataire(
+  prisma: NotificationPrisma,
+  destinataireId: string,
+): Promise<Devise> {
+  const u = await prisma.utilisateur.findUnique({
+    where: { id: destinataireId },
+    select: { organisation: { select: { devise: true } } },
+  })
+  const devise = u?.organisation?.devise
+  return devise === 'EUR' || devise === 'USD' || devise === 'CAD' || devise === 'FCFA'
+    ? devise
+    : 'FCFA'
+}
+
 /** Le type est-il actif pour cet utilisateur ? (lecture ciblée avant création d'une notif.) */
 export async function estTypeActifPour(
   prisma: NotificationPrisma,
@@ -230,11 +249,6 @@ export async function marquerToutesCommeLues(
 /* Déclencheur VERSEMENT_RECU                                                 */
 /* -------------------------------------------------------------------------- */
 
-/** Montant FCFA formaté à la française (ex. 30000 → « 30 000 FCFA »). */
-function fcfa(montant: number): string {
-  return `${montant.toLocaleString('fr-FR')} FCFA`
-}
-
 export interface VersementNotifParams {
   versementId: string
   membreId: string
@@ -265,14 +279,16 @@ export async function notifierVersement(
   // Préférence : si l'utilisateur a désactivé ce type, on ne crée RIEN (pas de notif fantôme).
   if (!(await estTypeActifPour(prisma, destinataireId, 'VERSEMENT_RECU'))) return
 
-  // §4 : rendu dans la langue du DESTINATAIRE (le membre), pas de l'acteur du versement.
+  // §4/§5 : rendu dans la langue ET la devise du DESTINATAIRE (le membre), jamais de l'acteur
+  // du versement (une trésorière FR/FCFA notifie un membre EN/EUR dans SA langue et SA devise).
   const langue = await resoudreLangueDestinataire(prisma, destinataireId)
+  const devise = await resoudreDeviseDestinataire(prisma, destinataireId)
   await creerNotification(prisma, {
     destinataireId,
     type: 'VERSEMENT_RECU',
     titre: t(langue, 'notifications.versementRecu.titre'),
     message: t(langue, 'notifications.versementRecu.message', {
-      montant: fcfa(params.montant),
+      montant: formatMontant(params.montant, langue, devise),
       annee: params.annee,
     }),
     entiteType: 'Versement',

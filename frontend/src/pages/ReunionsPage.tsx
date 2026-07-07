@@ -5,7 +5,7 @@ import { CalendarRange, CheckCircle2, ListChecks, MapPin, Plus, Gavel } from 'lu
 import { useAuth } from '@/contexts/auth-context'
 import { reunionsApi, messageErreur, type ReunionListItem } from '@/lib/api'
 import { peutVoirReunions, peutGererReunions } from '@/lib/roles'
-import { formatDateFR, staggerDelay } from '@/lib/utils'
+import { formatDate, staggerDelay } from '@/lib/utils'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card } from '@/components/ui/Card'
 import { StatCard } from '@/components/ui/StatCard'
@@ -139,7 +139,7 @@ export function ReunionsPage() {
                       </div>
                       <p className="mt-2 flex items-center gap-2 font-display text-lg font-semibold text-foreground">
                         <CalendarRange className="h-4 w-4 text-brass" aria-hidden="true" />
-                        {formatDateFR(r.date)}
+                        {formatDate(r.date)}
                       </p>
                       <p className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
                         <MapPin className="h-3.5 w-3.5 text-faint" aria-hidden="true" />

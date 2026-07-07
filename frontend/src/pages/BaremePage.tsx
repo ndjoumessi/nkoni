@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/auth-context'
 import { baremeApi, ApiError, messageErreur, type Bareme } from '@/lib/api'
 import { peutVoirBareme, peutGererBareme } from '@/lib/roles'
 import { focusPremierChampInvalide } from '@/lib/utils'
-import { formatFcfa } from '@/lib/format'
+import { formatMontant } from '@/lib/format'
 import { useToast } from '@/components/ui/Toast'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, Overline } from '@/components/ui/Card'
@@ -103,7 +103,7 @@ export function BaremePage() {
       setMontant('')
       toast.success(
         t('bareme.toast.ajoute'),
-        t('bareme.toast.detail', { annee: cree.annee, montant: formatFcfa(cree.montantAttendu) }),
+        t('bareme.toast.detail', { annee: cree.annee, montant: formatMontant(cree.montantAttendu) }),
       )
     } catch (e) {
       toast.error(
@@ -136,7 +136,7 @@ export function BaremePage() {
       setEditId(null)
       toast.success(
         t('bareme.toast.miseAJour'),
-        t('bareme.toast.detail', { annee: maj.annee, montant: formatFcfa(maj.montantAttendu) }),
+        t('bareme.toast.detail', { annee: maj.annee, montant: formatMontant(maj.montantAttendu) }),
       )
     } catch (e) {
       toast.error(
@@ -269,7 +269,7 @@ export function BaremePage() {
                     </div>
                   ) : (
                     <span className="num text-sm text-foreground/85">
-                      {formatFcfa(b.montantAttendu)}
+                      {formatMontant(b.montantAttendu)}
                     </span>
                   )}
                   <div className="flex items-center justify-end gap-2">

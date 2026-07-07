@@ -17,7 +17,7 @@ import {
   peutGererDocument,
 } from '@/lib/roles'
 import { DocumentsSection } from '@/components/documents/DocumentsSection'
-import { formatDateFR } from '@/lib/utils'
+import { formatDate } from '@/lib/utils'
 import { useToast } from '@/components/ui/Toast'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, Overline } from '@/components/ui/Card'
@@ -167,7 +167,7 @@ export function CommemorationDetailPage() {
           <div className="flex items-center gap-2">
             <CalendarRange className="h-4 w-4 text-faint" aria-hidden="true" />
             <dt className="text-muted-foreground">{t('commemorations.detail.date')}</dt>
-            <dd className="text-foreground">{formatDateFR(item.date)}</dd>
+            <dd className="text-foreground">{formatDate(item.date)}</dd>
           </div>
           {item.lieu && (
             <div className="flex items-center gap-2">

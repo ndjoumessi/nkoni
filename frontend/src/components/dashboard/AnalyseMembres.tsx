@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom'
 import { ArrowRight, BellRing, GitBranch } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
 import { membresApi, type MembreStatut } from '@/lib/api'
-import { formatFcfa, formatPourcent } from '@/lib/format'
+import { formatMontant, formatPourcent } from '@/lib/format'
 import { Card, Overline } from '@/components/ui/Card'
 import { Badge, type BadgeProps } from '@/components/ui/Badge'
 import { Skeleton } from '@/components/ui/Skeleton'
@@ -138,7 +138,7 @@ export function AnalyseMembres() {
                   />
                 </div>
                 <p className="num mt-1 text-xs text-faint">
-                  {formatFcfa(b.valorise)} / {formatFcfa(b.attendu)}
+                  {formatMontant(b.valorise)} / {formatMontant(b.attendu)}
                 </p>
               </li>
             ))}
@@ -176,7 +176,7 @@ export function AnalyseMembres() {
                         {m.nom} {m.prenom}
                       </span>
                       <span className="num block truncate text-xs text-faint">
-                        {t('dashboard.analyse.reste', { montant: formatFcfa(m.manque) })}
+                        {t('dashboard.analyse.reste', { montant: formatMontant(m.manque) })}
                         {m.branche ? ` · ${m.branche.nom}` : ''}
                       </span>
                     </span>

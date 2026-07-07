@@ -1,6 +1,6 @@
 import argon2 from 'argon2'
 import type { Role } from '../middlewares/permissions'
-import type { Langue } from '../lib/i18n'
+import type { Langue, Devise } from '../lib/i18n'
 
 /**
  * Logique d'authentification, découplée de Fastify et testable avec un Prisma mocké.
@@ -19,6 +19,8 @@ export interface AuthenticatedUser {
   langue: Langue | null
   /** Langue par défaut de l'organisation (§4). Null pour le SUPER_ADMIN (sans org). */
   organisationLangueDefaut: Langue | null
+  /** Devise de l'organisation (§5, immuable). Null pour le SUPER_ADMIN (sans org). */
+  devise: Devise | null
 }
 
 /**
@@ -65,7 +67,10 @@ export function hashPassword(plain: string): Promise<string> {
 
 function toAuthUser(record: Record<string, unknown>): AuthenticatedUser {
   const membre = record['membre'] as { id: string } | null | undefined
-  const organisation = record['organisation'] as { langueDefaut?: Langue } | null | undefined
+  const organisation = record['organisation'] as
+    | { langueDefaut?: Langue; devise?: Devise }
+    | null
+    | undefined
   return {
     id: record['id'] as string,
     email: record['email'] as string,
@@ -75,6 +80,7 @@ function toAuthUser(record: Record<string, unknown>): AuthenticatedUser {
     actif: record['actif'] as boolean,
     langue: (record['langue'] as Langue | null | undefined) ?? null,
     organisationLangueDefaut: organisation?.langueDefaut ?? null,
+    devise: organisation?.devise ?? null,
   }
 }
 
@@ -103,7 +109,8 @@ export async function verifyCredentials(
       passwordHash: true,
       membre: { select: { id: true } },
       // §4 : défaut de langue de l'org → langue effective si l'utilisateur n'a pas de préférence.
-      organisation: { select: { langueDefaut: true } },
+      // §5 : devise de l'org → formatage locale-aware des montants côté front (F6).
+      organisation: { select: { langueDefaut: true, devise: true } },
     },
   })
   if (!record) return null
@@ -157,7 +164,7 @@ export async function findUserById(
       organisationId: true,
       langue: true,
       membre: { select: { id: true } },
-      organisation: { select: { langueDefaut: true } },
+      organisation: { select: { langueDefaut: true, devise: true } },
     },
   })
   if (!record) return null

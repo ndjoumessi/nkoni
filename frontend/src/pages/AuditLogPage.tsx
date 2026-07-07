@@ -13,7 +13,7 @@ import {
   type Utilisateur,
 } from '@/lib/api'
 import { peutVoirAudit } from '@/lib/roles'
-import { cn, formatDateHeure } from '@/lib/utils'
+import { cn, formatDate, formatDateHeure } from '@/lib/utils'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card } from '@/components/ui/Card'
 import { Badge, type BadgeProps } from '@/components/ui/Badge'
@@ -48,9 +48,75 @@ function lienEntite(entiteType: string, entiteId: string): string | null {
 }
 
 
-/** Formate une valeur de snapshot pour l'affichage. */
+/**
+ * Libellé humain d'un champ technique du journal d'audit → clé i18n. On RÉUTILISE les libellés
+ * du formulaire membre là où ils existent (nom, prénom, dates…) et on ajoute des clés dédiées
+ * `audit.champs.*` pour les autres entités. Un champ absent de cette table retombe sur son nom
+ * technique brut (aucun blocage d'affichage).
+ */
+const CLES_CHAMP: Record<string, string> = {
+  // Membre — réutilise les libellés du formulaire membre
+  nom: 'membres.form.champ.nom',
+  prenom: 'membres.form.champ.prenom',
+  sexe: 'membres.form.champ.sexe',
+  dateNaissance: 'membres.form.champ.dateNaissance',
+  telephone: 'membres.form.champ.telephone',
+  adresse: 'membres.form.champ.adresse',
+  fonctionSociale: 'membres.form.champ.fonctionSociale',
+  anneeAdhesion: 'membres.form.champ.anneeAdhesion',
+  statut: 'membres.form.champ.statut',
+  anneeFinContribution: 'membres.form.champ.anneeFinContribution',
+  chefSousFamilleId: 'membres.form.champ.chefSousFamille',
+  brancheId: 'membres.form.champ.brancheFamiliale',
+  // Autres entités (Contribution, Versement, Équilibrage, Utilisateur, Conflit) + champs communs
+  dateDeces: 'audit.champs.dateDeces',
+  compteUtilisateurId: 'audit.champs.compteUtilisateurId',
+  membreId: 'audit.champs.membreId',
+  annee: 'audit.champs.annee',
+  montantAttendu: 'audit.champs.montantAttendu',
+  montantVerse: 'audit.champs.montantVerse',
+  montantValorise: 'audit.champs.montantValorise',
+  contributionId: 'audit.champs.contributionId',
+  montant: 'audit.champs.montant',
+  dateVersement: 'audit.champs.dateVersement',
+  mode: 'audit.champs.mode',
+  receptionnaireId: 'audit.champs.receptionnaireId',
+  note: 'audit.champs.note',
+  anneeDebut: 'audit.champs.anneeDebut',
+  anneeFin: 'audit.champs.anneeFin',
+  totalPeriode: 'audit.champs.totalPeriode',
+  auteurId: 'audit.champs.auteurId',
+  dateApplication: 'audit.champs.dateApplication',
+  email: 'audit.champs.email',
+  role: 'audit.champs.role',
+  actif: 'audit.champs.actif',
+  langue: 'audit.champs.langue',
+  niveauConfidentialite: 'audit.champs.niveauConfidentialite',
+  titre: 'audit.champs.titre',
+  responsableSuiviId: 'audit.champs.responsableSuiviId',
+  dateOuverture: 'audit.champs.dateOuverture',
+  dateResolution: 'audit.champs.dateResolution',
+  organisationId: 'audit.champs.organisationId',
+  createdAt: 'audit.champs.createdAt',
+  updatedAt: 'audit.champs.updatedAt',
+  dateAction: 'audit.champs.dateAction',
+}
+
+/**
+ * Formate une valeur de snapshot pour l'affichage :
+ *  - null/undefined/'' → « — » (convention de l'app pour une valeur vide) ;
+ *  - dates ISO → `formatDate`/`formatDateHeure` (locale-aware) — minuit ⇒ date seule,
+ *    heure réelle ⇒ date + heure ;
+ *  - objets → JSON ; le reste → tel quel.
+ */
 function fmt(v: unknown): string {
-  if (v === null || v === undefined) return '∅'
+  if (v === null || v === undefined || v === '') return '—'
+  if (typeof v === 'string') {
+    const avecHeure = /^\d{4}-\d{2}-\d{2}T(\d{2}:\d{2})/.exec(v)
+    if (avecHeure) return avecHeure[1] === '00:00' ? formatDate(v) : formatDateHeure(v)
+    if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return formatDate(v)
+    return v
+  }
   if (typeof v === 'object') return JSON.stringify(v)
   return String(v)
 }
@@ -70,7 +136,7 @@ function DiffDetails({ entry }: { entry: AuditEntry }) {
   return (
     <div className="mt-1 space-y-1 rounded-xl border border-hairline bg-surface-2/40 p-3">
       {compare && (
-        <div className="mb-1 grid grid-cols-[minmax(0,9rem)_1fr] gap-x-3 px-2 text-[0.68rem] uppercase tracking-wide text-faint">
+        <div className="mb-1 grid grid-cols-[minmax(0,11rem)_1fr] gap-x-3 px-2 text-[0.68rem] uppercase tracking-wide text-faint">
           <span>{t('audit.diff.champ')}</span>
           <span>{t('audit.diff.avantApres')}</span>
         </div>
@@ -83,11 +149,13 @@ function DiffDetails({ entry }: { entry: AuditEntry }) {
           <div
             key={cle}
             className={cn(
-              'grid grid-cols-[minmax(0,9rem)_1fr] gap-x-3 rounded-lg px-2 py-1',
+              'grid grid-cols-[minmax(0,11rem)_1fr] gap-x-3 rounded-lg px-2 py-1',
               change && 'bg-amber/10',
             )}
           >
-            <span className="truncate font-medium text-muted-foreground">{cle}</span>
+            <span className="truncate font-medium text-muted-foreground" title={cle}>
+              {CLES_CHAMP[cle] ? t(CLES_CHAMP[cle]) : cle}
+            </span>
             <span className="min-w-0 break-words font-mono text-xs">
               {compare ? (
                 change ? (

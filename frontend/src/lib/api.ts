@@ -70,15 +70,68 @@ export function messageErreur(e: unknown): string {
   return 'Impossible de contacter le serveur (réseau, ou origine non autorisée par le CORS).'
 }
 
+/* -------------------------------------------------------------------------- */
+/* Rafraîchissement silencieux du token (refresh-on-401)                       */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Pont entre le client HTTP (module, hors React) et `AuthContext`. Ce dernier enregistre ses
+ * callbacks au montage ; le client s'en sert pour propager un access token rafraîchi et pour
+ * déclencher une déconnexion propre quand le refresh échoue.
+ */
+interface AuthBridge {
+  /** Un nouvel access token vient d'être obtenu → AuthContext remplace le sien (setState). */
+  onTokenRefreshed?: (accessToken: string) => void
+  /** Le refresh a échoué (cookie expiré/absent) → AuthContext vide la session (→ /login). */
+  onSessionExpired?: () => void
+}
+const authBridge: AuthBridge = {}
+export function configurerAuthBridge(bridge: AuthBridge): void {
+  authBridge.onTokenRefreshed = bridge.onTokenRefreshed
+  authBridge.onSessionExpired = bridge.onSessionExpired
+}
+
+/**
+ * Rafraîchit l'access token via le cookie refresh (POST /auth/refresh), en DÉDUPLIQUANT les
+ * appels concurrents : si plusieurs requêtes tombent en 401 en même temps, un SEUL /auth/refresh
+ * part et toutes attendent le même résultat (pas de rafale). Retourne le nouveau token, ou `null`
+ * si le refresh échoue. Exposée pour permettre aussi un refresh PROACTIF (avant expiration).
+ */
+let refreshEnCours: Promise<string | null> | null = null
+export function rafraichirAccessToken(): Promise<string | null> {
+  if (!refreshEnCours) {
+    refreshEnCours = fetchRefresh()
+      .then((token) => {
+        authBridge.onTokenRefreshed?.(token)
+        return token
+      })
+      .catch(() => null)
+      .finally(() => {
+        refreshEnCours = null
+      })
+  }
+  return refreshEnCours
+}
+
+/** Appel brut à /auth/refresh (hors `request`, donc jamais soumis à la logique de retry). */
+async function fetchRefresh(): Promise<string> {
+  const res = await fetch(`${API_URL}/auth/refresh`, { method: 'POST', credentials: 'include' })
+  if (!res.ok) throw new ApiError(res.status, 'refresh échoué')
+  const data = (await res.json()) as RefreshResponse
+  return data.accessToken
+}
+
 interface RequestOptions {
   method?: string
   json?: unknown
   accessToken?: string | null
   signal?: AbortSignal
+  /** Interne : passe à false sur la requête REJOUÉE pour interdire une seconde tentative (anti-boucle). */
+  permettreRetry?: boolean
 }
 
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const { method = 'GET', json, accessToken, signal } = options
+  const { method = 'GET', json, accessToken, signal, permettreRetry = true } = options
 
   const headers: Record<string, string> = {}
   if (json !== undefined) headers['Content-Type'] = 'application/json'
@@ -91,6 +144,20 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     body: json !== undefined ? JSON.stringify(json) : undefined,
     signal,
   })
+
+  // Refresh-on-401 : un access token expiré → on tente UN refresh silencieux (dédupliqué) puis on
+  // rejoue la requête UNE fois avec le nouveau token. Conditions strictes anti-boucle :
+  //   - `permettreRetry` (déjà false sur la requête rejouée),
+  //   - `accessToken != null` : un flux public (login/inscription/refresh) n'est jamais rejoué.
+  if (res.status === 401 && permettreRetry && accessToken != null) {
+    const nouveauToken = await rafraichirAccessToken()
+    if (nouveauToken) {
+      return request<T>(path, { ...options, accessToken: nouveauToken, permettreRetry: false })
+    }
+    // Refresh impossible → session terminée : déconnexion propre (AuthContext videra l'état,
+    // ProtectedRoute redirige vers /login). On laisse ensuite l'erreur 401 se propager.
+    authBridge.onSessionExpired?.()
+  }
 
   // 204 No Content (ex. logout) → pas de corps à parser.
   if (res.status === 204) return undefined as T

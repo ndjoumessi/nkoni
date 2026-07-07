@@ -1,9 +1,23 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
-import { authApi } from '@/lib/api'
+import { authApi, configurerAuthBridge, rafraichirAccessToken } from '@/lib/api'
 import type { AuthUser, InscriptionInput } from '@/lib/api'
 import { appliquerLangue } from '@/lib/i18n'
 import { appliquerDevise } from '@/lib/format'
 import { AuthContext, type AuthContextValue } from './auth-context'
+
+/** Expiration (epoch secondes) encodée dans un access token JWT, ou null si indéchiffrable. */
+function expirationAccessToken(token: string): number | null {
+  const partie = token.split('.')[1]
+  if (!partie) return null
+  try {
+    const b64 = partie.replace(/-/g, '+').replace(/_/g, '/')
+    const pad = b64 + '==='.slice((b64.length + 3) % 4)
+    const payload = JSON.parse(atob(pad)) as { exp?: number }
+    return typeof payload.exp === 'number' ? payload.exp : null
+  } catch {
+    return null
+  }
+}
 
 /**
  * Fournit l'état d'authentification à toute l'app.
@@ -46,6 +60,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       controller.abort()
     }
   }, [])
+
+  // Pont client HTTP → AuthContext. Le client (`lib/api`) rafraîchit le token sur 401 et propage
+  // le nouveau ici (setState) ; si le refresh échoue, il déclenche une déconnexion propre — on vide
+  // la session et ProtectedRoute redirige alors vers /login (pas de boucle de retry).
+  useEffect(() => {
+    configurerAuthBridge({
+      onTokenRefreshed: (token) => setAccessToken(token),
+      onSessionExpired: () => {
+        setAccessToken(null)
+        setUser(null)
+        appliquerDevise('FCFA')
+      },
+    })
+  }, [])
+
+  // Refresh PROACTIF : programmé ~60 s avant l'expiration de l'access token (TTL 15 min côté back)
+  // → la session est renouvelée AVANT qu'une requête ne tombe en 401. Réarmé à chaque nouveau token
+  // (le succès met à jour `accessToken`, ce qui relance cet effet avec la nouvelle échéance). Un
+  // échec proactif ne force pas la déconnexion : le refresh-on-401 réactif prendra le relais.
+  useEffect(() => {
+    if (!accessToken) return
+    const exp = expirationAccessToken(accessToken)
+    if (!exp) return
+    const delaiMs = exp * 1000 - Date.now() - 60_000
+    const id = window.setTimeout(() => {
+      void rafraichirAccessToken()
+    }, Math.max(0, delaiMs))
+    return () => window.clearTimeout(id)
+  }, [accessToken])
 
   const login = useCallback(
     async (email: string, password: string, rememberMe: boolean) => {

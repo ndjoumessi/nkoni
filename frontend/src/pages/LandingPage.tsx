@@ -1,4 +1,5 @@
 import { type ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { ShieldCheck, Receipt, Scale, Check, ArrowRight, type LucideIcon } from 'lucide-react'
 import { GlassmorphismTrustHero } from '@/components/ui/glassmorphism-trust-hero'
@@ -10,58 +11,58 @@ import { cn } from '@/lib/utils'
 
 // Contact : mailto simple (pas de collecte d'emails en v1). Adresse validée avec le PO.
 const CONTACT_EMAIL = 'nelson.djoumessi@gmail.com'
-const MAILTO_PRO = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent('NKONI Pro — être prévenu du lancement')}`
-const MAILTO_ENTREPRISE = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent('NKONI Entreprise — demande de renseignements')}`
 
 /** Page publique d'entrée de NKONI (avant authentification). */
 export function LandingPage() {
+  const { t } = useTranslation()
+  const mailtoPro = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(t('landing.forfaits.mailto.proSujet'))}`
+  const mailtoEntreprise = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(t('landing.forfaits.mailto.entrepriseSujet'))}`
+
   return (
     <main className="min-h-screen bg-background">
       <GlassmorphismTrustHero loginHref="/login" />
 
       <section id="a-propos" className="mx-auto max-w-5xl scroll-mt-8 px-6 py-24">
         <p className="text-center text-[0.72rem] font-medium uppercase tracking-[0.16em] text-brass/80">
-          Pourquoi NKONI
+          {t('landing.apropos.overline')}
         </p>
         <h2 className="mx-auto mt-3 max-w-2xl text-balance text-center font-display text-3xl font-semibold tracking-tight sm:text-4xl">
-          Pensé pour les familles et les associations
+          {t('landing.apropos.titre')}
         </h2>
         <p className="mx-auto mt-4 max-w-2xl text-pretty text-center text-muted-foreground">
-          Chaque groupe dispose de son propre espace, sécurisé et isolé : NKONI donne à chacun
-          une vue claire et partagée de ses finances collectives, sans zone d'ombre — et aucune
-          donnée n'est jamais partagée entre espaces.
+          {t('landing.apropos.description')}
         </p>
 
         <div className="mt-14 grid grid-cols-1 gap-5 sm:grid-cols-3">
           <FeatureCard
             icon={ShieldCheck}
             tone="jade"
-            title="Statuts transparents"
-            text="Chaque membre voit s'il est à jour, partiel ou non à jour, en temps réel."
+            title={t('landing.apropos.cards.statuts.titre')}
+            text={t('landing.apropos.cards.statuts.texte')}
           />
           <FeatureCard
             icon={Scale}
             tone="brass"
-            title="Mouvements tracés"
-            text="Les équilibrages entre branches sont enregistrés et vérifiables par tous."
+            title={t('landing.apropos.cards.mouvements.titre')}
+            text={t('landing.apropos.cards.mouvements.texte')}
           />
           <FeatureCard
             icon={Receipt}
             tone="jade"
-            title="Reçus archivés"
-            text="Chaque cotisation peut générer un reçu conservé et consultable à tout moment."
+            title={t('landing.apropos.cards.recus.titre')}
+            text={t('landing.apropos.cards.recus.texte')}
           />
         </div>
 
         <div className="mt-14 flex flex-col items-center gap-3">
           <ButtonLink to="/inscription" size="lg">
-            Créer mon espace
+            {t('commun.actions.creerMonEspace')}
           </ButtonLink>
           <Link
             to="/login"
             className="text-sm text-muted-foreground transition-colors hover:text-foreground"
           >
-            Vous avez déjà un espace ? Se connecter
+            {t('landing.apropos.dejaEspace')}
           </Link>
         </div>
       </section>
@@ -70,84 +71,80 @@ export function LandingPage() {
           Entreprise sont affichés « Bientôt disponible » : aucune souscription possible. */}
       <section id="forfaits" className="mx-auto max-w-6xl scroll-mt-8 px-6 pb-24">
         <p className="text-center text-[0.72rem] font-medium uppercase tracking-[0.16em] text-brass/80">
-          Forfaits
+          {t('landing.forfaits.overline')}
         </p>
         <h2 className="mx-auto mt-3 max-w-2xl text-balance text-center font-display text-3xl font-semibold tracking-tight sm:text-4xl">
-          Commencez gratuitement, évoluez à votre rythme
+          {t('landing.forfaits.titre')}
         </h2>
         <p className="mx-auto mt-4 max-w-2xl text-pretty text-center text-muted-foreground">
-          Le forfait Gratuit est disponible dès aujourd'hui. Les offres Pro et Entreprise arrivent
-          bientôt — aucune souscription payante n'est encore possible.
+          {t('landing.forfaits.description')}
         </p>
 
         <div className="mt-14 grid grid-cols-1 items-stretch gap-5 sm:grid-cols-3">
           {/* GRATUIT — actionnable, mis en avant */}
           <ForfaitCard
-            nom="Gratuit"
-            tagline="Pour commencer"
-            prix="Gratuit"
+            nom={t('landing.forfaits.gratuit.nom')}
+            tagline={t('landing.forfaits.gratuit.tagline')}
+            prix={t('landing.forfaits.gratuit.prix')}
             disponible
             features={[
-              "Jusqu'à 100 membres",
-              'Membres, cotisations & versements',
-              'Réunions, fonctions & résolutions',
-              'Rapports financiers & exports',
-              'Espace sécurisé, isolé des autres',
+              t('landing.forfaits.gratuit.f1'),
+              t('landing.forfaits.gratuit.f2'),
+              t('landing.forfaits.gratuit.f3'),
+              t('landing.forfaits.gratuit.f4'),
+              t('landing.forfaits.gratuit.f5'),
             ]}
           >
             <ButtonLink to="/inscription" className="w-full">
-              Créer mon espace
+              {t('commun.actions.creerMonEspace')}
               <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </ButtonLink>
           </ForfaitCard>
 
           {/* PRO — bientôt disponible, en retrait */}
           <ForfaitCard
-            nom="Pro"
-            tagline="Pour grandir"
-            prix="Tarif à venir"
+            nom={t('landing.forfaits.pro.nom')}
+            tagline={t('landing.forfaits.pro.tagline')}
+            prix={t('landing.forfaits.pro.prix')}
             features={[
-              'Membres illimités',
-              'Documents illimités',
-              'Support prioritaire',
-              'Export avancé',
+              t('landing.forfaits.pro.f1'),
+              t('landing.forfaits.pro.f2'),
+              t('landing.forfaits.pro.f3'),
+              t('landing.forfaits.pro.f4'),
             ]}
           >
-            <a href={MAILTO_PRO} className={cn(buttonVariants({ variant: 'outline' }), 'w-full')}>
-              Être prévenu du lancement
+            <a href={mailtoPro} className={cn(buttonVariants({ variant: 'outline' }), 'w-full')}>
+              {t('landing.forfaits.pro.bouton')}
             </a>
           </ForfaitCard>
 
           {/* ENTREPRISE — sur devis, bientôt disponible, en retrait */}
           <ForfaitCard
-            nom="Entreprise"
-            tagline="Sur mesure"
-            prix="Sur devis"
+            nom={t('landing.forfaits.entreprise.nom')}
+            tagline={t('landing.forfaits.entreprise.tagline')}
+            prix={t('landing.forfaits.entreprise.prix')}
             features={[
-              'Grandes structures & fédérations',
-              "Accompagnement dédié à l'onboarding",
-              'Sans engagement',
+              t('landing.forfaits.entreprise.f1'),
+              t('landing.forfaits.entreprise.f2'),
+              t('landing.forfaits.entreprise.f3'),
             ]}
           >
             <a
-              href={MAILTO_ENTREPRISE}
+              href={mailtoEntreprise}
               className={cn(buttonVariants({ variant: 'outline' }), 'w-full')}
             >
-              Nous contacter
+              {t('landing.forfaits.entreprise.bouton')}
             </a>
           </ForfaitCard>
         </div>
 
         <p className="mx-auto mt-8 max-w-2xl text-center text-xs text-faint">
-          Les forfaits Pro et Entreprise ne sont pas encore commercialisés. Les fonctionnalités
-          annoncées sont indicatives et pourront évoluer d'ici leur lancement.
+          {t('landing.forfaits.note')}
         </p>
       </section>
 
       <footer className="border-t border-hairline py-8">
-        <p className="text-center text-xs text-faint">
-          NKONI — gestion des cotisations &amp; transparence financière.
-        </p>
+        <p className="text-center text-xs text-faint">{t('landing.footer')}</p>
       </footer>
     </main>
   )
@@ -173,6 +170,7 @@ function ForfaitCard({
   features: string[]
   children: ReactNode
 }) {
+  const { t } = useTranslation()
   return (
     <Card
       className={cn(
@@ -186,10 +184,10 @@ function ForfaitCard({
         <h3 className="text-lg font-semibold text-foreground">{nom}</h3>
         {disponible ? (
           <Badge tone="jade" dot pulse>
-            Disponible
+            {t('landing.forfaits.disponible')}
           </Badge>
         ) : (
-          <Badge tone="amber">Bientôt disponible</Badge>
+          <Badge tone="amber">{t('landing.forfaits.bientot')}</Badge>
         )}
       </div>
       <p className="mt-1 text-sm text-muted-foreground">{tagline}</p>

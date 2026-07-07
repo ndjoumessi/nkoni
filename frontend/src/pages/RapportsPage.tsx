@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Navigate } from 'react-router-dom'
 import {
   ArrowLeftRight,
@@ -27,7 +28,7 @@ import {
   type VariationsComparaison,
 } from '@/lib/api'
 import { peutVoirRapports } from '@/lib/roles'
-import { formatFcfa, formatNombre, formatPourcent } from '@/lib/format'
+import { formatMontant, formatNombre, formatPourcent } from '@/lib/format'
 import { cn, prefersReducedMotion } from '@/lib/utils'
 import { useToast } from '@/components/ui/Toast'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -52,14 +53,15 @@ function estAbort(e: unknown): boolean {
 
 /** Badge de variation en % : jade si progression, terracotta si régression, neutre sinon. */
 function VariationBadge({ valeur }: { valeur: number | null }) {
+  const { t } = useTranslation()
   if (valeur === null) {
-    return <span className="text-xs text-faint">n/a</span>
+    return <span className="text-xs text-faint">{t('rapports.variation.na')}</span>
   }
   if (valeur === 0) {
     return (
       <Badge tone="neutral" size="sm">
         <Minus className="h-3 w-3" aria-hidden="true" />
-        0 %
+        {t('rapports.variation.zero')}
       </Badge>
     )
   }
@@ -82,6 +84,7 @@ function VariationBadge({ valeur }: { valeur: number | null }) {
 /* -------------------------------------------------------------------------- */
 
 function GrapheEvolution({ annees }: { annees: RapportAnnee[] }) {
+  const { t } = useTranslation()
   const maxAttendu = useMemo(
     () => Math.max(1, ...annees.map((a) => a.totalAttendu)),
     [annees],
@@ -100,19 +103,19 @@ function GrapheEvolution({ annees }: { annees: RapportAnnee[] }) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <BarChart3 className="h-4 w-4 text-brass" aria-hidden="true" />
-          <Overline>Attendu vs collecté par année</Overline>
+          <Overline>{t('rapports.graphe.titre')}</Overline>
         </div>
         <div className="flex items-center gap-4 text-xs text-faint">
           <span className="inline-flex items-center gap-1.5">
             <span className="h-2.5 w-2.5 rounded-sm bg-surface-3" aria-hidden="true" />
-            Attendu
+            {t('rapports.graphe.attendu')}
           </span>
           <span className="inline-flex items-center gap-1.5">
             <span
               className="h-2.5 w-2.5 rounded-sm bg-gradient-to-b from-jade to-brass"
               aria-hidden="true"
             />
-            Collecté
+            {t('rapports.graphe.collecte')}
           </span>
         </div>
       </div>
@@ -156,19 +159,20 @@ function GrapheEvolution({ annees }: { annees: RapportAnnee[] }) {
 /* -------------------------------------------------------------------------- */
 
 function TableEvolution({ annees }: { annees: RapportAnnee[] }) {
+  const { t } = useTranslation()
   return (
     <Card className="overflow-hidden p-0">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-hairline text-[0.7rem] uppercase tracking-[0.1em] text-faint">
-              <th className="px-4 py-3 text-left font-medium">Année</th>
-              <th className="px-4 py-3 text-right font-medium">Attendu</th>
-              <th className="px-4 py-3 text-right font-medium">Collecté</th>
-              <th className="px-4 py-3 text-right font-medium">Taux</th>
-              <th className="px-4 py-3 text-right font-medium">À jour</th>
-              <th className="px-4 py-3 text-right font-medium">Partiel</th>
-              <th className="px-4 py-3 text-right font-medium">Non à jour</th>
+              <th className="px-4 py-3 text-left font-medium">{t('rapports.table.annee')}</th>
+              <th className="px-4 py-3 text-right font-medium">{t('rapports.table.attendu')}</th>
+              <th className="px-4 py-3 text-right font-medium">{t('rapports.table.collecte')}</th>
+              <th className="px-4 py-3 text-right font-medium">{t('rapports.table.taux')}</th>
+              <th className="px-4 py-3 text-right font-medium">{t('rapports.table.aJour')}</th>
+              <th className="px-4 py-3 text-right font-medium">{t('rapports.table.partiel')}</th>
+              <th className="px-4 py-3 text-right font-medium">{t('rapports.table.nonAJour')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-hairline">
@@ -176,10 +180,10 @@ function TableEvolution({ annees }: { annees: RapportAnnee[] }) {
               <tr key={a.annee} className="transition-colors hover:bg-surface-2/50">
                 <td className="num px-4 py-3 font-medium text-foreground">{a.annee}</td>
                 <td className="num px-4 py-3 text-right text-muted-foreground">
-                  {formatFcfa(a.totalAttendu)}
+                  {formatMontant(a.totalAttendu)}
                 </td>
                 <td className="num px-4 py-3 text-right font-medium text-foreground">
-                  {formatFcfa(a.totalCollecte)}
+                  {formatMontant(a.totalCollecte)}
                 </td>
                 <td className="num px-4 py-3 text-right text-jade">
                   {formatPourcent(a.tauxRecouvrement)}
@@ -207,33 +211,35 @@ function TableEvolution({ annees }: { annees: RapportAnnee[] }) {
 /* -------------------------------------------------------------------------- */
 
 function NoteSansBareme({ rapport }: { rapport: RapportAnnee | null }) {
+  const { t } = useTranslation()
   if (rapport) return null
   return (
     <span className="mt-0.5 block text-[0.65rem] font-normal normal-case tracking-normal text-faint">
-      Aucun barème
+      {t('rapports.aucunBareme')}
     </span>
   )
 }
 
-/** Métriques de la table de comparaison ; `vkey` présent ⇒ ligne portant une variation. */
+/** Métriques de la table de comparaison ; `vkey` présent ⇒ ligne portant une variation.
+ * `cle` = clé de traduction sous `rapports.metriques.*`. */
 type MetriqueDef = {
-  label: string
+  cle: string
   valeur: (r: RapportAnnee | null) => string
   vkey?: keyof VariationsComparaison
 }
 
 const METRIQUES_COMPARAISON: MetriqueDef[] = [
-  { label: 'Total attendu', valeur: (r) => (r ? formatFcfa(r.totalAttendu) : '—'), vkey: 'totalAttendu' },
-  { label: 'Total collecté', valeur: (r) => (r ? formatFcfa(r.totalCollecte) : '—'), vkey: 'totalCollecte' },
+  { cle: 'totalAttendu', valeur: (r) => (r ? formatMontant(r.totalAttendu) : '—'), vkey: 'totalAttendu' },
+  { cle: 'totalCollecte', valeur: (r) => (r ? formatMontant(r.totalCollecte) : '—'), vkey: 'totalCollecte' },
   {
-    label: 'Taux de recouvrement',
+    cle: 'tauxRecouvrement',
     valeur: (r) => (r ? formatPourcent(r.tauxRecouvrement) : '—'),
     vkey: 'tauxRecouvrement',
   },
-  { label: 'Membres éligibles', valeur: (r) => (r ? formatNombre(r.membresEligibles) : '—') },
-  { label: 'À jour', valeur: (r) => (r ? formatNombre(r.membresParStatut.A_JOUR) : '—') },
-  { label: 'Partiel', valeur: (r) => (r ? formatNombre(r.membresParStatut.PARTIEL) : '—') },
-  { label: 'Non à jour', valeur: (r) => (r ? formatNombre(r.membresParStatut.NON_A_JOUR) : '—') },
+  { cle: 'membresEligibles', valeur: (r) => (r ? formatNombre(r.membresEligibles) : '—') },
+  { cle: 'aJour', valeur: (r) => (r ? formatNombre(r.membresParStatut.A_JOUR) : '—') },
+  { cle: 'partiel', valeur: (r) => (r ? formatNombre(r.membresParStatut.PARTIEL) : '—') },
+  { cle: 'nonAJour', valeur: (r) => (r ? formatNombre(r.membresParStatut.NON_A_JOUR) : '—') },
 ]
 
 // Cellules de la 1re colonne (Métrique) : collantes à gauche pour rester lisibles au scroll.
@@ -245,13 +251,16 @@ const CELLULE_COLLANTE = 'sticky left-0 z-10 border-r border-hairline bg-surface
  * (Métrique) est collante et la table défile horizontalement au besoin (mobile / N années).
  */
 function VueComparaisonMulti({ data }: { data: ComparaisonMulti }) {
+  const { t } = useTranslation()
   return (
     <Card className="overflow-hidden p-0">
       <div className="overflow-x-auto">
         <table className="w-full min-w-max text-sm">
           <thead>
             <tr className="border-b border-hairline text-[0.7rem] uppercase tracking-[0.1em] text-faint">
-              <th className={cn(CELLULE_COLLANTE, 'px-4 py-3 text-left font-medium')}>Métrique</th>
+              <th className={cn(CELLULE_COLLANTE, 'px-4 py-3 text-left font-medium')}>
+                {t('rapports.comparaison.metrique')}
+              </th>
               {data.annees.map((ac, i) => (
                 <Fragment key={ac.annee}>
                   <th className="num px-4 py-3 text-right font-medium">
@@ -265,14 +274,14 @@ function VueComparaisonMulti({ data }: { data: ComparaisonMulti }) {
           </thead>
           <tbody className="divide-y divide-hairline">
             {METRIQUES_COMPARAISON.map((m) => (
-              <tr key={m.label} className="group">
+              <tr key={m.cle} className="group">
                 <td
                   className={cn(
                     CELLULE_COLLANTE,
                     'px-4 py-3 text-muted-foreground transition-colors group-hover:bg-surface-2',
                   )}
                 >
-                  {m.label}
+                  {t(`rapports.metriques.${m.cle}`)}
                 </td>
                 {data.annees.map((ac, i) => (
                   <Fragment key={ac.annee}>
@@ -309,6 +318,7 @@ function VueComparaisonMulti({ data }: { data: ComparaisonMulti }) {
  * S'appuie sur les barèmes existants pour proposer les années disponibles.
  */
 export function RapportsPage() {
+  const { t } = useTranslation()
   const { user, accessToken } = useAuth()
   const toast = useToast()
 
@@ -420,9 +430,15 @@ export function RapportsPage() {
       } else if (mode === 'comparaison' && anneesComp.length >= 2) {
         await downloadRapportComparaisonMulti(anneesComp, format, accessToken)
       }
-      toast.success('Export prêt', `Le fichier ${format.toUpperCase()} a été téléchargé.`)
+      toast.success(
+        t('rapports.export.pret'),
+        t('rapports.export.pretDetail', { format: format.toUpperCase() }),
+      )
     } catch (e) {
-      toast.error('Échec de l’export', e instanceof ApiError ? e.message : 'Réessayez plus tard.')
+      toast.error(
+        t('rapports.export.echec'),
+        e instanceof ApiError ? e.message : t('rapports.export.reessayer'),
+      )
     } finally {
       setExportEnCours(null)
     }
@@ -455,9 +471,9 @@ export function RapportsPage() {
   return (
     <>
       <PageHeader
-        overline="Trésorerie"
-        title="Rapports financiers"
-        description="Recouvrement par année et comparaison période vs période."
+        overline={t('rapports.header.overline')}
+        title={t('rapports.header.titre')}
+        description={t('rapports.header.description')}
       />
 
       {chargementAnnees ? (
@@ -468,9 +484,9 @@ export function RapportsPage() {
         <div className="mt-7">
           <EmptyState
             icon={BarChart3}
-            title="Aucune donnée à analyser"
+            title={t('rapports.vide.titre')}
             className="min-h-[45vh] justify-center"
-            description="Aucun barème annuel n’est encore configuré. Les rapports s’appuient sur les années disposant d’un barème."
+            description={t('rapports.vide.description')}
           />
         </div>
       ) : (
@@ -481,7 +497,7 @@ export function RapportsPage() {
               <div
                 className="inline-flex rounded-xl border border-hairline bg-surface/60 p-1"
                 role="tablist"
-                aria-label="Mode de rapport"
+                aria-label={t('rapports.mode.aria')}
               >
                 <button
                   type="button"
@@ -496,7 +512,7 @@ export function RapportsPage() {
                   )}
                 >
                   <BarChart3 className="h-4 w-4" aria-hidden="true" />
-                  Évolution
+                  {t('rapports.mode.evolution')}
                 </button>
                 <button
                   type="button"
@@ -511,13 +527,13 @@ export function RapportsPage() {
                   )}
                 >
                   <ArrowLeftRight className="h-4 w-4" aria-hidden="true" />
-                  Comparaison
+                  {t('rapports.mode.comparaison')}
                 </button>
               </div>
 
               {mode === 'evolution' ? (
                 <>
-                  <Field label="De" className="w-28">
+                  <Field label={t('rapports.plage.de')} className="w-28">
                     <Select
                       value={debut ?? ''}
                       onChange={(e) => setDebut(Number(e.target.value))}
@@ -525,7 +541,7 @@ export function RapportsPage() {
                       {optionsAnnee((a) => fin === null || a <= fin)}
                     </Select>
                   </Field>
-                  <Field label="À" className="w-28">
+                  <Field label={t('rapports.plage.a')} className="w-28">
                     <Select value={fin ?? ''} onChange={(e) => setFin(Number(e.target.value))}>
                       {optionsAnnee((a) => debut === null || a >= debut)}
                     </Select>
@@ -534,7 +550,7 @@ export function RapportsPage() {
               ) : (
                 <div className="flex flex-col">
                   <span className="mb-1.5 text-[0.72rem] font-medium uppercase tracking-[0.1em] text-faint">
-                    Années comparées
+                    {t('rapports.comparaison.anneesComparees')}
                   </span>
                   <div className="flex flex-wrap items-center gap-2">
                     {anneesComp.map((a) => (
@@ -547,7 +563,7 @@ export function RapportsPage() {
                           type="button"
                           onClick={() => retirerAnnee(a)}
                           disabled={anneesComp.length <= 2}
-                          aria-label={`Retirer ${a}`}
+                          aria-label={t('rapports.comparaison.retirer', { annee: a })}
                           className="flex h-5 w-5 items-center justify-center rounded-full text-faint transition-colors hover:text-terra disabled:opacity-30 disabled:hover:text-faint"
                         >
                           <X className="h-3.5 w-3.5" aria-hidden="true" />
@@ -557,13 +573,13 @@ export function RapportsPage() {
                     {anneesAjoutables.length > 0 && (
                       <Select
                         value=""
-                        aria-label="Ajouter une année à comparer"
+                        aria-label={t('rapports.comparaison.ajouterAria')}
                         className="w-auto pr-8 text-sm"
                         onChange={(e) => {
                           if (e.target.value) ajouterAnnee(Number(e.target.value))
                         }}
                       >
-                        <option value="">+ Ajouter</option>
+                        <option value="">{t('rapports.comparaison.ajouter')}</option>
                         {anneesAjoutables.map((a) => (
                           <option key={a} value={a}>
                             {a}
@@ -578,7 +594,7 @@ export function RapportsPage() {
               {/* Export du rapport courant — rattaché aux sélecteurs qui le définissent. */}
               <div className="ml-auto flex flex-col">
                 <span className="mb-1.5 text-[0.72rem] font-medium uppercase tracking-[0.1em] text-faint">
-                  Export
+                  {t('rapports.export.titre')}
                 </span>
                 <div className="flex gap-2">
                   <Button
@@ -590,7 +606,7 @@ export function RapportsPage() {
                     disabled={exportDesactive}
                     onClick={() => exporter('xlsx')}
                   >
-                    Excel
+                    {t('rapports.export.excel')}
                   </Button>
                   <Button
                     type="button"
@@ -601,7 +617,7 @@ export function RapportsPage() {
                     disabled={exportDesactive}
                     onClick={() => exporter('pdf')}
                   >
-                    PDF
+                    {t('rapports.export.pdf')}
                   </Button>
                 </div>
               </div>
@@ -624,27 +640,27 @@ export function RapportsPage() {
               rapport.annees.length === 0 ? (
                 <EmptyState
                   icon={BarChart3}
-                  title="Aucune année configurée sur cette plage"
-                  description="Les années sans barème sont ignorées. Élargissez la plage ou configurez les barèmes manquants."
+                  title={t('rapports.videPlage.titre')}
+                  description={t('rapports.videPlage.description')}
                 />
               ) : (
                 <div className="space-y-6">
                   {synthese && (
                     <div className="grid gap-4 sm:grid-cols-3">
                       <StatCard
-                        label="Total collecté"
-                        value={formatFcfa(synthese.totCollecte)}
-                        hint={`${synthese.nbAnnees} année${synthese.nbAnnees > 1 ? 's' : ''}`}
+                        label={t('rapports.synthese.totalCollecte')}
+                        value={formatMontant(synthese.totCollecte)}
+                        hint={t('rapports.synthese.annees', { count: synthese.nbAnnees })}
                         icon={Coins}
                         tone="jade"
                       />
                       <StatCard
-                        label="Total attendu"
-                        value={formatFcfa(synthese.totAttendu)}
+                        label={t('rapports.synthese.totalAttendu')}
+                        value={formatMontant(synthese.totAttendu)}
                         icon={Wallet}
                       />
                       <StatCard
-                        label="Taux global"
+                        label={t('rapports.synthese.tauxGlobal')}
                         value={formatPourcent(synthese.taux)}
                         icon={Percent}
                         tone="brass"
@@ -659,8 +675,8 @@ export function RapportsPage() {
               anneesComp.length < 2 ? (
                 <EmptyState
                   icon={ArrowLeftRight}
-                  title="Choisissez au moins deux années"
-                  description="Ajoutez des années à comparer ci-dessus. La variation est calculée d’une année à la suivante dans la sélection."
+                  title={t('rapports.videComparaison.titre')}
+                  description={t('rapports.videComparaison.description')}
                 />
               ) : comparaison ? (
                 <VueComparaisonMulti data={comparaison} />

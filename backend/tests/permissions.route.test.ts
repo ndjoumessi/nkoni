@@ -69,6 +69,22 @@ describe('GET /membres — requirePermission("Membre", "read")', () => {
 
     expect(res.statusCode).toBe(403)
     expect(res.json()).toMatchObject({ error: 'Forbidden' })
+    // Message par défaut en FR (token sans préférence de langue).
+    expect(res.json().message).toContain("n'a pas la permission")
+  })
+
+  it('403 dans la langue du token (langue=EN) → message d’autorisation en anglais (§4)', async () => {
+    const token = app.jwt.sign({ role: 'GUIDE_RELIGIEUX', langue: 'EN' })
+    const res = await app.inject({
+      method: 'GET',
+      url: '/membres',
+      headers: { authorization: `Bearer ${token}` },
+    })
+    expect(res.statusCode).toBe(403)
+    // La langue portée par le token pilote la traduction, sans requête DB.
+    expect(res.json().message).toBe(
+      "Role GUIDE_RELIGIEUX does not have permission 'read' on entity 'Membre'.",
+    )
   })
 
   it('Requête sans JWT reçoit 401 (géré par le hook d’auth, pas par requirePermission)', async () => {

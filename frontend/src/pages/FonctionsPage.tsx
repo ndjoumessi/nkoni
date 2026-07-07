@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Link, Navigate } from 'react-router-dom'
 import { History, Landmark, Plus, UserCheck, UserX } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
@@ -28,6 +29,7 @@ function nomMembre(m?: { nom: string; prenom: string }): string {
 
 /** Liste des fonctions/organes (§5) — titulaire actuel + taille d'historique. */
 export function FonctionsPage() {
+  const { t } = useTranslation()
   const { user, accessToken } = useAuth()
   const toast = useToast()
 
@@ -90,13 +92,13 @@ export function FonctionsPage() {
       setFonctions((prev) =>
         [...(prev ?? []), item].sort((a, b) => a.nom.localeCompare(b.nom)),
       )
-      toast.success('Fonction créée', cree.nom)
+      toast.success(t('fonctions.toast.creee'), cree.nom)
       fermerModal()
     } catch (err) {
       // 409 possible : nom déjà utilisé.
       toast.error(
-        'Création impossible',
-        err instanceof ApiError ? err.message : 'Réessayez plus tard.',
+        t('fonctions.toast.creationImpossible'),
+        err instanceof ApiError ? err.message : t('fonctions.toast.reessayer'),
       )
     } finally {
       setCreating(false)
@@ -106,16 +108,16 @@ export function FonctionsPage() {
   return (
     <>
       <PageHeader
-        overline="Organisation"
-        title="Fonctions & organes"
+        overline={t('fonctions.overline')}
+        title={t('fonctions.liste.titre')}
         description={
-          fonctions ? `${fonctions.length} fonction${fonctions.length > 1 ? 's' : ''}` : undefined
+          fonctions ? t('fonctions.liste.compteur', { count: fonctions.length }) : undefined
         }
         actions={
           // Masqué quand la liste est vide : l'EmptyState porte déjà le CTA (pas de doublon).
           gestion && (!fonctions || fonctions.length > 0) && (
             <Button type="button" icon={Plus} onClick={() => setCreerOuvert(true)}>
-              Nouvelle fonction
+              {t('fonctions.actions.nouvelle')}
             </Button>
           )
         }
@@ -123,15 +125,15 @@ export function FonctionsPage() {
 
       {fonctions && fonctions.length > 0 && (
         <div className="nk-reveal nk-d2 mt-7 grid grid-cols-3 gap-3">
-          <StatCard label="Fonctions" value={String(fonctions.length)} icon={Landmark} />
+          <StatCard label={t('fonctions.stats.total')} value={String(fonctions.length)} icon={Landmark} />
           <StatCard
-            label="Occupées"
+            label={t('fonctions.stats.occupees')}
             value={String(fonctions.filter((f) => f.affectations[0]?.membre).length)}
             tone="jade"
             icon={UserCheck}
           />
           <StatCard
-            label="Vacantes"
+            label={t('fonctions.stats.vacantes')}
             value={String(fonctions.filter((f) => !f.affectations[0]?.membre).length)}
             icon={UserX}
           />
@@ -152,23 +154,23 @@ export function FonctionsPage() {
         {!loading && !error && fonctions && fonctions.length === 0 && (
           <EmptyState
             icon={Landmark}
-            title="Aucune fonction"
+            title={t('fonctions.vide.titre')}
             className="min-h-[45vh] justify-center"
             description={
               gestion
-                ? 'Créez les organes de la famille (Président, Trésorier…) puis nommez leurs titulaires.'
-                : 'Les fonctions de la famille apparaîtront ici.'
+                ? t('fonctions.vide.descriptionGestion')
+                : t('fonctions.vide.description')
             }
             action={
               gestion && (
                 <Button type="button" icon={Plus} onClick={() => setCreerOuvert(true)}>
-                  Nouvelle fonction
+                  {t('fonctions.actions.nouvelle')}
                 </Button>
               )
             }
             tips={[
-              { icon: UserCheck, label: 'Un seul titulaire à la fois' },
-              { icon: History, label: 'Historique des nominations' },
+              { icon: UserCheck, label: t('fonctions.vide.tips.titulaireUnique') },
+              { icon: History, label: t('fonctions.vide.tips.historique') },
             ]}
           />
         )}
@@ -204,13 +206,12 @@ export function FonctionsPage() {
                         ) : (
                           <Badge tone="neutral">
                             <UserX className="h-3.5 w-3.5" aria-hidden="true" />
-                            Vacant
+                            {t('fonctions.badge.vacant')}
                           </Badge>
                         )}
                         <span className="inline-flex items-center gap-1.5 text-xs text-faint">
                           <History className="h-3.5 w-3.5" aria-hidden="true" />
-                          {f._count.affectations} nomination
-                          {f._count.affectations > 1 ? 's' : ''}
+                          {t('affectations.compteur', { count: f._count.affectations })}
                         </span>
                       </div>
                     </div>
@@ -223,31 +224,31 @@ export function FonctionsPage() {
       </div>
 
       {creerOuvert && (
-        <Modal open onClose={fermerModal} title="Nouvelle fonction">
+        <Modal open onClose={fermerModal} title={t('fonctions.creer.titre')}>
           <form onSubmit={creerFonction} className="space-y-4">
-            <Field label="Nom de la fonction" required>
+            <Field label={t('fonctions.creer.nomLabel')} required>
               <Input
                 autoFocus
                 value={nom}
                 onChange={(e) => setNom(e.target.value)}
-                placeholder="Président, Trésorier, Secrétaire…"
+                placeholder={t('fonctions.creer.nomPlaceholder')}
                 maxLength={200}
               />
             </Field>
-            <Field label="Description" hint="Optionnel.">
+            <Field label={t('fonctions.creer.descriptionLabel')} hint={t('fonctions.champ.optionnel')}>
               <Textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Rôle et attributions de la fonction…"
+                placeholder={t('fonctions.creer.descriptionPlaceholder')}
                 rows={3}
               />
             </Field>
             <div className="flex justify-end gap-2 pt-1">
               <Button type="button" variant="ghost" onClick={fermerModal}>
-                Annuler
+                {t('fonctions.actions.annuler')}
               </Button>
               <Button type="submit" icon={Plus} loading={creating} disabled={nom.trim().length === 0}>
-                Créer la fonction
+                {t('fonctions.creer.soumettre')}
               </Button>
             </div>
           </form>

@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
 import { authenticate } from '../middlewares/authenticate'
 import { requirePermission } from '../middlewares/permissions'
+import { t, langueDeRequete } from '../lib/i18n'
 import {
   chargerDonneesRapport,
   genererRapportFinancier,
@@ -65,9 +66,6 @@ function parseAnnees(brut: string): number[] | null {
   return annees
 }
 
-const MESSAGE_COMPARAISON =
-  'Fournissez soit anneeA & anneeB, soit annees= (au moins deux années entre 1900 et 2200, séparées par des virgules).'
-
 const financierExportSchema = {
   querystring: {
     type: 'object',
@@ -99,7 +97,7 @@ export const rapportsRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
       if (anneeDebut > anneeFin) {
         return reply.code(400).send({
           error: 'Bad Request',
-          message: "L'année de début doit précéder (ou égaler) l'année de fin.",
+          message: t(langueDeRequete(req), 'rapports.anneeDebutApresFin'),
         })
       }
       const { baremes, membres } = await chargerDonneesRapport(app.prisma)
@@ -117,7 +115,9 @@ export const rapportsRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
       if (req.query.annees !== undefined) {
         const annees = parseAnnees(req.query.annees)
         if (!annees) {
-          return reply.code(400).send({ error: 'Bad Request', message: MESSAGE_COMPARAISON })
+          return reply
+            .code(400)
+            .send({ error: 'Bad Request', message: t(langueDeRequete(req), 'rapports.comparaisonInvalide') })
         }
         return comparerPeriodesMulti(annees, baremes, membres)
       }
@@ -125,7 +125,9 @@ export const rapportsRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
       if (req.query.anneeA !== undefined && req.query.anneeB !== undefined) {
         return comparerPeriodes(req.query.anneeA, req.query.anneeB, baremes, membres)
       }
-      return reply.code(400).send({ error: 'Bad Request', message: MESSAGE_COMPARAISON })
+      return reply
+        .code(400)
+        .send({ error: 'Bad Request', message: t(langueDeRequete(req), 'rapports.comparaisonInvalide') })
     },
   )
 
@@ -143,7 +145,7 @@ export const rapportsRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
       if (anneeDebut > anneeFin) {
         return reply.code(400).send({
           error: 'Bad Request',
-          message: "L'année de début doit précéder (ou égaler) l'année de fin.",
+          message: t(langueDeRequete(req), 'rapports.anneeDebutApresFin'),
         })
       }
       const { baremes, membres } = await chargerDonneesRapport(app.prisma)
@@ -179,7 +181,9 @@ export const rapportsRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
         // Nouveau format multi-années.
         const annees = parseAnnees(req.query.annees)
         if (!annees) {
-          return reply.code(400).send({ error: 'Bad Request', message: MESSAGE_COMPARAISON })
+          return reply
+            .code(400)
+            .send({ error: 'Bad Request', message: t(langueDeRequete(req), 'rapports.comparaisonInvalide') })
         }
         const comparaison = comparerPeriodesMulti(annees, baremes, membres)
         nomFichier = `comparaison-${annees.join('-')}.${format}`
@@ -196,7 +200,9 @@ export const rapportsRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
             ? await genererComparaisonPdf(comparaison)
             : await genererComparaisonExcel(comparaison)
       } else {
-        return reply.code(400).send({ error: 'Bad Request', message: MESSAGE_COMPARAISON })
+        return reply
+          .code(400)
+          .send({ error: 'Bad Request', message: t(langueDeRequete(req), 'rapports.comparaisonInvalide') })
       }
 
       return reply

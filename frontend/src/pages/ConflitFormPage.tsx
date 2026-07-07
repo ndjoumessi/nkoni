@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { Lock, ShieldAlert, Users } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
@@ -18,20 +19,12 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, Overline } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Field, Input, Select, Textarea } from '@/components/ui/Field'
-import { NIVEAU_LABELS } from '@/components/conflits/ConflitBadges'
 
-const NIVEAUX: { value: NiveauConfidentialite; label: string; aide: string }[] = [
-  { value: 'PUBLIC', label: 'Public', aide: 'Visible par tous les membres connectés.' },
-  { value: 'BUREAU', label: 'Bureau', aide: 'Visible par le bureau exécutif (ADMIN, Président, Secrétaire).' },
-  {
-    value: 'CONFIDENTIEL',
-    label: 'Confidentiel',
-    aide: 'Visible uniquement par vous, le responsable de suivi désigné, et l’administrateur.',
-  },
-]
+const NIVEAUX: NiveauConfidentialite[] = ['PUBLIC', 'BUREAU', 'CONFIDENTIEL']
 
 /** Déclaration d'un conflit (§4.4) — réservée ADMIN/PRESIDENT/SECRETAIRE. */
 export function ConflitFormPage() {
+  const { t } = useTranslation()
   const { user, accessToken } = useAuth()
   const toast = useToast()
   const navigate = useNavigate()
@@ -72,7 +65,7 @@ export function ConflitFormPage() {
     }
   }, [accessToken, autorise])
 
-  const aideNiveau = useMemo(() => NIVEAUX.find((n) => n.value === niveau)?.aide, [niveau])
+  const aideNiveau = t(`conflits.form.niveauAide.${niveau}`)
 
   if (!autorise) {
     return <Navigate to="/conflits" replace />
@@ -98,8 +91,9 @@ export function ConflitFormPage() {
     if (!accessToken) return
 
     // Validation inline + focus sur le 1er champ en erreur (§8).
-    const eTitre = titre.trim().length === 0 ? 'Le titre est requis.' : undefined
-    const eDescription = description.trim().length === 0 ? 'La description est requise.' : undefined
+    const eTitre = titre.trim().length === 0 ? t('conflits.form.erreurs.titreRequis') : undefined
+    const eDescription =
+      description.trim().length === 0 ? t('conflits.form.erreurs.descriptionRequise') : undefined
     setErrTitre(eTitre)
     setErrDescription(eDescription)
     if (eTitre || eDescription) {
@@ -121,10 +115,10 @@ export function ConflitFormPage() {
         },
         accessToken,
       )
-      toast.success('Conflit déclaré')
+      toast.success(t('conflits.form.toast.declare'))
       navigate(`/conflits/${cree.id}`)
     } catch (err) {
-      toast.error('Déclaration impossible', err instanceof ApiError ? err.message : messageErreur(err))
+      toast.error(t('conflits.form.toast.declarationImpossible'), err instanceof ApiError ? err.message : messageErreur(err))
     } finally {
       setSubmitting(false)
     }
@@ -133,19 +127,19 @@ export function ConflitFormPage() {
   return (
     <>
       <PageHeader
-        overline="Suivi familial"
-        title="Déclarer un conflit"
-        back={{ to: '/conflits', label: 'Retour aux conflits' }}
+        overline={t('conflits.overline')}
+        title={t('conflits.form.titre')}
+        back={{ to: '/conflits', label: t('conflits.detail.retour') }}
       />
 
       <form ref={formRef} onSubmit={soumettre} noValidate className="nk-reveal nk-d2 mt-7 space-y-6">
         <Card className="p-6">
           <div className="flex items-center gap-2">
             <ShieldAlert className="h-4 w-4 text-brass" aria-hidden="true" />
-            <Overline>Objet du conflit</Overline>
+            <Overline>{t('conflits.form.objet')}</Overline>
           </div>
           <div className="mt-4 space-y-4">
-            <Field label="Titre" required error={errTitre}>
+            <Field label={t('conflits.form.titreLabel')} required error={errTitre}>
               <Input
                 autoFocus
                 value={titre}
@@ -153,18 +147,18 @@ export function ConflitFormPage() {
                   setTitre(e.target.value)
                   setErrTitre(undefined)
                 }}
-                placeholder="Objet du litige…"
+                placeholder={t('conflits.form.titrePlaceholder')}
                 maxLength={300}
               />
             </Field>
-            <Field label="Description" required error={errDescription}>
+            <Field label={t('conflits.form.descriptionLabel')} required error={errDescription}>
               <Textarea
                 value={description}
                 onChange={(e) => {
                   setDescription(e.target.value)
                   setErrDescription(undefined)
                 }}
-                placeholder="Circonstances, parties, contexte…"
+                placeholder={t('conflits.form.descriptionPlaceholder')}
                 rows={5}
               />
             </Field>
@@ -174,28 +168,28 @@ export function ConflitFormPage() {
         <Card className="p-6">
           <div className="flex items-center gap-2">
             <Lock className="h-4 w-4 text-brass" aria-hidden="true" />
-            <Overline>Confidentialité</Overline>
+            <Overline>{t('conflits.form.confidentialite')}</Overline>
           </div>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <Field label="Niveau de confidentialité" required hint={aideNiveau}>
+            <Field label={t('conflits.form.niveauLabel')} required hint={aideNiveau}>
               <Select value={niveau} onChange={(e) => changerNiveau(e.target.value as NiveauConfidentialite)}>
                 {NIVEAUX.map((n) => (
-                  <option key={n.value} value={n.value}>
-                    {NIVEAU_LABELS[n.value].label}
+                  <option key={n} value={n}>
+                    {t(`conflits.niveau.${n}`)}
                   </option>
                 ))}
               </Select>
             </Field>
             {niveau === 'CONFIDENTIEL' && (
               <Field
-                label="Responsable de suivi"
-                hint="Pourra consulter ce conflit confidentiel (en plus de vous et de l’admin)."
+                label={t('conflits.form.responsableLabel')}
+                hint={t('conflits.form.responsableHint')}
               >
                 <Select
                   value={responsableSuiviId}
                   onChange={(e) => setResponsableSuiviId(e.target.value)}
                 >
-                  <option value="">— Aucun —</option>
+                  <option value="">{t('conflits.form.responsableAucun')}</option>
                   {responsables.map((r) => (
                     <option key={r.id} value={r.id}>
                       {r.email}
@@ -210,11 +204,11 @@ export function ConflitFormPage() {
         <Card className="p-6">
           <div className="flex items-center gap-2">
             <Users className="h-4 w-4 text-brass" aria-hidden="true" />
-            <Overline>Membres concernés</Overline>
+            <Overline>{t('conflits.form.membresConcernes')}</Overline>
           </div>
-          <p className="mt-2 text-sm text-faint">Parties prenantes du litige (optionnel).</p>
+          <p className="mt-2 text-sm text-faint">{t('conflits.form.membresAide')}</p>
           {membres.length === 0 ? (
-            <p className="mt-3 text-sm text-muted-foreground">Aucun membre disponible.</p>
+            <p className="mt-3 text-sm text-muted-foreground">{t('conflits.form.aucunMembre')}</p>
           ) : (
             <div className="mt-3 max-h-64 space-y-1 overflow-y-auto rounded-xl border border-hairline bg-surface-2/40 p-2">
               {membres.map((m) => (
@@ -237,20 +231,19 @@ export function ConflitFormPage() {
           )}
           {membresConcernes.size > 0 && (
             <p className="mt-2 text-xs text-faint">
-              {membresConcernes.size} membre{membresConcernes.size > 1 ? 's' : ''} sélectionné
-              {membresConcernes.size > 1 ? 's' : ''}
+              {t('conflits.form.membresSelectionnes', { count: membresConcernes.size })}
             </p>
           )}
         </Card>
 
         <Card className="p-6">
-          <Overline>Notes de suivi</Overline>
-          <p className="mt-2 text-sm text-faint">Optionnel — éléments de suivi / résolution.</p>
+          <Overline>{t('conflits.form.notesSuivi')}</Overline>
+          <p className="mt-2 text-sm text-faint">{t('conflits.form.notesAide')}</p>
           <div className="mt-3">
             <Textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Notes internes…"
+              placeholder={t('conflits.form.notesPlaceholder')}
               rows={3}
             />
           </div>
@@ -258,10 +251,10 @@ export function ConflitFormPage() {
 
         <div className="flex justify-end gap-2">
           <Button type="button" variant="ghost" onClick={() => navigate('/conflits')}>
-            Annuler
+            {t('conflits.form.annuler')}
           </Button>
           <Button type="submit" icon={ShieldAlert} loading={submitting}>
-            Déclarer le conflit
+            {t('conflits.form.declarer')}
           </Button>
         </div>
       </form>

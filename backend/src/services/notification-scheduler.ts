@@ -29,8 +29,10 @@ import {
 import {
   creerNotification,
   estTypeActifPour,
+  resoudreLangueDestinataire,
   type NotificationPrisma,
 } from './notification.service'
+import { t } from '../lib/i18n'
 import { orgContext } from '../lib/org-context'
 
 const JOURS_ANTISPAM = 7
@@ -122,11 +124,13 @@ export async function executerVerificationRetards(
     })
     if (recente) continue
 
+    // §4 : rappel rendu dans la langue du membre DESTINATAIRE (chacun dans sa langue).
+    const langue = await resoudreLangueDestinataire(prisma, m.compteUtilisateurId)
     await creerNotification(prisma, {
       destinataireId: m.compteUtilisateurId,
       type: 'COTISATION_RETARD',
-      titre: 'Cotisation en retard',
-      message: "Votre cotisation n'est pas à jour.",
+      titre: t(langue, 'notifications.cotisationRetard.titre'),
+      message: t(langue, 'notifications.cotisationRetard.message'),
       entiteType: 'Membre',
       entiteId: m.id,
     })

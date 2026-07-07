@@ -1,4 +1,5 @@
 import { useRef, useState, type FormEvent } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { AlertCircle, ArrowLeft, ArrowRight, Lock, Mail } from 'lucide-react'
 import { ApiError } from '@/lib/api'
@@ -46,6 +47,7 @@ function lireEmailMemorise(): string {
 /** Page de connexion NKONI — direction « Laiton & Jade ». */
 export function LoginPage() {
   const { login, isAuthenticated, loading, user } = useAuth()
+  const { t } = useTranslation()
   const navigate = useNavigate()
 
   // Pré-remplissage depuis l'e-mail mémorisé au précédent login « Se souvenir de moi ».
@@ -71,9 +73,9 @@ export function LoginPage() {
     // Validation inline par champ + focus sur le 1er en erreur (§8).
     const eEmail =
       !email.includes('@') || email.trim().length < 3
-        ? 'Veuillez saisir une adresse e-mail valide.'
+        ? t('commun.validation.emailInvalide')
         : undefined
-    const ePassword = password.length === 0 ? 'Veuillez saisir votre mot de passe.' : undefined
+    const ePassword = password.length === 0 ? t('login.erreurs.motDePasseRequis') : undefined
     setErrEmail(eEmail)
     setErrPassword(ePassword)
     if (eEmail || ePassword) {
@@ -101,11 +103,11 @@ export function LoginPage() {
       navigate(cheminApresConnexion(connecte.role), { replace: true })
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
-        setError('Identifiants invalides.')
+        setError(t('login.erreurs.identifiants'))
       } else if (err instanceof ApiError && err.status === 403) {
-        setError('Ce compte est désactivé.')
+        setError(t('login.erreurs.compteDesactive'))
       } else {
-        setError('Une erreur est survenue. Réessayez plus tard.')
+        setError(t('commun.erreurGenerique'))
       }
     } finally {
       setSubmitting(false)
@@ -123,19 +125,17 @@ export function LoginPage() {
           <h1 className="mt-4 font-display text-2xl font-semibold tracking-tight text-foreground">
             NKONI
           </h1>
-          <p className="mt-1.5 text-sm text-muted-foreground">
-            Votre espace de gestion associative et familiale
-          </p>
+          <p className="mt-1.5 text-sm text-muted-foreground">{t('login.sousTitre')}</p>
         </div>
 
         <Card variant="feature" className="nk-reveal nk-d2 p-7 sm:p-8">
-          <h2 className="font-display text-xl font-semibold text-foreground">Connexion</h2>
-          <p className="mt-1 text-sm text-muted-foreground">Accédez à votre espace membre.</p>
+          <h2 className="font-display text-xl font-semibold text-foreground">{t('login.titre')}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">{t('login.accroche')}</p>
 
           <form ref={formRef} onSubmit={handleSubmit} className="mt-6 space-y-4" noValidate>
             <div>
               <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-foreground/80">
-                Adresse e-mail
+                {t('login.emailLabel')}
               </label>
               <div className="relative">
                 <Mail
@@ -152,7 +152,7 @@ export function LoginPage() {
                     setEmail(e.target.value)
                     setErrEmail(undefined)
                   }}
-                  placeholder="vous@exemple.com"
+                  placeholder={t('login.emailPlaceholder')}
                   className="pl-10"
                   aria-invalid={errEmail ? true : undefined}
                   aria-describedby={errEmail ? 'email-err' : undefined}
@@ -166,7 +166,7 @@ export function LoginPage() {
                 htmlFor="password"
                 className="mb-1.5 block text-sm font-medium text-foreground/80"
               >
-                Mot de passe
+                {t('login.motDePasseLabel')}
               </label>
               <PasswordInput
                 id="password"
@@ -196,10 +196,10 @@ export function LoginPage() {
               />
               <span className="select-none">
                 <span className="block text-sm font-medium text-foreground/80">
-                  Se souvenir de moi
+                  {t('login.seSouvenir')}
                 </span>
                 <span className="mt-0.5 block text-xs text-faint">
-                  Reste connecté plus longtemps sur cet appareil.
+                  {t('login.seSouvenirDetail')}
                 </span>
               </span>
             </label>
@@ -215,10 +215,10 @@ export function LoginPage() {
 
             <Button type="submit" loading={submitting} className="w-full" size="lg">
               {submitting ? (
-                'Connexion…'
+                t('login.boutonEnCours')
               ) : (
                 <>
-                  Se connecter
+                  {t('commun.actions.seConnecter')}
                   <ArrowRight
                     className="h-4 w-4 transition-transform group-hover:translate-x-0.5"
                     aria-hidden="true"
@@ -235,7 +235,7 @@ export function LoginPage() {
             className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
           >
             <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-            Retour à l'accueil
+            {t('commun.actions.retourAccueil')}
           </Link>
         </div>
       </div>

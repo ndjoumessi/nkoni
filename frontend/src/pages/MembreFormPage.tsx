@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { Phone, User, Users } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
@@ -21,11 +22,7 @@ import { Field, Input, Select, Textarea } from '@/components/ui/Field'
 import { FormSection } from '@/components/ui/FormSection'
 import { Skeleton } from '@/components/ui/Skeleton'
 
-const STATUTS: { value: StatutMembre; label: string }[] = [
-  { value: 'ACTIF', label: 'Actif' },
-  { value: 'INACTIF', label: 'Inactif' },
-  { value: 'DECEDE', label: 'Décédé' },
-]
+const STATUTS: StatutMembre[] = ['ACTIF', 'INACTIF', 'DECEDE']
 
 /** Statuts qui figent la fin de contribution (§4.1) → champ anneeFinContribution visible. */
 const STATUTS_FIN: StatutMembre[] = ['DECEDE', 'INACTIF']
@@ -58,6 +55,7 @@ type Errors = Partial<Record<keyof FormState, string>>
  * Réservé ADMIN + SECRETAIRE (Créer/Modifier §2) — sinon redirection.
  */
 export function MembreFormPage() {
+  const { t } = useTranslation()
   const { id } = useParams<{ id: string }>()
   const isEdit = Boolean(id)
   const { user, accessToken } = useAuth()
@@ -81,16 +79,17 @@ export function MembreFormPage() {
   /** Contrôles côté client — retourne les erreurs par champ (vide = valide). */
   const valider = (f: FormState): Errors => {
     const errs: Errors = {}
-    if (f.nom.trim().length === 0) errs.nom = 'Le nom est requis.'
-    if (f.prenom.trim().length === 0) errs.prenom = 'Le prénom est requis.'
+    if (f.nom.trim().length === 0) errs.nom = t('membres.form.validation.nomRequis')
+    if (f.prenom.trim().length === 0) errs.prenom = t('membres.form.validation.prenomRequis')
     const annee = Number(f.anneeAdhesion)
-    if (f.anneeAdhesion.trim().length === 0) errs.anneeAdhesion = "L'année d'adhésion est requise."
+    if (f.anneeAdhesion.trim().length === 0)
+      errs.anneeAdhesion = t('membres.form.validation.anneeAdhesionRequise')
     else if (!Number.isInteger(annee) || annee < 1900 || annee > 2200)
-      errs.anneeAdhesion = 'Année invalide (entre 1900 et 2200).'
+      errs.anneeAdhesion = t('membres.form.validation.anneeInvalide')
     if (STATUTS_FIN.includes(f.statut) && f.anneeFinContribution.trim().length > 0) {
       const fin = Number(f.anneeFinContribution)
       if (!Number.isInteger(fin) || fin < 1900 || fin > 2200)
-        errs.anneeFinContribution = 'Année invalide (entre 1900 et 2200).'
+        errs.anneeFinContribution = t('membres.form.validation.anneeInvalide')
     }
     return errs
   }
@@ -134,7 +133,7 @@ export function MembreFormPage() {
         }
       } catch (e) {
         if (e instanceof DOMException && e.name === 'AbortError') return
-        if (active) toast.error('Chargement impossible', e instanceof ApiError ? e.message : undefined)
+        if (active) toast.error(t('membres.form.toast.chargementImpossible'), e instanceof ApiError ? e.message : undefined)
       } finally {
         if (active) setLoading(false)
       }
@@ -143,7 +142,7 @@ export function MembreFormPage() {
       active = false
       controller.abort()
     }
-  }, [accessToken, id, isEdit, toast])
+  }, [accessToken, id, isEdit, toast, t])
 
   if (!peutGererMembres(user?.role)) {
     return <Navigate to="/membres" replace />
@@ -189,12 +188,15 @@ export function MembreFormPage() {
           ? await membresApi.update(id, payload, accessToken)
           : await membresApi.create(payload, accessToken)
 
-      toast.success(isEdit ? 'Membre mis à jour' : 'Membre créé', `${membre.nom} ${membre.prenom}`)
+      toast.success(
+        isEdit ? t('membres.form.toast.miseAJour') : t('membres.form.toast.cree'),
+        `${membre.nom} ${membre.prenom}`,
+      )
       navigate(`/membres/${membre.id}`, { replace: true })
     } catch (e) {
       toast.error(
-        'Enregistrement impossible',
-        e instanceof ApiError ? e.message : 'Réessayez plus tard.',
+        t('membres.form.toast.enregistrementImpossible'),
+        e instanceof ApiError ? e.message : t('membres.form.toast.reessayez'),
       )
     } finally {
       setSaving(false)
@@ -207,9 +209,9 @@ export function MembreFormPage() {
   return (
     <div className="mx-auto max-w-2xl">
       <PageHeader
-        overline={isEdit ? 'Modifier' : 'Nouveau'}
-        title={isEdit ? 'Modifier le membre' : 'Nouveau membre'}
-        back={{ to: backTo, label: isEdit ? 'Fiche du membre' : 'Membres' }}
+        overline={isEdit ? t('membres.form.overlineModifier') : t('membres.form.overlineNouveau')}
+        title={isEdit ? t('membres.form.titreModifier') : t('membres.form.titreNouveau')}
+        back={{ to: backTo, label: isEdit ? t('membres.form.backFiche') : t('membres.form.backMembres') }}
       />
 
       {loading ? (
@@ -223,21 +225,21 @@ export function MembreFormPage() {
       ) : (
         <Card className="nk-reveal nk-d2 mt-7 p-6">
           <form ref={formRef} onSubmit={handleSubmit} noValidate className="space-y-5">
-            <FormSection icon={User} title="Identité">
-              <Field label="Nom" required error={errors.nom}>
+            <FormSection icon={User} title={t('membres.form.section.identite')}>
+              <Field label={t('membres.form.champ.nom')} required error={errors.nom}>
                 <Input value={form.nom} onChange={(e) => set('nom', e.target.value)} />
               </Field>
-              <Field label="Prénom" required error={errors.prenom}>
+              <Field label={t('membres.form.champ.prenom')} required error={errors.prenom}>
                 <Input value={form.prenom} onChange={(e) => set('prenom', e.target.value)} />
               </Field>
-              <Field label="Sexe">
+              <Field label={t('membres.form.champ.sexe')}>
                 <Select value={form.sexe} onChange={(e) => set('sexe', e.target.value)}>
-                  <option value="">—</option>
-                  <option value="M">Masculin</option>
-                  <option value="F">Féminin</option>
+                  <option value="">{t('membres.form.champ.tiret')}</option>
+                  <option value="M">{t('membres.form.champ.masculin')}</option>
+                  <option value="F">{t('membres.form.champ.feminin')}</option>
                 </Select>
               </Field>
-              <Field label="Date de naissance">
+              <Field label={t('membres.form.champ.dateNaissance')}>
                 <Input
                   type="date"
                   value={form.dateNaissance}
@@ -246,11 +248,11 @@ export function MembreFormPage() {
               </Field>
             </FormSection>
 
-            <FormSection icon={Phone} title="Coordonnées">
-              <Field label="Téléphone">
+            <FormSection icon={Phone} title={t('membres.form.section.coordonnees')}>
+              <Field label={t('membres.form.champ.telephone')}>
                 <Input value={form.telephone} onChange={(e) => set('telephone', e.target.value)} />
               </Field>
-              <Field label="Adresse" className="sm:col-span-2">
+              <Field label={t('membres.form.champ.adresse')} className="sm:col-span-2">
                 <Textarea
                   value={form.adresse}
                   onChange={(e) => set('adresse', e.target.value)}
@@ -259,14 +261,14 @@ export function MembreFormPage() {
               </Field>
             </FormSection>
 
-            <FormSection icon={Users} title="Adhésion & rôle familial">
-              <Field label="Fonction sociale">
+            <FormSection icon={Users} title={t('membres.form.section.adhesion')}>
+              <Field label={t('membres.form.champ.fonctionSociale')}>
                 <Input
                   value={form.fonctionSociale}
                   onChange={(e) => set('fonctionSociale', e.target.value)}
                 />
               </Field>
-              <Field label="Année d'adhésion" required error={errors.anneeAdhesion}>
+              <Field label={t('membres.form.champ.anneeAdhesion')} required error={errors.anneeAdhesion}>
                 <Input
                   type="number"
                   min={1900}
@@ -275,21 +277,21 @@ export function MembreFormPage() {
                   onChange={(e) => set('anneeAdhesion', e.target.value)}
                 />
               </Field>
-              <Field label="Statut">
+              <Field label={t('membres.form.champ.statut')}>
                 <Select
                   value={form.statut}
                   onChange={(e) => set('statut', e.target.value as StatutMembre)}
                 >
                   {STATUTS.map((s) => (
-                    <option key={s.value} value={s.value}>
-                      {s.label}
+                    <option key={s} value={s}>
+                      {t(`membres.form.statutOptions.${s}`)}
                     </option>
                   ))}
                 </Select>
               </Field>
-              <Field label="Branche familiale">
+              <Field label={t('membres.form.champ.brancheFamiliale')}>
                 <Select value={form.brancheId} onChange={(e) => set('brancheId', e.target.value)}>
-                  <option value="">—</option>
+                  <option value="">{t('membres.form.champ.tiret')}</option>
                   {branches.map((b) => (
                     <option key={b.id} value={b.id}>
                       {b.nom}
@@ -297,12 +299,12 @@ export function MembreFormPage() {
                   ))}
                 </Select>
               </Field>
-              <Field label="Chef de sous-famille">
+              <Field label={t('membres.form.champ.chefSousFamille')}>
                 <Select
                   value={form.chefSousFamilleId}
                   onChange={(e) => set('chefSousFamilleId', e.target.value)}
                 >
-                  <option value="">—</option>
+                  <option value="">{t('membres.form.champ.tiret')}</option>
                   {membres
                     .filter((m) => m.id !== id)
                     .map((m) => (
@@ -314,8 +316,8 @@ export function MembreFormPage() {
               </Field>
               {finVisible && (
                 <Field
-                  label="Année de fin de contribution"
-                  hint="Laissé vide = renseigné automatiquement à l'année en cours."
+                  label={t('membres.form.champ.anneeFinContribution')}
+                  hint={t('membres.form.champ.anneeFinHint')}
                   error={errors.anneeFinContribution}
                 >
                   <Input
@@ -331,10 +333,10 @@ export function MembreFormPage() {
 
             <div className="flex items-center justify-end gap-3 pt-2">
               <ButtonLink to={backTo} variant="ghost">
-                Annuler
+                {t('membres.form.annuler')}
               </ButtonLink>
               <Button type="submit" loading={saving}>
-                {isEdit ? 'Enregistrer' : 'Créer le membre'}
+                {isEdit ? t('membres.form.enregistrer') : t('membres.form.creer')}
               </Button>
             </div>
           </form>

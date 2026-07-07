@@ -39,6 +39,89 @@ describe('notifierVersement (déclencheur §5)', () => {
     expect(creees[0].message).toContain('2025')
   })
 
+  it('rendu dans la langue du DESTINATAIRE (EN), pas de l’acteur qui déclenche', async () => {
+    // §4 : un versement peut être saisi par n'importe qui (ex. trésorière FR) ; la notification
+    // part au MEMBRE et doit être rendue dans SA langue à lui (ici EN), indépendamment de l'acteur.
+    // `notifierVersement` ne reçoit d'ailleurs aucune info sur l'acteur : seul le destinataire compte.
+    const { prisma, notifs } = buildNotificationsMock({
+      membres: [{ id: 'm-en', compteUtilisateurId: 'u-en' }],
+      utilisateurs: [{ id: 'u-en', langue: 'EN' }],
+    })
+    await notifierVersement(prisma, {
+      versementId: 'v1',
+      membreId: 'm-en',
+      montant: 30_000,
+      annee: 2025,
+    })
+    const n = [...notifs.values()][0]
+    expect(n.titre).toBe('Payment recorded')
+    expect(n.message).toContain('Your payment of')
+    expect(n.message).toContain('has been recorded.')
+    expect(n.message).toContain('2025')
+  })
+
+  it('langue perso absente → hérite du défaut de l’organisation (EN)', async () => {
+    const { prisma, notifs } = buildNotificationsMock({
+      membres: [{ id: 'm-h', compteUtilisateurId: 'u-h' }],
+      utilisateurs: [{ id: 'u-h', langue: null, organisationLangueDefaut: 'EN' }],
+    })
+    await notifierVersement(prisma, {
+      versementId: 'v1',
+      membreId: 'm-h',
+      montant: 5_000,
+      annee: 2026,
+    })
+    expect([...notifs.values()][0].titre).toBe('Payment recorded')
+  })
+
+  it('destinataire FR (défaut) → notification en français', async () => {
+    const { prisma, notifs } = buildNotificationsMock({
+      membres: [{ id: 'm-fr', compteUtilisateurId: 'u-fr' }],
+      utilisateurs: [{ id: 'u-fr', langue: 'FR' }],
+    })
+    await notifierVersement(prisma, {
+      versementId: 'v1',
+      membreId: 'm-fr',
+      montant: 30_000,
+      annee: 2025,
+    })
+    const n = [...notifs.values()][0]
+    expect(n.titre).toBe('Versement enregistré')
+    expect(n.message).toContain('a été enregistré.')
+  })
+
+  it('montant rendu dans la DEVISE de l’org du destinataire (EUR → euros, pas FCFA) — F6', async () => {
+    // §5/F6 : le montant d'une notification suit la devise de l'organisation de CELUI qui la reçoit.
+    // Un membre d'une org en EUR voit « € », jamais « FCFA », même si l'acteur est ailleurs.
+    const { prisma, notifs } = buildNotificationsMock({
+      membres: [{ id: 'm-eur', compteUtilisateurId: 'u-eur' }],
+      utilisateurs: [{ id: 'u-eur', langue: 'FR', organisationDevise: 'EUR' }],
+    })
+    await notifierVersement(prisma, {
+      versementId: 'v1',
+      membreId: 'm-eur',
+      montant: 30_000,
+      annee: 2025,
+    })
+    const n = [...notifs.values()][0]
+    expect(n.message).toContain('€')
+    expect(n.message).not.toContain('FCFA')
+  })
+
+  it('sans devise d’org connue → repli FCFA (rétro-compatible)', async () => {
+    const { prisma, notifs } = buildNotificationsMock({
+      membres: [{ id: 'm-def', compteUtilisateurId: 'u-def' }],
+      utilisateurs: [{ id: 'u-def', langue: 'FR' }],
+    })
+    await notifierVersement(prisma, {
+      versementId: 'v1',
+      membreId: 'm-def',
+      montant: 30_000,
+      annee: 2025,
+    })
+    expect([...notifs.values()][0].message).toContain('FCFA')
+  })
+
   it('membre SANS compte → aucune notification créée', async () => {
     const { prisma, notifs } = buildNotificationsMock({
       membres: [{ id: 'm-sans', compteUtilisateurId: null }],

@@ -1,4 +1,5 @@
 import { useRef, useState, type FormEvent } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { AlertCircle, ArrowLeft, ArrowRight, Building2, Lock, Mail } from 'lucide-react'
 import { ApiError } from '@/lib/api'
@@ -21,15 +22,16 @@ function ErreurChamp({ id, children }: { id: string; children: string }) {
   )
 }
 
-const DEVISES: { value: InscriptionInput['devise']; label: string }[] = [
-  { value: 'FCFA', label: 'FCFA (Franc CFA)' },
-  { value: 'EUR', label: 'EUR (Euro)' },
-  { value: 'USD', label: 'USD (Dollar US)' },
-  { value: 'CAD', label: 'CAD (Dollar canadien)' },
+// Libellés résolus à l'affichage (§4 i18n) : les tableaux ne portent que valeur + clé de trad.
+const DEVISES: { value: InscriptionInput['devise']; labelKey: string }[] = [
+  { value: 'FCFA', labelKey: 'inscription.devises.fcfa' },
+  { value: 'EUR', labelKey: 'inscription.devises.eur' },
+  { value: 'USD', labelKey: 'inscription.devises.usd' },
+  { value: 'CAD', labelKey: 'inscription.devises.cad' },
 ]
-const LANGUES: { value: InscriptionInput['langue']; label: string }[] = [
-  { value: 'FR', label: 'Français' },
-  { value: 'EN', label: 'English' },
+const LANGUES: { value: InscriptionInput['langue']; labelKey: string }[] = [
+  { value: 'FR', labelKey: 'commun.langue.fr' },
+  { value: 'EN', labelKey: 'commun.langue.en' },
 ]
 
 /**
@@ -39,6 +41,7 @@ const LANGUES: { value: InscriptionInput['langue']; label: string }[] = [
  */
 export function InscriptionPage() {
   const { inscription, isAuthenticated, loading } = useAuth()
+  const { t } = useTranslation()
   const navigate = useNavigate()
 
   const [nomOrganisation, setNomOrganisation] = useState('')
@@ -63,15 +66,13 @@ export function InscriptionPage() {
 
     // Validation inline par champ + focus sur le 1er en erreur (§8).
     const eNom =
-      nomOrganisation.trim().length === 0
-        ? 'Veuillez saisir le nom de votre organisation.'
-        : undefined
+      nomOrganisation.trim().length === 0 ? t('inscription.erreurs.nomRequis') : undefined
     const eEmail =
       !email.includes('@') || email.trim().length < 3
-        ? 'Veuillez saisir une adresse e-mail valide.'
+        ? t('commun.validation.emailInvalide')
         : undefined
     const ePassword =
-      password.length < 8 ? 'Le mot de passe doit contenir au moins 8 caractères.' : undefined
+      password.length < 8 ? t('inscription.erreurs.motDePasseCourt') : undefined
     setErrNom(eNom)
     setErrEmail(eEmail)
     setErrPassword(ePassword)
@@ -93,11 +94,11 @@ export function InscriptionPage() {
     } catch (err) {
       // 409 : email déjà utilisé — message GÉNÉRIQUE (ne pas révéler l'existence d'un compte).
       if (err instanceof ApiError && err.status === 409) {
-        setError('Impossible de créer cet espace avec ces informations.')
+        setError(t('inscription.erreurs.conflit'))
       } else if (err instanceof ApiError && err.status === 400) {
-        setError('Certaines informations sont invalides. Vérifiez le formulaire.')
+        setError(t('inscription.erreurs.invalide'))
       } else {
-        setError('Une erreur est survenue. Réessayez plus tard.')
+        setError(t('commun.erreurGenerique'))
       }
     } finally {
       setSubmitting(false)
@@ -115,16 +116,14 @@ export function InscriptionPage() {
           <h1 className="mt-4 font-display text-2xl font-semibold tracking-tight text-foreground">
             NKONI
           </h1>
-          <p className="mt-1.5 text-sm text-muted-foreground">
-            Créez l'espace sécurisé de votre communauté
-          </p>
+          <p className="mt-1.5 text-sm text-muted-foreground">{t('inscription.sousTitre')}</p>
         </div>
 
         <Card variant="feature" className="nk-reveal nk-d2 p-7 sm:p-8">
-          <h2 className="font-display text-xl font-semibold text-foreground">Créer mon espace</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Quelques informations pour démarrer. Vous en serez l'administrateur.
-          </p>
+          <h2 className="font-display text-xl font-semibold text-foreground">
+            {t('commun.actions.creerMonEspace')}
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">{t('inscription.accroche')}</p>
 
           <form ref={formRef} onSubmit={handleSubmit} className="mt-6 space-y-4" noValidate>
             <div>
@@ -132,7 +131,7 @@ export function InscriptionPage() {
                 htmlFor="nomOrganisation"
                 className="mb-1.5 block text-sm font-medium text-foreground/80"
               >
-                Nom de l'organisation
+                {t('inscription.nomLabel')}
               </label>
               <div className="relative">
                 <Building2
@@ -149,7 +148,7 @@ export function InscriptionPage() {
                     setNomOrganisation(e.target.value)
                     setErrNom(undefined)
                   }}
-                  placeholder="Famille Wamba Tchoupa, Amicale…"
+                  placeholder={t('inscription.nomPlaceholder')}
                   className="pl-10"
                   aria-invalid={errNom ? true : undefined}
                   aria-describedby={errNom ? 'nom-err' : undefined}
@@ -161,7 +160,7 @@ export function InscriptionPage() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label htmlFor="devise" className="mb-1.5 block text-sm font-medium text-foreground/80">
-                  Devise
+                  {t('inscription.deviseLabel')}
                 </label>
                 <Select
                   id="devise"
@@ -171,14 +170,14 @@ export function InscriptionPage() {
                 >
                   {DEVISES.map((d) => (
                     <option key={d.value} value={d.value}>
-                      {d.label}
+                      {t(d.labelKey)}
                     </option>
                   ))}
                 </Select>
               </div>
               <div>
                 <label htmlFor="langue" className="mb-1.5 block text-sm font-medium text-foreground/80">
-                  Langue
+                  {t('inscription.langueLabel')}
                 </label>
                 <Select
                   id="langue"
@@ -188,17 +187,17 @@ export function InscriptionPage() {
                 >
                   {LANGUES.map((l) => (
                     <option key={l.value} value={l.value}>
-                      {l.label}
+                      {t(l.labelKey)}
                     </option>
                   ))}
                 </Select>
               </div>
             </div>
-            <p className="text-xs text-faint">La devise et la langue sont définitives après création.</p>
+            <p className="text-xs text-faint">{t('inscription.immuable')}</p>
 
             <div>
               <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-foreground/80">
-                Adresse e-mail (administrateur)
+                {t('inscription.emailLabel')}
               </label>
               <div className="relative">
                 <Mail
@@ -215,7 +214,7 @@ export function InscriptionPage() {
                     setEmail(e.target.value)
                     setErrEmail(undefined)
                   }}
-                  placeholder="vous@exemple.com"
+                  placeholder={t('inscription.emailPlaceholder')}
                   className="pl-10"
                   aria-invalid={errEmail ? true : undefined}
                   aria-describedby={errEmail ? 'email-err' : undefined}
@@ -226,7 +225,7 @@ export function InscriptionPage() {
 
             <div>
               <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-foreground/80">
-                Mot de passe
+                {t('inscription.motDePasseLabel')}
               </label>
               <PasswordInput
                 id="password"
@@ -246,7 +245,7 @@ export function InscriptionPage() {
                 <ErreurChamp id="password-err">{errPassword}</ErreurChamp>
               ) : (
                 <span id="password-hint" className="mt-1.5 block text-xs text-faint">
-                  8 caractères minimum.
+                  {t('inscription.motDePasseIndice')}
                 </span>
               )}
             </div>
@@ -262,10 +261,10 @@ export function InscriptionPage() {
 
             <Button type="submit" loading={submitting} className="w-full" size="lg">
               {submitting ? (
-                'Création…'
+                t('inscription.boutonEnCours')
               ) : (
                 <>
-                  Créer mon espace
+                  {t('commun.actions.creerMonEspace')}
                   <ArrowRight
                     className="h-4 w-4 transition-transform group-hover:translate-x-0.5"
                     aria-hidden="true"
@@ -276,9 +275,9 @@ export function InscriptionPage() {
           </form>
 
           <p className="mt-5 text-center text-sm text-muted-foreground">
-            Vous avez déjà un espace ?{' '}
+            {t('inscription.dejaEspace')}{' '}
             <Link to="/login" className="font-medium text-brass transition-colors hover:text-amber">
-              Se connecter
+              {t('commun.actions.seConnecter')}
             </Link>
           </p>
         </Card>
@@ -289,7 +288,7 @@ export function InscriptionPage() {
             className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
           >
             <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-            Retour à l'accueil
+            {t('commun.actions.retourAccueil')}
           </Link>
         </div>
       </div>

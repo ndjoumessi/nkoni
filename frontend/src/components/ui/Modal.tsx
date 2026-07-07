@@ -1,4 +1,5 @@
 import { useEffect, type ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -22,6 +23,7 @@ export function Modal({
   children: ReactNode
   className?: string
 }) {
+  const { t } = useTranslation()
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {
@@ -47,7 +49,7 @@ export function Modal({
     >
       <button
         type="button"
-        aria-label="Fermer"
+        aria-label={t('ui.modal.fermer')}
         onClick={onClose}
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
       />
@@ -62,7 +64,7 @@ export function Modal({
           <button
             type="button"
             onClick={onClose}
-            aria-label="Fermer"
+            aria-label={t('ui.modal.fermer')}
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground"
           >
             <X className="h-5 w-5" aria-hidden="true" />

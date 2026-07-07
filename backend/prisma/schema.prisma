@@ -115,6 +115,10 @@ model Utilisateur {
   passwordHash         String
   role                 Role
   actif                Boolean        @default(true)
+  // §4 i18n — préférence de langue PERSONNELLE (indépendante de `Organisation.langueDefaut`).
+  // NULLABLE : null = préférence non exprimée → le backend retombe sur l'en-tête Accept-Language
+  // puis FR (voir lib/i18n.ts). Un utilisateur la fixe via PATCH /auth/me/langue.
+  langue               Langue?
   membre               Membre?        @relation("CompteMembre")
   // V2 (§4.4) — conflits déclarés / suivis par ce compte.
   conflitsAuteur       Conflit[]      @relation("ConflitAuteur")

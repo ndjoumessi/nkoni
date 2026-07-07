@@ -1,5 +1,6 @@
 import argon2 from 'argon2'
 import type { Role } from '../middlewares/permissions'
+import type { Langue, Devise } from '../lib/i18n'
 
 /**
  * Logique d'authentification, découplée de Fastify et testable avec un Prisma mocké.
@@ -14,6 +15,21 @@ export interface AuthenticatedUser {
   /** Organisation d'appartenance (SaaS §2). Null pour un futur Super-Admin transverse (§2.3). */
   organisationId: string | null
   actif: boolean
+  /** Préférence de langue PERSO (§4). Null = non exprimée → on hérite du défaut de l'org. */
+  langue: Langue | null
+  /** Langue par défaut de l'organisation (§4). Null pour le SUPER_ADMIN (sans org). */
+  organisationLangueDefaut: Langue | null
+  /** Devise de l'organisation (§5, immuable). Null pour le SUPER_ADMIN (sans org). */
+  devise: Devise | null
+}
+
+/**
+ * Langue EFFECTIVE d'un utilisateur (§4) : sa préférence perso si exprimée, sinon le défaut de
+ * son organisation (cohérent avec le choix fait à l'inscription). Null seulement pour un compte
+ * sans préférence ET sans org (SUPER_ADMIN) → l'i18n retombera alors sur Accept-Language/FR.
+ */
+export function langueEffective(user: AuthenticatedUser): Langue | null {
+  return user.langue ?? user.organisationLangueDefaut
 }
 
 /**
@@ -51,6 +67,10 @@ export function hashPassword(plain: string): Promise<string> {
 
 function toAuthUser(record: Record<string, unknown>): AuthenticatedUser {
   const membre = record['membre'] as { id: string } | null | undefined
+  const organisation = record['organisation'] as
+    | { langueDefaut?: Langue; devise?: Devise }
+    | null
+    | undefined
   return {
     id: record['id'] as string,
     email: record['email'] as string,
@@ -58,6 +78,9 @@ function toAuthUser(record: Record<string, unknown>): AuthenticatedUser {
     membreId: membre?.id ?? null,
     organisationId: (record['organisationId'] as string | null | undefined) ?? null,
     actif: record['actif'] as boolean,
+    langue: (record['langue'] as Langue | null | undefined) ?? null,
+    organisationLangueDefaut: organisation?.langueDefaut ?? null,
+    devise: organisation?.devise ?? null,
   }
 }
 
@@ -82,8 +105,12 @@ export async function verifyCredentials(
       role: true,
       actif: true,
       organisationId: true,
+      langue: true,
       passwordHash: true,
       membre: { select: { id: true } },
+      // §4 : défaut de langue de l'org → langue effective si l'utilisateur n'a pas de préférence.
+      // §5 : devise de l'org → formatage locale-aware des montants côté front (F6).
+      organisation: { select: { langueDefaut: true, devise: true } },
     },
   })
   if (!record) return null
@@ -135,9 +162,25 @@ export async function findUserById(
       role: true,
       actif: true,
       organisationId: true,
+      langue: true,
       membre: { select: { id: true } },
+      organisation: { select: { langueDefaut: true, devise: true } },
     },
   })
   if (!record) return null
   return toAuthUser(record)
+}
+
+/**
+ * Fixe la préférence de langue perso (§4) du compte et renvoie l'utilisateur rechargé
+ * (pour ré-émettre un access token portant la nouvelle langue). Keyé sur l'id du compte
+ * authentifié → appelé en `runUnscoped` par la route (sûr, y compris pour un SUPER_ADMIN).
+ */
+export async function definirLangue(
+  prisma: AuthPrisma,
+  userId: string,
+  langue: Langue,
+): Promise<AuthenticatedUser | null> {
+  await prisma.utilisateur.update({ where: { id: userId }, data: { langue } })
+  return findUserById(prisma, userId)
 }

@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
 import { Prisma } from '../generated/prisma/client'
+import { t, langueDeRequete } from '../lib/i18n'
 import type { CreationScopee } from '../lib/tenant-extension'
 import { authenticate } from '../middlewares/authenticate'
 import { requirePermission } from '../middlewares/permissions'
@@ -128,9 +129,10 @@ export const versementsRoutes: FastifyPluginAsync = async (
         return reply.code(201).send(result)
       } catch (err) {
         if (isP2025(err)) {
-          return reply
-            .code(404)
-            .send({ error: 'Not Found', message: 'Contribution introuvable.' })
+          return reply.code(404).send({
+            error: 'Not Found',
+            message: t(langueDeRequete(req), 'versements.contributionIntrouvable'),
+          })
         }
         throw err
       }
@@ -215,9 +217,10 @@ export const versementsRoutes: FastifyPluginAsync = async (
         return versement
       } catch (err) {
         if (isP2025(err)) {
-          return reply
-            .code(404)
-            .send({ error: 'Not Found', message: 'Versement introuvable.' })
+          return reply.code(404).send({
+            error: 'Not Found',
+            message: t(langueDeRequete(req), 'versements.versementIntrouvable'),
+          })
         }
         throw err
       }
@@ -252,9 +255,10 @@ export const versementsRoutes: FastifyPluginAsync = async (
         return reply.code(204).send()
       } catch (err) {
         if (isP2025(err)) {
-          return reply
-            .code(404)
-            .send({ error: 'Not Found', message: 'Versement introuvable.' })
+          return reply.code(404).send({
+            error: 'Not Found',
+            message: t(langueDeRequete(req), 'versements.versementIntrouvable'),
+          })
         }
         throw err
       }

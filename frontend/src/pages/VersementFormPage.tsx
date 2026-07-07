@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { CalendarPlus, Check, FileText } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
@@ -15,7 +16,7 @@ import {
   type VersementCree,
 } from '@/lib/api'
 import { peutSaisirVersement, peutOuvrirAnnee } from '@/lib/roles'
-import { formatFcfa } from '@/lib/format'
+import { formatMontant } from '@/lib/format'
 import { useToast } from '@/components/ui/Toast'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, Overline } from '@/components/ui/Card'
@@ -24,11 +25,7 @@ import { Field, Input, Select, Textarea } from '@/components/ui/Field'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { Badge } from '@/components/ui/Badge'
 
-const MODES: { value: ModeVersement; label: string }[] = [
-  { value: 'ESPECES', label: 'Espèces' },
-  { value: 'TIERS', label: 'Tiers' },
-  { value: 'AUTRE', label: 'Autre' },
-]
+const MODES: ModeVersement[] = ['ESPECES', 'TIERS', 'AUTRE']
 
 const aujourdHui = (): string => new Date().toISOString().slice(0, 10)
 
@@ -38,6 +35,7 @@ const aujourdHui = (): string => new Date().toISOString().slice(0, 10)
  * « Ouvrir l'année » (POST /contributions/ouvrir-annee) débloque le cas « année absente ».
  */
 export function VersementFormPage() {
+  const { t } = useTranslation()
   const { id } = useParams<{ id: string }>()
   const [searchParams] = useSearchParams()
   const { user, accessToken } = useAuth()
@@ -94,7 +92,7 @@ export function VersementFormPage() {
         if (!presetContrib && list.length > 0) setContribId(list[0].id)
       } catch (e) {
         if (e instanceof DOMException && e.name === 'AbortError') return
-        if (active) toast.error('Chargement impossible', e instanceof ApiError ? e.message : undefined)
+        if (active) toast.error(t('versements.toast.chargementImpossible'), e instanceof ApiError ? e.message : undefined)
       } finally {
         if (active) setLoading(false)
       }
@@ -103,7 +101,7 @@ export function VersementFormPage() {
       active = false
       controller.abort()
     }
-  }, [accessToken, id, chargerContributions, presetContrib, toast])
+  }, [accessToken, id, chargerContributions, presetContrib, toast, t])
 
   if (!peutSaisirVersement(user?.role)) {
     return <Navigate to={id ? `/membres/${id}` : '/membres'} replace />
@@ -119,15 +117,17 @@ export function VersementFormPage() {
       const nouvelle = list.find((c) => c.annee === res.annee)
       if (nouvelle) setContribId(nouvelle.id)
       toast.success(
-        `Année ${res.annee} ouverte`,
-        `${res.contributionsCreees} contribution(s) créée(s) sur ${res.membresEligibles} membre(s) éligible(s)` +
-          (nouvelle ? '.' : ". Ce membre n'est pas éligible pour cette année."),
+        t('versements.toast.anneeOuverte', { annee: res.annee }),
+        t(nouvelle ? 'versements.toast.anneeOuverteEligible' : 'versements.toast.anneeOuverteNonEligible', {
+          crees: res.contributionsCreees,
+          eligibles: res.membresEligibles,
+        }),
       )
     } catch (e) {
       if (e instanceof ApiError && e.status === 400) setBaremeManquant(true)
       toast.error(
-        "Ouverture impossible",
-        e instanceof ApiError ? e.message : "Échec de l'ouverture de l'année.",
+        t('versements.toast.ouvertureImpossible'),
+        e instanceof ApiError ? e.message : t('versements.toast.ouvertureEchec'),
       )
     } finally {
       setOuvrant(false)
@@ -142,9 +142,9 @@ export function VersementFormPage() {
     const m = Number(montant)
     const eMontant =
       montant.trim().length === 0
-        ? 'Le montant est requis.'
+        ? t('versements.form.validation.montantRequis')
         : !Number.isFinite(m) || m <= 0
-          ? 'Le montant doit être supérieur à 0.'
+          ? t('versements.form.validation.montantPositif')
           : undefined
     setErrMontant(eMontant)
     if (eMontant) {
@@ -164,11 +164,14 @@ export function VersementFormPage() {
         accessToken,
       )
       setResultat(res)
-      toast.success('Versement enregistré', `${formatFcfa(res.versement.montant)} · année ${res.contribution.annee}`)
+      toast.success(
+        t('versements.toast.enregistre'),
+        t('versements.resume', { montant: formatMontant(res.versement.montant), annee: res.contribution.annee }),
+      )
     } catch (e) {
       toast.error(
-        'Enregistrement impossible',
-        e instanceof ApiError ? e.message : 'Échec de l’enregistrement du versement.',
+        t('versements.toast.enregistrementImpossible'),
+        e instanceof ApiError ? e.message : t('versements.toast.enregistrementEchec'),
       )
     } finally {
       setSaving(false)
@@ -181,11 +184,11 @@ export function VersementFormPage() {
     try {
       const r = await recusApi.generer(resultat.versement.id, accessToken)
       setRecu(r)
-      toast.success('Reçu généré', `N° ${r.numero}`)
+      toast.success(t('versements.toast.recuGenere'), t('versements.toast.recuNumero', { numero: r.numero }))
     } catch (e) {
       toast.error(
-        'Génération impossible',
-        e instanceof ApiError ? e.message : 'Échec de la génération du reçu.',
+        t('versements.toast.generationImpossible'),
+        e instanceof ApiError ? e.message : t('versements.toast.generationEchec'),
       )
     } finally {
       setGeneratingRecu(false)
@@ -205,10 +208,10 @@ export function VersementFormPage() {
   return (
     <div className="mx-auto max-w-xl">
       <PageHeader
-        overline="Trésorerie"
-        title="Nouveau versement"
+        overline={t('versements.form.header.overline')}
+        title={t('versements.form.header.titre')}
         description={membreNom || undefined}
-        back={{ to: backTo, label: 'Fiche du membre' }}
+        back={{ to: backTo, label: t('versements.form.header.back') }}
       />
 
       {loading ? (
@@ -223,26 +226,29 @@ export function VersementFormPage() {
           <Card className="border-jade/30 bg-jade/[0.07] p-6">
             <div className="flex items-center gap-2 text-jade">
               <Check className="h-5 w-5" aria-hidden="true" />
-              <h2 className="font-semibold">Versement enregistré</h2>
+              <h2 className="font-semibold">{t('versements.form.succesTitre')}</h2>
             </div>
             <p className="num mt-3 text-sm text-foreground/85">
-              {formatFcfa(resultat.versement.montant)} · année {resultat.contribution.annee}
+              {t('versements.resume', {
+                montant: formatMontant(resultat.versement.montant),
+                annee: resultat.contribution.annee,
+              })}
             </p>
             <dl className="mt-4 grid grid-cols-2 gap-4 text-sm">
               <div>
                 <dt className="text-[0.7rem] font-medium uppercase tracking-[0.12em] text-faint">
-                  Total versé
+                  {t('versements.form.totalVerse')}
                 </dt>
                 <dd className="num mt-1 font-semibold text-foreground">
-                  {formatFcfa(resultat.contribution.montantVerse)}
+                  {formatMontant(resultat.contribution.montantVerse)}
                 </dd>
               </div>
               <div>
                 <dt className="text-[0.7rem] font-medium uppercase tracking-[0.12em] text-faint">
-                  Total valorisé
+                  {t('versements.form.totalValorise')}
                 </dt>
                 <dd className="num mt-1 font-semibold text-foreground">
-                  {formatFcfa(resultat.contribution.montantValorise)}
+                  {formatMontant(resultat.contribution.montantValorise)}
                 </dd>
               </div>
             </dl>
@@ -252,21 +258,21 @@ export function VersementFormPage() {
             {recu ? (
               <Badge tone="jade" size="lg">
                 <FileText className="h-4 w-4" aria-hidden="true" />
-                Reçu généré : {recu.numero}
+                {t('versements.form.recuGenere', { numero: recu.numero })}
               </Badge>
             ) : (
               <Button icon={FileText} loading={generatingRecu} onClick={handleGenererRecu}>
-                Générer le reçu
+                {t('versements.form.genererRecu')}
               </Button>
             )}
           </Card>
 
           <div className="flex items-center gap-3">
             <Button variant="outline" onClick={nouveauVersement}>
-              Nouveau versement
+              {t('versements.form.nouveauVersement')}
             </Button>
             <Button variant="ghost" onClick={() => navigate(`/membres/${id}`)}>
-              Retour à la fiche
+              {t('versements.form.retourFiche')}
             </Button>
           </div>
         </div>
@@ -276,16 +282,18 @@ export function VersementFormPage() {
           <form ref={formRef} onSubmit={handleSubmit} noValidate className="space-y-5">
             {contributions.length === 0 ? (
               <p className="rounded-xl border border-amber/30 bg-amber/10 px-4 py-3 text-sm text-amber">
-                Aucune contribution n'existe pour ce membre. Ouvrez d'abord une année ci-dessous
-                pour pouvoir enregistrer un versement.
+                {t('versements.form.aucuneContribution')}
               </p>
             ) : (
-              <Field label="Année (contribution)" required>
+              <Field label={t('versements.form.anneeLabel')} required>
                 <Select required value={contribId} onChange={(e) => setContribId(e.target.value)}>
                   {contributions.map((c) => (
                     <option key={c.id} value={c.id}>
-                      {c.annee} — versé {formatFcfa(c.montantVerse)} / attendu{' '}
-                      {formatFcfa(c.montantAttendu)}
+                      {t('versements.form.option', {
+                        annee: c.annee,
+                        verse: formatMontant(c.montantVerse),
+                        attendu: formatMontant(c.montantAttendu),
+                      })}
                     </option>
                   ))}
                 </Select>
@@ -295,7 +303,7 @@ export function VersementFormPage() {
             {contributions.length > 0 && (
               <>
                 <div className="grid gap-5 sm:grid-cols-2">
-                  <Field label="Montant (FCFA)" required error={errMontant}>
+                  <Field label={t('versements.form.montant')} required error={errMontant}>
                     <Input
                       type="number"
                       min={1}
@@ -306,7 +314,7 @@ export function VersementFormPage() {
                       }}
                     />
                   </Field>
-                  <Field label="Date" required>
+                  <Field label={t('versements.form.date')} required>
                     <Input
                       required
                       type="date"
@@ -314,23 +322,23 @@ export function VersementFormPage() {
                       onChange={(e) => setDateVersement(e.target.value)}
                     />
                   </Field>
-                  <Field label="Mode" required>
+                  <Field label={t('versements.form.mode')} required>
                     <Select value={mode} onChange={(e) => setMode(e.target.value as ModeVersement)}>
                       {MODES.map((m) => (
-                        <option key={m.value} value={m.value}>
-                          {m.label}
+                        <option key={m} value={m}>
+                          {t(`versements.modes.${m}`)}
                         </option>
                       ))}
                     </Select>
                   </Field>
                 </div>
-                <Field label="Note (optionnelle)">
+                <Field label={t('versements.form.note')}>
                   <Textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} />
                 </Field>
 
                 <div className="flex justify-end">
                   <Button type="submit" loading={saving} disabled={!contribId}>
-                    Enregistrer le versement
+                    {t('versements.form.enregistrer')}
                   </Button>
                 </div>
               </>
@@ -339,10 +347,9 @@ export function VersementFormPage() {
             {/* Ouvrir une année (ADMIN + TRESORIERE) */}
             {peutOuvrirAnnee(user?.role) && (
               <div className="border-t border-hairline pt-5">
-                <Overline>Ouvrir une année</Overline>
+                <Overline>{t('versements.form.ouvrir.titre')}</Overline>
                 <p className="mt-1.5 text-xs text-faint">
-                  Crée les contributions de tous les membres éligibles pour l'année (nécessite un
-                  barème configuré pour cette année).
+                  {t('versements.form.ouvrir.hint')}
                 </p>
                 <div className="mt-3 flex flex-wrap items-center gap-3">
                   <Input
@@ -352,7 +359,7 @@ export function VersementFormPage() {
                     value={anneeAOuvrir}
                     onChange={(e) => setAnneeAOuvrir(e.target.value)}
                     className="w-32"
-                    aria-label="Année à ouvrir"
+                    aria-label={t('versements.form.ouvrir.anneeAria')}
                   />
                   <Button
                     variant="outline"
@@ -360,14 +367,14 @@ export function VersementFormPage() {
                     loading={ouvrant}
                     onClick={handleOuvrirAnnee}
                   >
-                    Ouvrir l'année
+                    {t('versements.form.ouvrir.bouton')}
                   </Button>
                 </div>
                 {baremeManquant && (
                   <p className="mt-3 text-sm text-terra">
-                    Aucun barème configuré pour cette année.{' '}
+                    {t('versements.form.ouvrir.baremeManquant')}{' '}
                     <Link to="/bareme" className="font-semibold text-brass underline">
-                      Configurer le barème →
+                      {t('versements.form.ouvrir.configurerBareme')}
                     </Link>
                   </p>
                 )}

@@ -1,4 +1,5 @@
 import { useRef, useState, type FormEvent } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Navigate, useNavigate } from 'react-router-dom'
 import {
   ArrowDown,
@@ -28,6 +29,7 @@ interface PointDraft {
 
 /** Création d'une réunion (§5) avec éditeur d'ordre du jour inline. */
 export function ReunionFormPage() {
+  const { t } = useTranslation()
   const { user, accessToken } = useAuth()
   const navigate = useNavigate()
   const toast = useToast()
@@ -74,8 +76,8 @@ export function ReunionFormPage() {
     if (!accessToken) return
 
     // Validation inline par champ + focus sur le 1er en erreur (§8).
-    const eDate = date ? undefined : 'Renseignez la date de la réunion.'
-    const eLieu = lieu.trim().length === 0 ? 'Renseignez le lieu de la réunion.' : undefined
+    const eDate = date ? undefined : t('reunions.form.dateRequise')
+    const eLieu = lieu.trim().length === 0 ? t('reunions.form.lieuRequis') : undefined
     setErrDate(eDate)
     setErrLieu(eLieu)
     if (eDate || eLieu) {
@@ -86,7 +88,7 @@ export function ReunionFormPage() {
     // Points : on ignore les lignes au titre vide, mais on refuse une ligne à moitié remplie.
     const pointsValides = points.filter((p) => p.titre.trim().length > 0)
     if (points.some((p) => p.titre.trim().length === 0 && p.notes.trim().length > 0)) {
-      setError('Un point d’ordre du jour a des notes mais pas de titre.')
+      setError(t('reunions.form.pointSansTitre'))
       return
     }
 
@@ -104,10 +106,13 @@ export function ReunionFormPage() {
         },
         accessToken,
       )
-      toast.success('Réunion créée', `${pointsValides.length} point(s) à l’ordre du jour.`)
+      toast.success(
+        t('reunions.toast.creee'),
+        t('reunions.toast.creeeDetail', { n: pointsValides.length }),
+      )
       navigate(`/reunions/${cree.id}`, { replace: true })
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Une erreur est survenue. Réessayez.')
+      setError(err instanceof ApiError ? err.message : t('reunions.form.erreurGenerique'))
     } finally {
       setSubmitting(false)
     }
@@ -116,15 +121,15 @@ export function ReunionFormPage() {
   return (
     <>
       <PageHeader
-        overline="Vie associative"
-        title="Nouvelle réunion"
-        back={{ to: '/reunions', label: 'Retour aux réunions' }}
+        overline={t('reunions.overline')}
+        title={t('reunions.form.titre')}
+        back={{ to: '/reunions', label: t('reunions.detail.retour') }}
       />
 
       <Card className="nk-reveal nk-d2 mt-7 p-6">
         <form ref={formRef} onSubmit={handleSubmit} noValidate className="space-y-4">
-          <FormSection icon={CalendarRange} title="Informations">
-            <Field label="Date et heure" required error={errDate}>
+          <FormSection icon={CalendarRange} title={t('reunions.form.infos')}>
+            <Field label={t('reunions.form.dateLabel')} required error={errDate}>
               <Input
                 type="datetime-local"
                 value={date}
@@ -134,20 +139,20 @@ export function ReunionFormPage() {
                 }}
               />
             </Field>
-            <Field label="Type" required>
+            <Field label={t('reunions.form.typeLabel')} required>
               <Select value={type} onChange={(e) => setType(e.target.value as TypeReunion)}>
-                <option value="ORDINAIRE">Ordinaire</option>
-                <option value="EXTRAORDINAIRE">Extraordinaire</option>
+                <option value="ORDINAIRE">{t('reunions.types.ORDINAIRE')}</option>
+                <option value="EXTRAORDINAIRE">{t('reunions.types.EXTRAORDINAIRE')}</option>
               </Select>
             </Field>
-            <Field label="Lieu" required error={errLieu} className="sm:col-span-2">
+            <Field label={t('reunions.form.lieuLabel')} required error={errLieu} className="sm:col-span-2">
               <Input
                 value={lieu}
                 onChange={(e) => {
                   setLieu(e.target.value)
                   setErrLieu(undefined)
                 }}
-                placeholder="Salle des fêtes, Yaoundé…"
+                placeholder={t('reunions.form.lieuPlaceholder')}
               />
             </Field>
           </FormSection>
@@ -157,16 +162,16 @@ export function ReunionFormPage() {
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <ListChecks className="h-4 w-4 text-brass" aria-hidden="true" />
-                <Overline>Ordre du jour</Overline>
+                <Overline>{t('reunions.ordreDuJour.titre')}</Overline>
               </div>
               <Button type="button" variant="ghost" size="sm" icon={Plus} onClick={ajouterPoint}>
-                Ajouter un point
+                {t('reunions.form.ajouterPoint')}
               </Button>
             </div>
 
             {points.length === 0 ? (
               <p className="mt-4 text-sm text-faint">
-                Aucun point pour l’instant. Ajoutez-en, ou créez la réunion et complétez plus tard.
+                {t('reunions.form.aucunPoint')}
               </p>
             ) : (
               <ul className="mt-4 space-y-3">
@@ -183,15 +188,15 @@ export function ReunionFormPage() {
                         <Input
                           value={p.titre}
                           onChange={(e) => majPoint(p.key, 'titre', e.target.value)}
-                          placeholder="Intitulé du point"
-                          aria-label={`Titre du point ${index + 1}`}
+                          placeholder={t('reunions.form.pointTitrePlaceholder')}
+                          aria-label={t('reunions.form.pointTitreAria', { n: index + 1 })}
                         />
                         <Textarea
                           value={p.notes}
                           onChange={(e) => majPoint(p.key, 'notes', e.target.value)}
-                          placeholder="Notes (optionnel)"
+                          placeholder={t('reunions.form.pointNotesPlaceholder')}
                           rows={2}
-                          aria-label={`Notes du point ${index + 1}`}
+                          aria-label={t('reunions.form.pointNotesAria', { n: index + 1 })}
                         />
                       </div>
                       <div className="flex shrink-0 flex-col gap-1">
@@ -199,7 +204,7 @@ export function ReunionFormPage() {
                           type="button"
                           onClick={() => deplacer(index, -1)}
                           disabled={index === 0}
-                          aria-label="Monter le point"
+                          aria-label={t('reunions.ordreDuJour.monter')}
                           className="flex h-7 w-7 items-center justify-center rounded-lg text-faint transition-colors hover:text-foreground disabled:opacity-30"
                         >
                           <ArrowUp className="h-4 w-4" aria-hidden="true" />
@@ -208,7 +213,7 @@ export function ReunionFormPage() {
                           type="button"
                           onClick={() => deplacer(index, 1)}
                           disabled={index === points.length - 1}
-                          aria-label="Descendre le point"
+                          aria-label={t('reunions.ordreDuJour.descendre')}
                           className="flex h-7 w-7 items-center justify-center rounded-lg text-faint transition-colors hover:text-foreground disabled:opacity-30"
                         >
                           <ArrowDown className="h-4 w-4" aria-hidden="true" />
@@ -216,7 +221,7 @@ export function ReunionFormPage() {
                         <button
                           type="button"
                           onClick={() => supprimerPoint(p.key)}
-                          aria-label="Supprimer le point"
+                          aria-label={t('reunions.ordreDuJour.supprimer')}
                           className="flex h-7 w-7 items-center justify-center rounded-lg text-faint transition-colors hover:text-terra"
                         >
                           <Trash2 className="h-4 w-4" aria-hidden="true" />
@@ -240,7 +245,7 @@ export function ReunionFormPage() {
 
           <div className="flex justify-end pt-1">
             <Button type="submit" icon={Save} loading={submitting}>
-              Créer la réunion
+              {t('reunions.form.creer')}
             </Button>
           </div>
         </form>

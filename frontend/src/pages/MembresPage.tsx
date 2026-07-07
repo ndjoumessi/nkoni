@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { AlertTriangle, CheckCircle2, Loader2, Plus, Search, Users } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
@@ -24,23 +25,15 @@ type ColonneTri = 'nom' | 'branche' | 'statut' | 'cotisation' | 'adhesion'
 const ORDRE_STATUT: Record<string, number> = { ACTIF: 0, INACTIF: 1, DECEDE: 2 }
 const ORDRE_COTISATION: Record<string, number> = { A_JOUR: 0, PARTIEL: 1, NON_A_JOUR: 2 }
 
-const STATUTS: { value: StatutMembre; label: string }[] = [
-  { value: 'ACTIF', label: 'Actifs' },
-  { value: 'INACTIF', label: 'Inactifs' },
-  { value: 'DECEDE', label: 'Décédés' },
-]
-
-const COTISATIONS: { value: StatutContribution; label: string }[] = [
-  { value: 'A_JOUR', label: 'À jour' },
-  { value: 'PARTIEL', label: 'Partiel' },
-  { value: 'NON_A_JOUR', label: 'Non à jour' },
-]
+const STATUTS: StatutMembre[] = ['ACTIF', 'INACTIF', 'DECEDE']
+const COTISATIONS: StatutContribution[] = ['A_JOUR', 'PARTIEL', 'NON_A_JOUR']
 
 /**
  * Liste des membres. Le statut de cotisation vient de GET /membres/statuts (calculé en
  * masse côté backend) → une seule requête. MEMBRE_SIMPLE est redirigé vers sa fiche.
  */
 export function MembresPage() {
+  const { t } = useTranslation()
   const { user, accessToken } = useAuth()
   const navigate = useNavigate()
 
@@ -151,7 +144,7 @@ export function MembresPage() {
   if (estMembreSimple(user?.role)) {
     return (
       <div className="flex items-center justify-center py-24 text-muted-foreground">
-        <Loader2 className="h-6 w-6 animate-spin text-brass" aria-label="Redirection" />
+        <Loader2 className="h-6 w-6 animate-spin text-brass" aria-label={t('membres.liste.redirection')} />
       </div>
     )
   }
@@ -159,7 +152,7 @@ export function MembresPage() {
   const colonnes: Column<MembreStatut>[] = [
     {
       key: 'nom',
-      header: 'Membre',
+      header: t('membres.liste.colonnes.membre'),
       sortable: true,
       cell: (m) => (
         <span className="font-medium text-foreground">
@@ -169,25 +162,25 @@ export function MembresPage() {
     },
     {
       key: 'branche',
-      header: 'Branche',
+      header: t('membres.liste.colonnes.branche'),
       sortable: true,
       cell: (m) => <span className="text-muted-foreground">{m.branche?.nom ?? '—'}</span>,
     },
     {
       key: 'statut',
-      header: 'Statut',
+      header: t('membres.liste.colonnes.statut'),
       sortable: true,
       cell: (m) => <StatutMembreBadge statut={m.statut} size="sm" />,
     },
     {
       key: 'cotisation',
-      header: 'Cotisation',
+      header: t('membres.liste.colonnes.cotisation'),
       sortable: true,
       cell: (m) => <StatutCotisationBadge statut={m.statutCotisation} size="sm" />,
     },
     {
       key: 'adhesion',
-      header: 'Adhésion',
+      header: t('membres.liste.colonnes.adhesion'),
       sortable: true,
       numeric: true,
       cell: (m) => m.anneeAdhesion,
@@ -204,18 +197,22 @@ export function MembresPage() {
   return (
     <>
       <PageHeader
-        overline="Communauté"
-        title="Membres"
+        overline={t('membres.liste.overline')}
+        title={t('membres.liste.titre')}
         description={
           membres
-            ? `${filtres.length} / ${membres.length} membre${membres.length > 1 ? 's' : ''}`
+            ? t('membres.liste.compteur', {
+                filtres: filtres.length,
+                total: membres.length,
+                count: membres.length,
+              })
             : undefined
         }
         actions={
           // Masqué quand la liste est vide : l'EmptyState porte déjà le CTA (pas de doublon).
           gestion && (!membres || membres.length > 0) && (
             <ButtonLink to="/membres/nouveau" icon={Plus}>
-              Nouveau membre
+              {t('membres.liste.nouveau')}
             </ButtonLink>
           )
         }
@@ -224,16 +221,16 @@ export function MembresPage() {
       {/* Synthèse (point focal) */}
       {membres && membres.length > 0 && (
         <div className="nk-reveal nk-d2 mt-7 grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <StatCard label="Membres" value={String(resume.total)} icon={Users} />
+          <StatCard label={t('membres.liste.resume.membres')} value={String(resume.total)} icon={Users} />
           <StatCard
-            label="À jour"
+            label={t('membres.liste.resume.aJour')}
             value={String(resume.aJour)}
             tone="jade"
             icon={CheckCircle2}
             hint={resume.total ? `${Math.round((resume.aJour / resume.total) * 100)}%` : undefined}
           />
-          <StatCard label="Non à jour" value={String(resume.nonAJour)} tone="brass" icon={AlertTriangle} />
-          <StatCard label="Inactifs / décédés" value={String(resume.inactifs)} icon={Users} />
+          <StatCard label={t('membres.liste.resume.nonAJour')} value={String(resume.nonAJour)} tone="brass" icon={AlertTriangle} />
+          <StatCard label={t('membres.liste.resume.inactifsDecedes')} value={String(resume.inactifs)} icon={Users} />
         </div>
       )}
 
@@ -248,17 +245,17 @@ export function MembresPage() {
             type="search"
             value={recherche}
             onChange={(e) => setRecherche(e.target.value)}
-            placeholder="Rechercher par nom ou prénom…"
+            placeholder={t('membres.liste.filtres.recherchePlaceholder')}
             className="pl-10"
-            aria-label="Rechercher un membre"
+            aria-label={t('membres.liste.filtres.rechercheAria')}
           />
         </div>
         <Select
           value={filtreBranche}
           onChange={(e) => setFiltreBranche(e.target.value)}
-          aria-label="Filtrer par branche"
+          aria-label={t('membres.liste.filtres.brancheAria')}
         >
-          <option value="">Toutes les branches</option>
+          <option value="">{t('membres.liste.filtres.toutesBranches')}</option>
           {branches.map(([id, nom]) => (
             <option key={id} value={id}>
               {nom}
@@ -268,24 +265,24 @@ export function MembresPage() {
         <Select
           value={filtreStatut}
           onChange={(e) => setFiltreStatut(e.target.value)}
-          aria-label="Filtrer par statut de membre"
+          aria-label={t('membres.liste.filtres.statutAria')}
         >
-          <option value="">Tous les statuts</option>
+          <option value="">{t('membres.liste.filtres.tousStatuts')}</option>
           {STATUTS.map((s) => (
-            <option key={s.value} value={s.value}>
-              {s.label}
+            <option key={s} value={s}>
+              {t(`membres.liste.statutOptions.${s}`)}
             </option>
           ))}
         </Select>
         <Select
           value={filtreCotisation}
           onChange={(e) => setFiltreCotisation(e.target.value)}
-          aria-label="Filtrer par cotisation"
+          aria-label={t('membres.liste.filtres.cotisationAria')}
         >
-          <option value="">Toutes cotisations</option>
+          <option value="">{t('membres.liste.filtres.toutesCotisations')}</option>
           {COTISATIONS.map((s) => (
-            <option key={s.value} value={s.value}>
-              {s.label}
+            <option key={s} value={s}>
+              {t(`membres.liste.cotisationOptions.${s}`)}
             </option>
           ))}
         </Select>
@@ -306,19 +303,19 @@ export function MembresPage() {
         {!loading && !error && membres && membres.length === 0 && (
           <EmptyState
             icon={Users}
-            title="Aucun membre pour l'instant"
+            title={t('membres.liste.empty.titre')}
             className="min-h-[52vh] justify-center"
-            description="Commencez à constituer votre communauté en ajoutant les premiers membres."
+            description={t('membres.liste.empty.description')}
             action={
               gestion && (
                 <ButtonLink to="/membres/nouveau" icon={Plus}>
-                  Ajouter un membre
+                  {t('membres.liste.empty.action')}
                 </ButtonLink>
               )
             }
             tips={[
-              { icon: Search, label: 'Recherche & filtres par branche/statut' },
-              { icon: Users, label: 'Suivi de cotisation par membre' },
+              { icon: Search, label: t('membres.liste.empty.tips.recherche') },
+              { icon: Users, label: t('membres.liste.empty.tips.suivi') },
             ]}
           />
         )}
@@ -327,7 +324,7 @@ export function MembresPage() {
           <Card className="overflow-hidden p-0">
             {triees.length > 0 ? (
               <DataTable
-                caption="Liste des membres, triable par colonne"
+                caption={t('membres.liste.caption')}
                 columns={colonnes}
                 rows={triees}
                 rowKey={(m) => m.id}
@@ -338,10 +335,10 @@ export function MembresPage() {
             ) : (
               <div className="flex flex-col items-center gap-3 px-5 py-12 text-center">
                 <p className="text-sm text-muted-foreground">
-                  Aucun membre ne correspond aux filtres.
+                  {t('membres.liste.aucunCorrespond')}
                 </p>
                 <Button variant="ghost" size="sm" onClick={resetFiltres}>
-                  Réinitialiser les filtres
+                  {t('membres.liste.reinitialiser')}
                 </Button>
               </div>
             )}

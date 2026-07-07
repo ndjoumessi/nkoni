@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import {
   ArrowRight,
   Info,
@@ -30,25 +31,20 @@ interface GlassmorphismTrustHeroProps {
 
 const SAMPLE_STATS = { membres: 128, branches: 6, cotisationsAJour: 94 }
 
-const STAT_ITEMS = [
-  { value: `${SAMPLE_STATS.membres}`, label: 'Membres actifs' },
-  { value: `${SAMPLE_STATS.branches}`, label: 'Groupes / branches' },
-  { value: `${SAMPLE_STATS.cotisationsAJour}%`, label: 'Cotisations à jour' },
-]
-
-const VALUES: { label: string; icon: LucideIcon }[] = [
-  { label: 'Trésorerie', icon: Wallet },
-  { label: 'Transparence', icon: Eye },
-  { label: 'Solidarité', icon: HeartHandshake },
-  { label: 'Cotisations', icon: Coins },
-  { label: 'Équilibrage', icon: Scale },
-  { label: 'Branches', icon: Network },
+// Libellés résolus à l'affichage (§4 i18n) : ces tableaux ne portent que des clés + icônes.
+const VALUES: { key: string; icon: LucideIcon }[] = [
+  { key: 'tresorerie', icon: Wallet },
+  { key: 'transparence', icon: Eye },
+  { key: 'solidarite', icon: HeartHandshake },
+  { key: 'cotisations', icon: Coins },
+  { key: 'equilibrage', icon: Scale },
+  { key: 'branches', icon: Network },
 ]
 
 const STATUS_LEGEND = [
-  { label: 'À jour', dot: 'bg-jade' },
-  { label: 'Partiel', dot: 'bg-amber' },
-  { label: 'Non à jour', dot: 'bg-terra' },
+  { key: 'aJour', dot: 'bg-jade' },
+  { key: 'partiel', dot: 'bg-amber' },
+  { key: 'nonAJour', dot: 'bg-terra' },
 ]
 
 export function GlassmorphismTrustHero({
@@ -56,6 +52,14 @@ export function GlassmorphismTrustHero({
   inscriptionHref = '/inscription',
   onDiscover,
 }: GlassmorphismTrustHeroProps) {
+  const { t } = useTranslation()
+
+  const STAT_ITEMS = [
+    { value: `${SAMPLE_STATS.membres}`, label: t('landing.hero.stats.membresActifs') },
+    { value: `${SAMPLE_STATS.branches}`, label: t('landing.hero.stats.groupesBranches') },
+    { value: `${SAMPLE_STATS.cotisationsAJour}%`, label: t('landing.hero.stats.cotisationsAJour') },
+  ]
+
   const handleDiscover = () => {
     if (onDiscover) return onDiscover()
     document.getElementById('a-propos')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -85,10 +89,10 @@ export function GlassmorphismTrustHero({
         </div>
         <div className="flex items-center gap-2">
           <ButtonLink to={inscriptionHref} size="sm">
-            Créer mon espace
+            {t('commun.actions.creerMonEspace')}
           </ButtonLink>
           <ButtonLink to={loginHref} variant="outline" size="sm">
-            Se connecter
+            {t('commun.actions.seConnecter')}
           </ButtonLink>
         </div>
       </div>
@@ -99,34 +103,34 @@ export function GlassmorphismTrustHero({
           <div className="nk-reveal nk-d1 inline-flex">
             <Badge tone="brass" size="lg" dot>
               <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-              Gestion associative &amp; familiale
+              {t('landing.hero.badge')}
             </Badge>
           </div>
 
           <h1 className="nk-reveal nk-d2 mt-6 font-display text-[2.6rem] font-semibold leading-[1.04] tracking-tight sm:text-6xl xl:text-[4.2rem]">
-            <span className="block text-foreground">Les cotisations de</span>
+            <span className="block text-foreground">{t('landing.hero.titre.ligne1')}</span>
             <span className="block bg-gradient-to-r from-brass via-amber to-jade bg-clip-text text-transparent">
-              votre communauté
+              {t('landing.hero.titre.ligne2')}
             </span>
-            <span className="block text-foreground">en toute clarté</span>
+            <span className="block text-foreground">{t('landing.hero.titre.ligne3')}</span>
           </h1>
 
           <p className="nk-reveal nk-d3 mx-auto mt-6 max-w-xl text-pretty text-base leading-relaxed text-muted-foreground sm:text-lg lg:mx-0">
-            Chaque association, famille ou tontine dispose de son{' '}
-            <span className="text-foreground">propre espace sécurisé et isolé</span> : chaque membre
-            connaît son statut, chaque mouvement est tracé, chaque reçu est archivé.
+            {t('landing.hero.description.partie1')}{' '}
+            <span className="text-foreground">{t('landing.hero.description.emphase')}</span>
+            {t('landing.hero.description.partie2')}
           </p>
 
           <div className="nk-reveal nk-d4 mt-8 flex flex-col items-stretch justify-center gap-3 sm:flex-row lg:justify-start">
             <ButtonLink to={inscriptionHref} size="lg" icon={undefined}>
-              Créer mon espace
+              {t('commun.actions.creerMonEspace')}
               <ArrowRight
                 className="h-4 w-4 transition-transform group-hover:translate-x-0.5"
                 aria-hidden="true"
               />
             </ButtonLink>
             <Button variant="outline" size="lg" icon={Info} onClick={handleDiscover}>
-              Découvrir NKONI
+              {t('landing.hero.decouvrir')}
             </Button>
           </div>
 
@@ -147,11 +151,11 @@ export function GlassmorphismTrustHero({
           <div className="rounded-3xl border border-brass/20 bg-surface-2/70 p-6 shadow-[0_30px_80px_-40px_oklch(0_0_0/80%)] ring-1 ring-inset ring-brass/5 backdrop-blur-xl sm:p-7">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-foreground">Aperçu d'un espace</p>
-                <p className="mt-0.5 text-xs text-faint">Données d'exemple — vitrine</p>
+                <p className="text-sm font-medium text-foreground">{t('landing.hero.apercu.titre')}</p>
+                <p className="mt-0.5 text-xs text-faint">{t('landing.hero.apercu.sousTitre')}</p>
               </div>
               <Badge tone="jade" dot pulse>
-                Actif
+                {t('landing.hero.apercu.actif')}
               </Badge>
             </div>
 
@@ -160,19 +164,19 @@ export function GlassmorphismTrustHero({
                 <p className="num font-display text-3xl font-semibold tracking-tight text-foreground">
                   {SAMPLE_STATS.membres}
                 </p>
-                <p className="mt-1 text-xs text-faint">Membres</p>
+                <p className="mt-1 text-xs text-faint">{t('landing.hero.apercu.membres')}</p>
               </div>
               <div className="rounded-2xl border border-hairline bg-surface/70 p-4">
                 <p className="num font-display text-3xl font-semibold tracking-tight text-foreground">
                   {SAMPLE_STATS.branches}
                 </p>
-                <p className="mt-1 text-xs text-faint">Branches</p>
+                <p className="mt-1 text-xs text-faint">{t('landing.hero.apercu.branches')}</p>
               </div>
             </div>
 
             <div className="mt-4 rounded-2xl border border-hairline bg-surface/70 p-4">
               <div className="flex items-baseline justify-between">
-                <p className="text-sm text-muted-foreground">Cotisations à jour</p>
+                <p className="text-sm text-muted-foreground">{t('landing.hero.apercu.cotisationsAJour')}</p>
                 <p className="num text-sm font-semibold text-jade">{SAMPLE_STATS.cotisationsAJour}%</p>
               </div>
               <div className="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-surface-3">
@@ -183,9 +187,9 @@ export function GlassmorphismTrustHero({
               </div>
               <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2">
                 {STATUS_LEGEND.map((s) => (
-                  <span key={s.label} className="inline-flex items-center gap-1.5 text-xs text-faint">
+                  <span key={s.key} className="inline-flex items-center gap-1.5 text-xs text-faint">
                     <span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} />
-                    {s.label}
+                    {t(`landing.hero.apercu.legende.${s.key}`)}
                   </span>
                 ))}
               </div>
@@ -197,7 +201,7 @@ export function GlassmorphismTrustHero({
             <div className="mb-4 flex items-center gap-2 px-1">
               <HeartHandshake className="h-4 w-4 text-jade" aria-hidden="true" />
               <p className="text-[0.7rem] font-medium uppercase tracking-[0.14em] text-faint">
-                Ce qui fait vivre un groupe
+                {t('landing.hero.valeurs.titre')}
               </p>
             </div>
             <div
@@ -213,11 +217,11 @@ export function GlassmorphismTrustHero({
                   const Icon = v.icon
                   return (
                     <span
-                      key={`${v.label}-${i}`}
+                      key={`${v.key}-${i}`}
                       className="inline-flex shrink-0 items-center gap-2 rounded-full border border-hairline bg-surface-2/70 px-4 py-2 text-sm text-muted-foreground"
                     >
                       <Icon className="h-4 w-4 text-brass" aria-hidden="true" />
-                      {v.label}
+                      {t(`landing.hero.valeurs.${v.key}`)}
                     </span>
                   )
                 })}

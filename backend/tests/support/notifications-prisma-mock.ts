@@ -35,6 +35,12 @@ export interface UtilisateurSeed {
   id: string
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   notificationsActives?: any
+  /** Préférence de langue perso (§4). null/absent = hérite du défaut de l'org. */
+  langue?: 'FR' | 'EN' | null
+  /** Langue par défaut de l'organisation du destinataire (§4). */
+  organisationLangueDefaut?: 'FR' | 'EN' | null
+  /** Devise de l'organisation du destinataire (§5). null/absent = FCFA par défaut. */
+  organisationDevise?: 'FCFA' | 'EUR' | 'USD' | 'CAD' | null
 }
 
 export interface NotificationsMockOptions {
@@ -151,7 +157,18 @@ export function buildNotificationsMock(options: NotificationsMockOptions = {}) {
     utilisateur: {
       findUnique: async ({ where }: any) => {
         const u = utilisateurs.get(where.id)
-        return u ? { notificationsActives: u.notificationsActives ?? null } : null
+        if (!u) return null
+        // Le mock ignore `select` : on renvoie tous les champs consommés (préférences + langue
+        // perso + langue/devise par défaut de l'org via la relation `organisation`).
+        const org =
+          u.organisationLangueDefaut != null || u.organisationDevise != null
+            ? { langueDefaut: u.organisationLangueDefaut ?? null, devise: u.organisationDevise ?? null }
+            : null
+        return {
+          notificationsActives: u.notificationsActives ?? null,
+          langue: u.langue ?? null,
+          organisation: org,
+        }
       },
       update: async ({ where, data }: any) => {
         const u = utilisateurs.get(where.id) ?? { id: where.id }

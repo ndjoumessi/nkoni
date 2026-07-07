@@ -4,6 +4,7 @@ import type { CreationScopee } from '../lib/tenant-extension'
 import { authenticate } from '../middlewares/authenticate'
 import { requirePermission } from '../middlewares/permissions'
 import { calculerStatutsMembres } from '../services/membreStatut.service'
+import { t, langueDeRequete } from '../lib/i18n'
 
 /**
  * CRUD Membre (§5 point 2), conforme à la matrice §2 :
@@ -144,7 +145,7 @@ export const membresRoutes: FastifyPluginAsync = async (app: FastifyInstance) =>
       if (!membre) {
         return reply
           .code(404)
-          .send({ error: 'Not Found', message: 'Membre introuvable.' })
+          .send({ error: 'Not Found', message: t(langueDeRequete(req), 'membres.introuvable') })
       }
       if (
         req.user.role === 'MEMBRE_SIMPLE' &&
@@ -152,7 +153,7 @@ export const membresRoutes: FastifyPluginAsync = async (app: FastifyInstance) =>
       ) {
         return reply.code(403).send({
           error: 'Forbidden',
-          message: 'Accès limité à votre propre fiche.',
+          message: t(langueDeRequete(req), 'membres.accesLimiteFiche'),
         })
       }
       return membre
@@ -174,7 +175,9 @@ export const membresRoutes: FastifyPluginAsync = async (app: FastifyInstance) =>
       if (nbMembres >= PLAFOND_MEMBRES_PLAN_GRATUIT) {
         return reply.code(403).send({
           error: 'Forbidden',
-          message: `Limite de ${PLAFOND_MEMBRES_PLAN_GRATUIT} membres atteinte pour le plan gratuit.`,
+          message: t(langueDeRequete(req), 'membres.plafondPlanGratuit', {
+            plafond: PLAFOND_MEMBRES_PLAN_GRATUIT,
+          }),
         })
       }
 
@@ -242,7 +245,7 @@ export const membresRoutes: FastifyPluginAsync = async (app: FastifyInstance) =>
         ) {
           return reply
             .code(404)
-            .send({ error: 'Not Found', message: 'Membre introuvable.' })
+            .send({ error: 'Not Found', message: t(langueDeRequete(req), 'membres.introuvable') })
         }
         throw err
       }
@@ -264,7 +267,7 @@ export const membresRoutes: FastifyPluginAsync = async (app: FastifyInstance) =>
         ) {
           return reply
             .code(404)
-            .send({ error: 'Not Found', message: 'Membre introuvable.' })
+            .send({ error: 'Not Found', message: t(langueDeRequete(req), 'membres.introuvable') })
         }
         throw err
       }
@@ -280,7 +283,7 @@ function validerAnneeAdhesion(
   if (annee > anneeCourante()) {
     return reply.code(400).send({
       error: 'Bad Request',
-      message: "L'année d'adhésion ne peut pas être dans le futur.",
+      message: t(langueDeRequete(reply.request), 'membres.anneeAdhesionFuture'),
     })
   }
   return undefined

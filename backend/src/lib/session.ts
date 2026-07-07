@@ -7,7 +7,8 @@ import {
   REFRESH_TTL_REMEMBER_SECONDS,
 } from './env'
 import type { Role } from '../middlewares/permissions'
-import type { AuthenticatedUser } from '../services/auth.service'
+import type { Langue } from './i18n'
+import { langueEffective, type AuthenticatedUser } from '../services/auth.service'
 
 /**
  * Émission de session (access token + cookie refresh httpOnly) — factorisée pour être
@@ -35,13 +36,24 @@ export async function signAccessToken(
   reply: FastifyReply,
   user: AuthenticatedUser,
 ): Promise<string> {
-  const payload: { sub: string; role: Role; membreId?: string; organisationId?: string } = {
+  const payload: {
+    sub: string
+    role: Role
+    membreId?: string
+    organisationId?: string
+    langue?: Langue
+  } = {
     sub: user.id,
     role: user.role,
   }
   if (user.membreId) payload.membreId = user.membreId
   // Porté dans l'access token → l'authenticate établit le contexte d'isolation (SaaS §2.2).
   if (user.organisationId) payload.organisationId = user.organisationId
+  // §4 i18n : la langue EFFECTIVE (préférence perso ↩ défaut de l'org) voyage dans le token →
+  // messages serveur traduits sans requête DB (voir lib/i18n.ts `langueDeRequete`). Absente
+  // uniquement pour un compte sans préférence ET sans org (SUPER_ADMIN) → repli Accept-Language.
+  const langue = langueEffective(user)
+  if (langue) payload.langue = langue
   return reply.jwtSign(payload)
 }
 

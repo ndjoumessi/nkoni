@@ -1,0 +1,70 @@
+/** Chaînes EN du domaine « versements » (§4 i18n). */
+export default {
+  versements: {
+    modes: {
+      ESPECES: 'Cash',
+      TIERS: 'Third party',
+      AUTRE: 'Other',
+    },
+    resume: '{{montant}} · year {{annee}}',
+    form: {
+      header: {
+        overline: 'Treasury',
+        titre: 'New payment',
+        back: 'Member record',
+      },
+      succesTitre: 'Payment recorded',
+      totalVerse: 'Total paid',
+      totalValorise: 'Total valued',
+      recuGenere: 'Receipt generated: {{numero}}',
+      genererRecu: 'Generate the receipt',
+      nouveauVersement: 'New payment',
+      retourFiche: 'Back to the record',
+      aucuneContribution:
+        'No contribution exists for this member. First open a year below to be able to record a payment.',
+      anneeLabel: 'Year (contribution)',
+      option: '{{annee}} — paid {{verse}} / expected {{attendu}}',
+      montant: 'Amount (FCFA)',
+      date: 'Date',
+      mode: 'Mode',
+      note: 'Note (optional)',
+      enregistrer: 'Record the payment',
+      ouvrir: {
+        titre: 'Open a year',
+        hint: 'Creates the contributions of all eligible members for the year (requires a scale configured for this year).',
+        anneeAria: 'Year to open',
+        bouton: 'Open the year',
+        baremeManquant: 'No scale configured for this year.',
+        configurerBareme: 'Configure the scale →',
+      },
+      validation: {
+        montantRequis: 'The amount is required.',
+        montantPositif: 'The amount must be greater than 0.',
+      },
+    },
+    toast: {
+      chargementImpossible: 'Loading failed',
+      anneeOuverte: 'Year {{annee}} opened',
+      anneeOuverteEligible:
+        '{{crees}} contribution(s) created for {{eligibles}} eligible member(s).',
+      anneeOuverteNonEligible:
+        '{{crees}} contribution(s) created for {{eligibles}} eligible member(s). This member is not eligible for this year.',
+      ouvertureImpossible: 'Opening failed',
+      ouvertureEchec: 'Failed to open the year.',
+      enregistre: 'Payment recorded',
+      enregistrementImpossible: 'Save failed',
+      enregistrementEchec: 'Failed to record the payment.',
+      recuGenere: 'Receipt generated',
+      recuNumero: 'No. {{numero}}',
+      generationImpossible: 'Generation failed',
+      generationEchec: 'Failed to generate the receipt.',
+    },
+    liste: {
+      chargement: 'Loading payments…',
+      erreurChargement: 'Loading error.',
+      aucun: 'No payment for this year.',
+      recu: 'Receipt {{numero}}',
+      generer: 'Generate the receipt',
+    },
+  },
+}

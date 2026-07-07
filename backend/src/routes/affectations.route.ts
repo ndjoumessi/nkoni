@@ -9,6 +9,7 @@ import {
   MembreIntrouvableError,
   DateDebutIncoherenteError,
 } from '../services/affectation.service'
+import { t, langueDeRequete } from '../lib/i18n'
 
 /**
  * V1.1 (§5) — Historique des nominations (AffectationFonction).
@@ -38,12 +39,19 @@ const createAffectationSchema = {
 
 /** Mappe les erreurs métier du service en réponses 4xx ; renvoie true si traité. */
 function reply4xxSiMetier(err: unknown, reply: FastifyReply): boolean {
-  if (err instanceof FonctionIntrouvableError || err instanceof MembreIntrouvableError) {
-    reply.code(404).send({ error: 'Not Found', message: err.message })
+  const langue = langueDeRequete(reply.request)
+  if (err instanceof FonctionIntrouvableError) {
+    reply.code(404).send({ error: 'Not Found', message: t(langue, 'fonctions.introuvable') })
+    return true
+  }
+  if (err instanceof MembreIntrouvableError) {
+    reply.code(404).send({ error: 'Not Found', message: t(langue, 'membres.introuvable') })
     return true
   }
   if (err instanceof DateDebutIncoherenteError) {
-    reply.code(400).send({ error: 'Bad Request', message: err.message })
+    reply
+      .code(400)
+      .send({ error: 'Bad Request', message: t(langue, 'affectations.dateDebutIncoherente') })
     return true
   }
   return false

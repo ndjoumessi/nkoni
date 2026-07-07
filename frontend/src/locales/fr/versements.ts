@@ -1,0 +1,70 @@
+/** Chaînes FR du domaine « versements » (§4 i18n). */
+export default {
+  versements: {
+    modes: {
+      ESPECES: 'Espèces',
+      TIERS: 'Tiers',
+      AUTRE: 'Autre',
+    },
+    resume: '{{montant}} · année {{annee}}',
+    form: {
+      header: {
+        overline: 'Trésorerie',
+        titre: 'Nouveau versement',
+        back: 'Fiche du membre',
+      },
+      succesTitre: 'Versement enregistré',
+      totalVerse: 'Total versé',
+      totalValorise: 'Total valorisé',
+      recuGenere: 'Reçu généré : {{numero}}',
+      genererRecu: 'Générer le reçu',
+      nouveauVersement: 'Nouveau versement',
+      retourFiche: 'Retour à la fiche',
+      aucuneContribution:
+        "Aucune contribution n'existe pour ce membre. Ouvrez d'abord une année ci-dessous pour pouvoir enregistrer un versement.",
+      anneeLabel: 'Année (contribution)',
+      option: '{{annee}} — versé {{verse}} / attendu {{attendu}}',
+      montant: 'Montant (FCFA)',
+      date: 'Date',
+      mode: 'Mode',
+      note: 'Note (optionnelle)',
+      enregistrer: 'Enregistrer le versement',
+      ouvrir: {
+        titre: 'Ouvrir une année',
+        hint: "Crée les contributions de tous les membres éligibles pour l'année (nécessite un barème configuré pour cette année).",
+        anneeAria: 'Année à ouvrir',
+        bouton: "Ouvrir l'année",
+        baremeManquant: 'Aucun barème configuré pour cette année.',
+        configurerBareme: 'Configurer le barème →',
+      },
+      validation: {
+        montantRequis: 'Le montant est requis.',
+        montantPositif: 'Le montant doit être supérieur à 0.',
+      },
+    },
+    toast: {
+      chargementImpossible: 'Chargement impossible',
+      anneeOuverte: 'Année {{annee}} ouverte',
+      anneeOuverteEligible:
+        '{{crees}} contribution(s) créée(s) sur {{eligibles}} membre(s) éligible(s).',
+      anneeOuverteNonEligible:
+        "{{crees}} contribution(s) créée(s) sur {{eligibles}} membre(s) éligible(s). Ce membre n'est pas éligible pour cette année.",
+      ouvertureImpossible: 'Ouverture impossible',
+      ouvertureEchec: "Échec de l'ouverture de l'année.",
+      enregistre: 'Versement enregistré',
+      enregistrementImpossible: 'Enregistrement impossible',
+      enregistrementEchec: 'Échec de l’enregistrement du versement.',
+      recuGenere: 'Reçu généré',
+      recuNumero: 'N° {{numero}}',
+      generationImpossible: 'Génération impossible',
+      generationEchec: 'Échec de la génération du reçu.',
+    },
+    liste: {
+      chargement: 'Chargement des versements…',
+      erreurChargement: 'Erreur de chargement.',
+      aucun: 'Aucun versement pour cette année.',
+      recu: 'Reçu {{numero}}',
+      generer: 'Générer le reçu',
+    },
+  },
+}

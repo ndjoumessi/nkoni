@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Navigate } from 'react-router-dom'
 import { CalendarRange, Check, Pencil, Plus, X } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
 import { baremeApi, ApiError, messageErreur, type Bareme } from '@/lib/api'
 import { peutVoirBareme, peutGererBareme } from '@/lib/roles'
 import { focusPremierChampInvalide } from '@/lib/utils'
-import { formatFcfa } from '@/lib/format'
+import { formatMontant } from '@/lib/format'
 import { useToast } from '@/components/ui/Toast'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, Overline } from '@/components/ui/Card'
@@ -19,6 +20,7 @@ import { RowsSkeleton } from '@/components/ui/Skeleton'
  * Écriture : ADMIN uniquement. Dernier maillon barème → ouverture d'année → versement.
  */
 export function BaremePage() {
+  const { t } = useTranslation()
   const { user, accessToken } = useAuth()
   const toast = useToast()
   const gestion = peutGererBareme(user?.role)
@@ -42,9 +44,9 @@ export function BaremePage() {
 
   /** Contrôle d'un montant attendu (≥ 0, requis). */
   const validerMontant = (v: string): string | undefined => {
-    if (v.trim().length === 0) return 'Le montant est requis.'
+    if (v.trim().length === 0) return t('bareme.erreurs.montantRequis')
     const n = Number(v)
-    if (!Number.isFinite(n) || n < 0) return 'Montant invalide (≥ 0).'
+    if (!Number.isFinite(n) || n < 0) return t('bareme.erreurs.montantInvalide')
     return undefined
   }
 
@@ -83,9 +85,9 @@ export function BaremePage() {
     const anneeNum = Number(annee)
     const eAnnee =
       annee.trim().length === 0
-        ? "L'année est requise."
+        ? t('bareme.erreurs.anneeRequise')
         : !Number.isInteger(anneeNum) || anneeNum < 1900 || anneeNum > 2200
-          ? 'Année invalide (entre 1900 et 2200).'
+          ? t('bareme.erreurs.anneeInvalide')
           : undefined
     const eMontant = validerMontant(montant)
     setErrAnnee(eAnnee)
@@ -99,11 +101,14 @@ export function BaremePage() {
       const cree = await baremeApi.create(Number(annee), Number(montant), accessToken)
       setBaremes((prev) => [cree, ...prev].sort((a, b) => b.annee - a.annee))
       setMontant('')
-      toast.success('Barème ajouté', `Année ${cree.annee} · ${formatFcfa(cree.montantAttendu)}.`)
+      toast.success(
+        t('bareme.toast.ajoute'),
+        t('bareme.toast.detail', { annee: cree.annee, montant: formatMontant(cree.montantAttendu) }),
+      )
     } catch (e) {
       toast.error(
-        'Ajout impossible',
-        e instanceof ApiError ? e.message : 'Échec de l’ajout du barème.',
+        t('bareme.toast.ajoutImpossible'),
+        e instanceof ApiError ? e.message : t('bareme.toast.ajoutEchec'),
       )
     } finally {
       setAdding(false)
@@ -129,11 +134,14 @@ export function BaremePage() {
       const maj = await baremeApi.update(id, Number(editMontant), accessToken)
       setBaremes((prev) => prev.map((b) => (b.id === id ? maj : b)))
       setEditId(null)
-      toast.success('Barème mis à jour', `Année ${maj.annee} · ${formatFcfa(maj.montantAttendu)}.`)
+      toast.success(
+        t('bareme.toast.miseAJour'),
+        t('bareme.toast.detail', { annee: maj.annee, montant: formatMontant(maj.montantAttendu) }),
+      )
     } catch (e) {
       toast.error(
-        'Mise à jour impossible',
-        e instanceof ApiError ? e.message : 'Échec de la mise à jour.',
+        t('bareme.toast.majImpossible'),
+        e instanceof ApiError ? e.message : t('bareme.toast.majEchec'),
       )
     } finally {
       setSaving(false)
@@ -143,19 +151,19 @@ export function BaremePage() {
   return (
     <div className="mx-auto max-w-2xl">
       <PageHeader
-        overline="Configuration"
-        title="Barème annuel"
-        description={
-          <>Montant attendu par membre pour chaque année{!gestion && ' (lecture seule)'}.</>
-        }
+        overline={t('bareme.overline')}
+        title={t('bareme.titre')}
+        description={t('bareme.description', {
+          suffixe: gestion ? '' : t('bareme.lectureSeule'),
+        })}
       />
 
       {gestion && (
         <Card className="nk-reveal nk-d2 mt-7 p-5">
           <form ref={ajoutRef} onSubmit={handleAdd} noValidate>
-            <Overline>Ajouter une année</Overline>
+            <Overline>{t('bareme.ajouterAnnee')}</Overline>
             <div className="mt-3 flex flex-wrap items-start gap-3">
-              <Field label="Année" required className="w-32" error={errAnnee}>
+              <Field label={t('bareme.anneeLabel')} required className="w-32" error={errAnnee}>
                 <Input
                   type="number"
                   min={1900}
@@ -167,7 +175,7 @@ export function BaremePage() {
                   }}
                 />
               </Field>
-              <Field label="Montant attendu (FCFA)" required className="flex-1" error={errMontant}>
+              <Field label={t('bareme.montantLabel')} required className="flex-1" error={errMontant}>
                 <Input
                   type="number"
                   min={0}
@@ -189,7 +197,7 @@ export function BaremePage() {
                   &nbsp;
                 </span>
                 <Button type="submit" icon={Plus} loading={adding}>
-                  Ajouter
+                  {t('bareme.ajouter')}
                 </Button>
               </div>
             </div>
@@ -211,11 +219,11 @@ export function BaremePage() {
         {!loading && !error && baremes.length === 0 && (
           <EmptyState
             icon={CalendarRange}
-            title="Aucun barème configuré"
+            title={t('bareme.videTitre')}
             description={
               gestion
-                ? 'Ajoutez une première année ci-dessus pour fixer le montant attendu par membre.'
-                : 'Aucune année n’a encore été configurée par un administrateur.'
+                ? t('bareme.videDescriptionGestion')
+                : t('bareme.videDescription')
             }
           />
         )}
@@ -223,9 +231,9 @@ export function BaremePage() {
         {!loading && !error && baremes.length > 0 && (
           <Card className="overflow-hidden p-0">
             <div className="grid grid-cols-[1fr_2fr_auto] gap-4 border-b border-hairline px-5 py-3 text-[0.7rem] font-medium uppercase tracking-[0.12em] text-faint">
-              <span>Année</span>
-              <span>Montant attendu</span>
-              <span className="sr-only">Actions</span>
+              <span>{t('bareme.colonneAnnee')}</span>
+              <span>{t('bareme.colonneMontant')}</span>
+              <span className="sr-only">{t('bareme.colonneActions')}</span>
             </div>
             <ul className="divide-y divide-hairline">
               {baremes.map((b) => (
@@ -245,7 +253,7 @@ export function BaremePage() {
                           setEditMontant(e.target.value)
                           setErrEdit(undefined)
                         }}
-                        aria-label={`Montant ${b.annee}`}
+                        aria-label={t('bareme.montantAria', { annee: b.annee })}
                         aria-invalid={errEdit ? true : undefined}
                         aria-describedby={errEdit ? `edit-err-${b.id}` : undefined}
                       />
@@ -261,7 +269,7 @@ export function BaremePage() {
                     </div>
                   ) : (
                     <span className="num text-sm text-foreground/85">
-                      {formatFcfa(b.montantAttendu)}
+                      {formatMontant(b.montantAttendu)}
                     </span>
                   )}
                   <div className="flex items-center justify-end gap-2">
@@ -274,7 +282,7 @@ export function BaremePage() {
                           loading={saving}
                           icon={saving ? undefined : Check}
                         >
-                          Enregistrer
+                          {t('bareme.enregistrer')}
                         </Button>
                         <button
                           type="button"
@@ -283,7 +291,7 @@ export function BaremePage() {
                             setErrEdit(undefined)
                           }}
                           className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-hairline-strong text-muted-foreground transition-colors hover:text-foreground"
-                          aria-label="Annuler"
+                          aria-label={t('bareme.annulerAria')}
                         >
                           <X className="h-4 w-4" aria-hidden="true" />
                         </button>
@@ -295,7 +303,7 @@ export function BaremePage() {
                         icon={Pencil}
                         onClick={() => demarrerEdition(b)}
                       >
-                        Modifier
+                        {t('bareme.modifier')}
                       </Button>
                     ) : null}
                   </div>

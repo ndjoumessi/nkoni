@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { authApi } from '@/lib/api'
 import type { AuthUser, InscriptionInput } from '@/lib/api'
+import { appliquerLangue } from '@/lib/i18n'
+import { appliquerDevise } from '@/lib/format'
 import { AuthContext, type AuthContextValue } from './auth-context'
 
 /**
@@ -27,6 +29,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (active) {
           setAccessToken(token)
           setUser(me)
+          // §4 : la préférence serveur prime sur le localStorage dès la réhydratation.
+          if (me.langue) appliquerLangue(me.langue)
+          // §5/F6 : devise de l'org → formatage des montants dès la réhydratation.
+          if (me.devise) appliquerDevise(me.devise)
         }
       } catch {
         // Pas de session valide (cookie absent/expiré) → on reste déconnecté.
@@ -50,6 +56,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       )
       setAccessToken(token)
       setUser(connectedUser)
+      if (connectedUser.langue) appliquerLangue(connectedUser.langue)
+      if (connectedUser.devise) appliquerDevise(connectedUser.devise)
       // Retourné pour que l'appelant redirige selon le rôle (SUPER_ADMIN → console plateforme).
       return connectedUser
     },
@@ -61,7 +69,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { accessToken: token, user: connectedUser } = await authApi.inscription(input)
     setAccessToken(token)
     setUser(connectedUser)
+    if (connectedUser.langue) appliquerLangue(connectedUser.langue)
+    if (connectedUser.devise) appliquerDevise(connectedUser.devise)
   }, [])
+
+  const changerLangue = useCallback(
+    async (langue: 'FR' | 'EN') => {
+      if (!accessToken) {
+        // Non connecté (ex. sélecteur public) : on applique localement, sans persistance serveur.
+        appliquerLangue(langue)
+        return
+      }
+      const { accessToken: token, langue: enregistree } = await authApi.setLangue(langue, accessToken)
+      // Le PATCH réémet un token portant la nouvelle langue → on remplace le token en mémoire.
+      setAccessToken(token)
+      setUser((prev) => (prev ? { ...prev, langue: enregistree } : prev))
+      appliquerLangue(enregistree)
+    },
+    [accessToken],
+  )
 
   const logout = useCallback(async () => {
     try {
@@ -71,6 +97,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     setAccessToken(null)
     setUser(null)
+    // Repli sur la devise par défaut : le prochain login réappliquera celle de son org.
+    appliquerDevise('FCFA')
   }, [])
 
   const value: AuthContextValue = {
@@ -81,6 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     login,
     inscription,
     logout,
+    changerLangue,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

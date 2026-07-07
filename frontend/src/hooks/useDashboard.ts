@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { dashboardApi, ApiError, type Dashboard } from '@/lib/api'
 import { useAuth } from '@/contexts/auth-context'
 
@@ -7,6 +8,7 @@ import { useAuth } from '@/contexts/auth-context'
  * renvoie la vue adaptée au rôle ; le typage `Dashboard` est discriminé par `vue`.
  */
 export function useDashboard() {
+  const { t } = useTranslation()
   const { accessToken } = useAuth()
   const [data, setData] = useState<Dashboard | null>(null)
   const [loading, setLoading] = useState(true)
@@ -26,9 +28,7 @@ export function useDashboard() {
       } catch (e) {
         if (e instanceof DOMException && e.name === 'AbortError') return
         if (active) {
-          setError(
-            e instanceof ApiError ? e.message : 'Erreur de chargement du tableau de bord.',
-          )
+          setError(e instanceof ApiError ? e.message : t('dashboard.erreur'))
         }
       } finally {
         if (active) setLoading(false)
@@ -39,7 +39,7 @@ export function useDashboard() {
       active = false
       controller.abort()
     }
-  }, [accessToken])
+  }, [accessToken, t])
 
   return { data, loading, error }
 }

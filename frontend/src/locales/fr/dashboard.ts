@@ -1,0 +1,83 @@
+/** Chaînes FR du domaine « dashboard » (§4 i18n). */
+export default {
+  dashboard: {
+    header: {
+      overline: 'Tableau de bord',
+      titre: "Vue d'ensemble",
+    },
+    chargement: 'Chargement…',
+    erreur: 'Erreur de chargement du tableau de bord.',
+    vue: {
+      COMPLET: 'Vue complète',
+      FINANCIER: 'Vue financière',
+      RESTREINT: 'Vue restreinte',
+      PERSO: 'Ma situation',
+    },
+    statut: {
+      A_JOUR: 'À jour',
+      PARTIEL: 'Partiel',
+      NON_A_JOUR: 'Non à jour',
+    },
+    alerteBareme: {
+      avant: "Le barème de l'année",
+      apres:
+        "n'est pas encore configuré. Les statuts affichés ignorent cette année tant qu'aucun montant attendu n'est défini.",
+    },
+    onboarding: {
+      titre: 'Bienvenue sur NKONI',
+      descriptionGestion:
+        'Aucune cotisation n’est encore suivie. Commencez par configurer le barème annuel : il fixe le montant attendu par membre et débloque l’ouverture des années.',
+      descriptionLecture:
+        'Aucune cotisation n’est encore suivie. Le barème annuel n’a pas encore été configuré par un administrateur.',
+      action: 'Configurer le premier barème',
+      tips: {
+        bareme: 'Définir le barème annuel',
+        membres: 'Ajouter les membres',
+        versements: 'Enregistrer les versements',
+      },
+    },
+    stat: {
+      membresAJour: 'Membres à jour',
+      membresActifs: 'Membres actifs',
+      branches: 'Branches',
+    },
+    perso: {
+      overline: 'Ma situation · {{annee}}',
+      statutTitre: 'Statut de cotisation',
+      totalAttendu: 'Total attendu (cumulé)',
+      totalValorise: 'Total versé / valorisé (cumulé)',
+    },
+    hero: {
+      indicateur: 'Indicateur clé',
+      recouvre: 'recouvré',
+      totalCollecte: 'Total collecté',
+      totalAttendu: 'Total attendu',
+    },
+    repartition: {
+      aucuneDonnee: "Aucune donnée pour l'instant.",
+      cotisationTitre: 'Membres par statut de cotisation',
+      membreTitre: 'Membres par statut',
+      membre: {
+        ACTIF: 'Actifs',
+        INACTIF: 'Inactifs',
+        DECEDE: 'Décédés',
+      },
+    },
+    analyse: {
+      recouvrementBranche: 'Recouvrement par branche',
+      aRelancer: 'À relancer',
+      tousAJour: 'Tous les membres actifs sont à jour. 🎉',
+      reste: 'Reste {{montant}}',
+      voirTous: 'Voir tous les membres à relancer',
+    },
+    export: {
+      titre: 'Exporter les contributions',
+      excel: 'Excel',
+      pdf: 'PDF',
+      pretTitre: 'Export prêt',
+      pretDetail: 'Le fichier {{format}} a été téléchargé.',
+      echec: 'Échec de l’export',
+      reessayez: 'Réessayez plus tard.',
+    },
+  },
+}

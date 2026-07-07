@@ -11,6 +11,8 @@ export interface AuthContextValue {
   /** Auto-inscription (§3.1) : crée l'organisation + l'admin fondateur et ouvre la session. */
   inscription: (input: InscriptionInput) => Promise<void>
   logout: () => Promise<void>
+  /** Change la préférence de langue perso (§4) : persiste côté serveur et applique à l'UI. */
+  changerLangue: (langue: 'FR' | 'EN') => Promise<void>
 }
 
 export const AuthContext = createContext<AuthContextValue | undefined>(undefined)

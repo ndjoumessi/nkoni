@@ -1,6 +1,8 @@
 import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
 import { orgContext } from '../lib/org-context'
 import { emettreSession } from '../lib/session'
+import { t } from '../lib/i18n'
+import { langueEffective } from '../services/auth.service'
 import {
   inscrireOrganisation,
   EmailDejaUtiliseError,
@@ -63,11 +65,20 @@ export const organisationsRoutes: FastifyPluginAsync = async (app: FastifyInstan
         const accessToken = await emettreSession(reply, admin)
         return reply.code(201).send({
           accessToken,
-          user: { id: admin.id, email: admin.email, role: admin.role },
+          user: {
+            id: admin.id,
+            email: admin.email,
+            role: admin.role,
+            langue: langueEffective(admin),
+            devise: admin.devise,
+          },
         })
       } catch (err) {
         if (err instanceof EmailDejaUtiliseError) {
-          return reply.code(409).send({ error: 'Conflict', message: err.message })
+          // Flux public non authentifié : on traduit dans la langue CHOISIE au formulaire.
+          return reply
+            .code(409)
+            .send({ error: 'Conflict', message: t(req.body.langue, 'organisations.inscriptionImpossible') })
         }
         throw err
       }

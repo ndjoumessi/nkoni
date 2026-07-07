@@ -11,6 +11,7 @@ import {
   FonctionNomDuplicateError,
 } from '../services/fonction.service'
 import { listerHistorique } from '../services/affectation.service'
+import { t, langueDeRequete } from '../lib/i18n'
 
 /**
  * V1.1 (§5) — Fonctions/organes familiaux.
@@ -52,12 +53,13 @@ const updateFonctionSchema = {
 
 /** Mappe les erreurs métier du service en réponses 4xx ; renvoie true si traité. */
 function reply4xxSiMetier(err: unknown, reply: FastifyReply): boolean {
+  const langue = langueDeRequete(reply.request)
   if (err instanceof FonctionIntrouvableError) {
-    reply.code(404).send({ error: 'Not Found', message: err.message })
+    reply.code(404).send({ error: 'Not Found', message: t(langue, 'fonctions.introuvable') })
     return true
   }
   if (err instanceof FonctionNomDuplicateError) {
-    reply.code(409).send({ error: 'Conflict', message: err.message })
+    reply.code(409).send({ error: 'Conflict', message: t(langue, 'fonctions.nomDuplique') })
     return true
   }
   return false

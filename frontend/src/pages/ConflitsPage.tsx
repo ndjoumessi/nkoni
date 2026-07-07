@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Link, Navigate } from 'react-router-dom'
 import { AlertTriangle, CalendarRange, Lock, Plus, ShieldAlert, ShieldCheck, Users } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
 import { conflitsApi, messageErreur, type Conflit } from '@/lib/api'
 import { peutVoirConflits, peutDeclarerConflit } from '@/lib/roles'
-import { formatDateFR, staggerDelay } from '@/lib/utils'
+import { formatDate, staggerDelay } from '@/lib/utils'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card } from '@/components/ui/Card'
 import { StatCard } from '@/components/ui/StatCard'
@@ -15,6 +16,7 @@ import { NiveauBadge, StatutConflitBadge } from '@/components/conflits/ConflitBa
 
 /** Liste des conflits VISIBLES par l'utilisateur (filtrage appliqué côté serveur). */
 export function ConflitsPage() {
+  const { t } = useTranslation()
   const { user, accessToken } = useAuth()
 
   const [conflits, setConflits] = useState<Conflit[] | null>(null)
@@ -53,16 +55,16 @@ export function ConflitsPage() {
   return (
     <>
       <PageHeader
-        overline="Suivi familial"
-        title="Conflits"
+        overline={t('conflits.overline')}
+        title={t('conflits.liste.titre')}
         description={
-          conflits ? `${conflits.length} conflit${conflits.length > 1 ? 's' : ''} visible${conflits.length > 1 ? 's' : ''}` : undefined
+          conflits ? t('conflits.liste.description', { count: conflits.length }) : undefined
         }
         actions={
           // Masqué quand la liste est vide : l'EmptyState porte déjà le CTA (pas de doublon).
           declarer && (!conflits || conflits.length > 0) && (
             <ButtonLink to="/conflits/nouveau" icon={Plus}>
-              Déclarer un conflit
+              {t('conflits.liste.declarer')}
             </ButtonLink>
           )
         }
@@ -70,21 +72,21 @@ export function ConflitsPage() {
 
       {conflits && conflits.length > 0 && (
         <div className="nk-reveal nk-d2 mt-7 grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <StatCard label="Conflits" value={String(conflits.length)} icon={ShieldAlert} />
+          <StatCard label={t('conflits.liste.stats.total')} value={String(conflits.length)} icon={ShieldAlert} />
           <StatCard
-            label="En cours"
+            label={t('conflits.liste.stats.enCours')}
             value={String(conflits.filter((c) => c.statut === 'OUVERT' || c.statut === 'EN_COURS').length)}
             tone="brass"
             icon={AlertTriangle}
           />
           <StatCard
-            label="Résolus"
+            label={t('conflits.liste.stats.resolus')}
             value={String(conflits.filter((c) => c.statut === 'RESOLU' || c.statut === 'CLOS').length)}
             tone="jade"
             icon={ShieldCheck}
           />
           <StatCard
-            label="Confidentiels"
+            label={t('conflits.liste.stats.confidentiels')}
             value={String(conflits.filter((c) => c.niveauConfidentialite === 'CONFIDENTIEL').length)}
             icon={Lock}
           />
@@ -106,17 +108,17 @@ export function ConflitsPage() {
           <EmptyState
             icon={ShieldCheck}
             tone="jade"
-            title="Aucun conflit visible"
+            title={t('conflits.liste.videTitre')}
             className="min-h-[45vh] justify-center"
             description={
               declarer
-                ? 'Aucun conflit dans votre périmètre pour le moment. Vous pouvez en déclarer un.'
-                : 'Aucun conflit ne vous est accessible pour le moment.'
+                ? t('conflits.liste.videDescriptionGestion')
+                : t('conflits.liste.videDescription')
             }
             action={
               declarer && (
                 <ButtonLink to="/conflits/nouveau" icon={Plus}>
-                  Déclarer un conflit
+                  {t('conflits.liste.declarer')}
                 </ButtonLink>
               )
             }
@@ -144,13 +146,12 @@ export function ConflitsPage() {
                       <p className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
                         <span className="inline-flex items-center gap-1.5">
                           <CalendarRange className="h-3.5 w-3.5 text-faint" aria-hidden="true" />
-                          {formatDateFR(c.dateOuverture)}
+                          {formatDate(c.dateOuverture)}
                         </span>
                         {c.membresConcernes.length > 0 && (
                           <span className="inline-flex items-center gap-1.5">
                             <Users className="h-3.5 w-3.5 text-faint" aria-hidden="true" />
-                            {c.membresConcernes.length} concerné
-                            {c.membresConcernes.length > 1 ? 's' : ''}
+                            {t('conflits.liste.concernes', { count: c.membresConcernes.length })}
                           </span>
                         )}
                       </p>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Bell } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
 import {
@@ -13,24 +14,15 @@ import { Card, Overline } from '@/components/ui/Card'
 import { Toggle } from '@/components/ui/Toggle'
 import { Skeleton } from '@/components/ui/Skeleton'
 
-const TYPES: { cle: TypeNotification; titre: string; desc: string }[] = [
-  {
-    cle: 'VERSEMENT_RECU',
-    titre: 'Versement enregistré',
-    desc: 'Confirmation quand un de vos versements est enregistré.',
-  },
-  {
-    cle: 'COTISATION_RETARD',
-    titre: 'Cotisation en retard',
-    desc: 'Rappel quand votre cotisation n’est pas à jour.',
-  },
-]
+/** Types de notification ; libellés résolus via `profil.notifications.types.*`. */
+const TYPES: TypeNotification[] = ['VERSEMENT_RECU', 'COTISATION_RETARD']
 
 /**
  * Préférences de notification (§5) — un interrupteur par type. Mise à jour optimiste avec
  * rollback si l'appel échoue. Par défaut tout est activé (rétrocompatible côté serveur).
  */
 export function NotificationPreferences() {
+  const { t } = useTranslation()
   const { accessToken } = useAuth()
   const toast = useToast()
 
@@ -69,8 +61,8 @@ export function NotificationPreferences() {
     } catch (e) {
       setPrefs(precedent) // rollback
       toast.error(
-        'Modification impossible',
-        e instanceof ApiError ? e.message : 'Réessayez plus tard.',
+        t('profil.notifications.erreur'),
+        e instanceof ApiError ? e.message : t('profil.notifications.reessayer'),
       )
     } finally {
       setSaving(null)
@@ -81,11 +73,9 @@ export function NotificationPreferences() {
     <Card className="nk-reveal nk-d3 mt-6 p-6">
       <div className="flex items-center gap-2">
         <Bell className="h-4 w-4 text-brass" aria-hidden="true" />
-        <Overline>Préférences de notification</Overline>
+        <Overline>{t('profil.notifications.titre')}</Overline>
       </div>
-      <p className="mt-2 text-sm text-faint">
-        Choisissez les notifications que vous souhaitez recevoir dans l’application.
-      </p>
+      <p className="mt-2 text-sm text-faint">{t('profil.notifications.description')}</p>
 
       {error ? (
         <p className="mt-4 text-sm text-terra">{error}</p>
@@ -96,13 +86,15 @@ export function NotificationPreferences() {
         </div>
       ) : (
         <ul className="mt-4 divide-y divide-hairline">
-          {TYPES.map(({ cle, titre, desc }) => (
+          {TYPES.map((cle) => (
             <li key={cle} className="flex items-center justify-between gap-4 py-3.5">
               <div className="min-w-0">
                 <span id={`pref-${cle}`} className="block text-sm font-medium text-foreground">
-                  {titre}
+                  {t(`profil.notifications.types.${cle}.titre`)}
                 </span>
-                <span className="mt-0.5 block text-xs text-faint">{desc}</span>
+                <span className="mt-0.5 block text-xs text-faint">
+                  {t(`profil.notifications.types.${cle}.desc`)}
+                </span>
               </div>
               <Toggle
                 checked={prefs[cle]}

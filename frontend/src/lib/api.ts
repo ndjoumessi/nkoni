@@ -13,6 +13,16 @@ export interface AuthUser {
   email: string
   role: string
   membreId?: string | null
+  /** Préférence de langue perso (§4). null/absent = non exprimée (le front suit son localStorage). */
+  langue?: 'FR' | 'EN' | null
+  /** Devise de l'organisation (§5, immuable) → formatage des montants (F6). null pour le SUPER_ADMIN. */
+  devise?: 'FCFA' | 'EUR' | 'USD' | 'CAD' | null
+}
+
+/** Réponse de PATCH /auth/me/langue : nouveau token (portant la langue) + langue enregistrée. */
+export interface LangueResponse {
+  accessToken: string
+  langue: 'FR' | 'EN'
 }
 
 export interface LoginResponse {
@@ -122,6 +132,14 @@ export const authApi = {
     request<RefreshResponse>('/auth/refresh', { method: 'POST', signal }),
   me: (accessToken: string, signal?: AbortSignal) =>
     request<AuthUser>('/auth/me', { accessToken, signal }),
+  // Préférence de langue perso (§4) : persiste côté serveur et réémet un access token portant
+  // la nouvelle langue (le front remplace son token en mémoire).
+  setLangue: (langue: 'FR' | 'EN', accessToken: string) =>
+    request<LangueResponse>('/auth/me/langue', {
+      method: 'PATCH',
+      json: { langue },
+      accessToken,
+    }),
   logout: () => request<void>('/auth/logout', { method: 'POST' }),
   // Changement self-service : l'utilisateur connecté change SON propre mot de passe.
   // L'ancien est vérifié côté back (401 si incorrect).

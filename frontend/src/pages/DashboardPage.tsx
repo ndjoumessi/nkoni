@@ -8,6 +8,7 @@ import {
   Users,
   Wallet,
 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { peutGererBareme } from '@/lib/roles'
 import { useAuth } from '@/contexts/auth-context'
 import { useDashboard } from '@/hooks/useDashboard'
@@ -25,7 +26,7 @@ import {
 } from '@/components/dashboard/StatutRepartition'
 import { AnalyseMembres } from '@/components/dashboard/AnalyseMembres'
 import { ExportButtons } from '@/components/dashboard/ExportButtons'
-import { formatFcfa, formatNombre } from '@/lib/format'
+import { formatMontant, formatNombre } from '@/lib/format'
 import type {
   Dashboard,
   DashboardComplet,
@@ -39,20 +40,21 @@ import type {
 /* Petits blocs                                                               */
 /* -------------------------------------------------------------------------- */
 
-const STATUT: Record<StatutContribution, { label: string; tone: BadgeProps['tone'] }> = {
-  A_JOUR: { label: 'À jour', tone: 'jade' },
-  PARTIEL: { label: 'Partiel', tone: 'amber' },
-  NON_A_JOUR: { label: 'Non à jour', tone: 'terra' },
+const STATUT_TONE: Record<StatutContribution, BadgeProps['tone']> = {
+  A_JOUR: 'jade',
+  PARTIEL: 'amber',
+  NON_A_JOUR: 'terra',
 }
 
 function AlerteBareme({ annee }: { annee: number }) {
+  const { t } = useTranslation()
   return (
     <Card className="flex items-start gap-3 border-amber/30 bg-amber/[0.07] p-4">
       <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber" aria-hidden="true" />
       <p className="text-sm text-foreground/85">
-        Le barème de l'année <span className="font-semibold text-amber">{annee}</span> n'est pas
-        encore configuré. Les statuts affichés ignorent cette année tant qu'aucun montant attendu
-        n'est défini.
+        {t('dashboard.alerteBareme.avant')}{' '}
+        <span className="font-semibold text-amber">{annee}</span>{' '}
+        {t('dashboard.alerteBareme.apres')}
       </p>
     </Card>
   )
@@ -60,27 +62,28 @@ function AlerteBareme({ annee }: { annee: number }) {
 
 /** Onboarding : dashboard sans aucune donnée financière → on oriente vers le barème. */
 function OnboardingVide({ canManage }: { canManage: boolean }) {
+  const { t } = useTranslation()
   return (
     <EmptyState
       icon={Sparkles}
-      title="Bienvenue sur NKONI"
+      title={t('dashboard.onboarding.titre')}
       className="min-h-[56vh] justify-center"
       description={
         canManage
-          ? 'Aucune cotisation n’est encore suivie. Commencez par configurer le barème annuel : il fixe le montant attendu par membre et débloque l’ouverture des années.'
-          : 'Aucune cotisation n’est encore suivie. Le barème annuel n’a pas encore été configuré par un administrateur.'
+          ? t('dashboard.onboarding.descriptionGestion')
+          : t('dashboard.onboarding.descriptionLecture')
       }
       action={
         canManage && (
           <ButtonLink to="/bareme" icon={CalendarRange}>
-            Configurer le premier barème
+            {t('dashboard.onboarding.action')}
           </ButtonLink>
         )
       }
       tips={[
-        { icon: CalendarRange, label: 'Définir le barème annuel' },
-        { icon: Users, label: 'Ajouter les membres' },
-        { icon: Coins, label: 'Enregistrer les versements' },
+        { icon: CalendarRange, label: t('dashboard.onboarding.tips.bareme') },
+        { icon: Users, label: t('dashboard.onboarding.tips.membres') },
+        { icon: Coins, label: t('dashboard.onboarding.tips.versements') },
       ]}
     />
   )
@@ -91,6 +94,7 @@ function OnboardingVide({ canManage }: { canManage: boolean }) {
 /* -------------------------------------------------------------------------- */
 
 function VueComplet({ d, canManage }: { d: DashboardComplet; canManage: boolean }) {
+  const { t } = useTranslation()
   const vide = d.finances.totalAttenduCumule === 0
   return (
     <div className="space-y-4">
@@ -106,18 +110,18 @@ function VueComplet({ d, canManage }: { d: DashboardComplet; canManage: boolean 
           />
           <div className="grid gap-4 sm:grid-cols-3">
             <StatCard
-              label="Membres à jour"
+              label={t('dashboard.stat.membresAJour')}
               value={formatNombre(d.membresParStatutContribution.A_JOUR)}
               icon={ShieldCheck}
               tone="jade"
             />
             <StatCard
-              label="Membres actifs"
+              label={t('dashboard.stat.membresActifs')}
               value={formatNombre(d.membresParStatutMembre.ACTIF)}
               icon={Users}
             />
             <StatCard
-              label="Branches"
+              label={t('dashboard.stat.branches')}
               value={formatNombre(d.nombreBranches)}
               icon={GitBranch}
             />
@@ -136,6 +140,7 @@ function VueComplet({ d, canManage }: { d: DashboardComplet; canManage: boolean 
 
 function VueFinancier({ d, canManage }: { d: DashboardFinancier; canManage: boolean }) {
   const vide = d.finances.totalAttenduCumule === 0
+  // Aucune chaîne en dur ici : les libellés viennent des composants enfants.
   return (
     <div className="space-y-4">
       {d.alertes.baremeAnneeCouranteManquant && <AlerteBareme annee={d.anneeCourante} />}
@@ -158,12 +163,13 @@ function VueFinancier({ d, canManage }: { d: DashboardFinancier; canManage: bool
 }
 
 function VueRestreint({ d }: { d: DashboardRestreint }) {
+  const { t } = useTranslation()
   return (
     <div className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-2">
-        <StatCard label="Branches" value={formatNombre(d.nombreBranches)} icon={GitBranch} />
+        <StatCard label={t('dashboard.stat.branches')} value={formatNombre(d.nombreBranches)} icon={GitBranch} />
         <StatCard
-          label="Membres actifs"
+          label={t('dashboard.stat.membresActifs')}
           value={formatNombre(d.membresParStatutMembre.ACTIF)}
           icon={Users}
           tone="jade"
@@ -175,29 +181,29 @@ function VueRestreint({ d }: { d: DashboardRestreint }) {
 }
 
 function VuePerso({ d }: { d: DashboardPerso }) {
-  const s = STATUT[d.statut]
+  const { t } = useTranslation()
   return (
     <div className="space-y-4">
       <Card variant="feature" className="flex flex-wrap items-center justify-between gap-4 p-6">
         <div>
-          <Overline>Ma situation · {d.anneeCourante}</Overline>
+          <Overline>{t('dashboard.perso.overline', { annee: d.anneeCourante })}</Overline>
           <p className="mt-2 font-display text-xl font-semibold tracking-tight text-foreground">
-            Statut de cotisation
+            {t('dashboard.perso.statutTitre')}
           </p>
         </div>
-        <Badge tone={s.tone} size="lg" dot>
-          {s.label}
+        <Badge tone={STATUT_TONE[d.statut]} size="lg" dot>
+          {t(`dashboard.statut.${d.statut}`)}
         </Badge>
       </Card>
       <div className="grid gap-4 sm:grid-cols-2">
         <StatCard
-          label="Total attendu (cumulé)"
-          value={formatFcfa(d.totalAttenduCumule)}
+          label={t('dashboard.perso.totalAttendu')}
+          value={formatMontant(d.totalAttenduCumule)}
           icon={Wallet}
         />
         <StatCard
-          label="Total versé / valorisé (cumulé)"
-          value={formatFcfa(d.totalValoriseCumule)}
+          label={t('dashboard.perso.totalValorise')}
+          value={formatMontant(d.totalValoriseCumule)}
           icon={Coins}
           tone="jade"
         />
@@ -245,14 +251,8 @@ function DashboardSkeleton() {
 /* Page                                                                       */
 /* -------------------------------------------------------------------------- */
 
-const VUE_LABEL: Record<Dashboard['vue'], string> = {
-  COMPLET: 'Vue complète',
-  FINANCIER: 'Vue financière',
-  RESTREINT: 'Vue restreinte',
-  PERSO: 'Ma situation',
-}
-
 export function DashboardPage() {
+  const { t } = useTranslation()
   const { user } = useAuth()
   const { data, loading, error } = useDashboard()
   const canManage = peutGererBareme(user?.role)
@@ -260,9 +260,9 @@ export function DashboardPage() {
   return (
     <>
       <PageHeader
-        overline="Tableau de bord"
-        title="Vue d'ensemble"
-        description={data ? VUE_LABEL[data.vue] : 'Chargement…'}
+        overline={t('dashboard.header.overline')}
+        title={t('dashboard.header.titre')}
+        description={data ? t(`dashboard.vue.${data.vue}`) : t('dashboard.chargement')}
       />
 
       <div className="nk-reveal nk-d2 mt-8">

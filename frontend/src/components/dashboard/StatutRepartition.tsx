@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { ChevronRight } from 'lucide-react'
 import type {
@@ -21,6 +22,7 @@ interface Item {
 
 /** Répartition en barre segmentée + légende chiffrée, lignes cliquables si `href`. */
 function Repartition({ titre, items }: { titre: string; items: Item[] }) {
+  const { t } = useTranslation()
   const total = items.reduce((s, it) => s + it.count, 0)
 
   // Animation d'entrée (§10) : les segments grandissent de 0 vers leur largeur.
@@ -36,7 +38,7 @@ function Repartition({ titre, items }: { titre: string; items: Item[] }) {
       <Overline>{titre}</Overline>
 
       {total === 0 ? (
-        <p className="mt-4 text-sm text-faint">Aucune donnée pour l'instant.</p>
+        <p className="mt-4 text-sm text-faint">{t('dashboard.repartition.aucuneDonnee')}</p>
       ) : (
         <>
           <div
@@ -112,13 +114,14 @@ export function StatutContributionRepartition({
   data: RepartitionStatutContribution
   linkBase?: string
 }) {
+  const { t } = useTranslation()
   return (
     <Repartition
-      titre="Membres par statut de cotisation"
+      titre={t('dashboard.repartition.cotisationTitre')}
       items={[
         {
           key: 'A_JOUR',
-          label: 'À jour',
+          label: t('dashboard.statut.A_JOUR'),
           count: data.A_JOUR,
           bar: 'bg-jade',
           dot: 'bg-jade',
@@ -126,7 +129,7 @@ export function StatutContributionRepartition({
         },
         {
           key: 'PARTIEL',
-          label: 'Partiel',
+          label: t('dashboard.statut.PARTIEL'),
           count: data.PARTIEL,
           bar: 'bg-amber',
           dot: 'bg-amber',
@@ -134,7 +137,7 @@ export function StatutContributionRepartition({
         },
         {
           key: 'NON_A_JOUR',
-          label: 'Non à jour',
+          label: t('dashboard.statut.NON_A_JOUR'),
           count: data.NON_A_JOUR,
           bar: 'bg-terra',
           dot: 'bg-terra',
@@ -152,13 +155,14 @@ export function StatutMembreRepartition({
   data: RepartitionStatutMembre
   linkBase?: string
 }) {
+  const { t } = useTranslation()
   return (
     <Repartition
-      titre="Membres par statut"
+      titre={t('dashboard.repartition.membreTitre')}
       items={[
         {
           key: 'ACTIF',
-          label: 'Actifs',
+          label: t('dashboard.repartition.membre.ACTIF'),
           count: data.ACTIF,
           bar: 'bg-info',
           dot: 'bg-info',
@@ -166,7 +170,7 @@ export function StatutMembreRepartition({
         },
         {
           key: 'INACTIF',
-          label: 'Inactifs',
+          label: t('dashboard.repartition.membre.INACTIF'),
           count: data.INACTIF,
           bar: 'bg-surface-3',
           dot: 'bg-muted-foreground',
@@ -174,7 +178,7 @@ export function StatutMembreRepartition({
         },
         {
           key: 'DECEDE',
-          label: 'Décédés',
+          label: t('dashboard.repartition.membre.DECEDE'),
           count: data.DECEDE,
           bar: 'bg-faint/40',
           dot: 'bg-faint',

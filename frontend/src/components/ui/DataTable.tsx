@@ -1,4 +1,5 @@
 import { Fragment, useState, type ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { ArrowDown, ArrowUp, ChevronDown, ChevronsUpDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -59,6 +60,7 @@ export function DataTable<T>({
   caption,
   className,
 }: DataTableProps<T>) {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [ouverts, setOuverts] = useState<Set<string>>(new Set())
   const nbCols = columns.length + (expandable ? 1 : 0)
@@ -103,7 +105,9 @@ export function DataTable<T>({
                     <button
                       type="button"
                       onClick={() => onSort(col.key)}
-                      aria-label={`Trier par ${typeof col.header === 'string' ? col.header : col.key}${actif ? (sort?.dir === 'asc' ? ', croissant' : ', décroissant') : ''}`}
+                      aria-label={`${t('ui.table.trierPar', {
+                        col: typeof col.header === 'string' ? col.header : col.key,
+                      })}${actif ? (sort?.dir === 'asc' ? t('ui.table.croissant') : t('ui.table.decroissant')) : ''}`}
                       className={cn(
                         'group inline-flex items-center gap-1 uppercase tracking-[0.1em] transition-colors hover:text-foreground',
                         col.numeric && 'flex-row-reverse',
@@ -178,7 +182,7 @@ export function DataTable<T>({
                             toggle(k)
                           }}
                           aria-expanded={ouvert}
-                          aria-label={ouvert ? 'Masquer les détails' : 'Afficher les détails'}
+                          aria-label={ouvert ? t('ui.table.masquerDetails') : t('ui.table.afficherDetails')}
                           className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-faint transition-colors hover:text-foreground"
                         >
                           <ChevronDown

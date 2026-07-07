@@ -1,17 +1,39 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
+import i18n from "@/lib/i18n"
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-/** Formate une date ISO en français (jj mois aaaa). Repli sur `—` si absente/invalide. */
-export function formatDateFR(iso: string | null | undefined): string {
+/** Locale courante (`fr`/`en`) dérivée de la langue d'interface (i18next), pour les dates (F6). */
+function locale(): string {
+  return i18n.language?.toLowerCase().startsWith('en') ? 'en' : 'fr'
+}
+
+/** Format « jj mois aaaa » par défaut, réutilisé par les nombreux appels sans options. */
+const DATE_LONGUE: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'long', year: 'numeric' }
+
+/**
+ * Formate une date ISO selon la LANGUE de l'utilisateur (§4/F6), plus « fr-FR » en dur.
+ * Repli sur `—` si absente/invalide. `options` permet des formats courts/numériques ponctuels.
+ */
+export function formatDate(
+  iso: string | null | undefined,
+  options: Intl.DateTimeFormatOptions = DATE_LONGUE,
+): string {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  return Number.isNaN(d.getTime()) ? '—' : d.toLocaleDateString(locale(), options)
+}
+
+/** Formate une date+heure ISO selon la langue courante (medium/short). Repli sur `—`. */
+export function formatDateHeure(iso: string | null | undefined): string {
   if (!iso) return '—'
   const d = new Date(iso)
   return Number.isNaN(d.getTime())
     ? '—'
-    : d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })
+    : d.toLocaleString(locale(), { dateStyle: 'medium', timeStyle: 'short' })
 }
 
 /**

@@ -13,6 +13,7 @@ import {
   type Utilisateur,
 } from '@/lib/api'
 import { peutVoirAudit } from '@/lib/roles'
+import { construireFiltresAudit } from '@/lib/audit-filtres'
 import { cn, formatDate, formatDateHeure } from '@/lib/utils'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card } from '@/components/ui/Card'
@@ -216,13 +217,7 @@ export function AuditLogPage() {
     void (async () => {
       try {
         const res = await auditLogApi.list(
-          {
-            page,
-            ...(entiteType ? { entiteType } : {}),
-            ...(acteurId ? { acteurId } : {}),
-            ...(dateDebut ? { dateDebut: `${dateDebut}T00:00:00` } : {}),
-            ...(dateFin ? { dateFin: `${dateFin}T23:59:59` } : {}),
-          },
+          construireFiltresAudit({ page, entiteType, acteurId, dateDebut, dateFin }),
           accessToken,
           controller.signal,
         )
@@ -321,8 +316,13 @@ export function AuditLogPage() {
         description={data ? t('audit.header.entrees', { count: total }) : undefined}
       />
 
-      {/* Filtres */}
-      <Card className="nk-reveal nk-d2 mt-7 p-5">
+      {/* Filtres.
+          `relative z-20` : `nk-reveal` (animation `forwards`) laisse un `transform` résiduel sur
+          CETTE carte ET sur le bloc du tableau ci-dessous → chacun devient un contexte d'empilement.
+          Sans hiérarchie explicite, le tableau (frère plus bas dans le DOM) recouvrirait le popover
+          du DatePicker (piégé dans le contexte de cette carte), le rendant illisible ET non
+          cliquable. On élève donc les filtres (z-20) au-dessus du tableau (z-10). */}
+      <Card className="relative z-20 nk-reveal nk-d2 mt-7 p-5">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Field label={t('audit.filtres.typeEntite')}>
             <Select value={entiteType} onChange={(e) => filtrer(setEntiteType)(e.target.value)}>
@@ -360,7 +360,7 @@ export function AuditLogPage() {
         )}
       </Card>
 
-      <div className="nk-reveal nk-d3 mt-6">
+      <div className="relative z-10 nk-reveal nk-d3 mt-6">
         {loading && (
           <Card className="overflow-hidden p-0">
             <RowsSkeleton rows={6} />

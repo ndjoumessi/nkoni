@@ -9,7 +9,7 @@ Spécifications : `NKONI_Spec_Technique_Dev.md` (mono-tenant d'origine) et
 
 ## Structure & stack
 - `backend/` — Node 20 + Fastify 5 + Prisma 7 (générateur `prisma-client`, adapter `@prisma/adapter-pg`) + PostgreSQL. TypeScript, tests Vitest.
-- `frontend/` — Vite + React + React Router + Tailwind v4. Design system « Laiton & Jade » (tokens oklch, primitives dans `src/components/ui/`, fontes Fraunces + Geist).
+- `frontend/` — Vite + React + React Router + Tailwind v4. Design system **« Menthe & Encre »** (fintech, dark-only ; tokens oklch **centralisés dans `src/index.css`**, primitives dans `src/components/ui/`). Accent principal **menthe** (jeton `--brass`), or discret en secondaire (`--amber`), rouge/bleu pour les statuts ; fontes **Geist** (UI/titres, Fraunces retiré) + **IBM Plex Mono** pour les montants/données via la classe `.num`. Focus clavier : **un anneau menthe unique** (`:focus-visible` global). CTA primaire = dégradé diagonal émeraude → or. Un thème = édition des VALEURS de jetons (les noms restent stables : `--brass`, `--jade`, `--amber`… gardent leur rôle même après changement de teinte).
 
 ## Commandes
 Backend (`cd backend`) :
@@ -23,9 +23,10 @@ Backend (`cd backend`) :
 Frontend (`cd frontend`) :
 - `npm run build` — `tsc -b && vite build`
 - `npm run lint` — `oxlint` (doit être clean : 0 finding)
+- `npm run test` — **Vitest** one-shot (tests unitaires du client HTTP : refresh-on-401, dédup, déconnexion). `tsconfig.app` **exclut** `*.test.ts` du build ; Vitest les transpile via esbuild (config `vitest.config.ts`, env `node`, alias `@`).
 - `npm run dev` — Vite
 
-Toujours vérifier **build + test** (backend) ou **build + lint** (frontend) avant de présenter un résultat.
+Toujours vérifier **build + test** (backend) ou **build + lint (+ test si le client HTTP est touché)** (frontend) avant de présenter un résultat.
 
 ## Architecture — points essentiels
 
@@ -37,6 +38,7 @@ Toujours vérifier **build + test** (backend) ou **build + lint** (frontend) ava
 
 **Rôles & permissions** — `backend/src/middlewares/permissions.ts` :
 - Matrice `PERMISSIONS[entité][rôle]` + `requirePermission(entité, action)`. Miroir front dans `frontend/src/lib/roles.ts`.
+- Entité `Organisation` (paramètres de l'org, **lecture seule**) : ouverte à tous les rôles d'organisation **sauf** MEMBRE_SIMPLE (le quota relève de la gestion). `GET /organisations/moi` (scopé, self-service) renvoie nom/devise/langue défaut/date + **nb de membres ACTIFS vs limite forfait gratuit (100)** ; écran `/parametres` (lecture seule, ces paramètres sont **immuables** §5). Le SUPER_ADMIN reste hors matrice → 403.
 - `authenticate` (hook JWT) peuple `req.user` et appelle `orgContext.setOrganisation(req.user.organisationId)`.
 - **SUPER_ADMIN** (rôle plateforme transverse, §2.3) : `organisationId` NULL (invariant CHECK en base), **absent de la matrice** → 403 sur toute route tenant. Ses seules routes : `/platform/*` (garde `requireSuperAdmin`). Voir la mémoire `nkoni-super-admin`.
 
@@ -46,7 +48,7 @@ Toujours vérifier **build + test** (backend) ou **build + lint** (frontend) ava
 
 **Scheduler notifications** — `services/notification-scheduler.ts` : `node-cron` **in-process** (03:00 Africa/Douala, un seul process Railway long-vivant). Génère les `COTISATION_RETARD` en **bouclant org par org**, chaque itération enveloppée dans `orgContext.run({ organisationId })` (jamais un `runUnscoped` global qui mélangerait les tenants). Cœur métier découplé du cron (`anneeCourante` + `now` injectés) → testable sans horloge réelle.
 
-**Internationalisation FR/EN (§4)** — chantier `feat/i18n` (interface + messages serveur + notifications intégralement traduits ; reste les **formats** dates/montants, lot F6 à venir). Préférence de langue **par utilisateur** (`Utilisateur.langue Langue?`, nullable ; indépendante de `Organisation.langueDefaut`), fixée via `PATCH /auth/me/langue` (self-service, réémet un access token portant la langue).
+**Internationalisation FR/EN (§4)** — interface + messages serveur + notifications + **formats** dates/montants intégralement traduits (lots F1–F6 mergés sur `main`). Préférence de langue **par utilisateur** (`Utilisateur.langue Langue?`, nullable ; indépendante de `Organisation.langueDefaut`), fixée via `PATCH /auth/me/langue` (self-service, réémet un access token portant la langue).
 - **Catalogues = fragments par namespace, agrégés par un index, parité vérifiée à la compilation** (même recette des 2 côtés) :
   - Backend `backend/src/locales/{fr,en}/<domaine>.ts` (chacun `export const messages = {…}`), agrégés par `index.ts` ; `en/index` typé `Messages` (dérivé de FR). Clés **plates** `<domaine>.<message>`, interpolation `{nom}`. `t(langue, clé, params?)` dans `lib/i18n.ts`.
   - Frontend `frontend/src/locales/{fr,en}/<ns>.ts` (chacun `export default { <ns>: { … } }`, clés **imbriquées**), agrégés par `index.ts` ; `en/index` typé `Catalogue`. `react-i18next` (namespace unique `translation`), interpolation `{{var}}`, pluriels `_one`/`_other`.
@@ -64,8 +66,8 @@ Toujours vérifier **build + test** (backend) ou **build + lint** (frontend) ava
 
 **Frontend — architecture applicative** (`frontend/src/`) :
 - **Routing** (`App.tsx`) : `react-router-dom` déclaratif. Trois zones : pages publiques (`/`, `/login`, `/inscription`), console **plateforme** `/super-admin` (garde `SuperAdminRoute`, layout autonome **hors** `AppShell`), et pages tenant sous `<ProtectedLayout>` = `ProtectedRoute` (garde d'auth) + `AppShell` (coquille + nav) via `<Outlet/>`. **Routes statiques déclarées avant les paramétrées** (`/membres/nouveau` avant `/membres/:id`).
-- **Session** (`contexts/AuthContext.tsx` + `auth-context.ts`) : l'access token vit **uniquement en mémoire React** (jamais en `localStorage`). La persistance entre reloads repose sur le cookie httpOnly du refresh — au montage, `AuthContext` tente un `/auth/refresh` silencieux puis `/auth/me` pour réhydrater `user`. `useAuth()` expose `login`/`inscription`/`logout`/`changerLangue` + `user`/`accessToken`/`isAuthenticated`/`loading`. C'est aussi lui qui applique la langue serveur (`appliquerLangue`, cf. §4).
-- **Client HTTP** (`lib/api.ts`) : `fetch` minimal, **`credentials: 'include'` obligatoire** (envoi du cookie refresh). Le token est passé explicitement en `Bearer` par appel (pas d'intercepteur global). `ApiError` porte le statut HTTP pour un traitement fin côté UI ; `messageErreur(e)` distingue réponse d'erreur serveur vs rejet `fetch` (réseau/CORS). Base : `VITE_API_URL` (défaut `http://localhost:3000`) — en prod, proxy same-origin Vercel (`/api/*`).
+- **Session** (`contexts/AuthContext.tsx` + `auth-context.ts`) : l'access token vit **uniquement en mémoire React** (jamais en `localStorage`). La persistance entre reloads repose sur le cookie httpOnly du refresh — au montage, `AuthContext` tente un `/auth/refresh` silencieux puis `/auth/me` pour réhydrater `user`. `useAuth()` expose `login`/`inscription`/`logout`/`changerLangue` + `user`/`accessToken`/`isAuthenticated`/`loading`. Il applique la langue (`appliquerLangue`, §4) **et la devise** (`appliquerDevise`, §5/F6) du serveur, enregistre le **pont d'auth** du client HTTP (`configurerAuthBridge` : token rafraîchi ↔ setState, session expirée ↔ logout) et arme le refresh proactif.
+- **Client HTTP** (`lib/api.ts`) : `fetch` minimal, **`credentials: 'include'` obligatoire** (envoi du cookie refresh). Le token est passé explicitement en `Bearer` par appel. **Refresh-on-401** : au 1er 401 d'une requête authentifiée, `request()` appelle `/auth/refresh` (**dédupliqué** — une seule promesse en vol pour N requêtes concurrentes), remplace le token (`onTokenRefreshed` → `AuthContext`) et **rejoue la requête UNE fois** (`permettreRetry` anti-boucle) ; si le refresh échoue → `onSessionExpired` vide la session → `ProtectedRoute` redirige vers `/login`. `AuthContext` arme aussi un **refresh proactif** ~60 s avant l'expiration de l'access token (TTL 15 min). `ApiError` porte le statut HTTP ; `messageErreur(e)` distingue réponse d'erreur serveur vs rejet `fetch` (réseau/CORS). Base : `VITE_API_URL` (défaut `http://localhost:3000`) — en prod, proxy same-origin Vercel (`/api/*`).
 - **Pages & data-fetching** : une page par écran dans `pages/` (liste/détail/formulaire par entité). Chargement de données **dans la page** (`useState`/`useEffect` + fonctions de `api.ts`) ; peu de hooks partagés (`hooks/useDashboard.ts`). Miroir des permissions dans `lib/roles.ts` pour masquer/afficher les actions selon le rôle (source de vérité = matrice backend).
 
 ## Conventions

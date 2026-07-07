@@ -14,20 +14,29 @@ const cardVariants = cva('rounded-2xl border transition-all duration-150 ease-ou
       feature: 'border-brass/45 bg-surface-2 ring-1 ring-inset ring-brass/10',
       ghost: 'border-hairline/60 bg-surface/40',
     },
+    // Densité UNIFORME des cartes : `default` (p-6) partout, `compact` (p-5) pour les cartes
+    // denses, `none` quand le contenu gère lui-même son padding (tables, listes). Via twMerge,
+    // un `p-*` explicite en className continue de primer (migration progressive des lots 2/3).
+    padding: {
+      default: 'p-6',
+      compact: 'p-5',
+      none: '',
+    },
     interactive: {
-      true: 'hover:-translate-y-0.5 hover:border-brass/40 hover:bg-surface-3',
+      // `motion-safe:` : l'élévation au survol est supprimée si l'utilisateur réduit les animations.
+      true: 'motion-safe:hover:-translate-y-0.5 hover:border-brass/40 hover:bg-surface-3',
       false: '',
     },
   },
-  defaultVariants: { variant: 'base', interactive: false },
+  defaultVariants: { variant: 'base', padding: 'default', interactive: false },
 })
 
 export interface CardProps
   extends React.HTMLAttributes<HTMLDivElement>,
     VariantProps<typeof cardVariants> {}
 
-export function Card({ className, variant, interactive, ...props }: CardProps) {
-  return <div className={cn(cardVariants({ variant, interactive }), className)} {...props} />
+export function Card({ className, variant, padding, interactive, ...props }: CardProps) {
+  return <div className={cn(cardVariants({ variant, padding, interactive }), className)} {...props} />
 }
 
 /** Petit sur-titre en capitales espacées — le « label » récurrent de l'app. */

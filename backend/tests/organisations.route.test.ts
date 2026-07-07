@@ -138,7 +138,15 @@ describe('Auto-inscription — POST /organisations/inscription', () => {
  * Prisma mocké. Vérifie : contenu (nom/devise/langue/date + membres/limite), permissions
  * (bureau OUI, MEMBRE_SIMPLE NON), auth requise.
  */
-function buildMoiMock(nbMembres = 42) {
+// Membres avec statuts variés : le quota ne doit compter QUE les ACTIF.
+const MEMBRES_TEST = [
+  ...Array.from({ length: 42 }, () => ({ statut: 'ACTIF' })),
+  { statut: 'DECEDE' },
+  { statut: 'INACTIF' },
+  { statut: 'DECEDE' },
+]
+
+function buildMoiMock(membres: { statut: string }[] = MEMBRES_TEST) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const prisma: any = {
     organisation: {
@@ -150,7 +158,14 @@ function buildMoiMock(nbMembres = 42) {
         createdAt: new Date('2026-01-15T10:00:00.000Z'),
       }),
     },
-    membre: { count: async () => nbMembres },
+    membre: {
+      // Applique le filtre `where.statut` comme le vrai Prisma → vérifie qu'on ne compte que les ACTIF.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      count: async (args: any = {}) => {
+        const statut = args?.where?.statut
+        return membres.filter((m) => (statut ? m.statut === statut : true)).length
+      },
+    },
   }
   return prisma
 }
@@ -160,8 +175,9 @@ const authMoi = (app: FastifyInstance, role: string, organisationId: string | un
 })
 
 describe('Paramètres organisation — GET /organisations/moi', () => {
-  it('ADMIN → 200, paramètres immuables + volume de membres / limite forfait (100)', async () => {
-    const app = await appAvec(buildMoiMock(42))
+  it('ADMIN → 200, paramètres immuables + quota = membres ACTIFS uniquement / limite forfait (100)', async () => {
+    // 45 fiches au total (42 ACTIF + 3 DECEDE/INACTIF) → le quota ne compte que les 42 actifs.
+    const app = await appAvec(buildMoiMock())
     const res = await app.inject({ method: 'GET', url: '/organisations/moi', headers: authMoi(app, 'ADMIN') })
     expect(res.statusCode).toBe(200)
     expect(res.json()).toMatchObject({
@@ -169,7 +185,7 @@ describe('Paramètres organisation — GET /organisations/moi', () => {
       nom: 'WAMBA TCHOUPA',
       devise: 'EUR',
       langueDefaut: 'FR',
-      nbMembres: 42,
+      nbMembres: 42, // et non 45 : les fiches décédées/inactives ne consomment pas le quota
       limiteMembres: 100,
     })
     await app.close()

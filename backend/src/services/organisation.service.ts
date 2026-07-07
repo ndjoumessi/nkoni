@@ -211,7 +211,7 @@ export interface OrganisationCourante {
   devise: Devise
   langueDefaut: Langue
   createdAt: Date
-  /** Nombre de membres actuels (toutes fiches, cohérent avec la vue plateforme). */
+  /** Nombre de membres ACTIFS (les fiches décédées/inactives ne consomment pas le quota). */
   nbMembres: number
   /** Plafond du forfait gratuit — pour situer `nbMembres` (ex. 42 / 100). */
   limiteMembres: number
@@ -239,7 +239,9 @@ export async function chargerOrganisationCourante(
     select: { id: true, nom: true, devise: true, langueDefaut: true, createdAt: true },
   })
   if (!org) return null
-  const nbMembres = await prisma.membre.count()
+  // Quota du forfait = membres ACTIFS uniquement (les fiches DECEDE/INACTIF, conservées pour
+  // l'historique, ne comptent pas). Comptage scopé par le contexte org (extension d'isolation).
+  const nbMembres = await prisma.membre.count({ where: { statut: 'ACTIF' } })
   return {
     id: org.id,
     nom: org.nom,

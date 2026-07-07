@@ -1,19 +1,23 @@
 import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
 import { orgContext } from '../lib/org-context'
 import { emettreSession } from '../lib/session'
-import { t } from '../lib/i18n'
+import { t, langueDeRequete } from '../lib/i18n'
+import { authenticate } from '../middlewares/authenticate'
+import { requirePermission } from '../middlewares/permissions'
 import { langueEffective } from '../services/auth.service'
 import {
   inscrireOrganisation,
+  chargerOrganisationCourante,
   EmailDejaUtiliseError,
 } from '../services/organisation.service'
 
 /**
- * Auto-inscription SaaS (§3.1) :
- *   POST /organisations/inscription → 201 { accessToken, user } + Set-Cookie refresh
+ * Organisation SaaS :
+ *   POST /organisations/inscription → 201 { accessToken, user } + Set-Cookie refresh (§3.1)
+ *   GET  /organisations/moi         → 200 paramètres de l'organisation courante (§5)
  *
- * Point d'entrée PUBLIC (aucune authentification) : un nouveau client crée son propre
- * espace (Organisation) + son compte ADMIN fondateur, puis est directement connecté
+ * L'inscription est un point d'entrée PUBLIC (aucune authentification) : un nouveau client crée
+ * son propre espace (Organisation) + son compte ADMIN fondateur, puis est directement connecté
  * (même émission de session que /auth/login) pour éviter un login juste après.
  */
 
@@ -82,6 +86,31 @@ export const organisationsRoutes: FastifyPluginAsync = async (app: FastifyInstan
         }
         throw err
       }
+    },
+  )
+
+  // GET /organisations/moi — paramètres (immuables) de l'organisation de l'utilisateur connecté
+  // + volume de membres face au forfait. Lecture réservée aux rôles du bureau (matrice
+  // Organisation:read → tous sauf MEMBRE_SIMPLE et SUPER_ADMIN). Scopé par le contexte org.
+  app.get(
+    '/organisations/moi',
+    { preHandler: [authenticate, requirePermission('Organisation', 'read')] },
+    async (req, reply) => {
+      const organisationId = req.user.organisationId
+      if (!organisationId) {
+        // Cas théorique (un compte tenant a toujours une org ; le SUPER_ADMIN est déjà bloqué
+        // par la matrice en amont) — repli défensif.
+        return reply
+          .code(404)
+          .send({ error: 'Not Found', message: t(langueDeRequete(req), 'organisations.introuvable') })
+      }
+      const organisation = await chargerOrganisationCourante(app.prisma, organisationId)
+      if (!organisation) {
+        return reply
+          .code(404)
+          .send({ error: 'Not Found', message: t(langueDeRequete(req), 'organisations.introuvable') })
+      }
+      return organisation
     },
   )
 }

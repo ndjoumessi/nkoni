@@ -194,6 +194,63 @@ export async function definirStatutOrganisation(
   return org
 }
 
+// ===========================================================================
+// Paramètres de l'organisation COURANTE (§5) — vue lecture seule pour ses propres membres
+// du bureau. Contrairement aux fonctions plateforme ci-dessus, ceci s'exécute DANS le contexte
+// d'organisation de l'utilisateur : le comptage des membres (`membre.count`) est donc scopé
+// automatiquement par l'extension d'isolation (pas de `runUnscoped`, pas de filtre explicite).
+// ===========================================================================
+
+/** Limite de membres du forfait gratuit (§3.1) — rappelée dans l'écran Paramètres. */
+export const LIMITE_MEMBRES_FORFAIT_GRATUIT = 100
+
+/** Paramètres immuables de l'organisation + volume actuel de membres et sa limite de forfait. */
+export interface OrganisationCourante {
+  id: string
+  nom: string
+  devise: Devise
+  langueDefaut: Langue
+  createdAt: Date
+  /** Nombre de membres actuels (toutes fiches, cohérent avec la vue plateforme). */
+  nbMembres: number
+  /** Plafond du forfait gratuit — pour situer `nbMembres` (ex. 42 / 100). */
+  limiteMembres: number
+}
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+export interface OrganisationCourantePrisma {
+  organisation: { findUnique(args: any): Promise<any> }
+  membre: { count(args?: any): Promise<number> }
+}
+/* eslint-enable @typescript-eslint/no-explicit-any */
+
+/**
+ * Charge les paramètres de l'organisation de l'utilisateur connecté (nom/devise/langue défaut,
+ * date de création) + le nombre de membres actuels face à la limite du forfait. `Organisation`
+ * n'est pas un modèle scopé → lecture par id ; `membre.count()` est scopé par le contexte org.
+ * Retourne `null` si l'organisation est introuvable (incohérence → 404 côté route).
+ */
+export async function chargerOrganisationCourante(
+  prisma: OrganisationCourantePrisma,
+  organisationId: string,
+): Promise<OrganisationCourante | null> {
+  const org = await prisma.organisation.findUnique({
+    where: { id: organisationId },
+    select: { id: true, nom: true, devise: true, langueDefaut: true, createdAt: true },
+  })
+  if (!org) return null
+  const nbMembres = await prisma.membre.count()
+  return {
+    id: org.id,
+    nom: org.nom,
+    devise: org.devise,
+    langueDefaut: org.langueDefaut,
+    createdAt: org.createdAt,
+    nbMembres,
+    limiteMembres: LIMITE_MEMBRES_FORFAIT_GRATUIT,
+  }
+}
+
 /**
  * Statut d'activité d'une organisation, pour bloquer login/refresh d'un espace suspendu
  * (§2.3). Retourne `null` si l'organisation est introuvable (traité comme suspendu par

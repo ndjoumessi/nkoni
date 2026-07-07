@@ -132,3 +132,67 @@ describe('Auto-inscription — POST /organisations/inscription', () => {
     await app.close()
   })
 })
+
+/**
+ * Paramètres de l'organisation courante — GET /organisations/moi (§5).
+ * Prisma mocké. Vérifie : contenu (nom/devise/langue/date + membres/limite), permissions
+ * (bureau OUI, MEMBRE_SIMPLE NON), auth requise.
+ */
+function buildMoiMock(nbMembres = 42) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const prisma: any = {
+    organisation: {
+      findUnique: async () => ({
+        id: 'org-1',
+        nom: 'WAMBA TCHOUPA',
+        devise: 'EUR',
+        langueDefaut: 'FR',
+        createdAt: new Date('2026-01-15T10:00:00.000Z'),
+      }),
+    },
+    membre: { count: async () => nbMembres },
+  }
+  return prisma
+}
+
+const authMoi = (app: FastifyInstance, role: string, organisationId: string | undefined = 'org-1') => ({
+  authorization: `Bearer ${app.jwt.sign({ sub: `u-${role}`, role, ...(organisationId ? { organisationId } : {}) })}`,
+})
+
+describe('Paramètres organisation — GET /organisations/moi', () => {
+  it('ADMIN → 200, paramètres immuables + volume de membres / limite forfait (100)', async () => {
+    const app = await appAvec(buildMoiMock(42))
+    const res = await app.inject({ method: 'GET', url: '/organisations/moi', headers: authMoi(app, 'ADMIN') })
+    expect(res.statusCode).toBe(200)
+    expect(res.json()).toMatchObject({
+      id: 'org-1',
+      nom: 'WAMBA TCHOUPA',
+      devise: 'EUR',
+      langueDefaut: 'FR',
+      nbMembres: 42,
+      limiteMembres: 100,
+    })
+    await app.close()
+  })
+
+  it('PRESIDENT (rôle du bureau) → 200', async () => {
+    const app = await appAvec(buildMoiMock())
+    const res = await app.inject({ method: 'GET', url: '/organisations/moi', headers: authMoi(app, 'PRESIDENT') })
+    expect(res.statusCode).toBe(200)
+    await app.close()
+  })
+
+  it('MEMBRE_SIMPLE → 403 (quota = information de gestion, hors périmètre du membre)', async () => {
+    const app = await appAvec(buildMoiMock())
+    const res = await app.inject({ method: 'GET', url: '/organisations/moi', headers: authMoi(app, 'MEMBRE_SIMPLE') })
+    expect(res.statusCode).toBe(403)
+    await app.close()
+  })
+
+  it('sans authentification → 401', async () => {
+    const app = await appAvec(buildMoiMock())
+    const res = await app.inject({ method: 'GET', url: '/organisations/moi' })
+    expect(res.statusCode).toBe(401)
+    await app.close()
+  })
+})

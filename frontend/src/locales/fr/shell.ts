@@ -15,6 +15,7 @@ export default {
       rapports: 'Rapports',
       utilisateurs: 'Utilisateurs',
       audit: 'Audit',
+      parametres: 'Paramètres',
     },
     roles: {
       ADMIN: 'Administrateur',

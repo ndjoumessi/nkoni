@@ -28,6 +28,7 @@ import rapports from './rapports'
 import utilisateurs from './utilisateurs'
 import audit from './audit'
 import superAdmin from './superAdmin'
+import parametres from './parametres'
 
 const fr = {
   ...common,
@@ -54,6 +55,7 @@ const fr = {
   ...utilisateurs,
   ...audit,
   ...superAdmin,
+  ...parametres,
 }
 
 export default fr

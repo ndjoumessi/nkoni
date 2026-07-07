@@ -12,6 +12,7 @@ import BaremePage from '@/pages/BaremePage'
 import RapportsPage from '@/pages/RapportsPage'
 import UtilisateursPage from '@/pages/UtilisateursPage'
 import MonProfilPage from '@/pages/MonProfilPage'
+import ParametresPage from '@/pages/ParametresPage'
 import ReunionsPage from '@/pages/ReunionsPage'
 import ReunionFormPage from '@/pages/ReunionFormPage'
 import ReunionDetailPage from '@/pages/ReunionDetailPage'
@@ -65,6 +66,7 @@ function App() {
         <Route path="/utilisateurs" element={<UtilisateursPage />} />
         <Route path="/audit" element={<AuditLogPage />} />
         <Route path="/mon-profil" element={<MonProfilPage />} />
+        <Route path="/parametres" element={<ParametresPage />} />
         <Route path="/reunions" element={<ReunionsPage />} />
         <Route path="/reunions/nouvelle" element={<ReunionFormPage />} />
         <Route path="/reunions/:id" element={<ReunionDetailPage />} />

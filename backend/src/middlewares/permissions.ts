@@ -25,6 +25,7 @@ import { t, langueDeRequete } from '../lib/i18n'
 export type Action = 'create' | 'read' | 'update' | 'delete'
 
 export type Entite =
+  | 'Organisation'
   | 'Membre'
   | 'BrancheFamiliale'
   | 'BaremeAnnuel'
@@ -85,6 +86,19 @@ const READ: Action[] = ['read']
  * GUIDE_RELIGIEUX : aucun droit sur les entités MVP (périmètre V2) → absent partout.
  */
 export const PERMISSIONS: Record<Entite, Partial<Record<Role, Action[]>>> = {
+  // Paramètres de l'organisation (§5) — lecture seule (nom/devise/langue immuables). Contenu
+  // neutre + rappel de quota (membres/100) → visible par tous les rôles de l'organisation SAUF
+  // MEMBRE_SIMPLE (le forfait/quota relève de la gestion, pas du membre lambda). Pas d'écriture :
+  // ces paramètres sont fixés à l'inscription et définitifs, aucune route ne les modifie.
+  Organisation: {
+    ADMIN: READ,
+    PRESIDENT: READ,
+    SECRETAIRE: READ,
+    TRESORIERE: READ,
+    COMMISSAIRE_COMPTES: READ,
+    GUIDE_RELIGIEUX: READ,
+    // MEMBRE_SIMPLE : —
+  },
   Membre: {
     ADMIN: CRUD,
     PRESIDENT: READ,

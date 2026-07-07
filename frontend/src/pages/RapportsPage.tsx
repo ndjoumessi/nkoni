@@ -166,35 +166,35 @@ function TableEvolution({ annees }: { annees: RapportAnnee[] }) {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-hairline text-[0.7rem] uppercase tracking-[0.1em] text-faint">
-              <th className="px-4 py-3 text-left font-medium">{t('rapports.table.annee')}</th>
-              <th className="px-4 py-3 text-right font-medium">{t('rapports.table.attendu')}</th>
-              <th className="px-4 py-3 text-right font-medium">{t('rapports.table.collecte')}</th>
-              <th className="px-4 py-3 text-right font-medium">{t('rapports.table.taux')}</th>
-              <th className="px-4 py-3 text-right font-medium">{t('rapports.table.aJour')}</th>
-              <th className="px-4 py-3 text-right font-medium">{t('rapports.table.partiel')}</th>
-              <th className="px-4 py-3 text-right font-medium">{t('rapports.table.nonAJour')}</th>
+              <th className="px-4 py-2.5 text-left font-medium">{t('rapports.table.annee')}</th>
+              <th className="px-4 py-2.5 text-right font-medium">{t('rapports.table.attendu')}</th>
+              <th className="px-4 py-2.5 text-right font-medium">{t('rapports.table.collecte')}</th>
+              <th className="px-4 py-2.5 text-right font-medium">{t('rapports.table.taux')}</th>
+              <th className="px-4 py-2.5 text-right font-medium">{t('rapports.table.aJour')}</th>
+              <th className="px-4 py-2.5 text-right font-medium">{t('rapports.table.partiel')}</th>
+              <th className="px-4 py-2.5 text-right font-medium">{t('rapports.table.nonAJour')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-hairline">
             {annees.map((a) => (
               <tr key={a.annee} className="transition-colors hover:bg-surface-2/50">
-                <td className="num px-4 py-3 font-medium text-foreground">{a.annee}</td>
-                <td className="num px-4 py-3 text-right text-muted-foreground">
+                <td className="num px-4 py-2.5 font-medium text-foreground">{a.annee}</td>
+                <td className="num px-4 py-2.5 text-right text-muted-foreground">
                   {formatMontant(a.totalAttendu)}
                 </td>
-                <td className="num px-4 py-3 text-right font-medium text-foreground">
+                <td className="num px-4 py-2.5 text-right font-medium text-foreground">
                   {formatMontant(a.totalCollecte)}
                 </td>
-                <td className="num px-4 py-3 text-right text-jade">
+                <td className="num px-4 py-2.5 text-right text-jade">
                   {formatPourcent(a.tauxRecouvrement)}
                 </td>
-                <td className="num px-4 py-3 text-right text-muted-foreground">
+                <td className="num px-4 py-2.5 text-right text-muted-foreground">
                   {formatNombre(a.membresParStatut.A_JOUR)}
                 </td>
-                <td className="num px-4 py-3 text-right text-muted-foreground">
+                <td className="num px-4 py-2.5 text-right text-muted-foreground">
                   {formatNombre(a.membresParStatut.PARTIEL)}
                 </td>
-                <td className="num px-4 py-3 text-right text-muted-foreground">
+                <td className="num px-4 py-2.5 text-right text-muted-foreground">
                   {formatNombre(a.membresParStatut.NON_A_JOUR)}
                 </td>
               </tr>
@@ -258,16 +258,16 @@ function VueComparaisonMulti({ data }: { data: ComparaisonMulti }) {
         <table className="w-full min-w-max text-sm">
           <thead>
             <tr className="border-b border-hairline text-[0.7rem] uppercase tracking-[0.1em] text-faint">
-              <th className={cn(CELLULE_COLLANTE, 'px-4 py-3 text-left font-medium')}>
+              <th className={cn(CELLULE_COLLANTE, 'px-4 py-2.5 text-left font-medium')}>
                 {t('rapports.comparaison.metrique')}
               </th>
               {data.annees.map((ac, i) => (
                 <Fragment key={ac.annee}>
-                  <th className="num px-4 py-3 text-right font-medium">
+                  <th className="num px-4 py-2.5 text-right font-medium">
                     {ac.annee}
                     <NoteSansBareme rapport={ac.rapport} />
                   </th>
-                  {i > 0 && <th className="px-4 py-3 text-right font-medium">Δ</th>}
+                  {i > 0 && <th className="px-4 py-2.5 text-right font-medium">Δ</th>}
                 </Fragment>
               ))}
             </tr>
@@ -278,18 +278,18 @@ function VueComparaisonMulti({ data }: { data: ComparaisonMulti }) {
                 <td
                   className={cn(
                     CELLULE_COLLANTE,
-                    'px-4 py-3 text-muted-foreground transition-colors group-hover:bg-surface-2',
+                    'px-4 py-2.5 text-muted-foreground transition-colors group-hover:bg-surface-2',
                   )}
                 >
                   {t(`rapports.metriques.${m.cle}`)}
                 </td>
                 {data.annees.map((ac, i) => (
                   <Fragment key={ac.annee}>
-                    <td className="num px-4 py-3 text-right text-foreground transition-colors group-hover:bg-surface-2/50">
+                    <td className="num px-4 py-2.5 text-right text-foreground transition-colors group-hover:bg-surface-2/50">
                       {m.valeur(ac.rapport)}
                     </td>
                     {i > 0 && (
-                      <td className="px-4 py-3 text-right transition-colors group-hover:bg-surface-2/50">
+                      <td className="px-4 py-2.5 text-right transition-colors group-hover:bg-surface-2/50">
                         {m.vkey ? (
                           <VariationBadge valeur={ac.variations ? ac.variations[m.vkey] : null} />
                         ) : (

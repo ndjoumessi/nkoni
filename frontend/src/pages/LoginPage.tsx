@@ -128,7 +128,7 @@ export function LoginPage() {
           <p className="mt-1.5 text-sm text-muted-foreground">{t('login.sousTitre')}</p>
         </div>
 
-        <Card variant="feature" className="nk-reveal nk-d2 p-7 sm:p-8">
+        <Card variant="feature" className="nk-reveal nk-d2 p-6 sm:p-7">
           <h2 className="font-display text-xl font-semibold text-foreground">{t('login.titre')}</h2>
           <p className="mt-1 text-sm text-muted-foreground">{t('login.accroche')}</p>
 
@@ -192,7 +192,7 @@ export function LoginPage() {
                 type="checkbox"
                 checked={rememberMe}
                 onChange={(e) => setRememberMe(e.target.checked)}
-                className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded border-hairline-strong bg-surface-2/70 accent-brass focus:outline-none focus:ring-2 focus:ring-brass/40"
+                className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded border-hairline-strong bg-surface-2/70 accent-brass focus:outline-none focus-visible:ring-2 focus-visible:ring-brass/60"
               />
               <span className="select-none">
                 <span className="block text-sm font-medium text-foreground/80">

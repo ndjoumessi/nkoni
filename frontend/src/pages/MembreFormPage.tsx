@@ -19,6 +19,7 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { Card } from '@/components/ui/Card'
 import { Button, ButtonLink } from '@/components/ui/Button'
 import { Field, Input, Select, Textarea } from '@/components/ui/Field'
+import { DatePicker } from '@/components/ui/DatePicker'
 import { FormSection } from '@/components/ui/FormSection'
 import { Skeleton } from '@/components/ui/Skeleton'
 
@@ -240,11 +241,7 @@ export function MembreFormPage() {
                 </Select>
               </Field>
               <Field label={t('membres.form.champ.dateNaissance')}>
-                <Input
-                  type="date"
-                  value={form.dateNaissance}
-                  onChange={(e) => set('dateNaissance', e.target.value)}
-                />
+                <DatePicker value={form.dateNaissance} onChange={(v) => set('dateNaissance', v)} />
               </Field>
             </FormSection>
 

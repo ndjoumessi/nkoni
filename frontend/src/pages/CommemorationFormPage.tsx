@@ -18,6 +18,7 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, Overline } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Field, Input, Select, Textarea } from '@/components/ui/Field'
+import { DatePicker } from '@/components/ui/DatePicker'
 
 const TYPES: TypeCommemoration[] = ['COMMEMORATION', 'CEREMONIE']
 const STATUTS: StatutCommemoration[] = ['PLANIFIEE', 'TENUE', 'ANNULEE']
@@ -220,11 +221,10 @@ export function CommemorationFormPage() {
                 </Select>
               </Field>
               <Field label={t('commemorations.form.dateLabel')} required error={errDate}>
-                <Input
-                  type="date"
+                <DatePicker
                   value={date}
-                  onChange={(e) => {
-                    setDate(e.target.value)
+                  onChange={(v) => {
+                    setDate(v)
                     setErrDate(undefined)
                   }}
                 />

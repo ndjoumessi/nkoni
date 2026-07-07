@@ -22,6 +22,7 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, Overline } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Field, Input, Select, Textarea } from '@/components/ui/Field'
+import { DatePicker } from '@/components/ui/DatePicker'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { Badge } from '@/components/ui/Badge'
 
@@ -315,12 +316,7 @@ export function VersementFormPage() {
                     />
                   </Field>
                   <Field label={t('versements.form.date')} required>
-                    <Input
-                      required
-                      type="date"
-                      value={dateVersement}
-                      onChange={(e) => setDateVersement(e.target.value)}
-                    />
+                    <DatePicker value={dateVersement} onChange={setDateVersement} />
                   </Field>
                   <Field label={t('versements.form.mode')} required>
                     <Select value={mode} onChange={(e) => setMode(e.target.value as ModeVersement)}>

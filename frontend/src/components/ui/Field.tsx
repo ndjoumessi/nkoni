@@ -8,6 +8,7 @@ import {
 } from 'react'
 import { AlertCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { controlClasses } from './control-styles'
 
 /**
  * Champs de formulaire NKONI — style unique partagé (fini le `inputCls` copié
@@ -18,8 +19,7 @@ import { cn } from '@/lib/utils'
  * l'état d'erreur teinte la bordure (aria-[invalid=true]).
  */
 
-const control =
-  'w-full rounded-xl border border-hairline-strong bg-surface-2/70 px-3.5 py-2.5 text-sm text-foreground shadow-sm transition-colors duration-150 placeholder:text-faint focus:border-brass/50 focus:bg-surface-2 focus:outline-none disabled:opacity-55 aria-[invalid=true]:border-terra/70 aria-[invalid=true]:bg-terra/[0.05] aria-[invalid=true]:focus:border-terra'
+const control = controlClasses
 
 export const Input = forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>(
   ({ className, ...props }, ref) => (

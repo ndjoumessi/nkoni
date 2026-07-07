@@ -119,7 +119,7 @@ export function InscriptionPage() {
           <p className="mt-1.5 text-sm text-muted-foreground">{t('inscription.sousTitre')}</p>
         </div>
 
-        <Card variant="feature" className="nk-reveal nk-d2 p-7 sm:p-8">
+        <Card variant="feature" className="nk-reveal nk-d2 p-6 sm:p-7">
           <h2 className="font-display text-xl font-semibold text-foreground">
             {t('commun.actions.creerMonEspace')}
           </h2>

@@ -144,11 +144,13 @@
         font-feature-settings: 'tnum';
         letter-spacing: -0.01em;
     }
-    /* Focus cohérent (laiton) sur tout élément focusable au clavier */
+    /* Focus UNIQUE et cohérent sur TOUT élément focusable au clavier : anneau menthe (brass/60)
+       avec un liseré « offset » de la couleur du fond. En box-shadow → épouse les coins arrondis
+       (contrairement à l'outline), et se pose partout sans classe par composant. Les primitives
+       qui posent leur propre `ring-brass/60` obtiennent exactement le même rendu. */
     :focus-visible {
-        outline: 2px solid var(--brass);
-        outline-offset: 2px;
-        border-radius: 4px;
+        outline: none;
+        box-shadow: 0 0 0 2px var(--canvas), 0 0 0 4px oklch(0.84 0.14 168 / 0.6);
     }
     /* Champs de formulaire natifs → palette sombre */
     select option {

@@ -49,7 +49,7 @@ const STATUT_TONE: Record<StatutContribution, BadgeProps['tone']> = {
 function AlerteBareme({ annee }: { annee: number }) {
   const { t } = useTranslation()
   return (
-    <Card className="flex items-start gap-3 border-amber/30 bg-amber/[0.07] p-4">
+    <Card className="flex items-start gap-3 border-amber/30 bg-amber/[0.07] p-5">
       <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber" aria-hidden="true" />
       <p className="text-sm text-foreground/85">
         {t('dashboard.alerteBareme.avant')}{' '}
@@ -184,7 +184,7 @@ function VuePerso({ d }: { d: DashboardPerso }) {
   const { t } = useTranslation()
   return (
     <div className="space-y-4">
-      <Card variant="feature" className="flex flex-wrap items-center justify-between gap-4 p-6">
+      <Card variant="feature" className="flex flex-wrap items-center justify-between gap-4 p-6 sm:p-7">
         <div>
           <Overline>{t('dashboard.perso.overline', { annee: d.anneeCourante })}</Overline>
           <p className="mt-2 font-display text-xl font-semibold tracking-tight text-foreground">
@@ -228,7 +228,7 @@ function DashboardContent({ data, canManage }: { data: Dashboard; canManage: boo
 function DashboardSkeleton() {
   return (
     <div className="space-y-4">
-      <Card variant="feature" className="p-7">
+      <Card variant="feature" className="p-6 sm:p-7">
         <Skeleton className="h-3 w-24" />
         <div className="mt-5 flex flex-col items-center gap-8 sm:flex-row">
           <Skeleton className="h-36 w-36 rounded-full" />

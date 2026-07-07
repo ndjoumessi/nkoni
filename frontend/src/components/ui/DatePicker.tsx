@@ -243,7 +243,7 @@ export function DatePicker({
               type="button"
               aria-label={t('ui.datePicker.moisPrecedent')}
               onClick={() => setVue((v) => addMonths(v, -1))}
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-brass/50"
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-brass/60"
             >
               <ChevronLeft className="h-4 w-4" aria-hidden="true" />
             </button>
@@ -254,7 +254,7 @@ export function DatePicker({
               type="button"
               aria-label={t('ui.datePicker.moisSuivant')}
               onClick={() => setVue((v) => addMonths(v, 1))}
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-brass/50"
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-brass/60"
             >
               <ChevronRight className="h-4 w-4" aria-hidden="true" />
             </button>
@@ -329,7 +329,7 @@ export function DatePicker({
               type="button"
               onClick={() => choisir(today)}
               disabled={horsBornes(today)}
-              className="rounded-lg px-2.5 py-1 text-xs font-medium text-brass transition-colors hover:bg-brass/10 disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-brass/50"
+              className="rounded-lg px-2.5 py-1 text-xs font-medium text-brass transition-colors hover:bg-brass/10 disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-brass/60"
             >
               {t('ui.datePicker.aujourdhui')}
             </button>

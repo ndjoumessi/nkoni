@@ -15,5 +15,15 @@ export default {
       afficherDetails: 'Afficher les détails',
       masquerDetails: 'Masquer les détails',
     },
+    datePicker: {
+      placeholder: 'Choisir une date',
+      ouvrir: 'Ouvrir le calendrier',
+      dialogue: 'Sélection de date',
+      moisPrecedent: 'Mois précédent',
+      moisSuivant: 'Mois suivant',
+      aujourdhui: "Aujourd'hui",
+      effacer: 'Effacer',
+      heure: 'Heure',
+    },
   },
 }

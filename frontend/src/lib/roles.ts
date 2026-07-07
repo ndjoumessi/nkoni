@@ -90,6 +90,15 @@ export function peutVoirAudit(role: string | undefined): boolean {
   return role === 'ADMIN'
 }
 
+/**
+ * Peut voir les paramètres de l'organisation (§5, miroir de la matrice `Organisation:read`) :
+ * tous les rôles de l'organisation SAUF MEMBRE_SIMPLE (le quota/forfait relève de la gestion).
+ * Le SUPER_ADMIN n'accède jamais aux pages tenant.
+ */
+export function peutVoirParametres(role: string | undefined): boolean {
+  return role !== undefined && role !== 'MEMBRE_SIMPLE' && role !== 'SUPER_ADMIN'
+}
+
 /* Réunions / Résolutions (V1.1 §5) — miroir de la matrice permissions.ts ------ */
 
 /** Rôles avec Lecture sur les réunions (tous sauf GUIDE_RELIGIEUX). */

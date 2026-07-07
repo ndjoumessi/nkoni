@@ -190,6 +190,25 @@ export const platformApi = {
     }),
 }
 
+/**
+ * Paramètres de l'organisation COURANTE (§5) — vue lecture seule (nom/devise/langue immuables)
+ * + volume de membres face à la limite du forfait gratuit. Accessible au bureau (pas MEMBRE_SIMPLE).
+ */
+export interface OrganisationCourante {
+  id: string
+  nom: string
+  devise: 'FCFA' | 'EUR' | 'USD' | 'CAD'
+  langueDefaut: 'FR' | 'EN'
+  createdAt: string
+  nbMembres: number
+  limiteMembres: number
+}
+
+export const organisationApi = {
+  moi: (accessToken: string, signal?: AbortSignal) =>
+    request<OrganisationCourante>('/organisations/moi', { accessToken, signal }),
+}
+
 /* -------------------------------------------------------------------------- */
 /* Tableau de bord (§5.8) — 4 vues selon le rôle (discriminées par `vue`)     */
 /* -------------------------------------------------------------------------- */

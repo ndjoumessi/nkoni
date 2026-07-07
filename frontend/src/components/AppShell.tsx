@@ -12,6 +12,7 @@ import {
   Menu,
   ScrollText,
   Search,
+  Settings,
   ShieldAlert,
   ShieldUser,
   Users,
@@ -30,6 +31,7 @@ import {
   peutVoirCommemorations,
   peutVoirRapports,
   peutVoirAudit,
+  peutVoirParametres,
 } from '@/lib/roles'
 import { cn } from '@/lib/utils'
 import { NkoniMark } from '@/components/ui/NkoniMark'
@@ -74,6 +76,9 @@ function useNavItems(): NavItem[] {
   }
   if (peutVoirAudit(user?.role)) {
     items.push({ to: '/audit', label: t('shell.nav.audit'), icon: ScrollText })
+  }
+  if (peutVoirParametres(user?.role)) {
+    items.push({ to: '/parametres', label: t('shell.nav.parametres'), icon: Settings })
   }
   return items
 }

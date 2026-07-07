@@ -61,6 +61,7 @@
     --color-brass: var(--brass);
     --color-brass-foreground: var(--brass-foreground);
     --color-jade: var(--jade);
+    --color-emerald-deep: var(--emerald-deep);
     --color-amber: var(--amber);
     --color-terra: var(--terra);
     --color-info: var(--info);
@@ -92,6 +93,8 @@
     --brass: oklch(0.84 0.14 168);           /* MENTHE — accent principal (croissance/argent) */
     --brass-foreground: oklch(0.19 0.02 255); /* encre foncée pour texte sur aplat menthe */
     --jade: oklch(0.80 0.13 165);            /* succès « à jour » (famille menthe) */
+    --emerald-deep: oklch(0.60 0.15 163);    /* émeraude profond — départ du dégradé CTA premium
+                                                (même famille que la menthe, plus riche/foncé) */
     --amber: oklch(0.80 0.085 85);           /* OR discret — accent secondaire (héritage) */
     --terra: oklch(0.66 0.15 28);            /* alerte / retard */
     --info: oklch(0.72 0.09 240);            /* information */

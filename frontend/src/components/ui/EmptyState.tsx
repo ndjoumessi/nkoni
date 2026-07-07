@@ -31,10 +31,10 @@ export function EmptyState({
 }) {
   const ring =
     tone === 'jade'
-      ? 'text-jade shadow-[0_0_0_1px_oklch(0.735_0.128_166/25%),0_18px_40px_-20px_oklch(0.735_0.128_166/45%)]'
-      : 'text-brass shadow-[0_0_0_1px_oklch(0.805_0.116_84/25%),0_18px_40px_-20px_oklch(0.805_0.116_84/45%)]'
+      ? 'text-jade shadow-[0_0_0_1px_oklch(0.80_0.13_165/25%),0_18px_40px_-20px_oklch(0.80_0.13_165/40%)]'
+      : 'text-brass shadow-[0_0_0_1px_oklch(0.84_0.14_168/25%),0_18px_40px_-20px_oklch(0.84_0.14_168/40%)]'
   const glow =
-    tone === 'jade' ? 'oklch(0.735 0.128 166 / 18%)' : 'oklch(0.805 0.116 84 / 18%)'
+    tone === 'jade' ? 'oklch(0.80 0.13 165 / 16%)' : 'oklch(0.84 0.14 168 / 16%)'
 
   return (
     <div

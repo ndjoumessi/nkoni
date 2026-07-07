@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/Card'
 import { formatMontant, formatPourcent } from '@/lib/format'
 import { prefersReducedMotion } from '@/lib/utils'
 
-/** Jauge circulaire laiton→jade pour le taux de recouvrement. */
+/** Jauge circulaire menthe pour le taux de recouvrement. */
 function Gauge({ value }: { value: number }) {
   const { t } = useTranslation()
   const pct = Math.max(0, Math.min(100, value))
@@ -32,8 +32,8 @@ function Gauge({ value }: { value: number }) {
       <svg width={size} height={size} className="-rotate-90" aria-hidden="true">
         <defs>
           <linearGradient id="nk-gauge" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="oklch(0.805 0.116 84)" />
-            <stop offset="100%" stopColor="oklch(0.735 0.128 166)" />
+            <stop offset="0%" stopColor="oklch(0.84 0.14 168)" />
+            <stop offset="100%" stopColor="oklch(0.80 0.13 165)" />
           </linearGradient>
         </defs>
         <circle
@@ -58,7 +58,7 @@ function Gauge({ value }: { value: number }) {
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="num font-display text-3xl font-semibold tracking-tight text-foreground">
+        <span className="num text-3xl font-semibold tracking-tight text-foreground">
           {formatPourcent(Math.round(pct))}
         </span>
         <span className="mt-0.5 text-[0.65rem] uppercase tracking-[0.12em] text-faint">

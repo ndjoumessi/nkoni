@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -16,6 +17,11 @@ import { controlClasses } from './control-styles'
  * PageUp/Down, Entrée/Espace, Échap) avec focus roving ; retour du focus au déclencheur à la
  * fermeture. Compatible `<Field>` : reçoit `id`/`aria-invalid`/`aria-describedby` et les porte
  * sur le déclencheur.
+ *
+ * Positionnement : le popover est rendu en PORTAIL dans `<body>` (`createPortal`) et positionné
+ * en `position: fixed` d'après le rect du champ (recalculé au scroll/resize). Il échappe ainsi à
+ * tout contexte d'empilement d'un bloc frère (nk-reveal `forwards`, transform, z-index élevé…)
+ * qui recouvrirait sinon un popover simplement `absolute` — immunité STRUCTURELLE, pas au cas par cas.
  *
  * Contrat de valeur identique au natif : `value` = `yyyy-mm-dd` (ou `yyyy-mm-ddThh:mm` si
  * `withTime`), chaîne vide si non renseigné ; `onChange` reçoit la même forme.
@@ -91,6 +97,35 @@ export function DatePicker({
   const containerRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const gridRef = useRef<HTMLDivElement>(null)
+  const popoverRef = useRef<HTMLDivElement>(null)
+
+  // Position du popover en coordonnées VIEWPORT (`position: fixed`). Le calendrier est rendu en
+  // PORTAIL dans <body> (cf. plus bas) et positionné ici à partir du rect du champ : il échappe
+  // ainsi à tout contexte d'empilement créé par un bloc frère (nk-reveal, transform, z-index…)
+  // qui, sinon, le recouvrirait — bug structurel corrigé à la racine.
+  const [coords, setCoords] = useState<{ top: number; left: number } | null>(null)
+
+  // Ancre le popover sous le champ (ou au-dessus s'il n'y a pas la place), borné au viewport.
+  const positionner = useCallback(() => {
+    const trigger = triggerRef.current
+    if (!trigger) return
+    const r = trigger.getBoundingClientRect()
+    const gap = 8
+    const largeur = popoverRef.current?.offsetWidth ?? 304
+    const hauteur = popoverRef.current?.offsetHeight ?? 380
+    const vw = document.documentElement.clientWidth
+    const vh = document.documentElement.clientHeight
+
+    // Vertical : sous le champ par défaut ; bascule au-dessus si pas la place en bas ET plus haut.
+    let top = r.bottom + gap
+    if (r.bottom + gap + hauteur > vh && r.top > vh - r.bottom) {
+      top = Math.max(gap, r.top - gap - hauteur)
+    }
+    // Horizontal : aligné au bord gauche du champ, borné pour ne jamais sortir de l'écran.
+    const left = Math.max(gap, Math.min(r.left, vw - largeur - gap))
+
+    setCoords({ top, left })
+  }, [])
 
   // Formatteurs Intl mémoïsés selon la langue courante.
   const fmt = useMemo(
@@ -147,17 +182,41 @@ export function DatePicker({
   }, [focusDate, open, vue])
 
   // Donne le focus DOM au jour actif (roving) après chaque déplacement clavier.
+  // `preventScroll` : le popover étant en portail dans <body>, un focus classique pourrait
+  // faire défiler la page vers lui — on l'évite.
   useEffect(() => {
     if (!open) return
     const el = gridRef.current?.querySelector<HTMLButtonElement>(`[data-iso="${toISODate(focusDate)}"]`)
-    el?.focus()
+    el?.focus({ preventScroll: true })
   }, [open, focusDate, grille])
 
-  // Fermeture au clic extérieur.
+  // (Re)positionne le popover à l'ouverture, puis au scroll (capture → n'importe quel conteneur
+  // défilant) et au resize, tant qu'il est ouvert. `useLayoutEffect` : calcule AVANT la peinture
+  // (pas de saut visuel ; le popover reste masqué tant que `coords` est nul).
+  useLayoutEffect(() => {
+    if (!open) {
+      setCoords(null)
+      return
+    }
+    positionner()
+    const surMaj = () => positionner()
+    window.addEventListener('scroll', surMaj, true)
+    window.addEventListener('resize', surMaj)
+    return () => {
+      window.removeEventListener('scroll', surMaj, true)
+      window.removeEventListener('resize', surMaj)
+    }
+  }, [open, positionner])
+
+  // Fermeture au clic extérieur. Le popover vivant dans un PORTAIL (hors de containerRef), on
+  // l'épargne explicitement : sinon un mousedown sur un jour fermerait le calendrier AVANT le
+  // click → sélection cassée.
   useEffect(() => {
     if (!open) return
     const onDown = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) setOpen(false)
+      const cible = e.target as Node
+      if (containerRef.current?.contains(cible) || popoverRef.current?.contains(cible)) return
+      setOpen(false)
     }
     document.addEventListener('mousedown', onDown)
     return () => document.removeEventListener('mousedown', onDown)
@@ -230,12 +289,21 @@ export function DatePicker({
         <Calendar className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
       </button>
 
-      {open && (
+      {open &&
+        createPortal(
         <div
+          ref={popoverRef}
           role="dialog"
           aria-label={t('ui.datePicker.dialogue')}
           aria-modal="false"
-          className="nk-toast-in absolute left-0 top-[calc(100%+0.4rem)] z-40 w-[19rem] rounded-2xl border border-hairline bg-canvas p-3 shadow-xl"
+          style={{
+            position: 'fixed',
+            top: coords?.top ?? 0,
+            left: coords?.left ?? 0,
+            // Masqué tant que la position n'est pas calculée (évite un flash en haut à gauche).
+            visibility: coords ? 'visible' : 'hidden',
+          }}
+          className="nk-toast-in z-50 w-[19rem] rounded-2xl border border-hairline bg-canvas p-3 shadow-xl"
         >
           {/* En-tête : navigation de mois */}
           <div className="mb-2 flex items-center justify-between">
@@ -334,8 +402,9 @@ export function DatePicker({
               {t('ui.datePicker.aujourdhui')}
             </button>
           </div>
-        </div>
-      )}
+        </div>,
+          document.body,
+        )}
     </div>
   )
 }

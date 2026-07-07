@@ -316,13 +316,8 @@ export function AuditLogPage() {
         description={data ? t('audit.header.entrees', { count: total }) : undefined}
       />
 
-      {/* Filtres.
-          `relative z-20` : `nk-reveal` (animation `forwards`) laisse un `transform` résiduel sur
-          CETTE carte ET sur le bloc du tableau ci-dessous → chacun devient un contexte d'empilement.
-          Sans hiérarchie explicite, le tableau (frère plus bas dans le DOM) recouvrirait le popover
-          du DatePicker (piégé dans le contexte de cette carte), le rendant illisible ET non
-          cliquable. On élève donc les filtres (z-20) au-dessus du tableau (z-10). */}
-      <Card className="relative z-20 nk-reveal nk-d2 mt-7 p-5">
+      {/* Filtres (le popover du DatePicker se rend en portail → aucun risque de recouvrement). */}
+      <Card className="nk-reveal nk-d2 mt-7 p-5">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Field label={t('audit.filtres.typeEntite')}>
             <Select value={entiteType} onChange={(e) => filtrer(setEntiteType)(e.target.value)}>
@@ -360,7 +355,7 @@ export function AuditLogPage() {
         )}
       </Card>
 
-      <div className="relative z-10 nk-reveal nk-d3 mt-6">
+      <div className="nk-reveal nk-d3 mt-6">
         {loading && (
           <Card className="overflow-hidden p-0">
             <RowsSkeleton rows={6} />

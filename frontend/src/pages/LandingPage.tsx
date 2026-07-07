@@ -176,7 +176,7 @@ function ForfaitCard({
       className={cn(
         'flex h-full flex-col p-6',
         disponible
-          ? 'border-brass/30 ring-1 ring-brass/25 shadow-[0_24px_60px_-34px_oklch(0.805_0.116_84/45%)]'
+          ? 'border-brass/40 ring-1 ring-brass/25 shadow-[0_24px_60px_-34px_oklch(0.84_0.14_168/40%)]'
           : 'opacity-65',
       )}
     >

@@ -13,7 +13,7 @@ export const buttonVariants = cva(
     variants: {
       variant: {
         brass:
-          'bg-brass text-brass-foreground shadow-[0_1px_0_oklch(1_0_0/25%)_inset,0_8px_20px_-8px_oklch(0.805_0.116_84/45%)] hover:brightness-[1.06] active:brightness-95',
+          'bg-brass text-brass-foreground shadow-[0_1px_0_oklch(1_0_0/25%)_inset,0_8px_20px_-8px_oklch(0.84_0.14_168/40%)] hover:brightness-[1.06] active:brightness-95',
         outline:
           'border border-hairline-strong bg-surface-2/60 text-foreground hover:border-brass/40 hover:bg-surface-3',
         ghost: 'text-muted-foreground hover:bg-surface-2 hover:text-foreground',

@@ -17,7 +17,7 @@ import { NkoniMark } from '@/components/ui/NkoniMark'
 
 /**
  * NKONI — Hero de la page publique (avant authentification).
- * Direction « Laiton & Jade » : encre chaude, laiton comme accent rare, titres Fraunces.
+ * Direction « Menthe & Encre » : encre froide, menthe comme accent principal, or discret.
  *
  * Toutes les valeurs chiffrées sont des exemples statiques pour la vitrine — aucune
  * donnée réelle de membre n'est exposée ici.
@@ -72,9 +72,9 @@ export function GlassmorphismTrustHero({
         className="absolute inset-0 -z-20"
         style={{
           background:
-            'radial-gradient(1100px 620px at 12% -12%, oklch(0.805 0.116 84 / 20%), transparent 60%),' +
-            'radial-gradient(900px 520px at 108% 4%, oklch(0.735 0.128 166 / 15%), transparent 58%),' +
-            'radial-gradient(700px 700px at 50% 122%, oklch(0.672 0.157 39 / 10%), transparent 60%)',
+            'radial-gradient(1100px 620px at 12% -12%, oklch(0.84 0.14 168 / 14%), transparent 60%),' +
+            'radial-gradient(900px 520px at 108% 4%, oklch(0.80 0.085 85 / 9%), transparent 58%),' +
+            'radial-gradient(700px 700px at 50% 122%, oklch(0.84 0.14 168 / 6%), transparent 60%)',
           WebkitMaskImage: 'linear-gradient(180deg, #000 0%, #000 70%, transparent 100%)',
           maskImage: 'linear-gradient(180deg, #000 0%, #000 70%, transparent 100%)',
         }}
@@ -137,7 +137,7 @@ export function GlassmorphismTrustHero({
           <div className="nk-reveal nk-d5 mt-12 grid grid-cols-3 gap-6 border-t border-hairline pt-8">
             {STAT_ITEMS.map((item) => (
               <div key={item.label} className="flex flex-col">
-                <span className="num font-display text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+                <span className="num text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
                   {item.value}
                 </span>
                 <span className="mt-1 text-xs text-faint sm:text-sm">{item.label}</span>
@@ -161,13 +161,13 @@ export function GlassmorphismTrustHero({
 
             <div className="mt-6 grid grid-cols-2 gap-4">
               <div className="rounded-2xl border border-hairline bg-surface/70 p-4">
-                <p className="num font-display text-3xl font-semibold tracking-tight text-foreground">
+                <p className="num text-3xl font-semibold tracking-tight text-foreground">
                   {SAMPLE_STATS.membres}
                 </p>
                 <p className="mt-1 text-xs text-faint">{t('landing.hero.apercu.membres')}</p>
               </div>
               <div className="rounded-2xl border border-hairline bg-surface/70 p-4">
-                <p className="num font-display text-3xl font-semibold tracking-tight text-foreground">
+                <p className="num text-3xl font-semibold tracking-tight text-foreground">
                   {SAMPLE_STATS.branches}
                 </p>
                 <p className="mt-1 text-xs text-faint">{t('landing.hero.apercu.branches')}</p>

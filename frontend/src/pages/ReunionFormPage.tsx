@@ -19,6 +19,7 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, Overline } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Field, Input, Select, Textarea } from '@/components/ui/Field'
+import { DatePicker } from '@/components/ui/DatePicker'
 import { FormSection } from '@/components/ui/FormSection'
 
 interface PointDraft {
@@ -130,11 +131,11 @@ export function ReunionFormPage() {
         <form ref={formRef} onSubmit={handleSubmit} noValidate className="space-y-4">
           <FormSection icon={CalendarRange} title={t('reunions.form.infos')}>
             <Field label={t('reunions.form.dateLabel')} required error={errDate}>
-              <Input
-                type="datetime-local"
+              <DatePicker
+                withTime
                 value={date}
-                onChange={(e) => {
-                  setDate(e.target.value)
+                onChange={(v) => {
+                  setDate(v)
                   setErrDate(undefined)
                 }}
               />

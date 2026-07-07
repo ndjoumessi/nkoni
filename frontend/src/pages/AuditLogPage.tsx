@@ -19,7 +19,8 @@ import { Card } from '@/components/ui/Card'
 import { Badge, type BadgeProps } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { DataTable, type Column } from '@/components/ui/DataTable'
-import { Field, Select, Input } from '@/components/ui/Field'
+import { Field, Select } from '@/components/ui/Field'
+import { DatePicker } from '@/components/ui/DatePicker'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { RowsSkeleton } from '@/components/ui/Skeleton'
 
@@ -276,10 +277,10 @@ export function AuditLogPage() {
             </Select>
           </Field>
           <Field label={t('audit.filtres.du')}>
-            <Input type="date" value={dateDebut} onChange={(e) => filtrer(setDateDebut)(e.target.value)} />
+            <DatePicker value={dateDebut} onChange={filtrer(setDateDebut)} />
           </Field>
           <Field label={t('audit.filtres.au')}>
-            <Input type="date" value={dateFin} onChange={(e) => filtrer(setDateFin)(e.target.value)} />
+            <DatePicker value={dateFin} onChange={filtrer(setDateFin)} />
           </Field>
         </div>
         {filtresActifs && (

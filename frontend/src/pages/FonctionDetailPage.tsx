@@ -29,6 +29,7 @@ import { Card, Overline } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Field, Input, Select, Textarea } from '@/components/ui/Field'
+import { DatePicker } from '@/components/ui/DatePicker'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Modal } from '@/components/ui/Modal'
 
@@ -305,11 +306,10 @@ export function FonctionDetailPage() {
                 </Select>
               </Field>
               <Field label={t('affectations.form.dateLabel')} required error={errDate}>
-                <Input
-                  type="date"
+                <DatePicker
                   value={dateDebut}
-                  onChange={(e) => {
-                    setDateDebut(e.target.value)
+                  onChange={(v) => {
+                    setDateDebut(v)
                     setErrDate(undefined)
                   }}
                 />

@@ -35,6 +35,7 @@ export default {
       dialogue: "Sélection de l'année",
       decenniePrecedente: 'Décennie précédente',
       decennieSuivante: 'Décennie suivante',
+      effacer: 'Effacer',
     },
   },
 }

@@ -35,6 +35,7 @@ export default {
       dialogue: 'Year picker',
       decenniePrecedente: 'Previous decade',
       decennieSuivante: 'Next decade',
+      effacer: 'Clear',
     },
   },
 }

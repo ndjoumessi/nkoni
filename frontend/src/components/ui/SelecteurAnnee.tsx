@@ -11,21 +11,28 @@ const borner = (n: number, min: number, max: number) => Math.min(max, Math.max(m
 
 /**
  * Sélecteur d'ANNÉE « Menthe & Encre » — pour les cas où seule l'année a un sens (ex. barème
- * annuel), sans la complexité jours/mois d'un calendrier. Réutilise les primitives PARTAGÉES avec
- * le DatePicker : `usePopoverFlottant` (portail + `position: fixed` + clic extérieur + Échap) et
- * `GrilleAnnees` (grille par décennie + navigation + bornes + clavier).
+ * annuel, année d'adhésion/fin de contribution d'un membre), sans la complexité jours/mois d'un
+ * calendrier. Réutilise les primitives PARTAGÉES avec le DatePicker : `usePopoverFlottant` (portail
+ * + `position: fixed` + clic extérieur + Échap) et `GrilleAnnees` (grille par décennie + navigation
+ * + bornes + clavier).
  *
- * Contrat : `value` = année (nombre), `onChange(annee)` reçoit une année TOUJOURS dans [min, max]
- * (cellules hors bornes désactivées). Compatible `<Field>` : reçoit `id`/`aria-invalid`/
+ * Contrat : `value` = année (nombre) ou `null` (« non défini »), `onChange(annee)` reçoit une année
+ * TOUJOURS dans [min, max] (cellules hors bornes désactivées) — ou `null` uniquement en mode
+ * `optionnel` (bouton « Effacer »). En `null`, le déclencheur affiche `placeholder` (défaut « — »),
+ * cohérent avec un `<Select>` optionnel voisin. Compatible `<Field>` : reçoit `id`/`aria-invalid`/
  * `aria-describedby` et les porte sur le déclencheur.
  */
 
 type SelecteurAnneeProps = {
-  value: number
-  onChange: (annee: number) => void
+  value: number | null
+  onChange: (annee: number | null) => void
   /** Bornes incluses. Défauts alignés sur la validation barème (§5). */
   min?: number
   max?: number
+  /** Autorise l'état « non défini » : affiche un bouton « Effacer » qui rappelle `onChange(null)`. */
+  optionnel?: boolean
+  /** Affiché quand `value` est `null` (défaut « — », comme l'option vide d'un Select). */
+  placeholder?: string
   disabled?: boolean
   className?: string
   // Injectés par <Field> (clonage) :
@@ -39,6 +46,8 @@ export function SelecteurAnnee({
   onChange,
   min = 1900,
   max = 2200,
+  optionnel = false,
+  placeholder = '—',
   disabled = false,
   className,
   id,
@@ -49,7 +58,8 @@ export function SelecteurAnnee({
   const today = useMemo(() => new Date().getFullYear(), [])
 
   const [open, setOpen] = useState(false)
-  const [focusAnnee, setFocusAnnee] = useState<number>(() => borner(value, min, max))
+  // Focus roving : sur la valeur si définie, sinon sur l'année courante (bornée) comme point d'entrée.
+  const [focusAnnee, setFocusAnnee] = useState<number>(() => borner(value ?? today, min, max))
   // Posé par les flèches ‹ / › de décennie (dans GrilleAnnees) pour que l'effet roving ne vole PAS
   // le focus vers une cellule (il doit rester sur le bouton de décennie).
   const conserverFocusRef = useRef(false)
@@ -61,10 +71,10 @@ export function SelecteurAnnee({
     hauteurDefaut: 220,
   })
 
-  // À l'ouverture : recale le focus roving sur la valeur (bornée).
+  // À l'ouverture : recale le focus roving sur la valeur (bornée), ou l'année courante si non définie.
   useEffect(() => {
-    if (open) setFocusAnnee(borner(value, min, max))
-  }, [open, value, min, max])
+    if (open) setFocusAnnee(borner(value ?? today, min, max))
+  }, [open, value, today, min, max])
 
   // Focus DOM sur la cellule active (roving), sans faire défiler la page (popover en portail).
   useEffect(() => {
@@ -92,6 +102,12 @@ export function SelecteurAnnee({
     [min, max, onChange, fermerEtRendre],
   )
 
+  // Mode optionnel uniquement : remet l'année à « non défini ».
+  const effacer = useCallback(() => {
+    onChange(null)
+    fermerEtRendre()
+  }, [onChange, fermerEtRendre])
+
   return (
     <div ref={containerRef} className={cn('relative', className)}>
       <button
@@ -118,26 +134,41 @@ export function SelecteurAnnee({
         }}
         className={cn(controlClasses, 'flex items-center justify-between gap-2 text-left')}
       >
-        <span className="num">{value}</span>
+        {value === null ? (
+          <span className="text-muted-foreground">{placeholder}</span>
+        ) : (
+          <span className="num">{value}</span>
+        )}
         <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
       </button>
 
       {open &&
         rendreFlottant(
-          <GrilleAnnees
-            focusAnnee={focusAnnee}
-            setFocusAnnee={setFocusAnnee}
-            min={min}
-            max={max}
-            valeurSelectionnee={value}
-            anneeCourante={today}
-            conserverFocusRef={conserverFocusRef}
-            onChoisir={choisir}
-            onEchap={fermerEtRendre}
-            labelPrecedente={t('ui.selecteurAnnee.decenniePrecedente')}
-            labelSuivante={t('ui.selecteurAnnee.decennieSuivante')}
-            ariaLive
-          />,
+          <>
+            <GrilleAnnees
+              focusAnnee={focusAnnee}
+              setFocusAnnee={setFocusAnnee}
+              min={min}
+              max={max}
+              valeurSelectionnee={value}
+              anneeCourante={today}
+              conserverFocusRef={conserverFocusRef}
+              onChoisir={choisir}
+              onEchap={fermerEtRendre}
+              labelPrecedente={t('ui.selecteurAnnee.decenniePrecedente')}
+              labelSuivante={t('ui.selecteurAnnee.decennieSuivante')}
+              ariaLive
+            />
+            {optionnel && value !== null && (
+              <button
+                type="button"
+                onClick={effacer}
+                className="mt-2 w-full rounded-lg py-1.5 text-xs text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-brass/60"
+              >
+                {t('ui.selecteurAnnee.effacer')}
+              </button>
+            )}
+          </>,
           {
             className: 'nk-toast-in z-50 w-[15rem] rounded-2xl border border-hairline bg-canvas p-3 shadow-xl',
             'aria-label': t('ui.selecteurAnnee.dialogue'),

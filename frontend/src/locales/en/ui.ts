@@ -8,6 +8,13 @@ export default {
     modal: {
       fermer: 'Close',
     },
+    selecteurMembres: {
+      recherchePlaceholder: 'Search by first or last name…',
+      rechercheAria: 'Search for a member',
+      selectionnes_one: '{{count}} member selected',
+      selectionnes_other: '{{count}} members selected',
+      aucunResultat: 'No member found',
+    },
     table: {
       trierPar: 'Sort by {{col}}',
       croissant: ', ascending',

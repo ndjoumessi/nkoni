@@ -74,8 +74,6 @@ export default {
       membresHonores: 'Membres honorés / concernés',
       membresAide: 'Optionnel — défunts commémorés ou membres concernés.',
       aucunMembre: 'Aucun membre disponible.',
-      membresSelectionnes_one: '{{count}} membre sélectionné',
-      membresSelectionnes_other: '{{count}} membres sélectionnés',
       notes: 'Notes',
       notesAide: 'Optionnel — organisation, suivi…',
       notesPlaceholder: 'Notes internes…',

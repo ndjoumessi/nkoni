@@ -76,8 +76,6 @@ export default {
       membresConcernes: 'Members involved',
       membresAide: 'Parties to the dispute (optional).',
       aucunMembre: 'No member available.',
-      membresSelectionnes_one: '{{count}} member selected',
-      membresSelectionnes_other: '{{count}} members selected',
       notesSuivi: 'Follow-up notes',
       notesAide: 'Optional — follow-up / resolution details.',
       notesPlaceholder: 'Internal notes…',

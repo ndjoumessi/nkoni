@@ -94,4 +94,30 @@ describe('DatePicker — popover en portail', () => {
     fireEvent.keyDown(grille, { key: 'Enter' })
     expect(onChange).toHaveBeenCalledWith('2026-05-16')
   })
+
+  // Régression : les flèches ‹ / › de navigation de mois doivent RÉELLEMENT changer le mois
+  // affiché, sur plusieurs clics consécutifs (prev ET next), sans être annulées.
+  it('navigation entre mois : précédent et suivant sur plusieurs clics consécutifs', () => {
+    render(<DatePicker value="2026-05-15" onChange={vi.fn()} />)
+    const dialog = ouvrir()
+    const moisAffiche = () =>
+      dialog.querySelector('[aria-live="polite"]')?.textContent?.trim() ?? ''
+    const precedent = () =>
+      fireEvent.click(screen.getByRole('button', { name: 'ui.datePicker.moisPrecedent' }))
+    const suivant = () =>
+      fireEvent.click(screen.getByRole('button', { name: 'ui.datePicker.moisSuivant' }))
+
+    expect(moisAffiche()).toMatch(/mai 2026/i)
+    precedent()
+    expect(moisAffiche()).toMatch(/avril 2026/i)
+    precedent()
+    expect(moisAffiche()).toMatch(/mars 2026/i)
+    precedent()
+    expect(moisAffiche()).toMatch(/février 2026/i)
+    // Retour en avant.
+    suivant()
+    expect(moisAffiche()).toMatch(/mars 2026/i)
+    suivant()
+    expect(moisAffiche()).toMatch(/avril 2026/i)
+  })
 })

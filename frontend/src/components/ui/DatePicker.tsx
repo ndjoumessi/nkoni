@@ -222,6 +222,22 @@ export function DatePicker({
     return () => document.removeEventListener('mousedown', onDown)
   }, [open])
 
+  // Navigation de mois (boutons ‹ / ›) : on déplace `vue` ET `focusDate` du même pas, de façon
+  // SYNCHRONE. Deux raisons : (1) `vue` change tout de suite → l'en-tête se met à jour dans le
+  // même rendu (pas de lag d'une frame le temps qu'un effet propage) ; (2) en gardant
+  // `focusDate.mois === vue.mois`, l'effet de recalage (focusDate → vue) reste un no-op et
+  // n'ANNULE plus le clic (bug : avant, seul `vue` bougeait, l'effet le ramenait au mois du focus).
+  // Le jour de `focusDate` est borné à la longueur du mois cible.
+  const allerAuMois = useCallback((delta: number) => {
+    setVue((v) => addMonths(v, delta))
+    setFocusDate((f) => {
+      const annee = f.getFullYear()
+      const mois = f.getMonth() + delta
+      const dernierJour = new Date(annee, mois + 1, 0).getDate()
+      return new Date(annee, mois, Math.min(f.getDate(), dernierJour))
+    })
+  }, [])
+
   const fermerEtRendre = useCallback(() => {
     setOpen(false)
     triggerRef.current?.focus()
@@ -310,7 +326,7 @@ export function DatePicker({
             <button
               type="button"
               aria-label={t('ui.datePicker.moisPrecedent')}
-              onClick={() => setVue((v) => addMonths(v, -1))}
+              onClick={() => allerAuMois(-1)}
               className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-brass/60"
             >
               <ChevronLeft className="h-4 w-4" aria-hidden="true" />
@@ -321,7 +337,7 @@ export function DatePicker({
             <button
               type="button"
               aria-label={t('ui.datePicker.moisSuivant')}
-              onClick={() => setVue((v) => addMonths(v, 1))}
+              onClick={() => allerAuMois(1)}
               className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-brass/60"
             >
               <ChevronRight className="h-4 w-4" aria-hidden="true" />

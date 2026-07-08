@@ -78,4 +78,40 @@ describe('SelecteurAnnee', () => {
     fireEvent.click(screen.getByRole('button', { name: '2025' }))
     expect(onChange).toHaveBeenCalledWith(2025)
   })
+
+  // RÉGRESSION (revue) : parité avec l'ancien <input> — Entrée sur le déclencheur (fermé) SOUMET le
+  // formulaire environnant au lieu d'ouvrir le popover ; le picker s'ouvre via flèche bas / Espace.
+  it('Entrée sur le déclencheur soumet le formulaire (n’ouvre pas le popover)', () => {
+    const onSubmit = vi.fn((e) => e.preventDefault())
+    render(
+      <form onSubmit={onSubmit}>
+        <SelecteurAnnee value={2026} onChange={vi.fn()} />
+      </form>,
+    )
+    const trigger = screen.getByRole('button')
+    trigger.focus()
+    fireEvent.keyDown(trigger, { key: 'Enter' })
+    expect(onSubmit).toHaveBeenCalledTimes(1)
+    expect(screen.queryByRole('dialog')).toBeNull() // le popover ne s'est PAS ouvert
+
+    // …et la flèche bas ouvre bien le popover (sans soumettre).
+    fireEvent.keyDown(trigger, { key: 'ArrowDown' })
+    expect(screen.getByRole('dialog')).toBeTruthy()
+    expect(onSubmit).toHaveBeenCalledTimes(1)
+  })
+
+  // RÉGRESSION (revue, même famille que le DatePicker) : la flèche ‹ de décennie garde le focus sur
+  // le bouton (pas de vol vers une cellule-année).
+  it('la navigation de décennie garde le focus sur le bouton ‹', () => {
+    render(<SelecteurAnnee value={2026} onChange={vi.fn()} />)
+    const dialog = ouvrir()
+    const plage = () => dialog.querySelector('[aria-live="polite"]')?.textContent ?? ''
+    const prec = screen.getByRole('button', { name: 'ui.selecteurAnnee.decenniePrecedente' })
+
+    prec.focus()
+    expect(document.activeElement).toBe(prec)
+    fireEvent.click(prec)
+    expect(document.activeElement).toBe(prec) // focus conservé (sans le fix : volé vers une année)
+    expect(plage()).toMatch(/2010\s*–\s*2019/)
+  })
 })

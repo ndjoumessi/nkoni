@@ -31,5 +31,11 @@ export default {
       effacer: 'Clear',
       heure: 'Time',
     },
+    selecteurAnnee: {
+      dialogue: 'Year picker',
+      ouvrir: 'Choose year',
+      decenniePrecedente: 'Previous decade',
+      decennieSuivante: 'Next decade',
+    },
   },
 }

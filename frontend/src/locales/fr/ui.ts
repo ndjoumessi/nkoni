@@ -31,5 +31,11 @@ export default {
       effacer: 'Effacer',
       heure: 'Heure',
     },
+    selecteurAnnee: {
+      dialogue: "Sélection de l'année",
+      ouvrir: "Choisir l'année",
+      decenniePrecedente: 'Décennie précédente',
+      decennieSuivante: 'Décennie suivante',
+    },
   },
 }

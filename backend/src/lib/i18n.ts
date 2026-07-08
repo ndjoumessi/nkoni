@@ -45,6 +45,19 @@ export function formatMontant(montant: number, langue: Langue, devise: Devise): 
   }).format(montant)
 }
 
+/**
+ * Date + heure formatées dans la langue donnée (§4). Ex. FR → « 15 juin 2026 à 09:00 », EN →
+ * « June 15, 2026 at 9:00 AM ». Miroir backend de `formatDateHeure` du front (lib/utils.ts) :
+ * on ne renvoie JAMAIS d'ISO brut à l'utilisateur (documents, export…). `dateStyle: 'long'`
+ * pour un rendu lisible et localisé.
+ */
+export function formatDateHeure(date: Date, langue: Langue): string {
+  return new Intl.DateTimeFormat(LOCALE_PAR_LANGUE[langue] ?? 'fr', {
+    dateStyle: 'long',
+    timeStyle: 'short',
+  }).format(date)
+}
+
 /** Remplace les jetons `{nom}` d'un gabarit par les paramètres fournis. */
 function interpole(gabarit: string, params?: Record<string, string | number>): string {
   if (!params) return gabarit

@@ -1,6 +1,8 @@
 import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
 import { authenticate } from '../middlewares/authenticate'
 import { requirePermission } from '../middlewares/permissions'
+import { langueDeRequete } from '../lib/i18n'
+import { resoudreDeviseDestinataire } from '../services/notification.service'
 import {
   assemblerDonneesContributions,
   genererExcel,
@@ -45,10 +47,20 @@ export const exportsRoutes: FastifyPluginAsync = async (app: FastifyInstance) =>
 
       const donnees = await assemblerDonneesContributions(app.prisma, filtres)
 
+      // Date localisée + montants dans la langue/devise de l'utilisateur qui exporte (§4/§5).
+      // `resoudreDeviseDestinataire` = résolveur unique « devise de l'org d'un utilisateur »,
+      // réutilisé ici pour l'exporteur (req.user.sub) plutôt que dupliqué.
+      const langue = langueDeRequete(req)
+      const devise = req.user.sub
+        ? await resoudreDeviseDestinataire(app.prisma, req.user.sub)
+        : 'FCFA'
+
       const suffixe = filtres.annee !== undefined ? `-${filtres.annee}` : ''
       const nomFichier = `contributions${suffixe}.${format}`
       const buffer =
-        format === 'pdf' ? await genererPdf(donnees) : await genererExcel(donnees)
+        format === 'pdf'
+          ? await genererPdf(donnees, langue, devise)
+          : await genererExcel(donnees)
 
       return reply
         .header('Content-Type', CONTENT_TYPE[format])

@@ -30,6 +30,8 @@ function buildMock() {
         return res
       },
     },
+    // Devise de l'org de l'exporteur (résolue pour formater les montants du PDF).
+    utilisateur: { findUnique: async () => ({ organisation: { devise: 'FCFA' } }) },
   }
   return prisma
 }

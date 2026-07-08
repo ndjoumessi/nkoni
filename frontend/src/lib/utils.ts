@@ -45,6 +45,19 @@ export function staggerDelay(index: number, step = 0.04, cap = 12): { animationD
 }
 
 /**
+ * Normalise un texte pour une recherche insensible à la CASSE et aux ACCENTS : minusculisation +
+ * décomposition Unicode (NFD) puis suppression des diacritiques combinants. Ex. « Étienne » et
+ * « ETIENNE » et « etienne » deviennent tous « etienne ». À utiliser des DEUX côtés (requête et
+ * valeur comparée) pour que « e » retrouve « é ».
+ */
+export function normaliserTexte(valeur: string): string {
+  return valeur
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+}
+
+/**
  * Après un échec de validation (§8 `focus-management`) : place le focus sur le premier
  * contrôle en erreur d'un formulaire pour que l'utilisateur atterrisse là où corriger.
  * Les champs Field portent `aria-invalid="true"` quand ils ont une erreur — on cible ça.

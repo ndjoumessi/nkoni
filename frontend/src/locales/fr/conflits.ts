@@ -76,8 +76,6 @@ export default {
       membresConcernes: 'Membres concernés',
       membresAide: 'Parties prenantes du litige (optionnel).',
       aucunMembre: 'Aucun membre disponible.',
-      membresSelectionnes_one: '{{count}} membre sélectionné',
-      membresSelectionnes_other: '{{count}} membres sélectionnés',
       notesSuivi: 'Notes de suivi',
       notesAide: 'Optionnel — éléments de suivi / résolution.',
       notesPlaceholder: 'Notes internes…',

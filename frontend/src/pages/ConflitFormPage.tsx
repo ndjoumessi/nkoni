@@ -19,6 +19,7 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, Overline } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Field, Input, Select, Textarea } from '@/components/ui/Field'
+import { SelecteurMembres } from '@/components/membres/SelecteurMembres'
 
 const NIVEAUX: NiveauConfidentialite[] = ['PUBLIC', 'BUREAU', 'CONFIDENTIEL']
 
@@ -210,29 +211,11 @@ export function ConflitFormPage() {
           {membres.length === 0 ? (
             <p className="mt-3 text-sm text-muted-foreground">{t('conflits.form.aucunMembre')}</p>
           ) : (
-            <div className="mt-3 max-h-64 space-y-1 overflow-y-auto rounded-xl border border-hairline bg-surface-2/40 p-2">
-              {membres.map((m) => (
-                <label
-                  key={m.id}
-                  className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-sm transition-colors hover:bg-surface-2"
-                >
-                  <input
-                    type="checkbox"
-                    checked={membresConcernes.has(m.id)}
-                    onChange={() => toggleMembre(m.id)}
-                    className="h-4 w-4 rounded border-hairline-strong accent-brass"
-                  />
-                  <span className="text-foreground">
-                    {m.prenom} {m.nom}
-                  </span>
-                </label>
-              ))}
-            </div>
-          )}
-          {membresConcernes.size > 0 && (
-            <p className="mt-2 text-xs text-faint">
-              {t('conflits.form.membresSelectionnes', { count: membresConcernes.size })}
-            </p>
+            <SelecteurMembres
+              membres={membres}
+              selection={membresConcernes}
+              onToggle={toggleMembre}
+            />
           )}
         </Card>
 

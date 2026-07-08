@@ -110,6 +110,29 @@ describe('genererExcel (§5.9)', () => {
     expect(last.getCell(1).value).toBe('TOTAL')
     expect(last.getCell(6).value).toBe(15_000)
   })
+
+  it('mise en forme : montants en NOMBRE alignés à droite, en-tête et TOTAL stylés', async () => {
+    const buf = await genererExcel(donneesFixture)
+    const wb = new ExcelJS.Workbook()
+    await wb.xlsx.load(buf as unknown as ArrayBuffer)
+    const ws = wb.getWorksheet('Contributions')!
+
+    // Colonne de montant (4) : reste un NOMBRE, format « #,##0 », aligné à droite.
+    const cellMontant = ws.getRow(2).getCell(4)
+    expect(typeof cellMontant.value).toBe('number')
+    expect(cellMontant.numFmt).toBe('#,##0')
+    expect(cellMontant.alignment?.horizontal).toBe('right')
+
+    // En-tête : bandeau menthe foncé (fond plein), texte blanc gras.
+    const enTete = ws.getRow(1).getCell(1)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect((enTete.fill as any)?.fgColor?.argb).toBe('FF006A48')
+    expect(enTete.font?.bold).toBe(true)
+
+    // Ligne TOTAL : filet supérieur marqué (séparation nette du corps).
+    const last = ws.getRow(ws.rowCount)
+    expect(last.getCell(4).border?.top?.style).toBe('medium')
+  })
 })
 
 describe('genererPdf (§5.9)', () => {
@@ -119,5 +142,14 @@ describe('genererPdf (§5.9)', () => {
     expect(buf.subarray(0, 4).toString('latin1')).toBe('%PDF')
     // Un PDF se termine par le marqueur EOF.
     expect(buf.subarray(-6).toString('latin1')).toContain('EOF')
+  })
+
+  it('accepte langue + devise (localisation date/montants) et reste un PDF valide', async () => {
+    const buf = await genererPdf(donneesFixture, 'EN', 'EUR')
+    expect(buf.subarray(0, 4).toString('latin1')).toBe('%PDF')
+    expect(buf.subarray(-6).toString('latin1')).toContain('EOF')
+    // Défauts rétrocompatibles : appel sans langue/devise (FR/FCFA) toujours valide.
+    const parDefaut = await genererPdf(donneesFixture)
+    expect(parDefaut.subarray(0, 4).toString('latin1')).toBe('%PDF')
   })
 })

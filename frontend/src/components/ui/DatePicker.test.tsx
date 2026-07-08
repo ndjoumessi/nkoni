@@ -120,4 +120,55 @@ describe('DatePicker — popover en portail', () => {
     suivant()
     expect(moisAffiche()).toMatch(/avril 2026/i)
   })
+
+  const enteteDe = (dialog) => () =>
+    dialog.querySelector('[aria-live="polite"]')?.textContent?.trim() ?? ''
+
+  // Sélection rapide (souris) : en-tête → grille d'années → année → grille de mois → mois →
+  // retour au calendrier positionné sur le mois/année choisis, puis sélection d'un jour.
+  it('sélection rapide (souris) : en-tête → année → mois → calendrier sur le bon mois', () => {
+    const onChange = vi.fn()
+    render(<DatePicker value="2026-05-15" onChange={onChange} />)
+    const dialog = ouvrir()
+    const entete = enteteDe(dialog)
+    expect(entete()).toMatch(/mai 2026/i)
+
+    fireEvent.click(screen.getByRole('button', { name: 'ui.datePicker.choisirMoisAnnee' }))
+    fireEvent.click(screen.getByRole('button', { name: '2027' }))
+    fireEvent.click(screen.getByRole('button', { name: 'mars' }))
+
+    expect(entete()).toMatch(/mars 2027/i)
+    fireEvent.click(dialog.querySelector('[data-iso="2027-03-10"]'))
+    expect(onChange).toHaveBeenCalledWith('2027-03-10')
+  })
+
+  // Sélection rapide au CLAVIER dans les nouveaux panneaux (flèches + Entrée).
+  it('sélection rapide (clavier) : année puis mois via flèches + Entrée', () => {
+    render(<DatePicker value="2026-05-15" onChange={vi.fn()} />)
+    const dialog = ouvrir()
+    const entete = enteteDe(dialog)
+    fireEvent.click(screen.getByRole('button', { name: 'ui.datePicker.choisirMoisAnnee' }))
+    // Grille années : focus 2026 → ArrowRight → 2027 → Entrée.
+    fireEvent.keyDown(dialog.querySelector('[role="grid"]'), { key: 'ArrowRight' })
+    fireEvent.keyDown(dialog.querySelector('[role="grid"]'), { key: 'Enter' })
+    // Grille mois de 2027 : focus mai → ArrowRight → juin → Entrée.
+    fireEvent.keyDown(dialog.querySelector('[role="grid"]'), { key: 'ArrowRight' })
+    fireEvent.keyDown(dialog.querySelector('[role="grid"]'), { key: 'Enter' })
+    expect(entete()).toMatch(/juin 2027/i)
+  })
+
+  // Échap remonte d'un niveau (mois → années → jours) au lieu de fermer d'emblée.
+  it('Échap remonte d’un niveau sans fermer le calendrier', () => {
+    render(<DatePicker value="2026-05-15" onChange={vi.fn()} />)
+    const dialog = ouvrir()
+    fireEvent.click(screen.getByRole('button', { name: 'ui.datePicker.choisirMoisAnnee' }))
+    fireEvent.click(screen.getByRole('button', { name: '2027' }))
+    // Vue mois → Échap → vue années (la cellule 2027 réapparaît).
+    fireEvent.keyDown(dialog.querySelector('[role="grid"]'), { key: 'Escape' })
+    expect(screen.getByRole('button', { name: '2027' })).toBeTruthy()
+    // Vue années → Échap → vue jours (grille des jours), toujours ouvert.
+    fireEvent.keyDown(dialog.querySelector('[role="grid"]'), { key: 'Escape' })
+    expect(dialog.querySelector('[data-iso]')).not.toBeNull()
+    expect(screen.queryByRole('dialog')).not.toBeNull()
+  })
 })

@@ -6,22 +6,26 @@ import { cn } from '@/lib/utils'
 import { controlClasses } from './control-styles'
 
 /**
- * Sélecteur de date « Laiton & Jade » — remplace `<input type="date">` natif par un calendrier
+ * Sélecteur de date « Menthe & Encre » — remplace `<input type="date">` natif par un calendrier
  * stylisé, cohérent avec les primitives Input/Select (même `controlClasses` pour le déclencheur).
  *
  * i18n (§4) : noms de mois/jours et format d'affichage suivent la LANGUE d'interface (i18next),
  * via `Intl.DateTimeFormat` — aucune table de libellés en dur, aucune dépendance externe.
  *
- * Accessibilité (§1/§8) : déclencheur `aria-haspopup="dialog"` + `aria-expanded` ; grille
- * `role="grid"` avec cellules `gridcell` ; navigation clavier complète (flèches, Home/End,
- * PageUp/Down, Entrée/Espace, Échap) avec focus roving ; retour du focus au déclencheur à la
- * fermeture. Compatible `<Field>` : reçoit `id`/`aria-invalid`/`aria-describedby` et les porte
- * sur le déclencheur.
+ * Sélection rapide : l'en-tête (« Février 2027 ») est cliquable et ouvre une navigation en deux
+ * temps — grille d'ANNÉES (décennie, avec ‹ / › de décennie) → grille des 12 MOIS de l'année
+ * choisie → retour au calendrier positionné sur ce mois/année. Évite de marteler ‹ / › mois à mois.
+ *
+ * Accessibilité (§1/§8) : déclencheur `aria-haspopup="dialog"` + `aria-expanded` ; grilles
+ * `role="grid"` ; navigation clavier complète (flèches, Home/End, PageUp/Down, Entrée/Espace, Échap)
+ * avec focus roving dans CHAQUE vue ; Échap remonte d'un niveau (mois → années → jours) puis ferme ;
+ * retour du focus au déclencheur à la fermeture. Compatible `<Field>` : reçoit
+ * `id`/`aria-invalid`/`aria-describedby` et les porte sur le déclencheur.
  *
  * Positionnement : le popover est rendu en PORTAIL dans `<body>` (`createPortal`) et positionné
- * en `position: fixed` d'après le rect du champ (recalculé au scroll/resize). Il échappe ainsi à
- * tout contexte d'empilement d'un bloc frère (nk-reveal `forwards`, transform, z-index élevé…)
- * qui recouvrirait sinon un popover simplement `absolute` — immunité STRUCTURELLE, pas au cas par cas.
+ * en `position: fixed` d'après le rect du champ (recalculé au scroll/resize/changement de vue). Il
+ * échappe ainsi à tout contexte d'empilement d'un bloc frère (nk-reveal `forwards`, transform,
+ * z-index élevé…) qui recouvrirait sinon un popover `absolute` — immunité STRUCTURELLE.
  *
  * Contrat de valeur identique au natif : `value` = `yyyy-mm-dd` (ou `yyyy-mm-ddThh:mm` si
  * `withTime`), chaîne vide si non renseigné ; `onChange` reçoit la même forme.
@@ -44,8 +48,18 @@ type DatePickerProps = {
   'aria-describedby'?: string
 }
 
+/** Vue active du popover : calendrier, grille d'années, grille de mois. */
+type Panneau = 'jours' | 'annees' | 'mois'
+
 /** Premier jour de semaine par langue (lundi en fr, dimanche en en). */
 const PREMIER_JOUR: Record<string, number> = { fr: 1, en: 0 }
+
+/** Classes partagées des boutons de navigation (‹ / ›) de l'en-tête. */
+const NAV_BTN =
+  'flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-brass/60'
+/** Classes du libellé central cliquable de l'en-tête (mois/année → ouvre la sélection rapide). */
+const LABEL_BTN =
+  'rounded-lg px-2.5 py-1 font-display text-sm font-semibold capitalize text-foreground transition-colors hover:bg-surface-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-brass/60'
 
 const pad = (n: number) => String(n).padStart(2, '0')
 const toISODate = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
@@ -63,6 +77,7 @@ const parseTime = (s: string | undefined) => /T(\d{2}:\d{2})/.exec(s ?? '')?.[1]
 
 const addDays = (d: Date, n: number) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n)
 const addMonths = (d: Date, n: number) => new Date(d.getFullYear(), d.getMonth() + n, 1)
+const dernierJourDuMois = (annee: number, mois: number) => new Date(annee, mois + 1, 0).getDate()
 const sameDay = (a: Date, b: Date) =>
   a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
 
@@ -90,13 +105,18 @@ export function DatePicker({
   const maxDate = useMemo(() => parseISODate(max), [max])
 
   const [open, setOpen] = useState(false)
-  // Mois affiché + jour ayant le focus roving dans la grille.
+  // Mois affiché + jour ayant le focus roving dans la grille de jours.
   const [vue, setVue] = useState<Date>(() => selected ?? today)
   const [focusDate, setFocusDate] = useState<Date>(() => selected ?? today)
 
+  // Sélection rapide : vue active + focus roving propre aux panneaux années/mois.
+  const [panneau, setPanneau] = useState<Panneau>('jours')
+  const [focusAnnee, setFocusAnnee] = useState<number>(() => (selected ?? today).getFullYear())
+  const [ancreAnnee, setAncreAnnee] = useState<number>(() => (selected ?? today).getFullYear())
+  const [focusMois, setFocusMois] = useState<number>(() => (selected ?? today).getMonth())
+
   const containerRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
-  const gridRef = useRef<HTMLDivElement>(null)
   const popoverRef = useRef<HTMLDivElement>(null)
 
   // Position du popover en coordonnées VIEWPORT (`position: fixed`). Le calendrier est rendu en
@@ -138,9 +158,21 @@ export function DatePicker({
         month: 'long',
         year: 'numeric',
       }),
+      moisCourt: new Intl.DateTimeFormat(locale, { month: 'short' }),
+      moisLong: new Intl.DateTimeFormat(locale, { month: 'long' }),
       affichage: new Intl.DateTimeFormat(locale, { day: '2-digit', month: 'long', year: 'numeric' }),
     }),
     [locale],
+  )
+
+  // Noms des 12 mois (court pour la cellule, long pour l'aria-label), selon la locale.
+  const moisNoms = useMemo(
+    () =>
+      Array.from({ length: 12 }, (_, m) => ({
+        court: fmt.moisCourt.format(new Date(2000, m, 1)),
+        long: fmt.moisLong.format(new Date(2000, m, 1)),
+      })),
+    [fmt],
   )
 
   // En-têtes de colonnes (jours de la semaine), à partir d'un dimanche de référence (2024-01-07).
@@ -160,20 +192,32 @@ export function DatePicker({
     return Array.from({ length: 42 }, (_, i) => addDays(debut, i))
   }, [vue, premierJour])
 
+  // Grille d'années : décennie de `focusAnnee` (source de vérité unique du panneau) + 1 an de
+  // débordement de chaque côté (12 cellules), pour un rythme cohérent avec la grille de jours.
+  const decennieBase = Math.floor(focusAnnee / 10) * 10
+  const anneesGrille = useMemo(
+    () => Array.from({ length: 12 }, (_, i) => decennieBase - 1 + i),
+    [decennieBase],
+  )
+
   const horsBornes = useCallback(
     (d: Date) => (minDate != null && d < minDate) || (maxDate != null && d > maxDate),
     [minDate, maxDate],
   )
 
-  // À l'ouverture : recale la vue et le focus sur la valeur sélectionnée (ou aujourd'hui).
+  // À l'ouverture : recale la vue, le focus et les panneaux sur la valeur sélectionnée (ou aujourd'hui).
   useEffect(() => {
     if (!open) return
     const cible = selected ?? today
     setVue(cible)
     setFocusDate(cible)
+    setPanneau('jours')
+    setFocusAnnee(cible.getFullYear())
+    setAncreAnnee(cible.getFullYear())
+    setFocusMois(cible.getMonth())
   }, [open, selected, today])
 
-  // Recale la vue si le focus clavier franchit une frontière de mois.
+  // Recale la vue si le focus clavier (jours) franchit une frontière de mois.
   useEffect(() => {
     if (!open) return
     if (focusDate.getMonth() !== vue.getMonth() || focusDate.getFullYear() !== vue.getFullYear()) {
@@ -181,18 +225,23 @@ export function DatePicker({
     }
   }, [focusDate, open, vue])
 
-  // Donne le focus DOM au jour actif (roving) après chaque déplacement clavier.
-  // `preventScroll` : le popover étant en portail dans <body>, un focus classique pourrait
-  // faire défiler la page vers lui — on l'évite.
+  // Donne le focus DOM à la cellule active (roving) de la vue courante, après chaque déplacement.
+  // `preventScroll` : le popover étant en portail dans <body>, un focus classique pourrait faire
+  // défiler la page vers lui — on l'évite.
   useEffect(() => {
     if (!open) return
-    const el = gridRef.current?.querySelector<HTMLButtonElement>(`[data-iso="${toISODate(focusDate)}"]`)
-    el?.focus({ preventScroll: true })
-  }, [open, focusDate, grille])
+    const sel =
+      panneau === 'jours'
+        ? `[data-iso="${toISODate(focusDate)}"]`
+        : panneau === 'annees'
+          ? `[data-annee="${focusAnnee}"]`
+          : `[data-mois="${focusMois}"]`
+    popoverRef.current?.querySelector<HTMLButtonElement>(sel)?.focus({ preventScroll: true })
+  }, [open, panneau, focusDate, focusAnnee, focusMois, grille])
 
-  // (Re)positionne le popover à l'ouverture, puis au scroll (capture → n'importe quel conteneur
-  // défilant) et au resize, tant qu'il est ouvert. `useLayoutEffect` : calcule AVANT la peinture
-  // (pas de saut visuel ; le popover reste masqué tant que `coords` est nul).
+  // (Re)positionne le popover à l'ouverture, au CHANGEMENT DE VUE (la hauteur diffère selon le
+  // panneau), puis au scroll (capture → n'importe quel conteneur défilant) et au resize.
+  // `useLayoutEffect` : calcule AVANT la peinture (pas de saut ; masqué tant que `coords` est nul).
   useLayoutEffect(() => {
     if (!open) {
       setCoords(null)
@@ -206,10 +255,10 @@ export function DatePicker({
       window.removeEventListener('scroll', surMaj, true)
       window.removeEventListener('resize', surMaj)
     }
-  }, [open, positionner])
+  }, [open, panneau, positionner])
 
   // Fermeture au clic extérieur. Le popover vivant dans un PORTAIL (hors de containerRef), on
-  // l'épargne explicitement : sinon un mousedown sur un jour fermerait le calendrier AVANT le
+  // l'épargne explicitement : sinon un mousedown sur une cellule fermerait le calendrier AVANT le
   // click → sélection cassée.
   useEffect(() => {
     if (!open) return
@@ -222,19 +271,16 @@ export function DatePicker({
     return () => document.removeEventListener('mousedown', onDown)
   }, [open])
 
-  // Navigation de mois (boutons ‹ / ›) : on déplace `vue` ET `focusDate` du même pas, de façon
-  // SYNCHRONE. Deux raisons : (1) `vue` change tout de suite → l'en-tête se met à jour dans le
-  // même rendu (pas de lag d'une frame le temps qu'un effet propage) ; (2) en gardant
-  // `focusDate.mois === vue.mois`, l'effet de recalage (focusDate → vue) reste un no-op et
-  // n'ANNULE plus le clic (bug : avant, seul `vue` bougeait, l'effet le ramenait au mois du focus).
-  // Le jour de `focusDate` est borné à la longueur du mois cible.
+  // Navigation de mois (boutons ‹ / › de la vue jours) : on déplace `vue` ET `focusDate` du même
+  // pas, de façon SYNCHRONE. (1) `vue` change tout de suite → l'en-tête se met à jour dans le même
+  // rendu (pas de lag) ; (2) en gardant `focusDate.mois === vue.mois`, l'effet de recalage reste un
+  // no-op et n'ANNULE plus le clic (régression corrigée). Jour borné à la longueur du mois cible.
   const allerAuMois = useCallback((delta: number) => {
     setVue((v) => addMonths(v, delta))
     setFocusDate((f) => {
       const annee = f.getFullYear()
       const mois = f.getMonth() + delta
-      const dernierJour = new Date(annee, mois + 1, 0).getDate()
-      return new Date(annee, mois, Math.min(f.getDate(), dernierJour))
+      return new Date(annee, mois, Math.min(f.getDate(), dernierJourDuMois(annee, mois)))
     })
   }, [])
 
@@ -251,6 +297,47 @@ export function DatePicker({
       fermerEtRendre()
     },
     [horsBornes, onChange, withTime, heure, fermerEtRendre],
+  )
+
+  // --- Sélection rapide : transitions entre panneaux ---
+  const ouvrirAnnees = useCallback(() => {
+    setFocusAnnee(vue.getFullYear())
+    setPanneau('annees')
+  }, [vue])
+
+  // Décennie ‹ / › : on déplace `focusAnnee` (source de vérité) de 10 ans ; la grille suit.
+  const changerDecennie = useCallback((delta: number) => setFocusAnnee((y) => y + delta * 10), [])
+
+  const choisirAnnee = useCallback(
+    (annee: number) => {
+      setAncreAnnee(annee)
+      setFocusMois(vue.getMonth())
+      setPanneau('mois')
+    },
+    [vue],
+  )
+
+  // Année ‹ / › de la vue mois : change l'année ancre (les 12 mois affichés).
+  const changerAnneePanneau = useCallback((delta: number) => setAncreAnnee((a) => a + delta), [])
+
+  const retourAnnees = useCallback(() => {
+    setFocusAnnee(ancreAnnee)
+    setPanneau('annees')
+  }, [ancreAnnee])
+
+  const retourJours = useCallback(() => setPanneau('jours'), [])
+
+  // Sélection d'un mois → retour au calendrier. On pose `vue` ET `focusDate` ENSEMBLE (même mois)
+  // pour que l'effet de recalage reste un no-op (cf. `allerAuMois`).
+  const choisirMois = useCallback(
+    (mois: number) => {
+      setVue(new Date(ancreAnnee, mois, 1))
+      setFocusDate((f) =>
+        new Date(ancreAnnee, mois, Math.min(f.getDate(), dernierJourDuMois(ancreAnnee, mois))),
+      )
+      setPanneau('jours')
+    },
+    [ancreAnnee],
   )
 
   const onGridKeyDown = useCallback(
@@ -283,6 +370,70 @@ export function DatePicker({
     [focusDate, premierJour, choisir, fermerEtRendre],
   )
 
+  // Clavier de la grille d'années (4 colonnes). Échap → retour à la vue jours.
+  const onAnneesKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      let n = focusAnnee
+      switch (e.key) {
+        case 'ArrowLeft': n -= 1; break
+        case 'ArrowRight': n += 1; break
+        case 'ArrowUp': n -= 4; break
+        case 'ArrowDown': n += 4; break
+        case 'PageUp': n -= 10; break
+        case 'PageDown': n += 10; break
+        case 'Enter':
+        case ' ':
+          e.preventDefault()
+          choisirAnnee(focusAnnee)
+          return
+        case 'Escape':
+          e.preventDefault()
+          retourJours()
+          return
+        default:
+          return
+      }
+      e.preventDefault()
+      setFocusAnnee(n)
+    },
+    [focusAnnee, choisirAnnee, retourJours],
+  )
+
+  // Clavier de la grille des mois (3 colonnes). PageUp/Down changent d'année ; Échap → années.
+  const onMoisKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      let m = focusMois
+      switch (e.key) {
+        case 'ArrowLeft': m = Math.max(0, m - 1); break
+        case 'ArrowRight': m = Math.min(11, m + 1); break
+        case 'ArrowUp': m = Math.max(0, m - 3); break
+        case 'ArrowDown': m = Math.min(11, m + 3); break
+        case 'PageUp':
+          e.preventDefault()
+          changerAnneePanneau(-1)
+          return
+        case 'PageDown':
+          e.preventDefault()
+          changerAnneePanneau(1)
+          return
+        case 'Enter':
+        case ' ':
+          e.preventDefault()
+          choisirMois(focusMois)
+          return
+        case 'Escape':
+          e.preventDefault()
+          retourAnnees()
+          return
+        default:
+          return
+      }
+      e.preventDefault()
+      setFocusMois(m)
+    },
+    [focusMois, changerAnneePanneau, choisirMois, retourAnnees],
+  )
+
   const affichage = selected
     ? `${fmt.affichage.format(selected)}${withTime && heure ? ` · ${heure}` : ''}`
     : (placeholder ?? t('ui.datePicker.placeholder'))
@@ -307,118 +458,208 @@ export function DatePicker({
 
       {open &&
         createPortal(
-        <div
-          ref={popoverRef}
-          role="dialog"
-          aria-label={t('ui.datePicker.dialogue')}
-          aria-modal="false"
-          style={{
-            position: 'fixed',
-            top: coords?.top ?? 0,
-            left: coords?.left ?? 0,
-            // Masqué tant que la position n'est pas calculée (évite un flash en haut à gauche).
-            visibility: coords ? 'visible' : 'hidden',
-          }}
-          className="nk-toast-in z-50 w-[19rem] rounded-2xl border border-hairline bg-canvas p-3 shadow-xl"
-        >
-          {/* En-tête : navigation de mois */}
-          <div className="mb-2 flex items-center justify-between">
-            <button
-              type="button"
-              aria-label={t('ui.datePicker.moisPrecedent')}
-              onClick={() => allerAuMois(-1)}
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-brass/60"
-            >
-              <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-            </button>
-            <span className="font-display text-sm font-semibold capitalize text-foreground" aria-live="polite">
-              {fmt.moisAnnee.format(vue)}
-            </span>
-            <button
-              type="button"
-              aria-label={t('ui.datePicker.moisSuivant')}
-              onClick={() => allerAuMois(1)}
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-brass/60"
-            >
-              <ChevronRight className="h-4 w-4" aria-hidden="true" />
-            </button>
-          </div>
-
-          {/* Grille des jours */}
-          <div role="grid" ref={gridRef} onKeyDown={onGridKeyDown}>
-            <div role="row" className="mb-1 grid grid-cols-7">
-              {enTetes.map((h) => (
-                <span
-                  key={h.key}
-                  role="columnheader"
-                  className="py-1 text-center text-[0.65rem] font-medium uppercase tracking-wide text-faint"
-                >
-                  {h.court}
-                </span>
-              ))}
+          <div
+            ref={popoverRef}
+            role="dialog"
+            aria-label={t('ui.datePicker.dialogue')}
+            aria-modal="false"
+            style={{
+              position: 'fixed',
+              top: coords?.top ?? 0,
+              left: coords?.left ?? 0,
+              // Masqué tant que la position n'est pas calculée (évite un flash en haut à gauche).
+              visibility: coords ? 'visible' : 'hidden',
+            }}
+            className="nk-toast-in z-50 w-[19rem] rounded-2xl border border-hairline bg-canvas p-3 shadow-xl"
+          >
+            {/* En-tête contextuel selon la vue */}
+            <div className="mb-2 flex items-center justify-between">
+              {panneau === 'jours' && (
+                <>
+                  <button type="button" aria-label={t('ui.datePicker.moisPrecedent')} onClick={() => allerAuMois(-1)} className={NAV_BTN}>
+                    <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={t('ui.datePicker.choisirMoisAnnee')}
+                    aria-live="polite"
+                    onClick={ouvrirAnnees}
+                    className={LABEL_BTN}
+                  >
+                    {fmt.moisAnnee.format(vue)}
+                  </button>
+                  <button type="button" aria-label={t('ui.datePicker.moisSuivant')} onClick={() => allerAuMois(1)} className={NAV_BTN}>
+                    <ChevronRight className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                </>
+              )}
+              {panneau === 'annees' && (
+                <>
+                  <button type="button" aria-label={t('ui.datePicker.decenniePrecedente')} onClick={() => changerDecennie(-1)} className={NAV_BTN}>
+                    <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                  <span className="font-display text-sm font-semibold text-foreground" aria-live="polite">
+                    {decennieBase} – {decennieBase + 9}
+                  </span>
+                  <button type="button" aria-label={t('ui.datePicker.decennieSuivante')} onClick={() => changerDecennie(1)} className={NAV_BTN}>
+                    <ChevronRight className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                </>
+              )}
+              {panneau === 'mois' && (
+                <>
+                  <button type="button" aria-label={t('ui.datePicker.anneePrecedente')} onClick={() => changerAnneePanneau(-1)} className={NAV_BTN}>
+                    <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={t('ui.datePicker.choisirAnnee')}
+                    aria-live="polite"
+                    onClick={retourAnnees}
+                    className={cn(LABEL_BTN, 'num')}
+                  >
+                    {ancreAnnee}
+                  </button>
+                  <button type="button" aria-label={t('ui.datePicker.anneeSuivante')} onClick={() => changerAnneePanneau(1)} className={NAV_BTN}>
+                    <ChevronRight className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                </>
+              )}
             </div>
-            <div className="grid grid-cols-7 gap-0.5">
-              {grille.map((d) => {
-                const estMois = d.getMonth() === vue.getMonth()
-                const estSel = selected != null && sameDay(d, selected)
-                const estToday = sameDay(d, today)
-                const desactive = horsBornes(d)
-                const estFocus = sameDay(d, focusDate)
-                return (
-                  <div role="gridcell" key={toISODate(d)} aria-selected={estSel}>
+
+            {/* Corps : calendrier, ou grille d'années, ou grille de mois */}
+            {panneau === 'jours' && (
+              <>
+                <div role="grid" onKeyDown={onGridKeyDown}>
+                  <div role="row" className="mb-1 grid grid-cols-7">
+                    {enTetes.map((h) => (
+                      <span key={h.key} role="columnheader" className="py-1 text-center text-[0.65rem] font-medium uppercase tracking-wide text-faint">
+                        {h.court}
+                      </span>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-7 gap-0.5">
+                    {grille.map((d) => {
+                      const estMois = d.getMonth() === vue.getMonth()
+                      const estSel = selected != null && sameDay(d, selected)
+                      const estToday = sameDay(d, today)
+                      const desactive = horsBornes(d)
+                      const estFocus = sameDay(d, focusDate)
+                      return (
+                        <div role="gridcell" key={toISODate(d)} aria-selected={estSel}>
+                          <button
+                            type="button"
+                            data-iso={toISODate(d)}
+                            tabIndex={estFocus ? 0 : -1}
+                            disabled={desactive}
+                            aria-label={fmt.jourLong.format(d)}
+                            aria-current={estToday ? 'date' : undefined}
+                            onClick={() => choisir(d)}
+                            className={cn(
+                              'flex h-9 w-full items-center justify-center rounded-lg text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brass/60',
+                              !estMois && 'text-faint',
+                              estMois && !estSel && 'text-foreground hover:bg-surface-2',
+                              estSel && 'bg-brass font-semibold text-canvas hover:bg-brass',
+                              estToday && !estSel && 'ring-1 ring-inset ring-jade/50',
+                              desactive && 'cursor-not-allowed opacity-30 hover:bg-transparent',
+                            )}
+                          >
+                            {d.getDate()}
+                          </button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* Pied : heure (mode withTime) + raccourci aujourd'hui */}
+                <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-hairline pt-2.5">
+                  {withTime ? (
+                    <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <span>{t('ui.datePicker.heure')}</span>
+                      <input
+                        type="time"
+                        value={heure}
+                        onChange={(e) => {
+                          const base = selected ?? today
+                          onChange(`${toISODate(base)}T${e.target.value || '00:00'}`)
+                        }}
+                        className="rounded-lg border border-hairline-strong bg-surface-2/70 px-2 py-1 text-sm text-foreground focus:border-brass/50 focus:outline-none"
+                      />
+                    </label>
+                  ) : (
+                    <span />
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => choisir(today)}
+                    disabled={horsBornes(today)}
+                    className="rounded-lg px-2.5 py-1 text-xs font-medium text-brass transition-colors hover:bg-brass/10 disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-brass/60"
+                  >
+                    {t('ui.datePicker.aujourdhui')}
+                  </button>
+                </div>
+              </>
+            )}
+
+            {panneau === 'annees' && (
+              <div role="grid" onKeyDown={onAnneesKeyDown} className="grid grid-cols-4 gap-1 py-1">
+                {anneesGrille.map((annee) => {
+                  const dansDecennie = annee >= decennieBase && annee <= decennieBase + 9
+                  const estSel = selected?.getFullYear() === annee
+                  const estCourante = today.getFullYear() === annee
+                  const estFocus = annee === focusAnnee
+                  return (
                     <button
+                      key={annee}
                       type="button"
-                      data-iso={toISODate(d)}
+                      data-annee={annee}
                       tabIndex={estFocus ? 0 : -1}
-                      disabled={desactive}
-                      aria-label={fmt.jourLong.format(d)}
-                      aria-current={estToday ? 'date' : undefined}
-                      onClick={() => choisir(d)}
+                      onClick={() => choisirAnnee(annee)}
                       className={cn(
-                        'flex h-9 w-full items-center justify-center rounded-lg text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brass/60',
-                        !estMois && 'text-faint',
-                        estMois && !estSel && 'text-foreground hover:bg-surface-2',
+                        'num flex h-11 items-center justify-center rounded-lg text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brass/60',
+                        !dansDecennie && 'text-faint',
+                        dansDecennie && !estSel && 'text-foreground hover:bg-surface-2',
                         estSel && 'bg-brass font-semibold text-canvas hover:bg-brass',
-                        estToday && !estSel && 'ring-1 ring-inset ring-jade/50',
-                        desactive && 'cursor-not-allowed opacity-30 hover:bg-transparent',
+                        estCourante && !estSel && 'ring-1 ring-inset ring-jade/50',
                       )}
                     >
-                      {d.getDate()}
+                      {annee}
                     </button>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-
-          {/* Pied : heure (mode withTime) + raccourci aujourd'hui */}
-          <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-hairline pt-2.5">
-            {withTime ? (
-              <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <span>{t('ui.datePicker.heure')}</span>
-                <input
-                  type="time"
-                  value={heure}
-                  onChange={(e) => {
-                    const base = selected ?? today
-                    onChange(`${toISODate(base)}T${e.target.value || '00:00'}`)
-                  }}
-                  className="rounded-lg border border-hairline-strong bg-surface-2/70 px-2 py-1 text-sm text-foreground focus:border-brass/50 focus:outline-none"
-                />
-              </label>
-            ) : (
-              <span />
+                  )
+                })}
+              </div>
             )}
-            <button
-              type="button"
-              onClick={() => choisir(today)}
-              disabled={horsBornes(today)}
-              className="rounded-lg px-2.5 py-1 text-xs font-medium text-brass transition-colors hover:bg-brass/10 disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-brass/60"
-            >
-              {t('ui.datePicker.aujourdhui')}
-            </button>
-          </div>
-        </div>,
+
+            {panneau === 'mois' && (
+              <div role="grid" onKeyDown={onMoisKeyDown} className="grid grid-cols-3 gap-1 py-1">
+                {moisNoms.map((nom, m) => {
+                  const estSel =
+                    selected != null && selected.getFullYear() === ancreAnnee && selected.getMonth() === m
+                  const estCourant = today.getFullYear() === ancreAnnee && today.getMonth() === m
+                  const estFocus = m === focusMois
+                  return (
+                    <button
+                      key={m}
+                      type="button"
+                      data-mois={m}
+                      tabIndex={estFocus ? 0 : -1}
+                      aria-label={nom.long}
+                      onClick={() => choisirMois(m)}
+                      className={cn(
+                        'flex h-12 items-center justify-center rounded-lg text-sm capitalize transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brass/60',
+                        !estSel && 'text-foreground hover:bg-surface-2',
+                        estSel && 'bg-brass font-semibold text-canvas hover:bg-brass',
+                        estCourant && !estSel && 'ring-1 ring-inset ring-jade/50',
+                      )}
+                    >
+                      {nom.court}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>,
           document.body,
         )}
     </div>

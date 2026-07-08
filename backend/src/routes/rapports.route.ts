@@ -17,6 +17,7 @@ import {
   genererComparaisonMultiPdf,
 } from '../services/export-rapport.service'
 import { assemblerDonneesContributions } from '../services/export.service'
+import { resoudreDeviseDestinataire } from '../services/notification.service'
 import {
   calculerStatutContribution,
   type StatutContributionValue,
@@ -213,9 +214,15 @@ export const rapportsRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
       const { baremes, membres } = await chargerDonneesRapport(app.prisma)
       const rapport = genererRapportFinancier(anneeDebut, anneeFin, baremes, membres)
 
+      // PDF : date + montants dans la langue/devise de l'utilisateur qui exporte (§4/§5).
+      const langue = langueDeRequete(req)
+      const devise = req.user.sub ? await resoudreDeviseDestinataire(app.prisma, req.user.sub) : 'FCFA'
+
       const nomFichier = `rapport-financier-${anneeDebut}-${anneeFin}.${format}`
       const buffer =
-        format === 'pdf' ? await genererEvolutionPdf(rapport) : await genererEvolutionExcel(rapport)
+        format === 'pdf'
+          ? await genererEvolutionPdf(rapport, new Date(), langue, devise)
+          : await genererEvolutionExcel(rapport)
 
       return reply
         .header('Content-Type', CONTENT_TYPE[format])
@@ -236,6 +243,10 @@ export const rapportsRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
       const format = req.query.format ?? 'xlsx'
       const { baremes, membres } = await chargerDonneesRapport(app.prisma)
 
+      // PDF : date + montants dans la langue/devise de l'utilisateur qui exporte (§4/§5).
+      const langue = langueDeRequete(req)
+      const devise = req.user.sub ? await resoudreDeviseDestinataire(app.prisma, req.user.sub) : 'FCFA'
+
       let buffer: Buffer
       let nomFichier: string
 
@@ -251,7 +262,7 @@ export const rapportsRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
         nomFichier = `comparaison-${annees.join('-')}.${format}`
         buffer =
           format === 'pdf'
-            ? await genererComparaisonMultiPdf(comparaison)
+            ? await genererComparaisonMultiPdf(comparaison, new Date(), langue, devise)
             : await genererComparaisonMultiExcel(comparaison)
       } else if (req.query.anneeA !== undefined && req.query.anneeB !== undefined) {
         // Rétrocompatibilité : paire A / B.
@@ -259,7 +270,7 @@ export const rapportsRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
         nomFichier = `comparaison-${req.query.anneeA}-${req.query.anneeB}.${format}`
         buffer =
           format === 'pdf'
-            ? await genererComparaisonPdf(comparaison)
+            ? await genererComparaisonPdf(comparaison, new Date(), langue, devise)
             : await genererComparaisonExcel(comparaison)
       } else {
         return reply

@@ -85,6 +85,26 @@ describe('Évolution — Excel', () => {
     expect(last.getCell(2).value).toBe(44_000)
     expect(last.getCell(4).value).toBe(72.73)
   })
+
+  it('mise en forme premium : bandeau menthe, montants #,##0 à droite, taux non arrondi', async () => {
+    const buf = await genererEvolutionExcel(rapport, now)
+    const wb = new ExcelJS.Workbook()
+    await wb.xlsx.load(buf as unknown as ArrayBuffer)
+    const ws = wb.getWorksheet('Évolution')!
+
+    // En-tête : bandeau menthe foncé, texte blanc gras.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect((ws.getRow(1).getCell(1).fill as any)?.fgColor?.argb).toBe('FF006A48')
+    // Colonne « Attendu » : montant en NOMBRE, format #,##0, aligné à droite.
+    const attendu = ws.getRow(2).getCell(2)
+    expect(typeof attendu.value).toBe('number')
+    expect(attendu.numFmt).toBe('#,##0')
+    expect(attendu.alignment?.horizontal).toBe('right')
+    // Le TAUX ne reçoit PAS de format #,##0 (sinon 72.73 s'afficherait « 73 »).
+    const last = ws.getRow(ws.rowCount)
+    expect(last.getCell(4).numFmt).toBeFalsy()
+    expect(last.getCell(4).value).toBe(72.73)
+  })
 })
 
 describe('Évolution — PDF', () => {

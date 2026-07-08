@@ -20,6 +20,7 @@ import { Card } from '@/components/ui/Card'
 import { Button, ButtonLink } from '@/components/ui/Button'
 import { Field, Input, Select, Textarea } from '@/components/ui/Field'
 import { DatePicker } from '@/components/ui/DatePicker'
+import { SelecteurAnnee } from '@/components/ui/SelecteurAnnee'
 import { FormSection } from '@/components/ui/FormSection'
 import { Skeleton } from '@/components/ui/Skeleton'
 
@@ -205,6 +206,7 @@ export function MembreFormPage() {
   }
 
   const finVisible = STATUTS_FIN.includes(form.statut)
+  const anneeCourante = new Date().getFullYear()
   const backTo = isEdit && id ? `/membres/${id}` : '/membres'
 
   return (
@@ -266,12 +268,12 @@ export function MembreFormPage() {
                 />
               </Field>
               <Field label={t('membres.form.champ.anneeAdhesion')} required error={errors.anneeAdhesion}>
-                <Input
-                  type="number"
+                {/* Borne haute = année en cours : le backend refuse une adhésion future (§4.1). */}
+                <SelecteurAnnee
+                  value={form.anneeAdhesion ? Number(form.anneeAdhesion) : null}
                   min={1900}
-                  max={2200}
-                  value={form.anneeAdhesion}
-                  onChange={(e) => set('anneeAdhesion', e.target.value)}
+                  max={anneeCourante}
+                  onChange={(a) => set('anneeAdhesion', a === null ? '' : String(a))}
                 />
               </Field>
               <Field label={t('membres.form.champ.statut')}>
@@ -317,12 +319,13 @@ export function MembreFormPage() {
                   hint={t('membres.form.champ.anneeFinHint')}
                   error={errors.anneeFinContribution}
                 >
-                  <Input
-                    type="number"
+                  {/* Optionnel : laissé vide (« — ») = renseigné automatiquement par le backend (§4.1). */}
+                  <SelecteurAnnee
+                    value={form.anneeFinContribution ? Number(form.anneeFinContribution) : null}
                     min={1900}
-                    max={2200}
-                    value={form.anneeFinContribution}
-                    onChange={(e) => set('anneeFinContribution', e.target.value)}
+                    max={anneeCourante}
+                    optionnel
+                    onChange={(a) => set('anneeFinContribution', a === null ? '' : String(a))}
                   />
                 </Field>
               )}

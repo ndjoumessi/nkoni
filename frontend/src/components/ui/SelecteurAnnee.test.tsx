@@ -115,3 +115,48 @@ describe('SelecteurAnnee', () => {
     expect(plage()).toMatch(/2010\s*–\s*2019/)
   })
 })
+
+// État « non défini » (nullable) + mode optionnel — ajouté pour réutiliser le composant sur
+// l'année de fin de contribution d'un membre (champ facultatif, §4.1).
+describe('SelecteurAnnee — état optionnel / nullable', () => {
+  it('value=null → le déclencheur affiche le placeholder (défaut « — »)', () => {
+    render(<SelecteurAnnee value={null} onChange={vi.fn()} />)
+    expect(screen.getByRole('button').textContent).toContain('—')
+  })
+
+  it('placeholder personnalisable quand value=null', () => {
+    render(<SelecteurAnnee value={null} placeholder="Non défini" onChange={vi.fn()} />)
+    expect(screen.getByRole('button').textContent).toContain('Non défini')
+  })
+
+  it('value=null s’ouvre et permet de choisir une année (point d’entrée = année courante)', () => {
+    const onChange = vi.fn()
+    const anneeCourante = new Date().getFullYear()
+    render(<SelecteurAnnee value={null} min={1900} max={anneeCourante} onChange={onChange} />)
+    ouvrir()
+    // La grille est centrée sur la décennie de l'année courante → cette cellule est présente.
+    fireEvent.click(screen.getByRole('button', { name: String(anneeCourante) }))
+    expect(onChange).toHaveBeenCalledWith(anneeCourante)
+  })
+
+  it('mode optionnel : « Effacer » rappelle onChange(null) puis ferme', () => {
+    const onChange = vi.fn()
+    render(<SelecteurAnnee value={2024} optionnel onChange={onChange} />)
+    ouvrir()
+    fireEvent.click(screen.getByRole('button', { name: 'ui.selecteurAnnee.effacer' }))
+    expect(onChange).toHaveBeenCalledWith(null)
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('« Effacer » absent hors mode optionnel (même quand une année est définie)', () => {
+    render(<SelecteurAnnee value={2024} onChange={vi.fn()} />)
+    ouvrir()
+    expect(screen.queryByRole('button', { name: 'ui.selecteurAnnee.effacer' })).toBeNull()
+  })
+
+  it('« Effacer » absent quand rien n’est défini (value=null), même en mode optionnel', () => {
+    render(<SelecteurAnnee value={null} optionnel onChange={vi.fn()} />)
+    ouvrir()
+    expect(screen.queryByRole('button', { name: 'ui.selecteurAnnee.effacer' })).toBeNull()
+  })
+})

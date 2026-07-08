@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { resumeMembres } from './membres'
-import type { StatutContribution, StatutMembre } from './api'
+import { resumeMembres, accesFinancierApresErreur } from './membres'
+import { ApiError, type StatutContribution, type StatutMembre } from './api'
 
 /**
  * Compteurs de la page Membres : les statuts de cotisation (« À jour »/« Non à jour ») ne portent
@@ -49,5 +49,28 @@ describe('resumeMembres', () => {
 
   it('liste vide → tout à zéro', () => {
     expect(resumeMembres([])).toEqual({ total: 0, actifs: 0, aJour: 0, nonAJour: 0, inactifs: 0 })
+  })
+})
+
+describe('accesFinancierApresErreur (carte Contributions de la fiche membre)', () => {
+  it('403 → carte MASQUÉE (pas de droit, ex. SECRETAIRE)', () => {
+    expect(accesFinancierApresErreur(new ApiError(403, 'Forbidden'))).toEqual({
+      visible: false,
+      erreur: false,
+    })
+  })
+
+  it('500 → carte VISIBLE en erreur (le point d’entrée versement ne disparaît pas — cas (a))', () => {
+    expect(accesFinancierApresErreur(new ApiError(500, 'Boom'))).toEqual({
+      visible: true,
+      erreur: true,
+    })
+  })
+
+  it('erreur réseau (non-ApiError) → carte VISIBLE en erreur', () => {
+    expect(accesFinancierApresErreur(new TypeError('Failed to fetch'))).toEqual({
+      visible: true,
+      erreur: true,
+    })
   })
 })

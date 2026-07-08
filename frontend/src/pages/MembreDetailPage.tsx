@@ -21,6 +21,7 @@ import {
   peutEquilibrer,
   peutGererDocument,
 } from '@/lib/roles'
+import { accesFinancierApresErreur } from '@/lib/membres'
 import { DocumentsSection } from '@/components/documents/DocumentsSection'
 import { StatutCotisationBadge, StatutMembreBadge } from '@/components/membres/StatutBadges'
 import { VersementsList } from '@/components/VersementsList'
@@ -57,6 +58,7 @@ export function MembreDetailPage() {
   const [statut, setStatut] = useState<StatutCumule | null>(null)
   const [contributions, setContributions] = useState<Contribution[]>([])
   const [financierAccessible, setFinancierAccessible] = useState(false)
+  const [financierErreur, setFinancierErreur] = useState(false)
   const [equilibrages, setEquilibrages] = useState<Equilibrage[] | null>(null)
   const [branches, setBranches] = useState<Branche[]>([])
   const [loading, setLoading] = useState(true)
@@ -89,18 +91,31 @@ export function MembreDetailPage() {
         return
       }
 
+      // Contributions : pilote la VISIBILITÉ de la carte. 403 → pas d'accès (carte masquée) ;
+      // toute autre erreur → carte visible en état d'erreur (on ne masque plus en silence le point
+      // d'entrée « Saisir un versement » — cas (a)).
       try {
-        const [s, c] = await Promise.all([
-          membresApi.statut(id, accessToken, signal),
-          contributionsApi.listByMembre(id, accessToken, signal),
-        ])
+        const c = await contributionsApi.listByMembre(id, accessToken, signal)
         if (active) {
-          setStatut(s)
           setContributions([...c].sort((a, b) => b.annee - a.annee))
           setFinancierAccessible(true)
         }
+      } catch (e) {
+        if (e instanceof DOMException && e.name === 'AbortError') return
+        if (active) {
+          const acces = accesFinancierApresErreur(e)
+          setFinancierAccessible(acces.visible)
+          setFinancierErreur(acces.erreur)
+        }
+      }
+
+      // Statut cumulatif : AUXILIAIRE (badge + synthèse, déjà null-safe dans le rendu) → chargé
+      // indépendamment pour qu'un échec ici ne fasse PAS disparaître la carte ni la saisie.
+      try {
+        const s = await membresApi.statut(id, accessToken, signal)
+        if (active) setStatut(s)
       } catch {
-        /* pas d'accès au financier (ex. SECRETAIRE) → bloc masqué */
+        /* statut best-effort — la carte reste utilisable sans lui */
       }
 
       try {
@@ -239,7 +254,11 @@ export function MembreDetailPage() {
               </ButtonLink>
             )}
           </div>
-          {contributions.length === 0 ? (
+          {financierErreur ? (
+            <p className="mt-4 text-sm text-terra">
+              {t('membres.detail.contributionsErreur')}
+            </p>
+          ) : contributions.length === 0 ? (
             <p className="mt-4 text-sm text-faint">
               {t('membres.detail.aucuneContribution')}
             </p>

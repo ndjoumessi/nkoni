@@ -90,6 +90,8 @@ export default {
       saisirVersement: 'Saisir un versement',
       aucuneContribution:
         'Aucune contribution enregistrée. Utilisez « Saisir un versement » pour ouvrir une année.',
+      contributionsErreur:
+        'Impossible de charger les contributions pour le moment. Vous pouvez réessayer ou utiliser « Saisir un versement ».',
       annee: 'Année {{annee}}',
       attendu: 'Attendu {{montant}}',
       verse: 'Versé {{montant}}',

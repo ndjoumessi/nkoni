@@ -33,7 +33,6 @@ export default {
     },
     selecteurAnnee: {
       dialogue: 'Year picker',
-      ouvrir: 'Choose year',
       decenniePrecedente: 'Previous decade',
       decennieSuivante: 'Next decade',
     },

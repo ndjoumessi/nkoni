@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { controlClasses } from './control-styles'
+import { controlClasses, navButtonClasses } from './control-styles'
 
 /**
  * Sélecteur d'ANNÉE « Menthe & Encre » — pour les cas où seule l'année a un sens (ex. barème
@@ -31,9 +31,6 @@ type SelecteurAnneeProps = {
   'aria-describedby'?: string
 }
 
-const NAV_BTN =
-  'flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-brass/60'
-
 const borner = (n: number, min: number, max: number) => Math.min(max, Math.max(min, n))
 
 export function SelecteurAnnee({
@@ -57,6 +54,9 @@ export function SelecteurAnnee({
   const containerRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const popoverRef = useRef<HTMLDivElement>(null)
+  // Cf. DatePicker : posé par les flèches ‹ / › de décennie pour que l'effet roving ne vole PAS le
+  // focus vers une cellule-année (le focus doit rester sur le bouton de décennie).
+  const conserverFocusRef = useRef(false)
 
   // Décennie de `focusAnnee` (source de vérité unique) + 1 an de débordement de chaque côté.
   const decennieBase = Math.floor(focusAnnee / 10) * 10
@@ -92,10 +92,23 @@ export function SelecteurAnnee({
   // Focus DOM sur la cellule active (roving), sans faire défiler la page (popover en portail).
   useEffect(() => {
     if (!open) return
+    if (conserverFocusRef.current) {
+      conserverFocusRef.current = false
+      return
+    }
     popoverRef.current
       ?.querySelector<HTMLButtonElement>(`[data-annee="${focusAnnee}"]`)
       ?.focus({ preventScroll: true })
   }, [open, focusAnnee])
+
+  // Décennie ‹ / › : déplace la grille de 10 ans en gardant le focus sur le bouton (cf. ref ci-dessus).
+  const changerDecennie = useCallback(
+    (delta: number) => {
+      conserverFocusRef.current = true
+      setFocusAnnee((y) => borner(y + delta * 10, min, max))
+    },
+    [min, max],
+  )
 
   // (Re)positionne à l'ouverture, au scroll (capture) et au resize.
   useLayoutEffect(() => {
@@ -181,6 +194,18 @@ export function SelecteurAnnee({
         aria-invalid={ariaInvalid}
         aria-describedby={ariaDescribedBy}
         onClick={() => setOpen((o) => !o)}
+        onKeyDown={(e) => {
+          if (open) return
+          // Parité avec l'ancien <input> natif : Entrée SOUMET le formulaire environnant (au lieu
+          // d'ouvrir le popover) ; le picker s'ouvre via Espace, flèche bas/haut ou clic.
+          if (e.key === 'Enter') {
+            e.preventDefault()
+            triggerRef.current?.form?.requestSubmit()
+          } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            e.preventDefault()
+            setOpen(true)
+          }
+        }}
         className={cn(controlClasses, 'flex items-center justify-between gap-2 text-left')}
       >
         <span className="num">{value}</span>
@@ -206,8 +231,8 @@ export function SelecteurAnnee({
               <button
                 type="button"
                 aria-label={t('ui.selecteurAnnee.decenniePrecedente')}
-                onClick={() => setFocusAnnee((y) => borner(y - 10, min, max))}
-                className={NAV_BTN}
+                onClick={() => changerDecennie(-1)}
+                className={navButtonClasses}
               >
                 <ChevronLeft className="h-4 w-4" aria-hidden="true" />
               </button>
@@ -217,8 +242,8 @@ export function SelecteurAnnee({
               <button
                 type="button"
                 aria-label={t('ui.selecteurAnnee.decennieSuivante')}
-                onClick={() => setFocusAnnee((y) => borner(y + 10, min, max))}
-                className={NAV_BTN}
+                onClick={() => changerDecennie(1)}
+                className={navButtonClasses}
               >
                 <ChevronRight className="h-4 w-4" aria-hidden="true" />
               </button>

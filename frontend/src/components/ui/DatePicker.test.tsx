@@ -171,4 +171,68 @@ describe('DatePicker — popover en portail', () => {
     expect(dialog.querySelector('[data-iso]')).not.toBeNull()
     expect(screen.queryByRole('dialog')).not.toBeNull()
   })
+
+  // RÉGRESSION (revue) : les flèches ‹ / › de mois ne doivent PAS voler le focus DOM vers une
+  // cellule-jour. On met le focus sur ‹ (comme après un Tab clavier), on l'active, et on vérifie
+  // que le focus RESTE sur ‹ — sinon un 2ᵉ Entrée sélectionnerait un jour au lieu de reculer.
+  it('la navigation de mois garde le focus sur le bouton ‹ (pas de vol vers une cellule)', () => {
+    render(<DatePicker value="2026-05-15" onChange={vi.fn()} />)
+    const dialog = ouvrir()
+    const entete = () => dialog.querySelector('[aria-live="polite"]')?.textContent?.trim() ?? ''
+    const prec = screen.getByRole('button', { name: 'ui.datePicker.moisPrecedent' })
+
+    prec.focus()
+    expect(document.activeElement).toBe(prec)
+
+    fireEvent.click(prec) // activation (équivaut à Entrée sur le bouton focalisé)
+    expect(document.activeElement).toBe(prec) // focus CONSERVÉ (sans le fix : volé vers un jour)
+    expect(entete()).toMatch(/avril 2026/i) // et le mois a bien reculé
+
+    fireEvent.click(prec) // 2ᵉ activation : recule encore, focus toujours sur ‹
+    expect(document.activeElement).toBe(prec)
+    expect(entete()).toMatch(/mars 2026/i)
+  })
+
+  // RÉGRESSION (revue) : la région live doit annoncer un contenu QUI CHANGE à chaque navigation,
+  // pas seulement afficher le bon texte final. On capture la séquence annoncée.
+  it('la région aria-live annonce un mois différent à chaque navigation', () => {
+    render(<DatePicker value="2026-05-15" onChange={vi.fn()} />)
+    const dialog = ouvrir()
+    const live = () => dialog.querySelector('[aria-live="polite"]')?.textContent?.trim() ?? ''
+    const prec = screen.getByRole('button', { name: 'ui.datePicker.moisPrecedent' })
+
+    const sequence = [live()]
+    fireEvent.click(prec); sequence.push(live())
+    fireEvent.click(prec); sequence.push(live())
+
+    // Contenu annoncé distinct à chaque étape (mai → avril → mars) — la région suit le changement.
+    expect(sequence[0]).toMatch(/mai 2026/i)
+    expect(sequence[1]).toMatch(/avril 2026/i)
+    expect(sequence[2]).toMatch(/mars 2026/i)
+    expect(new Set(sequence).size).toBe(3)
+  })
+
+  // RÉGRESSION (revue) : les panneaux années/mois doivent respecter min/max (comme la grille jours),
+  // pour ne pas déposer l'utilisateur sur un mois entièrement désactivé.
+  it('les panneaux années/mois désactivent les cellules hors [min, max]', () => {
+    const onChange = vi.fn()
+    render(<DatePicker value="2026-05-15" min="2026-03-01" max="2026-08-31" onChange={onChange} />)
+    ouvrir()
+    fireEvent.click(screen.getByRole('button', { name: 'ui.datePicker.choisirMoisAnnee' }))
+
+    // Année hors bornes (2025) désactivée et non sélectionnable ; 2026 (dans les bornes) OK.
+    const an2025 = screen.getByRole('button', { name: '2025' }) as HTMLButtonElement
+    expect(an2025.disabled).toBe(true)
+    fireEvent.click(an2025)
+    expect(screen.getByRole('button', { name: '2025' })).toBeTruthy() // toujours en vue années
+    fireEvent.click(screen.getByRole('button', { name: '2026' })) // → grille des mois
+
+    // Mois hors bornes (janvier) désactivé ; un mois dans les bornes (avril) sélectionnable.
+    const janvier = screen.getByRole('button', { name: 'janvier' }) as HTMLButtonElement
+    expect(janvier.disabled).toBe(true)
+    fireEvent.click(screen.getByRole('button', { name: 'avril' }))
+    expect(screen.getByRole('dialog').querySelector('[aria-live="polite"]')?.textContent).toMatch(
+      /avril 2026/i,
+    )
+  })
 })

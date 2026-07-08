@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import type { FastifyInstance } from 'fastify'
 import { buildApp } from '../src/app'
+import { assemblerDonneesContributions } from '../src/services/export.service'
 
 /**
  * Routes Rapports financiers : permissions (mêmes rôles que le module financier via
@@ -28,11 +29,26 @@ const membres = [
   },
 ]
 
+// Contributions (source du détail par membre ET des exports PDF/Excel) : 3 membres en 2025
+// couvrant les 3 statuts, + 1 ligne 2024 pour vérifier le filtre par année.
+const contributions = [
+  { membreId: 'mB', annee: 2025, montantAttendu: 10_000, montantVerse: 4_000, montantValorise: 4_000, membre: { nom: 'Bravo', prenom: 'B' } },
+  { membreId: 'mA', annee: 2025, montantAttendu: 10_000, montantVerse: 10_000, montantValorise: 10_000, membre: { nom: 'Alpha', prenom: 'A' } },
+  { membreId: 'mC', annee: 2025, montantAttendu: 10_000, montantVerse: 0, montantValorise: 0, membre: { nom: 'Charlie', prenom: 'C' } },
+  { membreId: 'mA', annee: 2024, montantAttendu: 8_000, montantVerse: 8_000, montantValorise: 8_000, membre: { nom: 'Alpha', prenom: 'A' } },
+]
+
 function buildMock() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const prisma: any = {
     baremeAnnuel: { findMany: async () => baremes },
     membre: { findMany: async () => membres },
+    // Respecte `where.annee` (comme la vraie DB) pour que le filtre par année soit testable.
+    contribution: {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      findMany: async ({ where }: any) =>
+        contributions.filter((c) => where?.annee === undefined || c.annee === where.annee),
+    },
   }
   return prisma
 }
@@ -206,5 +222,67 @@ describe('Routes Rapports financiers', () => {
     const res = await exportComparaison('ADMIN', '?annees=2024,2025&format=pdf')
     expect(res.statusCode).toBe(200)
     expect(res.rawPayload.subarray(0, 4).toString('latin1')).toBe('%PDF')
+  })
+
+  /* --- Détail par membre (JSON) ----------------------------------------- */
+
+  const detail = (role: string, qs = '?annee=2025') =>
+    app.inject({ method: 'GET', url: `/rapports/detail-membres${qs}`, headers: auth(role) })
+
+  it('ADMIN : détail par membre (200, lignes triées, statuts et totaux corrects)', async () => {
+    const res = await detail('ADMIN')
+    expect(res.statusCode).toBe(200)
+    const body = res.json()
+    expect(body.annee).toBe(2025)
+    // Triées par nom : Alpha, Bravo, Charlie.
+    expect(body.lignes.map((l: { nom: string }) => l.nom)).toEqual(['Alpha', 'Bravo', 'Charlie'])
+    // Statuts dérivés (valorisé vs attendu, mono-année) : 10000=10000 → À jour ; 4000<10000 →
+    // partiel ; 0 → non à jour.
+    expect(body.lignes.map((l: { statut: string }) => l.statut)).toEqual([
+      'A_JOUR',
+      'PARTIEL',
+      'NON_A_JOUR',
+    ])
+    expect(body.totaux).toEqual({ montantAttendu: 30_000, montantVerse: 14_000, montantValorise: 14_000 })
+    // Chaque ligne porte bien versé ET valorisé (colonnes de l'écran).
+    expect(body.lignes[1]).toMatchObject({ montantVerse: 4_000, montantValorise: 4_000 })
+  })
+
+  it('même source que l’export : les lignes correspondent à assemblerDonneesContributions', async () => {
+    const res = await detail('ADMIN')
+    const attendu = await assemblerDonneesContributions(buildMock(), { annee: 2025 })
+    const body = res.json()
+    // Mêmes membres, mêmes montants, même ordre que l'assemblage utilisé par l'export PDF/Excel.
+    expect(body.lignes.map((l: { membreId: string }) => l.membreId)).toEqual(
+      attendu.lignes.map((l) => l.membreId),
+    )
+    body.lignes.forEach((l: { montantAttendu: number; montantVerse: number; montantValorise: number }, i: number) => {
+      expect(l.montantAttendu).toBe(attendu.lignes[i].montantAttendu)
+      expect(l.montantVerse).toBe(attendu.lignes[i].montantVerse)
+      expect(l.montantValorise).toBe(attendu.lignes[i].montantValorise)
+    })
+    expect(body.totaux).toEqual(attendu.totaux)
+  })
+
+  it('filtre par année : annee=2024 ne renvoie que les contributions 2024', async () => {
+    const res = await detail('ADMIN', '?annee=2024')
+    expect(res.statusCode).toBe(200)
+    const body = res.json()
+    expect(body.annee).toBe(2024)
+    expect(body.lignes).toHaveLength(1)
+    expect(body.lignes[0]).toMatchObject({ nom: 'Alpha', montantVerse: 8_000, statut: 'A_JOUR' })
+  })
+
+  it('année manquante → 400 (schéma)', async () => {
+    expect((await detail('ADMIN', '')).statusCode).toBe(400)
+  })
+
+  it('permissions : mêmes rôles que les autres endpoints Rapports', async () => {
+    expect((await detail('PRESIDENT')).statusCode).toBe(200)
+    expect((await detail('TRESORIERE')).statusCode).toBe(200)
+    expect((await detail('COMMISSAIRE_COMPTES')).statusCode).toBe(200)
+    expect((await detail('SECRETAIRE')).statusCode).toBe(403)
+    expect((await detail('MEMBRE_SIMPLE')).statusCode).toBe(403)
+    expect((await detail('GUIDE_RELIGIEUX')).statusCode).toBe(403)
   })
 })

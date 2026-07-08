@@ -16,6 +16,11 @@ import {
   genererComparaisonMultiExcel,
   genererComparaisonMultiPdf,
 } from '../services/export-rapport.service'
+import { assemblerDonneesContributions } from '../services/export.service'
+import {
+  calculerStatutContribution,
+  type StatutContributionValue,
+} from '../services/statutContribution'
 
 /**
  * Rapports financiers (enrichissement) — agrégations PAR ANNÉE des données existantes.
@@ -83,6 +88,35 @@ const comparaisonExportSchema = {
   },
 } as const
 
+const detailMembresSchema = {
+  querystring: {
+    type: 'object',
+    additionalProperties: false,
+    required: ['annee'],
+    properties: { annee: ANNEE },
+  },
+} as const
+
+/**
+ * Statut de contribution d'une ligne, calculé en fenêtre MONO-ANNÉE : on réutilise la fonction
+ * canonique `calculerStatutContribution` (§4.1) avec une borne d'un seul an → mêmes seuils
+ * (valorisé ≥ attendu → À jour ; valorisé == 0 → non à jour ; sinon partiel) que partout ailleurs
+ * dans l'app, sans dupliquer la logique. Volontairement mono-année : ce tableau montre les montants
+ * d'UNE année, le badge reflète donc le statut de CETTE année (≠ statut cumulé de la fiche membre).
+ */
+function statutMonoAnnee(
+  annee: number,
+  montantAttendu: number,
+  montantValorise: number,
+): StatutContributionValue {
+  return calculerStatutContribution({
+    baremes: [{ annee, montantAttendu }],
+    contributions: [{ annee, montantValorise }],
+    anneeAdhesion: annee,
+    anneeCourante: annee,
+  }).statut
+}
+
 const CONTENT_TYPE = {
   xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   pdf: 'application/pdf',
@@ -128,6 +162,34 @@ export const rapportsRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
       return reply
         .code(400)
         .send({ error: 'Bad Request', message: t(langueDeRequete(req), 'rapports.comparaisonInvalide') })
+    },
+  )
+
+  /* --- Détail par membre (consultation JSON, §5.9) ---------------------- */
+
+  // Tableau consultable des contributions par membre pour UNE année. MÊME source de données que
+  // l'export Excel/PDF (`assemblerDonneesContributions`) — aucune requête dupliquée : on ne fait
+  // qu'ajouter le statut dérivé par ligne. « Ce qu'on voit = ce qu'on exporte ».
+  app.get<{ Querystring: { annee: number } }>(
+    '/rapports/detail-membres',
+    { schema: detailMembresSchema, preHandler: [authenticate, requirePermission('Export', 'read')] },
+    async (req) => {
+      const { annee } = req.query
+      const donnees = await assemblerDonneesContributions(app.prisma, { annee })
+      return {
+        annee,
+        genereLe: donnees.genereLe.toISOString(),
+        lignes: donnees.lignes.map((l) => ({
+          membreId: l.membreId,
+          nom: l.nom,
+          prenom: l.prenom,
+          montantAttendu: l.montantAttendu,
+          montantVerse: l.montantVerse,
+          montantValorise: l.montantValorise,
+          statut: statutMonoAnnee(l.annee, l.montantAttendu, l.montantValorise),
+        })),
+        totaux: donnees.totaux,
+      }
     },
   )
 

@@ -393,6 +393,24 @@ export interface ComparaisonMulti {
   annees: AnneeComparee[]
 }
 
+/** Détail par membre pour une année (même source que l'export des contributions §5.9). */
+export interface DetailMembreLigne {
+  membreId: string
+  nom: string
+  prenom: string
+  montantAttendu: number
+  montantVerse: number
+  montantValorise: number
+  statut: StatutContribution
+}
+
+export interface DetailMembres {
+  annee: number
+  genereLe: string
+  lignes: DetailMembreLigne[]
+  totaux: { montantAttendu: number; montantVerse: number; montantValorise: number }
+}
+
 /* -------------------------------------------------------------------------- */
 /* Notifications (§5) — préférences par type                                  */
 /* -------------------------------------------------------------------------- */
@@ -428,6 +446,9 @@ export const rapportsApi = {
       accessToken,
       signal,
     }),
+  /** Détail par membre pour une année (tableau consultable ; même source que l'export). */
+  detailMembres: (annee: number, accessToken: string, signal?: AbortSignal) =>
+    request<DetailMembres>(`/rapports/detail-membres?annee=${annee}`, { accessToken, signal }),
 }
 
 /* -------------------------------------------------------------------------- */

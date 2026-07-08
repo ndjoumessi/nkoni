@@ -9,8 +9,10 @@ import {
   FileText,
   Minus,
   Percent,
+  Scale,
   TrendingDown,
   TrendingUp,
+  Users,
   Wallet,
   X,
 } from 'lucide-react'
@@ -20,9 +22,12 @@ import {
   rapportsApi,
   downloadRapportFinancier,
   downloadRapportComparaisonMulti,
+  downloadExportContributions,
   messageErreur,
   ApiError,
   type ComparaisonMulti,
+  type DetailMembres,
+  type DetailMembreLigne,
   type RapportAnnee,
   type RapportFinancier,
   type VariationsComparaison,
@@ -37,10 +42,13 @@ import { StatCard } from '@/components/ui/StatCard'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Field, Select } from '@/components/ui/Field'
+import { SelecteurAnnee } from '@/components/ui/SelecteurAnnee'
+import { DataTable, type Column } from '@/components/ui/DataTable'
+import { StatutCotisationBadge } from '@/components/membres/StatutBadges'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { RowsSkeleton } from '@/components/ui/Skeleton'
 
-type Mode = 'evolution' | 'comparaison'
+type Mode = 'evolution' | 'comparaison' | 'detail'
 
 /** Est-ce une annulation de requête (à ignorer) ? */
 function estAbort(e: unknown): boolean {
@@ -309,6 +317,90 @@ function VueComparaisonMulti({ data }: { data: ComparaisonMulti }) {
 }
 
 /* -------------------------------------------------------------------------- */
+/* Vue détail par membre                                                      */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Tableau consultable des contributions par membre pour une année (§5.9). Réutilise `DataTable`
+ * (cohérent avec le reste de l'app) + `StatutCotisationBadge` (même badge que la liste/fiche
+ * membre). Les 3 totaux repris en tête, comme la synthèse du mode Évolution. La MÊME donnée
+ * alimente l'export Excel/PDF (ce qu'on voit = ce qu'on exporte).
+ */
+function VueDetailMembres({ data }: { data: DetailMembres }) {
+  const { t } = useTranslation()
+
+  const colonnes: Column<DetailMembreLigne>[] = [
+    {
+      key: 'membre',
+      header: t('rapports.detail.colonnes.membre'),
+      cell: (r) => (
+        <span className="font-medium text-foreground">
+          {r.nom} {r.prenom}
+        </span>
+      ),
+    },
+    {
+      key: 'attendu',
+      header: t('rapports.detail.colonnes.attendu'),
+      numeric: true,
+      cell: (r) => formatMontant(r.montantAttendu),
+    },
+    {
+      key: 'verse',
+      header: t('rapports.detail.colonnes.verse'),
+      numeric: true,
+      cell: (r) => formatMontant(r.montantVerse),
+    },
+    {
+      key: 'valorise',
+      header: t('rapports.detail.colonnes.valorise'),
+      numeric: true,
+      cell: (r) => formatMontant(r.montantValorise),
+    },
+    {
+      key: 'statut',
+      header: t('rapports.detail.colonnes.statut'),
+      cell: (r) => <StatutCotisationBadge statut={r.statut} size="sm" />,
+    },
+  ]
+
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-4 sm:grid-cols-3">
+        <StatCard
+          label={t('rapports.detail.colonnes.attendu')}
+          value={formatMontant(data.totaux.montantAttendu)}
+          icon={Wallet}
+        />
+        <StatCard
+          label={t('rapports.detail.colonnes.verse')}
+          value={formatMontant(data.totaux.montantVerse)}
+          icon={Coins}
+          tone="jade"
+        />
+        <StatCard
+          label={t('rapports.detail.colonnes.valorise')}
+          value={formatMontant(data.totaux.montantValorise)}
+          icon={Scale}
+          tone="brass"
+        />
+      </div>
+      <Card className="overflow-hidden p-0">
+        <DataTable
+          columns={colonnes}
+          rows={data.lignes}
+          rowKey={(r) => r.membreId}
+          caption={t('rapports.mode.detail')}
+        />
+        <div className="border-t border-hairline-strong px-4 py-2.5 text-[0.7rem] uppercase tracking-[0.1em] text-faint">
+          {t('rapports.detail.totalMembres', { count: data.lignes.length })}
+        </div>
+      </Card>
+    </div>
+  )
+}
+
+/* -------------------------------------------------------------------------- */
 /* Page                                                                       */
 /* -------------------------------------------------------------------------- */
 
@@ -332,8 +424,12 @@ export function RapportsPage() {
   // Années comparées (mode Comparaison) — triées, minimum 2, pas de maximum.
   const [anneesComp, setAnneesComp] = useState<number[]>([])
 
+  // Mode « Détail par membre » : année sélectionnée (SelecteurAnnee) + données chargées.
+  const [detailAnnee, setDetailAnnee] = useState<number | null>(null)
+
   const [rapport, setRapport] = useState<RapportFinancier | null>(null)
   const [comparaison, setComparaison] = useState<ComparaisonMulti | null>(null)
+  const [detail, setDetail] = useState<DetailMembres | null>(null)
   const [chargement, setChargement] = useState(false)
   const [erreur, setErreur] = useState<string | null>(null)
 
@@ -353,6 +449,8 @@ export function RapportsPage() {
           setFin(ys[ys.length - 1])
           // Comparaison : par défaut les deux années les plus récentes (si ≥ 2 dispo).
           setAnneesComp(ys.length >= 2 ? [ys[ys.length - 2], ys[ys.length - 1]] : [...ys])
+          // Détail : par défaut l'année la plus récente ayant un barème.
+          setDetailAnnee(ys[ys.length - 1])
         }
       })
       .catch((e) => {
@@ -388,7 +486,7 @@ export function RapportsPage() {
         .finally(() => {
           if (actif) setChargement(false)
         })
-    } else {
+    } else if (mode === 'comparaison') {
       if (anneesComp.length < 2) return
       setChargement(true)
       void rapportsApi
@@ -402,13 +500,27 @@ export function RapportsPage() {
         .finally(() => {
           if (actif) setChargement(false)
         })
+    } else {
+      if (detailAnnee === null) return
+      setChargement(true)
+      void rapportsApi
+        .detailMembres(detailAnnee, accessToken, controller.signal)
+        .then((r) => {
+          if (actif) setDetail(r)
+        })
+        .catch((e) => {
+          if (actif && !estAbort(e)) setErreur(messageErreur(e))
+        })
+        .finally(() => {
+          if (actif) setChargement(false)
+        })
     }
 
     return () => {
       actif = false
       controller.abort()
     }
-  }, [mode, debut, fin, anneesComp, accessToken, annees.length])
+  }, [mode, debut, fin, anneesComp, detailAnnee, accessToken, annees.length])
 
   // Synthèse cumulée sur la plage (mode évolution).
   const synthese = useMemo(() => {
@@ -429,6 +541,9 @@ export function RapportsPage() {
         await downloadRapportFinancier(debut, fin, format, accessToken)
       } else if (mode === 'comparaison' && anneesComp.length >= 2) {
         await downloadRapportComparaisonMulti(anneesComp, format, accessToken)
+      } else if (mode === 'detail' && detailAnnee !== null) {
+        // MÊME source que le tableau à l'écran (/exports/contributions == assemblerDonneesContributions).
+        await downloadExportContributions({ format, annee: detailAnnee }, accessToken)
       }
       toast.success(
         t('rapports.export.pret'),
@@ -448,7 +563,9 @@ export function RapportsPage() {
     exportEnCours !== null ||
     (mode === 'evolution'
       ? !rapport || rapport.annees.length === 0 || debut === null || fin === null
-      : comparaison === null || anneesComp.length < 2)
+      : mode === 'comparaison'
+        ? comparaison === null || anneesComp.length < 2
+        : detail === null || detail.lignes.length === 0 || detailAnnee === null)
 
   // Ajout / retrait d'une année comparée (min. 2, liste maintenue triée).
   const ajouterAnnee = (a: number) =>
@@ -529,6 +646,21 @@ export function RapportsPage() {
                   <ArrowLeftRight className="h-4 w-4" aria-hidden="true" />
                   {t('rapports.mode.comparaison')}
                 </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={mode === 'detail'}
+                  onClick={() => setMode('detail')}
+                  className={cn(
+                    'inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-sm font-medium transition-colors',
+                    mode === 'detail'
+                      ? 'bg-surface-2 text-foreground'
+                      : 'text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  <Users className="h-4 w-4" aria-hidden="true" />
+                  {t('rapports.mode.detail')}
+                </button>
               </div>
 
               {mode === 'evolution' ? (
@@ -547,6 +679,15 @@ export function RapportsPage() {
                     </Select>
                   </Field>
                 </>
+              ) : mode === 'detail' ? (
+                <Field label={t('rapports.detail.annee')} className="w-32">
+                  <SelecteurAnnee
+                    value={detailAnnee}
+                    min={annees[0]}
+                    max={annees[annees.length - 1]}
+                    onChange={(a) => setDetailAnnee(a)}
+                  />
+                </Field>
               ) : (
                 <div className="flex flex-col">
                   <span className="mb-1.5 text-[0.72rem] font-medium uppercase tracking-[0.1em] text-faint">
@@ -681,6 +822,16 @@ export function RapportsPage() {
               ) : comparaison ? (
                 <VueComparaisonMulti data={comparaison} />
               ) : null
+            ) : mode === 'detail' && detail ? (
+              detail.lignes.length === 0 ? (
+                <EmptyState
+                  icon={Users}
+                  title={t('rapports.detail.vide.titre')}
+                  description={t('rapports.detail.vide.description')}
+                />
+              ) : (
+                <VueDetailMembres data={detail} />
+              )
             ) : null}
           </div>
         </>

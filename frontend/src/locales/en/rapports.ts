@@ -38,6 +38,25 @@ export default {
       aria: 'Report mode',
       evolution: 'Trend',
       comparaison: 'Comparison',
+      detail: 'By member',
+    },
+    detail: {
+      annee: 'Year',
+      colonnes: {
+        membre: 'Member',
+        attendu: 'Expected amount',
+        verse: 'Amount paid',
+        valorise: 'Valued amount',
+        statut: 'Status',
+      },
+      total: 'Total',
+      totalMembres_one: '{{count}} member',
+      totalMembres_other: '{{count}} members',
+      vide: {
+        titre: 'No contribution for this year',
+        description:
+          'No member has a recorded contribution for the selected year. Pick another year.',
+      },
     },
     plage: {
       de: 'From',

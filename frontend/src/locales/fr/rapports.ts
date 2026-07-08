@@ -38,6 +38,25 @@ export default {
       aria: 'Mode de rapport',
       evolution: 'Évolution',
       comparaison: 'Comparaison',
+      detail: 'Détail par membre',
+    },
+    detail: {
+      annee: 'Année',
+      colonnes: {
+        membre: 'Membre',
+        attendu: 'Montant attendu',
+        verse: 'Montant versé',
+        valorise: 'Montant valorisé',
+        statut: 'Statut',
+      },
+      total: 'Total',
+      totalMembres_one: '{{count}} membre',
+      totalMembres_other: '{{count}} membres',
+      vide: {
+        titre: 'Aucune contribution pour cette année',
+        description:
+          'Aucun membre n’a de contribution enregistrée pour l’année sélectionnée. Choisissez une autre année.',
+      },
     },
     plage: {
       de: 'De',

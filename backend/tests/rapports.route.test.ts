@@ -49,6 +49,8 @@ function buildMock() {
       findMany: async ({ where }: any) =>
         contributions.filter((c) => where?.annee === undefined || c.annee === where.annee),
     },
+    // Devise de l'org de l'exporteur (résolue pour formater les montants des exports PDF).
+    utilisateur: { findUnique: async () => ({ organisation: { devise: 'FCFA' } }) },
   }
   return prisma
 }

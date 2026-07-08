@@ -159,4 +159,11 @@ describe('SelecteurAnnee — état optionnel / nullable', () => {
     ouvrir()
     expect(screen.queryByRole('button', { name: 'ui.selecteurAnnee.effacer' })).toBeNull()
   })
+
+  // Hors <Field> (ex. « Ouvrir une année » du formulaire Versement) : le déclencheur doit porter
+  // un nom accessible via `aria-label`, sinon il n'en aurait aucun.
+  it('aria-label nomme le déclencheur quand il n’est pas dans un <Field>', () => {
+    render(<SelecteurAnnee value={2026} onChange={vi.fn()} aria-label="Année à ouvrir" />)
+    expect(screen.getByRole('button', { name: 'Année à ouvrir' })).toBeTruthy()
+  })
 })

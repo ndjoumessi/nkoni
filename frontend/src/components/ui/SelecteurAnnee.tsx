@@ -35,6 +35,8 @@ type SelecteurAnneeProps = {
   placeholder?: string
   disabled?: boolean
   className?: string
+  /** Nom accessible du déclencheur quand le composant n'est PAS dans un `<Field>` (pas de label lié). */
+  'aria-label'?: string
   // Injectés par <Field> (clonage) :
   id?: string
   'aria-invalid'?: boolean | 'true' | 'false'
@@ -50,6 +52,7 @@ export function SelecteurAnnee({
   placeholder = '—',
   disabled = false,
   className,
+  'aria-label': ariaLabel,
   id,
   'aria-invalid': ariaInvalid,
   'aria-describedby': ariaDescribedBy,
@@ -117,6 +120,7 @@ export function SelecteurAnnee({
         disabled={disabled}
         aria-haspopup="dialog"
         aria-expanded={open}
+        aria-label={ariaLabel}
         aria-invalid={ariaInvalid}
         aria-describedby={ariaDescribedBy}
         onClick={() => setOpen((o) => !o)}

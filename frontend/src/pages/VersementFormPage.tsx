@@ -23,6 +23,7 @@ import { Card, Overline } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Field, Input, Select, Textarea } from '@/components/ui/Field'
 import { DatePicker } from '@/components/ui/DatePicker'
+import { SelecteurAnnee } from '@/components/ui/SelecteurAnnee'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { Badge } from '@/components/ui/Badge'
 
@@ -348,12 +349,12 @@ export function VersementFormPage() {
                   {t('versements.form.ouvrir.hint')}
                 </p>
                 <div className="mt-3 flex flex-wrap items-center gap-3">
-                  <Input
-                    type="number"
+                  {/* Bornes 1900–2200 alignées sur le schéma backend d'ouvrir-annee. */}
+                  <SelecteurAnnee
+                    value={Number(anneeAOuvrir) || new Date().getFullYear()}
                     min={1900}
                     max={2200}
-                    value={anneeAOuvrir}
-                    onChange={(e) => setAnneeAOuvrir(e.target.value)}
+                    onChange={(a) => setAnneeAOuvrir(String(a))}
                     className="w-32"
                     aria-label={t('versements.form.ouvrir.anneeAria')}
                   />

@@ -12,6 +12,7 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, Overline } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Field, Input } from '@/components/ui/Field'
+import { SelecteurAnnee } from '@/components/ui/SelecteurAnnee'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { RowsSkeleton } from '@/components/ui/Skeleton'
 
@@ -164,13 +165,12 @@ export function BaremePage() {
             <Overline>{t('bareme.ajouterAnnee')}</Overline>
             <div className="mt-3 flex flex-wrap items-start gap-3">
               <Field label={t('bareme.anneeLabel')} required className="w-32" error={errAnnee}>
-                <Input
-                  type="number"
+                <SelecteurAnnee
+                  value={Number(annee) || new Date().getFullYear()}
                   min={1900}
                   max={2200}
-                  value={annee}
-                  onChange={(e) => {
-                    setAnnee(e.target.value)
+                  onChange={(a) => {
+                    setAnnee(String(a))
                     setErrAnnee(undefined)
                   }}
                 />

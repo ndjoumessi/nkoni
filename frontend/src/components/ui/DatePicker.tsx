@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { controlClasses, navButtonClasses } from './control-styles'
+import { usePopoverFlottant } from './usePopoverFlottant'
+import { GrilleAnnees } from './GrilleAnnees'
 
 /**
  * Sélecteur de date « Menthe & Encre » — remplace `<input type="date">` natif par un calendrier
@@ -112,41 +113,22 @@ export function DatePicker({
   const [ancreAnnee, setAncreAnnee] = useState<number>(() => (selected ?? today).getFullYear())
   const [focusMois, setFocusMois] = useState<number>(() => (selected ?? today).getMonth())
 
-  const containerRef = useRef<HTMLDivElement>(null)
-  const triggerRef = useRef<HTMLButtonElement>(null)
-  const popoverRef = useRef<HTMLDivElement>(null)
   // Quand true, l'effet de focus roving NE déplace PAS le focus DOM vers une cellule. Posé par les
-  // flèches ‹ / › de l'en-tête : elles changent `focusDate`/`focusAnnee` mais le focus doit RESTER
-  // sur le bouton (sinon on le vole vers une cellule et l'activation clavier répétée du bouton casse).
+  // flèches ‹ / › de l'en-tête (mois) et de décennie (dans `GrilleAnnees`) : elles changent
+  // `focusDate`/`focusAnnee` mais le focus doit RESTER sur le bouton (sinon on le vole vers une
+  // cellule et l'activation clavier répétée du bouton casse).
   const conserverFocusRef = useRef(false)
 
-  // Position du popover en coordonnées VIEWPORT (`position: fixed`). Le calendrier est rendu en
-  // PORTAIL dans <body> (cf. plus bas) et positionné ici à partir du rect du champ : il échappe
-  // ainsi à tout contexte d'empilement créé par un bloc frère (nk-reveal, transform, z-index…)
-  // qui, sinon, le recouvrirait — bug structurel corrigé à la racine.
-  const [coords, setCoords] = useState<{ top: number; left: number } | null>(null)
-
-  // Ancre le popover sous le champ (ou au-dessus s'il n'y a pas la place), borné au viewport.
-  const positionner = useCallback(() => {
-    const trigger = triggerRef.current
-    if (!trigger) return
-    const r = trigger.getBoundingClientRect()
-    const gap = 8
-    const largeur = popoverRef.current?.offsetWidth ?? 304
-    const hauteur = popoverRef.current?.offsetHeight ?? 380
-    const vw = document.documentElement.clientWidth
-    const vh = document.documentElement.clientHeight
-
-    // Vertical : sous le champ par défaut ; bascule au-dessus si pas la place en bas ET plus haut.
-    let top = r.bottom + gap
-    if (r.bottom + gap + hauteur > vh && r.top > vh - r.bottom) {
-      top = Math.max(gap, r.top - gap - hauteur)
-    }
-    // Horizontal : aligné au bord gauche du champ, borné pour ne jamais sortir de l'écran.
-    const left = Math.max(gap, Math.min(r.left, vw - largeur - gap))
-
-    setCoords({ top, left })
-  }, [])
+  // Infrastructure du popover flottant (portail + `position: fixed` + clic extérieur + Échap),
+  // PARTAGÉE avec SelecteurAnnee. `repositionSur: panneau` → recalcule quand la vue (donc la
+  // hauteur) change.
+  const { containerRef, triggerRef, popoverRef, rendreFlottant } = usePopoverFlottant({
+    open,
+    onFermer: () => setOpen(false),
+    largeurDefaut: 304,
+    hauteurDefaut: 380,
+    repositionSur: panneau,
+  })
 
   // Formatteurs Intl mémoïsés selon la langue courante.
   const fmt = useMemo(
@@ -193,13 +175,12 @@ export function DatePicker({
     return Array.from({ length: 42 }, (_, i) => addDays(debut, i))
   }, [vue, premierJour])
 
-  // Grille d'années : décennie de `focusAnnee` (source de vérité unique du panneau) + 1 an de
-  // débordement de chaque côté (12 cellules), pour un rythme cohérent avec la grille de jours.
+  // Décennie affichée par le panneau années (source de vérité `focusAnnee`) — pour l'annonce
+  // sr-only ; la grille elle-même est rendue par `GrilleAnnees`.
   const decennieBase = Math.floor(focusAnnee / 10) * 10
-  const anneesGrille = useMemo(
-    () => Array.from({ length: 12 }, (_, i) => decennieBase - 1 + i),
-    [decennieBase],
-  )
+  // Bornes en ANNÉES pour `GrilleAnnees` (±Infinity = pas de borne quand min/max absents).
+  const anneeMin = minDate ? minDate.getFullYear() : -Infinity
+  const anneeMax = maxDate ? maxDate.getFullYear() : Infinity
 
   const horsBornes = useCallback(
     (d: Date) => (minDate != null && d < minDate) || (maxDate != null && d > maxDate),
@@ -263,39 +244,7 @@ export function DatePicker({
           ? `[data-annee="${focusAnnee}"]`
           : `[data-mois="${focusMois}"]`
     popoverRef.current?.querySelector<HTMLButtonElement>(sel)?.focus({ preventScroll: true })
-  }, [open, panneau, focusDate, focusAnnee, focusMois, grille])
-
-  // (Re)positionne le popover à l'ouverture, au CHANGEMENT DE VUE (la hauteur diffère selon le
-  // panneau), puis au scroll (capture → n'importe quel conteneur défilant) et au resize.
-  // `useLayoutEffect` : calcule AVANT la peinture (pas de saut ; masqué tant que `coords` est nul).
-  useLayoutEffect(() => {
-    if (!open) {
-      setCoords(null)
-      return
-    }
-    positionner()
-    const surMaj = () => positionner()
-    window.addEventListener('scroll', surMaj, true)
-    window.addEventListener('resize', surMaj)
-    return () => {
-      window.removeEventListener('scroll', surMaj, true)
-      window.removeEventListener('resize', surMaj)
-    }
-  }, [open, panneau, positionner])
-
-  // Fermeture au clic extérieur. Le popover vivant dans un PORTAIL (hors de containerRef), on
-  // l'épargne explicitement : sinon un mousedown sur une cellule fermerait le calendrier AVANT le
-  // click → sélection cassée.
-  useEffect(() => {
-    if (!open) return
-    const onDown = (e: MouseEvent) => {
-      const cible = e.target as Node
-      if (containerRef.current?.contains(cible) || popoverRef.current?.contains(cible)) return
-      setOpen(false)
-    }
-    document.addEventListener('mousedown', onDown)
-    return () => document.removeEventListener('mousedown', onDown)
-  }, [open])
+  }, [open, panneau, focusDate, focusAnnee, focusMois, grille, popoverRef])
 
   // Navigation de mois (boutons ‹ / › de la vue jours) : on déplace `vue` ET `focusDate` du même
   // pas, de façon SYNCHRONE. (1) `vue` change tout de suite → l'en-tête se met à jour dans le même
@@ -314,7 +263,7 @@ export function DatePicker({
   const fermerEtRendre = useCallback(() => {
     setOpen(false)
     triggerRef.current?.focus()
-  }, [])
+  }, [triggerRef])
 
   const choisir = useCallback(
     (d: Date) => {
@@ -331,13 +280,6 @@ export function DatePicker({
     setFocusAnnee(vue.getFullYear())
     setPanneau('annees')
   }, [vue])
-
-  // Décennie ‹ / › : on déplace `focusAnnee` (source de vérité) de 10 ans ; la grille suit. Comme
-  // les flèches de mois, on garde le focus sur le bouton de décennie (pas de vol vers une cellule).
-  const changerDecennie = useCallback((delta: number) => {
-    conserverFocusRef.current = true
-    setFocusAnnee((y) => y + delta * 10)
-  }, [])
 
   const choisirAnnee = useCallback(
     (annee: number) => {
@@ -401,35 +343,6 @@ export function DatePicker({
       if (next) setFocusDate(next)
     },
     [focusDate, premierJour, choisir, fermerEtRendre],
-  )
-
-  // Clavier de la grille d'années (4 colonnes). Échap → retour à la vue jours.
-  const onAnneesKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      let n = focusAnnee
-      switch (e.key) {
-        case 'ArrowLeft': n -= 1; break
-        case 'ArrowRight': n += 1; break
-        case 'ArrowUp': n -= 4; break
-        case 'ArrowDown': n += 4; break
-        case 'PageUp': n -= 10; break
-        case 'PageDown': n += 10; break
-        case 'Enter':
-        case ' ':
-          e.preventDefault()
-          choisirAnnee(focusAnnee)
-          return
-        case 'Escape':
-          e.preventDefault()
-          retourJours()
-          return
-        default:
-          return
-      }
-      e.preventDefault()
-      setFocusAnnee(n)
-    },
-    [focusAnnee, choisirAnnee, retourJours],
   )
 
   // Clavier de la grille des mois (3 colonnes). PageUp/Down changent d'année ; Échap → années.
@@ -500,79 +413,56 @@ export function DatePicker({
       </button>
 
       {open &&
-        createPortal(
-          <div
-            ref={popoverRef}
-            role="dialog"
-            aria-label={t('ui.datePicker.dialogue')}
-            aria-modal="false"
-            style={{
-              position: 'fixed',
-              top: coords?.top ?? 0,
-              left: coords?.left ?? 0,
-              // Masqué tant que la position n'est pas calculée (évite un flash en haut à gauche).
-              visibility: coords ? 'visible' : 'hidden',
-            }}
-            className="nk-toast-in z-50 w-[19rem] rounded-2xl border border-hairline bg-canvas p-3 shadow-xl"
-          >
+        rendreFlottant(
+          <>
             {/* Région live dédiée : annonce la vue courante (mois/décennie/année) à chaque
                 navigation, y compris via les flèches ‹ / › (le focus reste sur le bouton). */}
             <span className="sr-only" aria-live="polite" aria-atomic="true">
               {texteLive}
             </span>
 
-            {/* En-tête contextuel selon la vue */}
-            <div className="mb-2 flex items-center justify-between">
-              {panneau === 'jours' && (
-                <>
-                  <button type="button" aria-label={t('ui.datePicker.moisPrecedent')} onClick={() => allerAuMois(-1)} className={navButtonClasses}>
-                    <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-                  </button>
-                  <button
-                    type="button"
-                    aria-label={t('ui.datePicker.choisirMoisAnnee')}
-                    onClick={ouvrirAnnees}
-                    className={LABEL_BTN}
-                  >
-                    {fmt.moisAnnee.format(vue)}
-                  </button>
-                  <button type="button" aria-label={t('ui.datePicker.moisSuivant')} onClick={() => allerAuMois(1)} className={navButtonClasses}>
-                    <ChevronRight className="h-4 w-4" aria-hidden="true" />
-                  </button>
-                </>
-              )}
-              {panneau === 'annees' && (
-                <>
-                  <button type="button" aria-label={t('ui.datePicker.decenniePrecedente')} onClick={() => changerDecennie(-1)} className={navButtonClasses}>
-                    <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-                  </button>
-                  <span className="font-display text-sm font-semibold text-foreground">
-                    {decennieBase} – {decennieBase + 9}
-                  </span>
-                  <button type="button" aria-label={t('ui.datePicker.decennieSuivante')} onClick={() => changerDecennie(1)} className={navButtonClasses}>
-                    <ChevronRight className="h-4 w-4" aria-hidden="true" />
-                  </button>
-                </>
-              )}
-              {panneau === 'mois' && (
-                <>
-                  <button type="button" aria-label={t('ui.datePicker.anneePrecedente')} onClick={() => changerAnneePanneau(-1)} className={navButtonClasses}>
-                    <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-                  </button>
-                  <button
-                    type="button"
-                    aria-label={t('ui.datePicker.choisirAnnee')}
-                    onClick={retourAnnees}
-                    className={cn(LABEL_BTN, 'num')}
-                  >
-                    {ancreAnnee}
-                  </button>
-                  <button type="button" aria-label={t('ui.datePicker.anneeSuivante')} onClick={() => changerAnneePanneau(1)} className={navButtonClasses}>
-                    <ChevronRight className="h-4 w-4" aria-hidden="true" />
-                  </button>
-                </>
-              )}
-            </div>
+            {/* En-tête contextuel (jours / mois). Le panneau années porte son propre en-tête via
+                `GrilleAnnees`. */}
+            {panneau !== 'annees' && (
+              <div className="mb-2 flex items-center justify-between">
+                {panneau === 'jours' && (
+                  <>
+                    <button type="button" aria-label={t('ui.datePicker.moisPrecedent')} onClick={() => allerAuMois(-1)} className={navButtonClasses}>
+                      <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={t('ui.datePicker.choisirMoisAnnee')}
+                      onClick={ouvrirAnnees}
+                      className={LABEL_BTN}
+                    >
+                      {fmt.moisAnnee.format(vue)}
+                    </button>
+                    <button type="button" aria-label={t('ui.datePicker.moisSuivant')} onClick={() => allerAuMois(1)} className={navButtonClasses}>
+                      <ChevronRight className="h-4 w-4" aria-hidden="true" />
+                    </button>
+                  </>
+                )}
+                {panneau === 'mois' && (
+                  <>
+                    <button type="button" aria-label={t('ui.datePicker.anneePrecedente')} onClick={() => changerAnneePanneau(-1)} className={navButtonClasses}>
+                      <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={t('ui.datePicker.choisirAnnee')}
+                      onClick={retourAnnees}
+                      className={cn(LABEL_BTN, 'num')}
+                    >
+                      {ancreAnnee}
+                    </button>
+                    <button type="button" aria-label={t('ui.datePicker.anneeSuivante')} onClick={() => changerAnneePanneau(1)} className={navButtonClasses}>
+                      <ChevronRight className="h-4 w-4" aria-hidden="true" />
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
 
             {/* Corps : calendrier, ou grille d'années, ou grille de mois */}
             {panneau === 'jours' && (
@@ -650,35 +540,19 @@ export function DatePicker({
             )}
 
             {panneau === 'annees' && (
-              <div role="grid" onKeyDown={onAnneesKeyDown} className="grid grid-cols-4 gap-1 py-1">
-                {anneesGrille.map((annee) => {
-                  const dansDecennie = annee >= decennieBase && annee <= decennieBase + 9
-                  const estSel = selected?.getFullYear() === annee
-                  const estCourante = today.getFullYear() === annee
-                  const estFocus = annee === focusAnnee
-                  const desactive = anneeHorsBornes(annee)
-                  return (
-                    <button
-                      key={annee}
-                      type="button"
-                      data-annee={annee}
-                      tabIndex={estFocus ? 0 : -1}
-                      disabled={desactive}
-                      onClick={() => choisirAnnee(annee)}
-                      className={cn(
-                        'num flex h-11 items-center justify-center rounded-lg text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brass/60',
-                        !dansDecennie && 'text-faint',
-                        dansDecennie && !estSel && 'text-foreground hover:bg-surface-2',
-                        estSel && 'bg-brass font-semibold text-canvas hover:bg-brass',
-                        estCourante && !estSel && 'ring-1 ring-inset ring-jade/50',
-                        desactive && 'cursor-not-allowed opacity-30 hover:bg-transparent',
-                      )}
-                    >
-                      {annee}
-                    </button>
-                  )
-                })}
-              </div>
+              <GrilleAnnees
+                focusAnnee={focusAnnee}
+                setFocusAnnee={setFocusAnnee}
+                min={anneeMin}
+                max={anneeMax}
+                valeurSelectionnee={selected?.getFullYear() ?? null}
+                anneeCourante={today.getFullYear()}
+                conserverFocusRef={conserverFocusRef}
+                onChoisir={choisirAnnee}
+                onEchap={retourJours}
+                labelPrecedente={t('ui.datePicker.decenniePrecedente')}
+                labelSuivante={t('ui.datePicker.decennieSuivante')}
+              />
             )}
 
             {panneau === 'mois' && (
@@ -712,8 +586,11 @@ export function DatePicker({
                 })}
               </div>
             )}
-          </div>,
-          document.body,
+          </>,
+          {
+            className: 'nk-toast-in z-50 w-[19rem] rounded-2xl border border-hairline bg-canvas p-3 shadow-xl',
+            'aria-label': t('ui.datePicker.dialogue'),
+          },
         )}
     </div>
   )

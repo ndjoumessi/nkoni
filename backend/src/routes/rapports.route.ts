@@ -17,7 +17,7 @@ import {
   genererComparaisonMultiPdf,
 } from '../services/export-rapport.service'
 import { assemblerDonneesContributions } from '../services/export.service'
-import { resoudreDeviseDestinataire } from '../services/notification.service'
+import { resoudreLocaleExport } from '../lib/export-locale'
 import {
   calculerStatutContribution,
   type StatutContributionValue,
@@ -214,9 +214,8 @@ export const rapportsRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
       const { baremes, membres } = await chargerDonneesRapport(app.prisma)
       const rapport = genererRapportFinancier(anneeDebut, anneeFin, baremes, membres)
 
-      // PDF : date + montants dans la langue/devise de l'utilisateur qui exporte (§4/§5).
-      const langue = langueDeRequete(req)
-      const devise = req.user.sub ? await resoudreDeviseDestinataire(app.prisma, req.user.sub) : 'FCFA'
+      // Langue/devise de l'exporteur ; devise résolue seulement pour le PDF (l'Excel garde des nombres).
+      const { langue, devise } = await resoudreLocaleExport(req, app.prisma, format === 'pdf')
 
       const nomFichier = `rapport-financier-${anneeDebut}-${anneeFin}.${format}`
       const buffer =
@@ -243,9 +242,8 @@ export const rapportsRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
       const format = req.query.format ?? 'xlsx'
       const { baremes, membres } = await chargerDonneesRapport(app.prisma)
 
-      // PDF : date + montants dans la langue/devise de l'utilisateur qui exporte (§4/§5).
-      const langue = langueDeRequete(req)
-      const devise = req.user.sub ? await resoudreDeviseDestinataire(app.prisma, req.user.sub) : 'FCFA'
+      // Langue/devise de l'exporteur ; devise résolue seulement pour le PDF (l'Excel garde des nombres).
+      const { langue, devise } = await resoudreLocaleExport(req, app.prisma, format === 'pdf')
 
       let buffer: Buffer
       let nomFichier: string

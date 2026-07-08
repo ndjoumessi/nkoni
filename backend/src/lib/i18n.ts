@@ -46,6 +46,16 @@ export function formatMontant(montant: number, langue: Langue, devise: Devise): 
 }
 
 /**
+ * Nombre entier groupé, SANS symbole monétaire, dans la langue donnée (ex. FR → « 1 234 567 »).
+ * Utile là où la devise est déjà indiquée ailleurs et où la place manque (tableaux denses).
+ */
+export function formatNombre(n: number, langue: Langue): string {
+  return new Intl.NumberFormat(LOCALE_PAR_LANGUE[langue] ?? 'fr', {
+    maximumFractionDigits: 0,
+  }).format(n)
+}
+
+/**
  * Date + heure formatées dans la langue donnée (§4). Ex. FR → « 15 juin 2026 à 09:00 », EN →
  * « June 15, 2026 at 9:00 AM ». Miroir backend de `formatDateHeure` du front (lib/utils.ts) :
  * on ne renvoie JAMAIS d'ISO brut à l'utilisateur (documents, export…). `dateStyle: 'long'`

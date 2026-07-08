@@ -13,7 +13,7 @@
  *   gris        #636a6d                                            sous-titre discret
  *   filet       #d5d8d9                                            filets fins entre lignes
  */
-import { formatMontant, type Langue, type Devise } from '../lib/i18n'
+import { formatMontant, formatNombre, type Langue, type Devise } from '../lib/i18n'
 
 /** Palette hex pour PDFKit. */
 export const NK = {
@@ -45,6 +45,15 @@ export function montantExport(n: number, langue: Langue, devise: Devise): string
   return formatMontant(n, langue, devise).replace(/[\u202f\u00a0]/g, ' ')
 }
 
+/**
+ * Nombre group\u00e9 SANS devise, normalis\u00e9 pour PDFKit (m\u00eames espaces ins\u00e9cables \u00e0 remplacer).
+ * Pour les tableaux denses (comparaison multi-ann\u00e9es) o\u00f9 le suffixe \u00ab FCFA \u00bb d\u00e9borderait des
+ * colonnes \u00e9troites \u2014 la devise y est rappel\u00e9e dans le sous-titre.
+ */
+export function nombreExport(n: number, langue: Langue): string {
+  return formatNombre(n, langue).replace(/[\u202f\u00a0]/g, ' ')
+}
+
 /* -------------------------------------------------------------------------- */
 /* PDF (PDFKit) — en-tête de document + tableau premium générique             */
 /* -------------------------------------------------------------------------- */
@@ -61,7 +70,19 @@ export function enteteDocument(
   const droite = opts.droite ?? 555
   doc.fillColor(NK.menthe).font('Helvetica-Bold').fontSize(18).text(opts.titre, gauche, 42)
   doc.fillColor(NK.encre).font('Helvetica').fontSize(11).text(opts.sousTitre, gauche, 67)
-  doc.fillColor(NK.gris).fontSize(9).text(opts.meta, gauche, 85)
+
+  // La ligne méta est écrite à un y FIXE (85) ; on la borne à UNE ligne (troncature « … » si trop
+  // longue, ex. liste d'années illimitée) pour qu'elle ne déborde jamais sur le filet or (y=105) ni
+  // sur le bandeau d'en-tête du tableau (y=117). `lineBreak: false` empêche tout retour à la ligne.
+  doc.fillColor(NK.gris).font('Helvetica').fontSize(9)
+  const largeurMeta = droite - gauche
+  let meta = opts.meta
+  if (doc.widthOfString(meta) > largeurMeta) {
+    while (meta.length > 1 && doc.widthOfString(meta + '…') > largeurMeta) meta = meta.slice(0, -1)
+    meta = meta + '…'
+  }
+  doc.text(meta, gauche, 85, { lineBreak: false })
+
   doc.moveTo(gauche, 105).lineTo(droite, 105).lineWidth(1.5).strokeColor(NK.or).stroke()
   return 117
 }
@@ -132,9 +153,11 @@ export function dessinerCorpsPremium(
   })
 
   if (total) {
+    // Si la ligne TOTAL déborde sur une nouvelle page, on RÉAFFICHE le bandeau d'en-tête de colonnes
+    // au-dessus (sinon le TOTAL flotterait seul, sans savoir quelle colonne est quoi).
     if (y + H > BAS) {
       doc.addPage()
-      y = 40
+      y = dessinerEnTete(40)
     }
     doc.rect(gauche, y, LARGEUR, H + 2).fill(NK.mentheTint)
     doc.moveTo(gauche, y).lineTo(droite, y).lineWidth(1.5).strokeColor(NK.menthe).stroke()

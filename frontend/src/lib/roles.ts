@@ -212,18 +212,16 @@ export function peutGererDocument(
   return entiteType === 'COMMEMORATION' && role === 'GUIDE_RELIGIEUX'
 }
 
-/** Rôles applicatifs + libellés FR (miroir de l'enum Role du backend). */
-export const ROLES: { value: string; label: string }[] = [
-  { value: 'ADMIN', label: 'Administrateur' },
-  { value: 'PRESIDENT', label: 'Président' },
-  { value: 'SECRETAIRE', label: 'Secrétaire' },
-  { value: 'TRESORIERE', label: 'Trésorière' },
-  { value: 'COMMISSAIRE_COMPTES', label: 'Commissaire aux comptes' },
-  { value: 'GUIDE_RELIGIEUX', label: 'Guide religieux' },
-  { value: 'MEMBRE_SIMPLE', label: 'Membre simple' },
-]
-
-/** Libellé FR d'un rôle (repli sur la valeur brute si inconnue). */
-export function libelleRole(role: string | undefined): string {
-  return ROLES.find((r) => r.value === role)?.label ?? role ?? '—'
-}
+/**
+ * Rôles applicatifs assignables (miroir de l'enum Role du backend, hors SUPER_ADMIN transverse).
+ * Les LIBELLÉS ne vivent plus ici : ils sont rendus par `t('utilisateurs.roles.<valeur>')` (§4 i18n).
+ */
+export const ROLES = [
+  'ADMIN',
+  'PRESIDENT',
+  'SECRETAIRE',
+  'TRESORIERE',
+  'COMMISSAIRE_COMPTES',
+  'GUIDE_RELIGIEUX',
+  'MEMBRE_SIMPLE',
+] as const

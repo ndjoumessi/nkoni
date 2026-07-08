@@ -224,8 +224,8 @@ export function UtilisateursPage() {
             aria-label={t('utilisateurs.table.roleAria', { email: u.email })}
           >
             {ROLES.map((r) => (
-              <option key={r.value} value={r.value}>
-                {t(`utilisateurs.roles.${r.value}`)}
+              <option key={r} value={r}>
+                {t(`utilisateurs.roles.${r}`)}
               </option>
             ))}
           </Select>
@@ -334,8 +334,8 @@ export function UtilisateursPage() {
             <Field label={t('utilisateurs.creer.role')} required>
               <Select value={role} onChange={(e) => setRole(e.target.value)}>
                 {ROLES.map((r) => (
-                  <option key={r.value} value={r.value}>
-                    {t(`utilisateurs.roles.${r.value}`)}
+                  <option key={r} value={r}>
+                    {t(`utilisateurs.roles.${r}`)}
                   </option>
                 ))}
               </Select>

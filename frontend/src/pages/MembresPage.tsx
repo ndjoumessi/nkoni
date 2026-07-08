@@ -11,6 +11,7 @@ import {
   type StatutContribution,
 } from '@/lib/api'
 import { estMembreSimple, peutGererMembres } from '@/lib/roles'
+import { resumeMembres } from '@/lib/membres'
 import { StatutCotisationBadge, StatutMembreBadge } from '@/components/membres/StatutBadges'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card } from '@/components/ui/Card'
@@ -122,16 +123,9 @@ export function MembresPage() {
     return triDir === 'desc' ? arr.reverse() : arr
   }, [filtres, triCol, triDir])
 
-  // Synthèse (point focal) — calculée sur l'ensemble non filtré.
-  const resume = useMemo(() => {
-    const base = membres ?? []
-    return {
-      total: base.length,
-      aJour: base.filter((m) => m.statutCotisation === 'A_JOUR').length,
-      nonAJour: base.filter((m) => m.statutCotisation === 'NON_A_JOUR').length,
-      inactifs: base.filter((m) => m.statut !== 'ACTIF').length,
-    }
-  }, [membres])
+  // Synthèse (point focal) — sur l'ensemble non filtré. « À jour »/« Non à jour » ne comptent que
+  // les membres ACTIF (obligation active) ; un DECEDE/INACTIF ne pèse que dans « Inactifs/Décédés ».
+  const resume = useMemo(() => resumeMembres(membres ?? []), [membres])
 
   const trierPar = (col: ColonneTri) => {
     if (triCol === col) setTriDir((d) => (d === 'asc' ? 'desc' : 'asc'))
@@ -227,7 +221,8 @@ export function MembresPage() {
             value={String(resume.aJour)}
             tone="jade"
             icon={CheckCircle2}
-            hint={resume.total ? `${Math.round((resume.aJour / resume.total) * 100)}%` : undefined}
+            // % à jour PARMI les membres actifs (dénominateur = population éligible, pas l'effectif total).
+            hint={resume.actifs ? `${Math.round((resume.aJour / resume.actifs) * 100)}%` : undefined}
           />
           <StatCard label={t('membres.liste.resume.nonAJour')} value={String(resume.nonAJour)} tone="brass" icon={AlertTriangle} />
           <StatCard label={t('membres.liste.resume.inactifsDecedes')} value={String(resume.inactifs)} icon={Users} />

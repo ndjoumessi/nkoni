@@ -15,6 +15,7 @@ import { messages as notificationsMsgs } from './notifications'
 import { messages as membresMsgs } from './membres'
 import { messages as importMsgs } from './import'
 import { messages as monEspaceMsgs } from './monEspace'
+import { messages as tresorerieMsgs } from './tresorerie'
 import { messages as branchesMsgs } from './branches'
 import { messages as fonctionsMsgs } from './fonctions'
 import { messages as affectationsMsgs } from './affectations'
@@ -44,6 +45,7 @@ export const fr = {
   ...membresMsgs,
   ...importMsgs,
   ...monEspaceMsgs,
+  ...tresorerieMsgs,
   ...branchesMsgs,
   ...fonctionsMsgs,
   ...affectationsMsgs,

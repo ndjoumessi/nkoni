@@ -910,6 +910,75 @@ export const recusApi = {
     }),
 }
 
+/* Trésorerie / dépenses (§5) ------------------------------------------------ */
+
+export type StatutDepense = 'BROUILLON' | 'EN_ATTENTE' | 'APPROUVEE' | 'REJETEE' | 'PAYEE'
+export type CategorieDepense = 'AIDE_MEMBRE' | 'FUNERAILLES' | 'EVENEMENT' | 'FONCTIONNEMENT' | 'AUTRE'
+
+export interface Depense {
+  id: string
+  montant: number
+  date: string
+  description: string
+  categorie: CategorieDepense
+  statut: StatutDepense
+  beneficiaireMembreId: string | null
+  saisiParId: string
+  approuveParId: string | null
+  motifRejet: string | null
+  createdAt: string
+  updatedAt: string
+}
+export interface SoldeTresorerie {
+  entrees: number
+  sorties: number
+  solde: number
+  parCategorie: { categorie: CategorieDepense; total: number }[]
+}
+export interface DepenseInput {
+  montant: number
+  date: string
+  description: string
+  categorie?: CategorieDepense
+  beneficiaireMembreId?: string
+  statut?: 'BROUILLON' | 'EN_ATTENTE'
+}
+export interface FiltreDepenses {
+  statut?: StatutDepense
+  categorie?: CategorieDepense
+  dateDebut?: string
+  dateFin?: string
+}
+
+function qsDepenses(f: FiltreDepenses = {}): string {
+  const p = new URLSearchParams()
+  if (f.statut) p.set('statut', f.statut)
+  if (f.categorie) p.set('categorie', f.categorie)
+  if (f.dateDebut) p.set('dateDebut', f.dateDebut)
+  if (f.dateFin) p.set('dateFin', f.dateFin)
+  const s = p.toString()
+  return s ? `?${s}` : ''
+}
+
+export const depensesApi = {
+  solde: (filtre: FiltreDepenses, accessToken: string, signal?: AbortSignal) =>
+    request<SoldeTresorerie>(`/tresorerie${qsDepenses(filtre)}`, { accessToken, signal }),
+  list: (filtre: FiltreDepenses, accessToken: string, signal?: AbortSignal) =>
+    request<Depense[]>(`/depenses${qsDepenses(filtre)}`, { accessToken, signal }),
+  create: (body: DepenseInput, accessToken: string) =>
+    request<Depense>('/depenses', { method: 'POST', json: body, accessToken }),
+  update: (id: string, body: Partial<DepenseInput>, accessToken: string) =>
+    request<Depense>(`/depenses/${rid(id)}`, { method: 'PATCH', json: body, accessToken }),
+  remove: (id: string, accessToken: string) =>
+    request<void>(`/depenses/${rid(id)}`, { method: 'DELETE', accessToken }),
+  approuver: (id: string, accessToken: string) =>
+    request<Depense>(`/depenses/${rid(id)}/approuver`, { method: 'POST', accessToken }),
+  rejeter: (id: string, motifRejet: string, accessToken: string) =>
+    request<Depense>(`/depenses/${rid(id)}/rejeter`, { method: 'POST', json: { motifRejet }, accessToken }),
+  marquerPayee: (id: string, accessToken: string) =>
+    request<Depense>(`/depenses/${rid(id)}/marquer-payee`, { method: 'POST', accessToken }),
+}
+
 /* -------------------------------------------------------------------------- */
 /* Équilibrage entre années (§4.3)                                           */
 /* -------------------------------------------------------------------------- */

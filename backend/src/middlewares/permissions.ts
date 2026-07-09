@@ -41,6 +41,7 @@ export type Entite =
   | 'Affectation'
   | 'Conflit'
   | 'Commemoration'
+  | 'Depense'
 
 export type Role =
   // Rôle PLATEFORME transverse (SaaS §2.3). Volontairement ABSENT de la matrice PERMISSIONS
@@ -231,6 +232,17 @@ export const PERMISSIONS: Record<Entite, Partial<Record<Role, Action[]>>> = {
     TRESORIERE: READ,
     COMMISSAIRE_COMPTES: READ,
     MEMBRE_SIMPLE: READ,
+  },
+  // Trésorerie / dépenses (§5) : saisie/édition par TRESORIERE/PRESIDENT/ADMIN ; lecture ouverte
+  // aux rôles de gestion (dont SECRETAIRE/COMMISSAIRE_COMPTES). L'APPROBATION/REJET (COMMISSAIRE/
+  // PRESIDENT) et le MARQUAGE PAYÉ (TRESORIERE/PRESIDENT) sont des transitions de workflow gardées
+  // par des listes de rôles dédiées dans la route (pas de simples create/update).
+  Depense: {
+    ADMIN: CRUD,
+    PRESIDENT: CRUD,
+    TRESORIERE: ['create', 'read', 'update', 'delete'],
+    COMMISSAIRE_COMPTES: READ,
+    SECRETAIRE: READ,
   },
 }
 

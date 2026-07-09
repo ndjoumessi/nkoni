@@ -27,6 +27,7 @@ const VersementFormPage = lazy(() => import('@/pages/VersementFormPage'))
 const EquilibrageFormPage = lazy(() => import('@/pages/EquilibrageFormPage'))
 const BaremePage = lazy(() => import('@/pages/BaremePage'))
 const RapportsPage = lazy(() => import('@/pages/RapportsPage'))
+const TresoreriePage = lazy(() => import('@/pages/TresoreriePage'))
 const UtilisateursPage = lazy(() => import('@/pages/UtilisateursPage'))
 const MonProfilPage = lazy(() => import('@/pages/MonProfilPage'))
 const ParametresPage = lazy(() => import('@/pages/ParametresPage'))
@@ -82,6 +83,7 @@ function App() {
         <Route path="/mon-espace" element={<MonEspacePage />} />
         <Route path="/bareme" element={<BaremePage />} />
         <Route path="/rapports" element={<RapportsPage />} />
+        <Route path="/tresorerie" element={<TresoreriePage />} />
         <Route path="/utilisateurs" element={<UtilisateursPage />} />
         <Route path="/audit" element={<AuditLogPage />} />
         <Route path="/mon-profil" element={<MonProfilPage />} />

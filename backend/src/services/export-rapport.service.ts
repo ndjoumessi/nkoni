@@ -20,6 +20,7 @@ import {
   enteteDocument,
   dessinerCorpsPremium,
   montantExport,
+  nombreExport,
   styliserEnTeteExcel,
   zebrerLigne,
   styliserTotalExcel,
@@ -435,19 +436,21 @@ export function genererComparaisonMultiPdf(
   return creerPdf((doc) => {
     const GAUCHE = 40
     const DROITE = 800 // A4 paysage (842) - marge
-    const m = (n: number): string => montantExport(n, langue, devise)
+    // Tableau DENSE (beaucoup de colonnes) : on montre les montants SANS suffixe devise (qui
+    // déborderait des colonnes étroites → texte tronqué). La devise est rappelée dans le sous-titre.
+    const nb = (n: number): string => nombreExport(n, langue)
     const anneesTexte = comp.annees.map((a) => a.annee).join(', ')
     const yStart = enteteDocument(doc, {
       titre: 'NKONI',
-      sousTitre: 'Comparaison multi-années',
+      sousTitre: `Comparaison multi-années (${devise})`,
       meta: `Années ${anneesTexte}  ·  Généré le ${formatDateHeure(genereLe, langue)}`,
       gauche: GAUCHE,
       droite: DROITE,
     })
 
-    // Colonnes : « Métrique » large + colonnes réparties sur la largeur paysage.
+    // Colonnes : « Métrique » + colonnes réparties sur la largeur paysage.
     const enTetes = entetesMulti(comp)
-    const largeurMetrique = 160
+    const largeurMetrique = 145
     const largeurCol = (DROITE - GAUCHE - largeurMetrique) / (enTetes.length - 1)
     const colonnes: ColonnePremium[] = enTetes.map((label, i) =>
       i === 0
@@ -459,7 +462,7 @@ export function genererComparaisonMultiPdf(
       const cellules: string[] = [metrique.label]
       comp.annees.forEach((ac, j) => {
         const v = metrique.valeur(ac.rapport)
-        cellules.push(v === null ? '—' : metrique.montant ? m(v) : String(v))
+        cellules.push(v === null ? '—' : metrique.montant ? nb(v) : String(v))
         if (j > 0) {
           const va = variationMulti(metrique, ac)
           cellules.push(typeof va === 'number' ? String(va) : va)

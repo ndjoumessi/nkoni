@@ -1,8 +1,7 @@
 import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
 import { authenticate } from '../middlewares/authenticate'
 import { requirePermission } from '../middlewares/permissions'
-import { langueDeRequete } from '../lib/i18n'
-import { resoudreDeviseDestinataire } from '../services/notification.service'
+import { resoudreLocaleExport } from '../lib/export-locale'
 import {
   assemblerDonneesContributions,
   genererExcel,
@@ -47,13 +46,8 @@ export const exportsRoutes: FastifyPluginAsync = async (app: FastifyInstance) =>
 
       const donnees = await assemblerDonneesContributions(app.prisma, filtres)
 
-      // Date localisée + montants dans la langue/devise de l'utilisateur qui exporte (§4/§5).
-      // `resoudreDeviseDestinataire` = résolveur unique « devise de l'org d'un utilisateur »,
-      // réutilisé ici pour l'exporteur (req.user.sub) plutôt que dupliqué.
-      const langue = langueDeRequete(req)
-      const devise = req.user.sub
-        ? await resoudreDeviseDestinataire(app.prisma, req.user.sub)
-        : 'FCFA'
+      // Langue/devise de l'exporteur ; devise résolue seulement pour le PDF (l'Excel garde des nombres).
+      const { langue, devise } = await resoudreLocaleExport(req, app.prisma, format === 'pdf')
 
       const suffixe = filtres.annee !== undefined ? `-${filtres.annee}` : ''
       const nomFichier = `contributions${suffixe}.${format}`

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest'
 import type { FastifyInstance } from 'fastify'
 import { buildApp } from '../src/app'
 
@@ -96,5 +96,37 @@ describe('Routes Export (§5.9)', () => {
 
   it('GUIDE_RELIGIEUX : export refusé (403)', async () => {
     expect((await get('GUIDE_RELIGIEUX')).statusCode).toBe(403)
+  })
+})
+
+// Revue : la devise (requête DB) n'est résolue QUE pour le PDF ; l'Excel garde des nombres bruts.
+describe('Export contributions — devise résolue seulement pour le PDF', () => {
+  let app2: FastifyInstance
+  const findUnique = vi.fn(async () => ({ organisation: { devise: 'FCFA' } }))
+
+  beforeAll(async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const prisma: any = { contribution: { findMany: async () => contributions }, utilisateur: { findUnique } }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    app2 = await buildApp({ prisma: prisma as any, logger: false })
+    await app2.ready()
+  })
+  afterAll(async () => {
+    await app2.close()
+  })
+  const auth2 = (role: string) => ({ authorization: `Bearer ${app2.jwt.sign({ sub: `u-${role}`, role })}` })
+
+  it('xlsx (format par défaut) : aucune requête utilisateur (pas de résolution de devise)', async () => {
+    findUnique.mockClear()
+    const res = await app2.inject({ method: 'GET', url: '/exports/contributions?format=xlsx', headers: auth2('ADMIN') })
+    expect(res.statusCode).toBe(200)
+    expect(findUnique).not.toHaveBeenCalled()
+  })
+
+  it('pdf : la devise est résolue (une requête utilisateur)', async () => {
+    findUnique.mockClear()
+    const res = await app2.inject({ method: 'GET', url: '/exports/contributions?format=pdf', headers: auth2('ADMIN') })
+    expect(res.statusCode).toBe(200)
+    expect(findUnique).toHaveBeenCalledTimes(1)
   })
 })

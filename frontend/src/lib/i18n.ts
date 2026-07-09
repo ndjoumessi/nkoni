@@ -1,23 +1,37 @@
 /**
  * Configuration i18n du frontend (§4) — `react-i18next`.
  *
- * Deux catalogues (`fr.json`, `en.json`) bundlés par Vite. La langue affichée est une PRÉFÉRENCE
- * PERSONNELLE (§4 : « sélectionnable par utilisateur ») :
+ * Catalogues FR/EN **chargés à la demande** (`import()` dynamique → un chunk par langue) : seul
+ * le catalogue de la langue ACTIVE entre dans le bundle de démarrage ; l'autre n'est téléchargé
+ * qu'au moment d'un changement de langue. L'init est explicite (`initI18n`, attendue par
+ * `main.tsx` AVANT le 1er rendu → aucun flash non traduit), et non plus un side-effect d'import.
+ *
+ * La langue affichée est une PRÉFÉRENCE PERSONNELLE (§4 : « sélectionnable par utilisateur ») :
  *   - avant connexion : mémorisée en `localStorage` (repli : langue du navigateur, puis FR) ;
  *   - après connexion : la préférence serveur (`Utilisateur.langue`) est appliquée via
  *     `appliquerLangue()` par le contexte d'auth, et prime.
  *
  * Le backend et l'API échangent des codes majuscules `FR`/`EN` (enum `Langue`) ; i18next utilise
  * les codes minuscules `fr`/`en`. Les helpers `versI18n` / `versBackend` font le pont.
+ *
+ * Parité FR/EN garantie à la compilation (`en/index` typé `Catalogue`) : charger la SEULE langue
+ * active est sûr, aucun repli vers FR n'est nécessaire pour combler une clé manquante.
  */
 import i18n from 'i18next'
 import { initReactI18next } from 'react-i18next'
-import fr from '@/locales/fr'
-import en from '@/locales/en'
 
 export type Langue = 'FR' | 'EN'
 
 const STORAGE_KEY = 'nkoni:langue'
+
+/** Chargeurs dynamiques : chaque catalogue devient son propre chunk (sorti du bundle initial). */
+const chargeurs: Record<string, () => Promise<{ default: Record<string, unknown> }>> = {
+  fr: () => import('@/locales/fr'),
+  en: () => import('@/locales/en'),
+}
+
+/** Langues dont le catalogue est déjà injecté dans i18next (évite un double chargement). */
+const chargees = new Set<string>()
 
 /** Code backend (`FR`/`EN`) → code i18next (`fr`/`en`). */
 export const versI18n = (langue: Langue): string => (langue === 'EN' ? 'en' : 'fr')
@@ -33,24 +47,47 @@ function langueInitiale(): string {
   return navigator.language.toLowerCase().startsWith('en') ? 'en' : 'fr'
 }
 
-void i18n.use(initReactI18next).init({
-  resources: {
-    fr: { translation: fr },
-    en: { translation: en },
-  },
-  lng: langueInitiale(),
-  fallbackLng: 'fr',
-  interpolation: { escapeValue: false }, // React échappe déjà le rendu
-})
+/** Charge (une fois) le catalogue d'une langue et l'injecte dans i18next. */
+async function chargerCatalogue(code: string): Promise<void> {
+  if (chargees.has(code)) return
+  const chargeur = chargeurs[code] ?? chargeurs['fr']!
+  const module = await chargeur()
+  i18n.addResourceBundle(code, 'translation', module.default, true, true)
+  chargees.add(code)
+}
+
+/**
+ * Initialise i18next avec le SEUL catalogue de la langue de démarrage. À appeler (et attendre)
+ * une fois, avant le premier rendu (`main.tsx`).
+ */
+export async function initI18n(): Promise<void> {
+  const lng = langueInitiale()
+  const module = await (chargeurs[lng] ?? chargeurs['fr']!)()
+  chargees.add(lng)
+  await i18n.use(initReactI18next).init({
+    resources: { [lng]: { translation: module.default } },
+    lng,
+    fallbackLng: 'fr',
+    interpolation: { escapeValue: false }, // React échappe déjà le rendu
+  })
+}
+
+/** Charge le catalogue cible si besoin, puis bascule l'interface. */
+async function chargerEtBasculer(code: string): Promise<void> {
+  await chargerCatalogue(code)
+  if (i18n.language !== code) await i18n.changeLanguage(code)
+}
 
 /**
  * Applique une langue (code backend `FR`/`EN`) à toute l'interface et la mémorise pour les
  * prochains chargements. Appelée par le contexte d'auth (préférence serveur) et le sélecteur.
+ * Signature `void` (fire-and-forget) : le chargement du catalogue et le basculement sont
+ * asynchrones ; react-i18next déclenche le re-render sur l'événement `languageChanged`.
  */
 export function appliquerLangue(langue: Langue): void {
   const code = versI18n(langue)
   localStorage.setItem(STORAGE_KEY, code)
-  if (i18n.language !== code) void i18n.changeLanguage(code)
+  void chargerEtBasculer(code)
 }
 
 /** Langue courante de l'interface, en code backend. */

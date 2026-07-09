@@ -101,13 +101,13 @@ export const documentsRoutes: FastifyPluginAsync = async (app: FastifyInstance) 
           req.params.id,
           demandeur(req),
         )
-        const amont = await fetch(url)
-        if (!amont.ok) {
+        // Store PRIVÉ : lecture authentifiée par token (jamais un fetch d'URL publique).
+        const buffer = await app.blob.lireContenu(url)
+        if (!buffer) {
           return reply
             .code(502)
             .send({ error: 'Bad Gateway', message: t(langueDeRequete(req), 'documents.fichierIndisponible') })
         }
-        const buffer = Buffer.from(await amont.arrayBuffer())
         reply.header('Content-Type', typeFichier)
         reply.header('Content-Disposition', `inline; filename="${encodeURIComponent(nom)}"`)
         return reply.send(buffer)

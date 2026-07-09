@@ -157,4 +157,39 @@ describe('Documents (§5) — routes', () => {
     const res = await app.inject({ method: 'DELETE', url: '/documents/inconnu', headers: auth('ADMIN', 'u-admin') })
     expect(res.statusCode).toBe(404)
   })
+
+  /* Téléchargement (proxy authentifié, store PRIVÉ) ------------------------- */
+
+  it('cycle complet PRIVÉ : upload puis GET /:id/contenu → 200 + octets du fichier', async () => {
+    // Upload réel : le blob mock stocke le contenu sous l'URL renvoyée par put.
+    const up = await post(multipart(champs(), filePdf), 'PRESIDENT', 'u-pres')
+    expect(up.statusCode).toBe(201)
+    const id = up.json().id as string
+
+    const res = await app.inject({ method: 'GET', url: `/documents/${id}/contenu`, headers: auth('PRESIDENT', 'u-pres') })
+    expect(res.statusCode).toBe(200)
+    expect(res.headers['content-type']).toContain('application/pdf')
+    // Le proxy renvoie exactement les octets lus via lireContenu (pas d'URL blob exposée).
+    expect(res.rawPayload.subarray(0, 4).toString('latin1')).toBe('%PDF')
+    expect(res.headers['content-disposition']).toContain('inline')
+  })
+
+  it('GET /:id/contenu quand le blob est indisponible (lireContenu → null) → 502', async () => {
+    // Doc en base pointant une URL absente du store (aucun contenu préensemencé).
+    const id = prisma.__seedDoc({
+      entiteType: 'COMMEMORATION',
+      entiteId: 'cm-1',
+      url: 'https://blob.test/introuvable',
+    })
+    const res = await app.inject({ method: 'GET', url: `/documents/${id}/contenu`, headers: auth('PRESIDENT', 'u-pres') })
+    expect(res.statusCode).toBe(502)
+  })
+
+  it('GET /:id/contenu sur un doc invisible (conflit confidentiel, non-partie) → 404 (avant toute lecture blob)', async () => {
+    const id = prisma.__seedDoc({ entiteType: 'CONFLIT', entiteId: 'cf-conf', url: 'https://blob.test/secret' })
+    const res = await app.inject({ method: 'GET', url: `/documents/${id}/contenu`, headers: auth('SECRETAIRE', 'u-sec') })
+    expect(res.statusCode).toBe(404)
+    // La visibilité est refusée AVANT de toucher au blob (pas de fuite d'existence).
+    expect(blob.contenus.has('https://blob.test/secret')).toBe(false)
+  })
 })

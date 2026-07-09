@@ -12,6 +12,7 @@ import inscription from './inscription'
 import documents from './documents'
 import dashboard from './dashboard'
 import membres from './membres'
+import importMembres from './import'
 import branches from './branches'
 import versements from './versements'
 import equilibrages from './equilibrages'
@@ -39,6 +40,7 @@ const en: Catalogue = {
   ...documents,
   ...dashboard,
   ...membres,
+  ...importMembres,
   ...branches,
   ...versements,
   ...equilibrages,

@@ -19,6 +19,7 @@ import { RouteFallback } from '@/components/RouteFallback'
 const SuperAdminPage = lazy(() => import('@/pages/SuperAdminPage'))
 const DashboardPage = lazy(() => import('@/pages/DashboardPage'))
 const MembresPage = lazy(() => import('@/pages/MembresPage'))
+const ImportMembresPage = lazy(() => import('@/pages/ImportMembresPage'))
 const MembreFormPage = lazy(() => import('@/pages/MembreFormPage'))
 const MembreDetailPage = lazy(() => import('@/pages/MembreDetailPage'))
 const VersementFormPage = lazy(() => import('@/pages/VersementFormPage'))
@@ -96,6 +97,7 @@ function App() {
         <Route path="/commemorations/:id/editer" element={<CommemorationFormPage />} />
         <Route path="/commemorations/:id" element={<CommemorationDetailPage />} />
         <Route path="/membres" element={<MembresPage />} />
+        <Route path="/membres/import" element={<ImportMembresPage />} />
         <Route path="/membres/nouveau" element={<MembreFormPage />} />
         <Route path="/membres/:id/editer" element={<MembreFormPage />} />
         <Route path="/membres/:id/versements/nouveau" element={<VersementFormPage />} />

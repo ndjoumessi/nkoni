@@ -4,7 +4,15 @@ import type { CreationScopee } from '../lib/tenant-extension'
 import { authenticate } from '../middlewares/authenticate'
 import { requirePermission } from '../middlewares/permissions'
 import { calculerStatutsMembres } from '../services/membreStatut.service'
+import {
+  analyserImport,
+  executerImport,
+  type LigneImport,
+  type RapportImport,
+  type CodeErreurImport,
+} from '../services/import.service'
 import { t, langueDeRequete } from '../lib/i18n'
+import type { CleMessage } from '../locales/fr'
 
 /**
  * CRUD Membre (§5 point 2), conforme à la matrice §2 :
@@ -80,6 +88,75 @@ const updateMembreSchema = {
 } as const
 
 const anneeCourante = (): number => new Date().getFullYear()
+
+/* --- Import CSV/Excel (§5.2) ------------------------------------------------ */
+
+/** Schéma LÂCHE (types permissifs) : les valeurs douteuses deviennent des erreurs PAR LIGNE
+ *  (via le service) plutôt qu'un 400 global qui rejetterait tout le lot. */
+const ligneImportProperties = {
+  nom: { type: 'string', maxLength: 200 },
+  prenom: { type: 'string', maxLength: 200 },
+  anneeAdhesion: { type: ['integer', 'string'] },
+  sexe: { type: 'string', maxLength: 20 },
+  dateNaissance: { type: 'string', maxLength: 40 },
+  telephone: { type: 'string', maxLength: 40 },
+  adresse: { type: 'string', maxLength: 500 },
+  fonctionSociale: { type: 'string', maxLength: 200 },
+  statut: { type: 'string', maxLength: 20 },
+  anneeFinContribution: { type: ['integer', 'string'] },
+  dateDeces: { type: 'string', maxLength: 40 },
+  branche: { type: 'string', maxLength: 200 },
+} as const
+
+const importSchema = {
+  body: {
+    type: 'object',
+    required: ['membres'],
+    additionalProperties: false,
+    properties: {
+      membres: {
+        type: 'array',
+        maxItems: 1000,
+        items: { type: 'object', additionalProperties: false, properties: ligneImportProperties },
+      },
+      valider: { type: 'boolean' },
+      creerBranchesManquantes: { type: 'boolean' },
+    },
+  },
+} as const
+
+interface ImportBody {
+  membres: LigneImport[]
+  valider?: boolean
+  creerBranchesManquantes?: boolean
+}
+
+/** Code d'erreur TYPÉ (service, i18n-agnostique) → clé i18n (traduite à la frontière HTTP). */
+const CLE_ERREUR_IMPORT: Record<CodeErreurImport, CleMessage> = {
+  nomRequis: 'import.erreur.nomRequis',
+  prenomRequis: 'import.erreur.prenomRequis',
+  anneeRequise: 'import.erreur.anneeRequise',
+  anneeInvalide: 'import.erreur.anneeInvalide',
+  anneeFuture: 'import.erreur.anneeFuture',
+  statutInvalide: 'import.erreur.statutInvalide',
+  anneeFinInvalide: 'import.erreur.anneeFinInvalide',
+  dateInvalide: 'import.erreur.dateInvalide',
+  brancheInconnue: 'import.erreur.brancheInconnue',
+}
+
+/** Traduit le rapport (codes → messages) pour la réponse HTTP. */
+function traduireRapport(rapport: RapportImport, langue: 'FR' | 'EN') {
+  return {
+    valides: rapport.valides,
+    doublons: rapport.doublons,
+    erreurs: rapport.erreurs.map((e) => ({
+      ligne: e.ligne,
+      champ: e.champ,
+      message: t(langue, CLE_ERREUR_IMPORT[e.code]),
+    })),
+    quota: rapport.quota,
+  }
+}
 
 /**
  * Règle §4.1 : détermine l'anneeFinContribution à appliquer.
@@ -203,6 +280,54 @@ export const membresRoutes: FastifyPluginAsync = async (app: FastifyInstance) =>
         data: data as Prisma.MembreUncheckedCreateInput,
       })
       return reply.code(201).send(membre)
+    },
+  )
+
+  // POST /membres/import — import CSV/Excel en masse (§5.2). ADMIN + SECRETAIRE (perm création).
+  // `valider: true` → aperçu (aucune écriture) ; sinon commit si 0 erreur ET quota respecté.
+  app.post<{ Body: ImportBody }>(
+    '/membres/import',
+    { schema: importSchema, preHandler: [authenticate, perm('create')] },
+    async (req, reply) => {
+      const langue = langueDeRequete(req)
+      const { membres, valider = false, creerBranchesManquantes = false } = req.body
+
+      if (membres.length === 0) {
+        return reply
+          .code(400)
+          .send({ error: 'Bad Request', message: t(langue, 'import.aucuneLigne') })
+      }
+
+      const analyse = await analyserImport(app.prisma, membres, {
+        creerBranchesManquantes,
+        anneeCourante: anneeCourante(),
+        plafond: PLAFOND_MEMBRES_PLAN_GRATUIT,
+      })
+      const rapport = traduireRapport(analyse.rapport, langue)
+
+      // Aperçu : on renvoie le rapport sans rien écrire.
+      if (valider) return reply.code(200).send(rapport)
+
+      // Quota dépassé → 403 (comme POST /membres), avec un message explicite.
+      if (analyse.rapport.quota.depasse) {
+        return reply.code(403).send({
+          error: 'Forbidden',
+          message: t(langue, 'import.quotaDepasse', {
+            aCreer: analyse.rapport.quota.aCreer,
+            plafond: analyse.rapport.quota.plafond,
+            actuel: analyse.rapport.quota.actuel,
+          }),
+          rapport,
+        })
+      }
+
+      // Erreurs de validation → 422, rien n'est écrit.
+      if (analyse.rapport.erreurs.length > 0) {
+        return reply.code(422).send({ error: 'Unprocessable Entity', rapport })
+      }
+
+      const resultat = await executerImport(app.prisma, analyse)
+      return reply.code(201).send(resultat)
     },
   )
 

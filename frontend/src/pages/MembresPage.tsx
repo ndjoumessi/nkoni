@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { AlertTriangle, CheckCircle2, Loader2, Plus, Search, Users } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Loader2, Plus, Search, Upload, Users } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
 import {
   membresApi,
@@ -203,11 +203,18 @@ export function MembresPage() {
             : undefined
         }
         actions={
-          // Masqué quand la liste est vide : l'EmptyState porte déjà le CTA (pas de doublon).
-          gestion && (!membres || membres.length > 0) && (
-            <ButtonLink to="/membres/nouveau" icon={Plus}>
-              {t('membres.liste.nouveau')}
-            </ButtonLink>
+          gestion && (
+            <div className="flex flex-wrap gap-2">
+              <ButtonLink to="/membres/import" variant="outline" icon={Upload}>
+                {t('import.boutonNav')}
+              </ButtonLink>
+              {/* « Nouveau » masqué quand la liste est vide : l'EmptyState porte déjà ce CTA. */}
+              {(!membres || membres.length > 0) && (
+                <ButtonLink to="/membres/nouveau" icon={Plus}>
+                  {t('membres.liste.nouveau')}
+                </ButtonLink>
+              )}
+            </div>
           )
         }
       />

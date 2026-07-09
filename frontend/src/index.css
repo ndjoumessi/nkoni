@@ -84,7 +84,9 @@
 
     /* --- Texte (blanc/gris froid) --- */
     --foreground: oklch(0.965 0.004 250);
-    --faint: oklch(0.60 0.008 255);
+    /* Relevé à 0.66 (était 0.60) pour tenir le contraste AA sur le petit texte (labels, kbd,
+       horodatages) sur canvas 0.145 — cf. audit UI/UX WCAG 1.4.3. */
+    --faint: oklch(0.66 0.008 255);
 
     /* --- Accents ---
        NB : les noms de jetons restent stables (les composants les référencent partout) ;
@@ -247,8 +249,35 @@
 .nk-toast-in { animation: nkToastIn 0.24s cubic-bezier(0.22, 1, 0.36, 1); }
 
 @media (prefers-reduced-motion: reduce) {
+    /* Neutralise les transitions résiduelles (knob du Toggle, rotation du chevron DataTable,
+       hovers…) — les spinners de chargement `animate-spin` restent actifs car ils portent une
+       information essentielle (feedback de progression). */
+    *, *::before, *::after {
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
     .nk-reveal { opacity: 1; animation: none; }
     .nk-marquee { animation: none; }
     .nk-shimmer::after { animation: none; }
     .nk-toast-in { animation: none; }
+}
+
+/* ==========================================================================
+   Utilitaires d'accessibilité
+   ========================================================================== */
+
+@layer utilities {
+    /* Étend la zone tactile d'un petit bouton à ≥ 44×44px SANS modifier son rendu visuel
+       (cf. audit : cibles tactiles denses). À réserver aux boutons ISOLÉS — sur des boutons
+       adjacents rapprochés, les hitbox se chevaucheraient. */
+    .tap-target { position: relative; }
+    .tap-target::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        height: 44px;
+        width: 44px;
+        transform: translate(-50%, -50%);
+    }
 }

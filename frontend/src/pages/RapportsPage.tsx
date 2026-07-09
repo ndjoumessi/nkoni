@@ -705,7 +705,7 @@ export function RapportsPage() {
                           onClick={() => retirerAnnee(a)}
                           disabled={anneesComp.length <= 2}
                           aria-label={t('rapports.comparaison.retirer', { annee: a })}
-                          className="flex h-5 w-5 items-center justify-center rounded-full text-faint transition-colors hover:text-terra disabled:opacity-30 disabled:hover:text-faint"
+                          className="tap-target flex h-5 w-5 items-center justify-center rounded-full text-faint transition-colors hover:text-terra disabled:opacity-30 disabled:hover:text-faint"
                         >
                           <X className="h-3.5 w-3.5" aria-hidden="true" />
                         </button>
@@ -766,7 +766,7 @@ export function RapportsPage() {
           </Card>
 
           {erreur && (
-            <Card className="nk-reveal mt-4 border-terra/30 bg-terra/[0.07] p-5 text-terra">
+            <Card role="alert" className="nk-reveal mt-4 border-terra/30 bg-terra/[0.07] p-5 text-terra">
               {erreur}
             </Card>
           )}

@@ -684,6 +684,59 @@ export const membresApi = {
     request<Membre>('/membres', { method: 'POST', json: body, accessToken }),
   update: (id: string, body: Partial<MembreInput>, accessToken: string) =>
     request<Membre>(`/membres/${id}`, { method: 'PATCH', json: body, accessToken }),
+  /** Aperçu d'import (valider=true) → rapport, aucune écriture. */
+  importerApercu: (membres: LigneImport[], creerBranchesManquantes: boolean, accessToken: string) =>
+    request<RapportImport>('/membres/import', {
+      method: 'POST',
+      json: { membres, valider: true, creerBranchesManquantes },
+      accessToken,
+    }),
+  /** Commit d'import → { crees, ignores } (201) ; lève ApiError si quota (403) / erreurs (422). */
+  importerCommit: (membres: LigneImport[], creerBranchesManquantes: boolean, accessToken: string) =>
+    request<ResultatImport>('/membres/import', {
+      method: 'POST',
+      json: { membres, valider: false, creerBranchesManquantes },
+      accessToken,
+    }),
+}
+
+/* Import CSV/Excel des membres (§5.2) --------------------------------------- */
+
+/** Une ligne d'import (valeurs issues du mapping ; nombres tolérés en chaîne). */
+export interface LigneImport {
+  nom?: string
+  prenom?: string
+  anneeAdhesion?: number | string
+  sexe?: string
+  dateNaissance?: string
+  telephone?: string
+  adresse?: string
+  fonctionSociale?: string
+  statut?: string
+  anneeFinContribution?: number | string
+  dateDeces?: string
+  branche?: string
+}
+
+export interface ErreurImport {
+  ligne: number
+  champ: string
+  message: string
+}
+export interface DoublonImport {
+  ligne: number
+  nom: string
+  prenom: string
+}
+export interface RapportImport {
+  valides: number
+  doublons: DoublonImport[]
+  erreurs: ErreurImport[]
+  quota: { actuel: number; plafond: number; aCreer: number; depasse: boolean }
+}
+export interface ResultatImport {
+  crees: number
+  ignores: number
 }
 
 export const branchesApi = {

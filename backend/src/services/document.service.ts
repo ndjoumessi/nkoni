@@ -302,6 +302,11 @@ export async function televerserDocument(
   // 5. Enregistrement DB ; en cas d'échec, on retire le blob orphelin.
   try {
     return await prisma.document.create({
+      // Forme UNCHECKED (FK scalaires), comme TOUS les autres creates scopés : indispensable
+      // pour que l'extension d'isolation puisse injecter le SCALAIRE `organisationId`. Une forme
+      // relation (`televersePar: { connect }`) basculerait Prisma en input « checked », où
+      // `organisationId` scalaire n'existe pas et la relation `organisation` devient obligatoire
+      // → « Argument `organisation` is missing ». D'où `televerseParId` scalaire, pas `connect`.
       data: {
         nom: params.nom,
         ...(params.description !== undefined ? { description: params.description } : {}),
@@ -310,8 +315,8 @@ export async function televerserDocument(
         tailleOctets: params.fichier.buffer.length,
         entiteType: params.entiteType,
         entiteId: params.entiteId,
-        televersePar: { connect: { id: uploader.id } },
-      } as Prisma.DocumentCreateInput,
+        televerseParId: uploader.id,
+      } as Prisma.DocumentUncheckedCreateInput,
       select: DOCUMENT_SELECT,
     })
   } catch (err) {

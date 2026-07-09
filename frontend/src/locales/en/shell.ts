@@ -6,6 +6,7 @@ export default {
       titre: 'Navigation',
       tableauDeBord: 'Dashboard',
       maFiche: 'My record',
+      monEspace: 'My space',
       membres: 'Members',
       reunions: 'Meetings',
       fonctions: 'Positions',

@@ -13,7 +13,9 @@ export function estSuperAdmin(role: string | undefined): boolean {
  * plateforme, tout autre rôle au tableau de bord de son organisation.
  */
 export function cheminApresConnexion(role: string | undefined): string {
-  return estSuperAdmin(role) ? '/super-admin' : '/dashboard'
+  if (estSuperAdmin(role)) return '/super-admin'
+  if (estMembreSimple(role)) return '/mon-espace'
+  return '/dashboard'
 }
 
 /** Rôles autorisés à créer/modifier un membre (Créer/Modifier dans la matrice). */

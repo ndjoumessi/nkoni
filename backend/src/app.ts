@@ -11,6 +11,7 @@ import { authRoutes } from './routes/auth.route'
 import { organisationsRoutes } from './routes/organisations.route'
 import { platformRoutes } from './routes/platform.route'
 import { membresRoutes } from './routes/membres.route'
+import { moiRoutes } from './routes/moi.route'
 import { branchesRoutes } from './routes/branches.route'
 import { baremeRoutes } from './routes/bareme.route'
 import { contributionsRoutes } from './routes/contributions.route'
@@ -92,6 +93,7 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   await app.register(organisationsRoutes)
   await app.register(platformRoutes)
   await app.register(membresRoutes)
+  await app.register(moiRoutes)
   await app.register(branchesRoutes)
   await app.register(baremeRoutes)
   await app.register(contributionsRoutes)

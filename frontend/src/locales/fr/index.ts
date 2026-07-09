@@ -15,6 +15,7 @@ import documents from './documents'
 import dashboard from './dashboard'
 import membres from './membres'
 import importMembres from './import'
+import monEspace from './monEspace'
 import branches from './branches'
 import versements from './versements'
 import equilibrages from './equilibrages'
@@ -43,6 +44,7 @@ const fr = {
   ...dashboard,
   ...membres,
   ...importMembres,
+  ...monEspace,
   ...branches,
   ...versements,
   ...equilibrages,

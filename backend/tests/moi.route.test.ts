@@ -93,7 +93,7 @@ describe('Espace membre /moi/* — membre lié', () => {
     const res = await app.inject({ method: 'GET', url: '/moi/recus', headers: auth() })
     expect(res.statusCode).toBe(200)
     expect(res.json()).toEqual([
-      { id: 'r1', numero: 'NKONI-2024-000001', date: '2024-03-01T00:00:00.000Z', montant: 4_000, telechargeable: false },
+      { id: 'r1', numero: 'NKONI-2024-000001', date: '2024-03-01T00:00:00.000Z', montant: 4_000, telechargeable: true },
     ])
     expect(calls.versementWhere).toEqual({ contribution: { membreId: 'm1' } })
   })

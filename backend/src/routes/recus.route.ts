@@ -4,6 +4,12 @@ import { t, langueDeRequete } from '../lib/i18n'
 import { authenticate } from '../middlewares/authenticate'
 import { requirePermission } from '../middlewares/permissions'
 import { genererRecu, VersementIntrouvableError } from '../services/recu.service'
+import { chargerDonneesRecuPdf, produireRecuPdf } from '../services/recu-pdf.service'
+import { envoyerRecuWhatsApp } from '../services/whatsapp.service'
+import {
+  resoudreLangueDestinataire,
+  resoudreDeviseDestinataire,
+} from '../services/notification.service'
 
 /**
  * Reçu de versement (§4.6) — génération À LA DEMANDE et lecture.
@@ -111,6 +117,80 @@ export const recusRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
         where: { versementId: { in: ids } },
         orderBy: { dateGeneration: 'desc' },
       })
+    },
+  )
+
+  // GET /recus/:id/pdf — proxy authentifié : génère (idempotent) puis sert le PDF du reçu.
+  // Accès : rôles gestion (Recu/read) ; MEMBRE_SIMPLE UNIQUEMENT ses propres reçus. 404 sinon
+  // (pas de fuite d'existence). L'URL blob n'est jamais exposée ; locale+devise = du DESTINATAIRE.
+  app.get<{ Params: { id: string } }>(
+    '/recus/:id/pdf',
+    { preHandler: [authenticate, requirePermission('Recu', 'read')] },
+    async (req, reply) => {
+      const ctx = await chargerDonneesRecuPdf(app.prisma, req.params.id)
+      if (!ctx) {
+        return reply
+          .code(404)
+          .send({ error: 'Not Found', message: t(langueDeRequete(req), 'recus.introuvable') })
+      }
+      if (req.user.role === 'MEMBRE_SIMPLE' && ctx.membreCompteId !== req.user.sub) {
+        // Indistinguable d'un id inexistant (pas de fuite d'existence d'un reçu d'un autre membre).
+        return reply
+          .code(404)
+          .send({ error: 'Not Found', message: t(langueDeRequete(req), 'recus.introuvable') })
+      }
+
+      // Locale + devise du DESTINATAIRE (le membre) ; repli FR/FCFA si membre sans compte lié.
+      const langue = ctx.membreCompteId
+        ? await resoudreLangueDestinataire(app.prisma, ctx.membreCompteId)
+        : 'FR'
+      const devise = ctx.membreCompteId
+        ? await resoudreDeviseDestinataire(app.prisma, ctx.membreCompteId)
+        : 'FCFA'
+
+      const { buffer } = await produireRecuPdf(app.prisma, app.blob, ctx, langue, devise)
+      reply.header('Content-Type', 'application/pdf')
+      reply.header('Content-Disposition', `inline; filename="recu-${ctx.donnees.numero}.pdf"`)
+      return reply.send(buffer)
+    },
+  )
+
+  // POST /recus/:id/whatsapp — envoie le PDF du reçu au membre par WhatsApp (best-effort).
+  // Même accès que le téléchargement. N'échoue jamais l'appel : renvoie { envoye, raison? }.
+  app.post<{ Params: { id: string } }>(
+    '/recus/:id/whatsapp',
+    { preHandler: [authenticate, requirePermission('Recu', 'read')] },
+    async (req, reply) => {
+      const ctx = await chargerDonneesRecuPdf(app.prisma, req.params.id)
+      if (!ctx) {
+        return reply
+          .code(404)
+          .send({ error: 'Not Found', message: t(langueDeRequete(req), 'recus.introuvable') })
+      }
+      if (req.user.role === 'MEMBRE_SIMPLE' && ctx.membreCompteId !== req.user.sub) {
+        return reply
+          .code(404)
+          .send({ error: 'Not Found', message: t(langueDeRequete(req), 'recus.introuvable') })
+      }
+
+      const langue = ctx.membreCompteId
+        ? await resoudreLangueDestinataire(app.prisma, ctx.membreCompteId)
+        : 'FR'
+      const devise = ctx.membreCompteId
+        ? await resoudreDeviseDestinataire(app.prisma, ctx.membreCompteId)
+        : 'FCFA'
+
+      const { buffer } = await produireRecuPdf(app.prisma, app.blob, ctx, langue, devise)
+      const resultat = await envoyerRecuWhatsApp(app.prisma, app.whatsapp, {
+        telephone: ctx.membreTelephone,
+        membreCompteId: ctx.membreCompteId,
+        pdf: buffer,
+        meta: {
+          nomFichier: `recu-${ctx.donnees.numero}.pdf`,
+          legende: t(langue, 'recus.whatsapp.legende', { numero: ctx.donnees.numero }),
+        },
+      })
+      return reply.code(200).send(resultat)
     },
   )
 }

@@ -124,8 +124,9 @@ export const moiRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
       numero: r.numero,
       date: r.dateGeneration,
       montant: montantParVersement.get(r.versementId) ?? 0,
-      // Le PDF (et son proxy de téléchargement) arrivent avec la feature « reçus PDF ».
-      telechargeable: r.urlPdf != null,
+      // Le PDF est produit À LA DEMANDE par GET /recus/:id/pdf (généré si urlPdf null) → toujours
+      // téléchargeable. Le champ reste exposé pour un éventuel gate futur côté UI.
+      telechargeable: true,
     }))
   })
 }

@@ -249,12 +249,19 @@
 .nk-toast-in { animation: nkToastIn 0.24s cubic-bezier(0.22, 1, 0.36, 1); }
 
 @media (prefers-reduced-motion: reduce) {
-    /* Neutralise les transitions résiduelles (knob du Toggle, rotation du chevron DataTable,
-       hovers…) — les spinners de chargement `animate-spin` restent actifs car ils portent une
-       information essentielle (feedback de progression). */
+    /* Neutralise les transitions ET les animations résiduelles (knob du Toggle, chevron
+       DataTable, `animate-ping`, `animate-pulse` des squelettes…) — pas seulement les 4 classes
+       nk-* ci-dessous. Exception DÉLIBÉRÉE : les spinners de chargement `animate-spin` restent
+       animés car ils portent une information essentielle (feedback de progression). */
     *, *::before, *::after {
         transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
         scroll-behavior: auto !important;
+    }
+    .animate-spin {
+        animation-duration: 1s !important;
+        animation-iteration-count: infinite !important;
     }
     .nk-reveal { opacity: 1; animation: none; }
     .nk-marquee { animation: none; }

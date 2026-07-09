@@ -10,7 +10,10 @@ import { orgContext } from './org-context'
  *   - lectures à `where` libre (findMany/findFirst[OrThrow]/count/aggregate/groupBy) et
  *     mutations de masse (updateMany/deleteMany) → `where.organisationId` injecté.
  *   - findUnique[OrThrow] : le `where` unique n'accepte pas `organisationId` → POST-filtre
- *     (on vérifie `result.organisationId` ; sinon null / NotFound). Aucune fuite.
+ *     (on vérifie `result.organisationId` ; sinon null / NotFound). Si l'appelant fournit un
+ *     `select` qui l'omet, on l'ajoute le temps de la requête PUIS on le retire du résultat
+ *     (sinon le post-filtre échouerait toujours → faux « introuvable »). Aucune fuite : ni
+ *     cross-org (post-filtre inchangé), ni du champ organisationId non demandé.
  *   - create/createMany → `organisationId` FORCÉ à l'org courante dans `data` (toute valeur
  *     fournie par l'appelant est IGNORÉE : impossible d'écrire dans une autre org).
  *   - update/delete/upsert (par `where` unique) → PRÉ-lecture de la cible (client `base`,
@@ -131,10 +134,28 @@ export async function intercepterTenant(
     return query(scoped)
   }
 
-  // findUnique[OrThrow] : post-filtre (le where unique ne tolère pas organisationId).
+  // findUnique[OrThrow] : le `where` unique n'accepte pas organisationId → on vérifie
+  // l'appartenance par POST-FILTRE sur le résultat. PIÈGE : si l'appelant passe un `select` qui
+  // OMET organisationId, le champ serait absent du résultat, le post-filtre échouerait TOUJOURS
+  // (`undefined !== orgId`) et toute ligne serait jugée « introuvable » — même la sienne. On
+  // AJOUTE donc organisationId au select le temps de la requête, puis on le RETIRE du résultat
+  // rendu (l'appelant ne récupère QUE les champs de son select d'origine : pas de fuite de champ).
   if (UNIQUE_READ_OPS.has(operation)) {
-    const res = await query(args)
-    if (res && res.organisationId === orgId) return res
+    const select = args?.select
+    const injecterOrgId = select && !select.organisationId
+    const argsEffectifs = injecterOrgId
+      ? { ...args, select: { ...select, organisationId: true } }
+      : args
+    const res = await query(argsEffectifs)
+
+    if (res && res.organisationId === orgId) {
+      if (!injecterOrgId) return res
+      // organisationId a été forcé dans le select : le retirer pour ne pas exposer un champ
+      // que l'appelant n'a pas demandé (copie superficielle, les relations restent intactes).
+      const filtre = { ...res }
+      delete filtre.organisationId
+      return filtre
+    }
     if (operation === 'findUniqueOrThrow') {
       throw new Prisma.PrismaClientKnownRequestError('No record found', {
         code: 'P2025',

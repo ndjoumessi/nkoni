@@ -89,8 +89,6 @@ export default {
       saisirVersement: 'Record a payment',
       aucuneContribution:
         'No contribution recorded. Use « Record a payment » to open a year.',
-      contributionsErreur:
-        'Unable to load contributions right now. You can retry or use « Record a payment ».',
       annee: 'Year {{annee}}',
       attendu: 'Expected {{montant}}',
       verse: 'Paid {{montant}}',

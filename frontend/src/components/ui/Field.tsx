@@ -56,6 +56,7 @@ type ControlProps = {
   id?: string
   'aria-invalid'?: boolean | 'true' | 'false'
   'aria-describedby'?: string
+  'aria-required'?: boolean
 }
 
 export function Field({
@@ -88,6 +89,7 @@ export function Field({
       id: controlId,
       'aria-invalid': error ? true : undefined,
       'aria-describedby': description ? descId : undefined,
+      'aria-required': required || undefined,
     })
   }
 

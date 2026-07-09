@@ -25,7 +25,7 @@ export const buttonVariants = cva(
         sm: 'h-8 px-3.5 text-xs',
         md: 'h-10 px-5 text-sm',
         lg: 'h-12 px-7 text-[0.95rem]',
-        icon: 'h-9 w-9',
+        icon: 'h-10 w-10',
       },
     },
     defaultVariants: { variant: 'brass', size: 'md' },

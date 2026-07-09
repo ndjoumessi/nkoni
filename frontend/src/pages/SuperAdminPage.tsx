@@ -1,7 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
-import { Building2, LogOut, PauseCircle, PlayCircle, ShieldAlert } from 'lucide-react'
+import {
+  Building2,
+  CheckCircle2,
+  LogOut,
+  PauseCircle,
+  PlayCircle,
+  Search,
+  ShieldAlert,
+  Users,
+} from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
 import {
   platformApi,
@@ -15,24 +24,99 @@ import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { Modal } from '@/components/ui/Modal'
-import { DataTable, type Column } from '@/components/ui/DataTable'
+import { StatCard } from '@/components/ui/StatCard'
+import { DataTable, type Column, type SortDir } from '@/components/ui/DataTable'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { RowsSkeleton } from '@/components/ui/Skeleton'
 import { NkoniMark } from '@/components/ui/NkoniMark'
-import { formatDate } from '@/lib/utils'
+import { Input } from '@/components/ui/Field'
+import { cn, formatDate } from '@/lib/utils'
 
-/** Format court d'une date de création selon la langue courante (ex. « 4 juil. 2026 »). */
-const DATE_COURTE = { day: 'numeric', month: 'short', year: 'numeric' } as const
+/** Format long pour l'info-bulle (attribut title). */
+const DATE_LONGUE = { day: 'numeric', month: 'long', year: 'numeric' } as const
+
+/** Plafond du forfait gratuit (§5) — base de la visualisation de quota. */
+const LIMITE_FORFAIT_GRATUIT = 100
+
+type FiltreStatut = 'tous' | 'actives' | 'suspendues'
+type ColonneTri = 'organisation' | 'membres' | 'creee' | 'statut'
+
+/** Date relative « il y a 3 j » selon la langue courante (Intl.RelativeTimeFormat). */
+function tempsRelatif(iso: string, langue: string): string {
+  const secondes = Math.round((new Date(iso).getTime() - Date.now()) / 1000)
+  const abs = Math.abs(secondes)
+  const rtf = new Intl.RelativeTimeFormat(langue.startsWith('en') ? 'en' : 'fr', {
+    numeric: 'auto',
+    style: 'short',
+  })
+  const paliers: [Intl.RelativeTimeFormatUnit, number][] = [
+    ['year', 31_536_000],
+    ['month', 2_592_000],
+    ['week', 604_800],
+    ['day', 86_400],
+    ['hour', 3_600],
+    ['minute', 60],
+  ]
+  for (const [unite, taille] of paliers) {
+    if (abs >= taille) return rtf.format(Math.round(secondes / taille), unite)
+  }
+  return rtf.format(0, 'day')
+}
+
+/**
+ * Barre de quota membres / plafond du forfait. Teinte jade (sain), or (≥ 80 %),
+ * terra (plafond atteint). `progressbar` accessible.
+ */
+function QuotaMembres({
+  n,
+  max,
+  ariaLabel,
+  titre,
+}: {
+  n: number
+  max: number
+  ariaLabel: string
+  titre?: string
+}) {
+  const pct = max > 0 ? Math.min(100, Math.round((n / max) * 100)) : 0
+  const atteint = n >= max
+  const proche = !atteint && pct >= 80
+  const barre = atteint ? 'bg-terra' : proche ? 'bg-amber' : 'bg-jade'
+  const compteur = atteint ? 'text-terra' : proche ? 'text-amber' : 'text-foreground'
+  return (
+    <div className="w-full" title={titre}>
+      <div className="flex items-baseline justify-end gap-1">
+        <span className={cn('num text-sm font-medium', compteur)}>{n}</span>
+        <span className="text-xs text-faint">/ {max}</span>
+      </div>
+      <div
+        role="progressbar"
+        aria-valuenow={n}
+        aria-valuemin={0}
+        aria-valuemax={max}
+        aria-label={ariaLabel}
+        className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-surface-2"
+      >
+        <div
+          className={cn('h-full rounded-full transition-all duration-500', barre)}
+          style={{ width: `${Math.max(4, pct)}%` }}
+        />
+      </div>
+    </div>
+  )
+}
 
 /**
  * Console PLATEFORME (SaaS §2.3) — réservée au SUPER_ADMIN (garde SuperAdminRoute).
  *
  * Layout AUTONOME (pas l'AppShell tenant, sans rapport avec une organisation) : gestion des
- * organisations clientes. On peut suspendre (bloque l'accès, AUCUNE donnée supprimée) ou
- * réactiver un espace. Aucune donnée métier n'est exposée : uniquement statut, date et volume.
+ * organisations clientes. Bandeau de KPIs, recherche + filtre par statut, tri des colonnes et
+ * visualisation du quota du forfait. On peut suspendre (bloque l'accès, AUCUNE donnée
+ * supprimée) ou réactiver un espace. Aucune donnée métier n'est exposée : uniquement statut,
+ * date, devise, langue et volume de membres.
  */
 export function SuperAdminPage() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { user, accessToken, logout } = useAuth()
   const toast = useToast()
   const navigate = useNavigate()
@@ -41,6 +125,11 @@ export function SuperAdminPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [pendingId, setPendingId] = useState<string | null>(null)
+
+  // Filtres & tri (client : toutes les données sont chargées → fiable, pas seulement une page).
+  const [recherche, setRecherche] = useState('')
+  const [filtreStatut, setFiltreStatut] = useState<FiltreStatut>('tous')
+  const [tri, setTri] = useState<{ col: ColonneTri; dir: SortDir }>({ col: 'creee', dir: 'desc' })
 
   // Organisation en attente de confirmation de suspension (ouvre la modale).
   const [cibleSuspension, setCibleSuspension] = useState<PlatformOrganisation | null>(null)
@@ -70,18 +159,60 @@ export function SuperAdminPage() {
     }
   }, [accessToken])
 
-  const resume = useMemo(() => {
-    if (!organisations) return undefined
-    const total = organisations.length
-    const actives = organisations.filter((o) => o.actif).length
-    const suspendues = total - actives
-    const parts = [
-      t('superAdmin.resume.organisations', { count: total }),
-      t('superAdmin.resume.actives', { count: actives }),
-    ]
-    if (suspendues > 0) parts.push(t('superAdmin.resume.suspendues', { count: suspendues }))
-    return parts.join(' · ')
-  }, [organisations, t])
+  // KPIs plateforme (sur l'ensemble non filtré).
+  const kpis = useMemo(() => {
+    const liste = organisations ?? []
+    const total = liste.length
+    const actives = liste.filter((o) => o.actif).length
+    return {
+      total,
+      actives,
+      suspendues: total - actives,
+      membres: liste.reduce((somme, o) => somme + o.nbMembres, 0),
+    }
+  }, [organisations])
+
+  // Filtrage (recherche par nom + statut).
+  const filtrees = useMemo(() => {
+    if (!organisations) return []
+    const q = recherche.trim().toLowerCase()
+    return organisations.filter((o) => {
+      if (q && !o.nom.toLowerCase().includes(q)) return false
+      if (filtreStatut === 'actives' && !o.actif) return false
+      if (filtreStatut === 'suspendues' && o.actif) return false
+      return true
+    })
+  }, [organisations, recherche, filtreStatut])
+
+  // Tri client.
+  const triees = useMemo(() => {
+    const cmp = (a: PlatformOrganisation, b: PlatformOrganisation): number => {
+      switch (tri.col) {
+        case 'membres':
+          return a.nbMembres - b.nbMembres
+        case 'creee':
+          return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        case 'statut':
+          return Number(a.actif) - Number(b.actif)
+        default:
+          return a.nom.localeCompare(b.nom)
+      }
+    }
+    const arr = [...filtrees].sort(cmp)
+    return tri.dir === 'desc' ? arr.reverse() : arr
+  }, [filtrees, tri])
+
+  const trierPar = (col: string) =>
+    setTri((prev) =>
+      prev.col === col
+        ? { col: prev.col, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
+        : { col: col as ColonneTri, dir: 'asc' },
+    )
+
+  const resetFiltres = () => {
+    setRecherche('')
+    setFiltreStatut('tous')
+  }
 
   /** Met à jour une organisation dans la liste après une mutation de statut. */
   const appliquerStatut = (id: string, actif: boolean) => {
@@ -129,10 +260,18 @@ export function SuperAdminPage() {
     navigate('/login', { replace: true })
   }
 
+  // Segments du filtre par statut (avec compteurs).
+  const segments: { cle: FiltreStatut; libelle: string; compte: number }[] = [
+    { cle: 'tous', libelle: t('superAdmin.filtres.statutTous'), compte: kpis.total },
+    { cle: 'actives', libelle: t('superAdmin.filtres.statutActives'), compte: kpis.actives },
+    { cle: 'suspendues', libelle: t('superAdmin.filtres.statutSuspendues'), compte: kpis.suspendues },
+  ]
+
   const colonnes: Column<PlatformOrganisation>[] = [
     {
       key: 'organisation',
       header: t('superAdmin.table.organisation'),
+      sortable: true,
       cell: (o) => (
         <div className="min-w-0">
           <p className="truncate font-medium text-foreground">{o.nom}</p>
@@ -145,19 +284,40 @@ export function SuperAdminPage() {
     {
       key: 'membres',
       header: t('superAdmin.table.membres'),
-      width: '7rem',
-      cell: (o) => <span className="tabular-nums text-muted-foreground">{o.nbMembres}</span>,
+      width: '11rem',
+      numeric: true,
+      sortable: true,
+      cell: (o) => (
+        <QuotaMembres
+          n={o.nbMembres}
+          max={LIMITE_FORFAIT_GRATUIT}
+          ariaLabel={t('superAdmin.table.quotaAria', { n: o.nbMembres, max: LIMITE_FORFAIT_GRATUIT })}
+          titre={
+            o.nbMembres >= LIMITE_FORFAIT_GRATUIT
+              ? t('superAdmin.table.quotaAtteint')
+              : o.nbMembres / LIMITE_FORFAIT_GRATUIT >= 0.8
+                ? t('superAdmin.table.quotaProche')
+                : undefined
+          }
+        />
+      ),
     },
     {
       key: 'creee',
       header: t('superAdmin.table.creeeLe'),
-      width: '10rem',
-      cell: (o) => <span className="text-muted-foreground">{formatDate(o.createdAt, DATE_COURTE)}</span>,
+      width: '9rem',
+      sortable: true,
+      cell: (o) => (
+        <span className="text-muted-foreground" title={formatDate(o.createdAt, DATE_LONGUE)}>
+          {tempsRelatif(o.createdAt, i18n.language)}
+        </span>
+      ),
     },
     {
       key: 'statut',
       header: t('superAdmin.table.statut'),
       width: '9rem',
+      sortable: true,
       cell: (o) =>
         o.actif ? (
           <Badge tone="jade" size="sm" dot>
@@ -227,10 +387,85 @@ export function SuperAdminPage() {
         <PageHeader
           overline={t('superAdmin.header.overline')}
           title={t('superAdmin.header.titre')}
-          description={resume}
         />
 
-        <div className="nk-reveal nk-d2 mt-7">
+        {/* Bandeau de KPIs. */}
+        <div className="nk-reveal nk-d1 mt-7 grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <StatCard
+            icon={Building2}
+            label={t('superAdmin.kpi.organisations')}
+            value={loading ? '—' : String(kpis.total)}
+          />
+          <StatCard
+            icon={CheckCircle2}
+            tone="jade"
+            label={t('superAdmin.kpi.actives')}
+            value={loading ? '—' : String(kpis.actives)}
+            hint={loading ? undefined : t('superAdmin.kpi.activesHint')}
+          />
+          <StatCard
+            icon={PauseCircle}
+            label={t('superAdmin.kpi.suspendues')}
+            value={loading ? '—' : String(kpis.suspendues)}
+            hint={loading ? undefined : t('superAdmin.kpi.suspenduesHint')}
+          />
+          <StatCard
+            icon={Users}
+            tone="brass"
+            label={t('superAdmin.kpi.membres')}
+            value={loading ? '—' : String(kpis.membres)}
+            hint={loading ? undefined : t('superAdmin.kpi.membresHint')}
+          />
+        </div>
+
+        {/* Toolbar : recherche + filtre par statut. */}
+        <div className="nk-reveal nk-d2 mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="relative w-full sm:max-w-xs">
+            <Search
+              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-faint"
+              aria-hidden="true"
+            />
+            <Input
+              type="search"
+              value={recherche}
+              onChange={(e) => setRecherche(e.target.value)}
+              placeholder={t('superAdmin.filtres.recherche')}
+              aria-label={t('superAdmin.filtres.rechercheLabel')}
+              className="pl-9"
+            />
+          </div>
+
+          <div
+            role="group"
+            aria-label={t('superAdmin.filtres.statutLabel')}
+            className="inline-flex shrink-0 rounded-xl border border-hairline-strong bg-surface-2/70 p-0.5"
+          >
+            {segments.map((seg) => {
+              const actif = filtreStatut === seg.cle
+              return (
+                <button
+                  key={seg.cle}
+                  type="button"
+                  aria-pressed={actif}
+                  onClick={() => setFiltreStatut(seg.cle)}
+                  className={cn(
+                    'inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brass/60',
+                    actif
+                      ? 'bg-surface text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  {seg.libelle}
+                  <span className={cn('num text-[0.7rem]', actif ? 'text-brass' : 'text-faint')}>
+                    {seg.compte}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        <div className="nk-reveal nk-d3 mt-5">
           {loading && (
             <Card className="overflow-hidden p-0">
               <RowsSkeleton rows={5} />
@@ -250,13 +485,29 @@ export function SuperAdminPage() {
             />
           )}
 
-          {!loading && !error && organisations && organisations.length > 0 && (
+          {!loading && !error && organisations && organisations.length > 0 && triees.length === 0 && (
+            <EmptyState
+              icon={Search}
+              title={t('superAdmin.vide.aucunResultatTitre')}
+              description={t('superAdmin.vide.aucunResultatDescription')}
+              className="min-h-[30vh] justify-center"
+              action={
+                <Button variant="ghost" size="sm" onClick={resetFiltres}>
+                  {t('superAdmin.vide.reinitialiser')}
+                </Button>
+              }
+            />
+          )}
+
+          {!loading && !error && triees.length > 0 && (
             <Card className="overflow-hidden p-0">
               <DataTable
                 caption={t('superAdmin.table.caption')}
                 columns={colonnes}
-                rows={organisations}
+                rows={triees}
                 rowKey={(o) => o.id}
+                sort={tri}
+                onSort={trierPar}
               />
             </Card>
           )}

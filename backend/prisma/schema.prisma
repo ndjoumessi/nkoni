@@ -99,6 +99,7 @@ model Organisation {
   documents            Document[]
   auditLogs            AuditLog[]
   notifications        Notification[]
+  depenses             Depense[]
 }
 
 model Utilisateur {
@@ -126,6 +127,8 @@ model Utilisateur {
   documentsTeleverses  Document[]     @relation("DocumentTeleversePar") // V2 §5
   auditsActeur         AuditLog[]     @relation("AuditActeur") // V2 §5 — écritures tracées
   notifications        Notification[] @relation("NotificationDestinataire") // V2 §5 — notifs reçues
+  depensesSaisies      Depense[]      @relation("DepenseSaisiPar") // Trésorerie — dépenses saisies
+  depensesApprouvees   Depense[]      @relation("DepenseApprouvePar") // Trésorerie — dépenses approuvées/rejetées
   // Préférences de notification par type. null / clé absente = ACTIVÉ (défaut : tout activé,
   // rétrocompatible). Un type est désactivé seulement si explicitement { "TYPE": false }.
   notificationsActives Json?
@@ -173,6 +176,7 @@ model Membre {
   affectationsFonction     AffectationFonction[] // V1.1 — nominations (actives + passées)
   conflitsConcernes        ConflitMembreConcerne[] // V2 §4.4 (join explicite, scopé org)
   commemorationsConcernees CommemorationMembreConcerne[] // V2 (join explicite, scopé org)
+  depensesBeneficiaire     Depense[]                     @relation("DepenseBeneficiaire") // Trésorerie — aides reçues
   createdAt                DateTime                      @default(now())
   updatedAt                DateTime                      @updatedAt
 
@@ -642,4 +646,53 @@ model Notification {
   @@index([destinataireId, lu])
   @@index([destinataireId, type, dateCreation]) // pour l'anti-spam COTISATION_RETARD (< 7 j)
   @@index([organisationId])
+}
+
+// ---------------------------------------------------------------------------
+// Trésorerie / dépenses (§5) — SORTIES de caisse, en regard des Versements (entrées).
+//
+// Workflow d'approbation : BROUILLON → EN_ATTENTE → APPROUVEE | REJETEE → PAYEE.
+// SOLDE DE CAISSE = Σ Versements − Σ Dépenses (APPROUVEE + PAYEE) — cf. tresorerie.service.
+// Modèle SCOPÉ (organisationId) + audité. Écritures en FK SCALAIRES (extension d'isolation).
+// ---------------------------------------------------------------------------
+
+enum StatutDepense {
+  BROUILLON
+  EN_ATTENTE
+  APPROUVEE
+  REJETEE
+  PAYEE
+}
+
+enum CategorieDepense {
+  AIDE_MEMBRE
+  FUNERAILLES
+  EVENEMENT
+  FONCTIONNEMENT
+  AUTRE
+}
+
+model Depense {
+  id                   String           @id @default(uuid())
+  organisationId       String
+  organisation         Organisation     @relation(fields: [organisationId], references: [id])
+  montant              Int
+  date                 DateTime
+  description          String
+  categorie            CategorieDepense @default(AUTRE)
+  statut               StatutDepense    @default(BROUILLON)
+  // Bénéficiaire optionnel (ex. aide à un membre). Relation non contrainte au cycle de vie.
+  beneficiaireMembreId String?
+  beneficiaireMembre   Membre?          @relation("DepenseBeneficiaire", fields: [beneficiaireMembreId], references: [id])
+  // Auteur de la saisie (obligatoire) et approbateur (renseigné à l'approbation/rejet).
+  saisiParId           String
+  saisiPar             Utilisateur      @relation("DepenseSaisiPar", fields: [saisiParId], references: [id])
+  approuveParId        String?
+  approuvePar          Utilisateur?     @relation("DepenseApprouvePar", fields: [approuveParId], references: [id])
+  motifRejet           String?
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+
+  @@index([organisationId, statut])
+  @@index([organisationId, date])
 }

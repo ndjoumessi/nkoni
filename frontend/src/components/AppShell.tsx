@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
   BarChart3,
+  Wallet,
   CalendarRange,
   Flame,
   Gavel,
@@ -30,6 +31,7 @@ import {
   peutVoirConflits,
   peutVoirCommemorations,
   peutVoirRapports,
+  peutVoirTresorerie,
   peutVoirAudit,
   peutVoirParametres,
 } from '@/lib/roles'
@@ -72,6 +74,9 @@ function useNavItems(): NavItem[] {
   }
   if (peutVoirRapports(user?.role)) {
     items.push({ to: '/rapports', label: t('shell.nav.rapports'), icon: BarChart3 })
+  }
+  if (peutVoirTresorerie(user?.role)) {
+    items.push({ to: '/tresorerie', label: t('shell.nav.tresorerie'), icon: Wallet })
   }
   if (peutGererUtilisateurs(user?.role)) {
     items.push({ to: '/utilisateurs', label: t('shell.nav.utilisateurs'), icon: ShieldUser })

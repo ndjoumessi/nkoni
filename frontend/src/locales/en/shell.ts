@@ -7,6 +7,7 @@ export default {
       tableauDeBord: 'Dashboard',
       maFiche: 'My record',
       monEspace: 'My space',
+      tresorerie: 'Treasury',
       membres: 'Members',
       reunions: 'Meetings',
       fonctions: 'Positions',

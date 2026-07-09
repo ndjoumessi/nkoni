@@ -52,7 +52,7 @@ import { orgContext } from './org-context'
  */
 export type CreationScopee<T> = Omit<T, 'organisationId' | 'organisation'>
 
-/** Les 22 modèles métier scopés par organisation (tous portent `organisationId`).
+/** Les 23 modèles métier scopés par organisation (tous portent `organisationId`).
  *  Inclut les 2 tables de jointure M2M explicites (Conflit/Commémoration ↔ Membre) :
  *  leurs liens sont créés/lus via des opérations scopées, pas via un M2M implicite. */
 export const SCOPED_MODELS = new Set<string>([
@@ -78,6 +78,7 @@ export const SCOPED_MODELS = new Set<string>([
   'Document',
   'AuditLog',
   'Notification',
+  'Depense',
 ])
 
 /** Levée quand une requête scopée n'a pas de contexte org valide, ou vise une autre org. */

@@ -27,6 +27,7 @@ function mockBase(before: unknown = null) {
     'equilibrageContribution',
     'utilisateur',
     'conflit',
+    'depense',
     'brancheFamiliale',
   ]
   for (const a of accessors) base[a] = { findUnique: async () => before }
@@ -85,7 +86,7 @@ describe('filtrerDonnees — filtrage des snapshots', () => {
 })
 
 describe('doitAuditer — périmètre', () => {
-  it('audite create/update/delete sur les 6 entités', () => {
+  it('audite create/update/delete sur les 7 entités', () => {
     for (const m of MODELES_AUDITES)
       for (const op of ['create', 'update', 'delete']) expect(doitAuditer(m, op), `${m}/${op}`).toBe(true)
   })
@@ -99,7 +100,7 @@ describe('doitAuditer — périmètre', () => {
 })
 
 describe('intercepterAudit — capture create/update/delete', () => {
-  it('chacune des 6 entités crée une entrée avec les bons avant/après', async () => {
+  it('chacune des 7 entités crée une entrée avec les bons avant/après', async () => {
     for (const model of MODELES_AUDITES) {
       // CREATE
       {

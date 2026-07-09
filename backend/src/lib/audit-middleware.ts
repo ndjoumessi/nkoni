@@ -27,6 +27,7 @@ export const MODELES_AUDITES = new Set<string>([
   'EquilibrageContribution',
   'Utilisateur',
   'Conflit',
+  'Depense',
 ])
 
 const OPERATIONS_AUDITEES = new Set<string>(['create', 'update', 'delete'])

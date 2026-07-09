@@ -64,6 +64,25 @@ export function peutGererBareme(role: string | undefined): boolean {
  */
 const LECTURE_RAPPORTS = ['ADMIN', 'PRESIDENT', 'TRESORIERE', 'COMMISSAIRE_COMPTES']
 
+/** Trésorerie / dépenses (§5) — miroir des rôles backend (matrice Depense + workflow). */
+const LECTURE_DEPENSE = ['ADMIN', 'PRESIDENT', 'TRESORIERE', 'COMMISSAIRE_COMPTES', 'SECRETAIRE']
+const GESTION_DEPENSE = ['ADMIN', 'PRESIDENT', 'TRESORIERE']
+const APPROBATION_DEPENSE = ['ADMIN', 'PRESIDENT', 'COMMISSAIRE_COMPTES']
+const PAIEMENT_DEPENSE = ['ADMIN', 'PRESIDENT', 'TRESORIERE']
+
+export function peutVoirTresorerie(role: string | undefined): boolean {
+  return role !== undefined && LECTURE_DEPENSE.includes(role)
+}
+export function peutGererDepense(role: string | undefined): boolean {
+  return role !== undefined && GESTION_DEPENSE.includes(role)
+}
+export function peutApprouverDepense(role: string | undefined): boolean {
+  return role !== undefined && APPROBATION_DEPENSE.includes(role)
+}
+export function peutMarquerPayee(role: string | undefined): boolean {
+  return role !== undefined && PAIEMENT_DEPENSE.includes(role)
+}
+
 /** Peut consulter la page Rapports financiers (nav + page). */
 export function peutVoirRapports(role: string | undefined): boolean {
   return role !== undefined && LECTURE_RAPPORTS.includes(role)

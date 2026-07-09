@@ -14,6 +14,7 @@ import dashboard from './dashboard'
 import membres from './membres'
 import importMembres from './import'
 import monEspace from './monEspace'
+import tresorerie from './tresorerie'
 import branches from './branches'
 import versements from './versements'
 import equilibrages from './equilibrages'
@@ -43,6 +44,7 @@ const en: Catalogue = {
   ...membres,
   ...importMembres,
   ...monEspace,
+  ...tresorerie,
   ...branches,
   ...versements,
   ...equilibrages,

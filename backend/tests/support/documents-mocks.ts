@@ -103,7 +103,8 @@ export function buildDocumentsMock(options: DocumentsMockOptions = {}) {
           tailleOctets: args.data.tailleOctets,
           entiteType: args.data.entiteType,
           entiteId: args.data.entiteId,
-          televerseParId: args.data.televersePar.connect.id,
+          // FK scalaire (forme unchecked, comme le vrai create) ; repli sur l'ancienne forme relation.
+          televerseParId: args.data.televerseParId ?? args.data.televersePar?.connect?.id,
           dateTeleversement: now,
           createdAt: now,
           seq: ++seq,

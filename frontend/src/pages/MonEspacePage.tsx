@@ -4,6 +4,7 @@ import { Wallet, ArrowDownCircle, CircleDollarSign, CalendarDays, FileText, Down
 import { useAuth } from '@/contexts/auth-context'
 import {
   moiApi,
+  recusApi,
   ApiError,
   type SituationMembre,
   type ContributionMembre,
@@ -12,6 +13,7 @@ import {
 } from '@/lib/api'
 import { formatMontant } from '@/lib/format'
 import { formatDate } from '@/lib/utils'
+import { useToast } from '@/components/ui/Toast'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, Overline } from '@/components/ui/Card'
 import { StatCard } from '@/components/ui/StatCard'
@@ -26,6 +28,7 @@ import type { StatutContribution, StatutMembre } from '@/lib/api'
 export function MonEspacePage() {
   const { t } = useTranslation()
   const { accessToken } = useAuth()
+  const toast = useToast()
 
   const [situation, setSituation] = useState<SituationMembre | null>(null)
   const [contributions, setContributions] = useState<ContributionMembre[]>([])
@@ -96,6 +99,18 @@ export function MonEspacePage() {
   const { membre, cotisation } = situation
   const reste = Math.max(0, cotisation.totalDu - cotisation.totalVerse)
 
+  const telechargerRecu = async (recuId: string) => {
+    if (!accessToken) return
+    try {
+      const blob = await recusApi.telecharger(recuId, accessToken)
+      const url = URL.createObjectURL(blob)
+      window.open(url, '_blank', 'noopener')
+      setTimeout(() => URL.revokeObjectURL(url), 60_000)
+    } catch (e) {
+      toast.error(t('monEspace.recus.indisponible'), e instanceof ApiError ? e.message : '')
+    }
+  }
+
   const colContributions: Column<ContributionMembre>[] = [
     { key: 'annee', header: t('monEspace.contributions.annee'), numeric: true, cell: (c) => c.annee },
     { key: 'attendu', header: t('monEspace.contributions.attendu'), numeric: true, cell: (c) => formatMontant(c.montantAttendu) },
@@ -118,7 +133,7 @@ export function MonEspacePage() {
       align: 'right',
       cell: (r) =>
         r.telechargeable ? (
-          <Button type="button" variant="ghost" size="sm" icon={Download}>
+          <Button type="button" variant="ghost" size="sm" icon={Download} onClick={() => telechargerRecu(r.id)}>
             {t('monEspace.recus.telecharger')}
           </Button>
         ) : (

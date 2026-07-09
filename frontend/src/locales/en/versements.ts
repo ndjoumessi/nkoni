@@ -58,6 +58,15 @@ export default {
       recuNumero: 'No. {{numero}}',
       generationImpossible: 'Generation failed',
       generationEchec: 'Failed to generate the receipt.',
+      telechargementImpossible: 'Download failed',
+      whatsappEnvoye: 'Receipt sent on WhatsApp',
+      whatsappNonEnvoye: 'WhatsApp sending failed',
+      whatsappRaison: {
+        sansTelephone: 'The member has no phone number.',
+        desactive: 'The member disabled these notifications.',
+        clientIndisponible: 'WhatsApp is not configured on the server.',
+        echecEnvoi: 'Sending failed, try again later.',
+      },
     },
     liste: {
       chargement: 'Loading payments…',
@@ -65,6 +74,8 @@ export default {
       aucun: 'No payment for this year.',
       recu: 'Receipt {{numero}}',
       generer: 'Generate the receipt',
+      telecharger: 'Download',
+      whatsapp: 'WhatsApp',
     },
   },
 }

@@ -893,6 +893,21 @@ export const recusApi = {
       method: 'POST',
       accessToken,
     }),
+  /** Télécharge le PDF du reçu via le proxy authentifié (généré à la demande, Blob privé). */
+  telecharger: async (recuId: string, accessToken: string): Promise<Blob> => {
+    const res = await fetch(`${API_URL}/recus/${rid(recuId)}/pdf`, {
+      credentials: 'include',
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+    await leverSiErreur(res)
+    return res.blob()
+  },
+  /** Envoie le reçu au membre par WhatsApp (best-effort côté serveur). */
+  envoyerWhatsApp: (recuId: string, accessToken: string) =>
+    request<{ envoye: boolean; raison?: string }>(`/recus/${rid(recuId)}/whatsapp`, {
+      method: 'POST',
+      accessToken,
+    }),
 }
 
 /* -------------------------------------------------------------------------- */

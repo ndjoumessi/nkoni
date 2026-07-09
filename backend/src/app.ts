@@ -6,6 +6,7 @@ import { env, isProd } from './lib/env'
 import { prisma as defaultPrisma, type PrismaClient } from './lib/prisma'
 import { vercelBlobClient } from './lib/blob'
 import type { BlobClient } from './services/document.service'
+import { vraiWhatsAppClient, type WhatsAppClient } from './services/whatsapp.service'
 import { registerJwt } from './plugins/jwt'
 import { authRoutes } from './routes/auth.route'
 import { organisationsRoutes } from './routes/organisations.route'
@@ -40,6 +41,7 @@ declare module 'fastify' {
   interface FastifyInstance {
     prisma: PrismaClient
     blob: BlobClient
+    whatsapp: WhatsAppClient
   }
 }
 
@@ -48,6 +50,8 @@ export interface BuildAppOptions {
   prisma?: PrismaClient
   /** Client Blob à utiliser (mock en test). Défaut : Vercel Blob réel. */
   blob?: BlobClient
+  /** Client WhatsApp à utiliser (mock en test). Défaut : Meta Cloud API réel (no-op sans env). */
+  whatsapp?: WhatsAppClient
   /** Active le logger Fastify. Défaut : true (désactivable en test). */
   logger?: boolean
 }
@@ -60,6 +64,7 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
 
   app.decorate('prisma', opts.prisma ?? defaultPrisma)
   app.decorate('blob', opts.blob ?? vercelBlobClient)
+  app.decorate('whatsapp', opts.whatsapp ?? vraiWhatsAppClient)
 
   // Contextes ALS par requête : audit (acteur, V2 §5) et organisation (isolation SaaS §2.2).
   // L'acteur et l'organisation sont renseignés ensuite par `authenticate` (après vérif JWT),

@@ -58,6 +58,15 @@ export default {
       recuNumero: 'N° {{numero}}',
       generationImpossible: 'Génération impossible',
       generationEchec: 'Échec de la génération du reçu.',
+      telechargementImpossible: 'Téléchargement impossible',
+      whatsappEnvoye: 'Reçu envoyé sur WhatsApp',
+      whatsappNonEnvoye: 'Envoi WhatsApp impossible',
+      whatsappRaison: {
+        sansTelephone: 'Le membre n’a pas de numéro de téléphone.',
+        desactive: 'Le membre a désactivé ces notifications.',
+        clientIndisponible: 'WhatsApp n’est pas configuré côté serveur.',
+        echecEnvoi: 'L’envoi a échoué, réessayez plus tard.',
+      },
     },
     liste: {
       chargement: 'Chargement des versements…',
@@ -65,6 +74,8 @@ export default {
       aucun: 'Aucun versement pour cette année.',
       recu: 'Reçu {{numero}}',
       generer: 'Générer le reçu',
+      telecharger: 'Télécharger',
+      whatsapp: 'WhatsApp',
     },
   },
 }

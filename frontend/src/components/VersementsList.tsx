@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { FileText, Loader2 } from 'lucide-react'
+import { FileText, Loader2, Download, Send } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
 import {
   versementsApi,
@@ -9,6 +9,7 @@ import {
   type Versement,
   type Recu,
 } from '@/lib/api'
+import { peutSaisirVersement } from '@/lib/roles'
 import { formatMontant } from '@/lib/format'
 import { formatDate } from '@/lib/utils'
 import { useToast } from '@/components/ui/Toast'
@@ -31,13 +32,15 @@ export function VersementsList({
   membreId: string
 }) {
   const { t } = useTranslation()
-  const { accessToken } = useAuth()
+  const { accessToken, user } = useAuth()
   const toast = useToast()
   const [versements, setVersements] = useState<Versement[]>([])
   const [recus, setRecus] = useState<Map<string, Recu>>(new Map())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [generating, setGenerating] = useState<string | null>(null)
+  const [whatsapping, setWhatsapping] = useState<string | null>(null)
+  const peutEnvoyer = peutSaisirVersement(user?.role)
 
   useEffect(() => {
     if (!accessToken) return
@@ -85,6 +88,32 @@ export function VersementsList({
     }
   }
 
+  const telecharger = async (recuId: string) => {
+    if (!accessToken) return
+    try {
+      const blob = await recusApi.telecharger(recuId, accessToken)
+      const url = URL.createObjectURL(blob)
+      window.open(url, '_blank', 'noopener')
+      setTimeout(() => URL.revokeObjectURL(url), 60_000)
+    } catch (e) {
+      toast.error(t('versements.toast.telechargementImpossible'), e instanceof ApiError ? e.message : '')
+    }
+  }
+
+  const envoyerWhatsApp = async (recuId: string) => {
+    if (!accessToken) return
+    setWhatsapping(recuId)
+    try {
+      const res = await recusApi.envoyerWhatsApp(recuId, accessToken)
+      if (res.envoye) toast.success(t('versements.toast.whatsappEnvoye'))
+      else toast.error(t('versements.toast.whatsappNonEnvoye'), t(`versements.toast.whatsappRaison.${res.raison ?? 'echecEnvoi'}`))
+    } catch (e) {
+      toast.error(t('versements.toast.whatsappNonEnvoye'), e instanceof ApiError ? e.message : '')
+    } finally {
+      setWhatsapping(null)
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center gap-2 px-4 py-3 text-sm text-muted-foreground">
@@ -121,10 +150,26 @@ export function VersementsList({
               {v.note && <p className="mt-0.5 truncate text-xs text-faint">{v.note}</p>}
             </div>
             {recu ? (
-              <Badge tone="jade" size="sm">
-                <FileText className="h-3.5 w-3.5" aria-hidden="true" />
-                {t('versements.liste.recu', { numero: recu.numero })}
-              </Badge>
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge tone="jade" size="sm">
+                  <FileText className="h-3.5 w-3.5" aria-hidden="true" />
+                  {t('versements.liste.recu', { numero: recu.numero })}
+                </Badge>
+                <Button variant="ghost" size="sm" icon={Download} onClick={() => telecharger(recu.id)}>
+                  {t('versements.liste.telecharger')}
+                </Button>
+                {peutEnvoyer && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    icon={Send}
+                    loading={whatsapping === recu.id}
+                    onClick={() => envoyerWhatsApp(recu.id)}
+                  >
+                    {t('versements.liste.whatsapp')}
+                  </Button>
+                )}
+              </div>
             ) : (
               <Button
                 variant="outline"

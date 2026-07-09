@@ -149,17 +149,23 @@ export function buildDocumentsMock(options: DocumentsMockOptions = {}) {
 export function buildBlobMock() {
   const puts: Array<{ pathname: string; url: string; size: number }> = []
   const dels: string[] = []
+  // Contenu stocké par URL : alimenté par `put`, relu par `lireContenu` (proxy de téléchargement).
+  // Exposé pour préensemencer un contenu dans les tests de téléchargement sans passer par un upload.
+  const contenus = new Map<string, Buffer>()
   const client = {
     put: async (pathname: string, data: Buffer, _opts: { contentType: string }) => {
       const url = `https://blob.test/${pathname}`
       puts.push({ pathname, url, size: data.length })
+      contenus.set(url, Buffer.from(data))
       return { url }
     },
     del: async (url: string) => {
       dels.push(url)
+      contenus.delete(url)
     },
+    lireContenu: async (url: string) => contenus.get(url) ?? null,
   }
-  return { client, puts, dels }
+  return { client, puts, dels, contenus }
 }
 
 /* Buffers valides minimaux par type (magic bytes). */

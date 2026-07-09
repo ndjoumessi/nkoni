@@ -190,6 +190,12 @@ export interface DocumentPrisma {
 export interface BlobClient {
   put(pathname: string, data: Buffer, opts: { contentType: string }): Promise<{ url: string }>
   del(url: string): Promise<void>
+  /**
+   * Lit le CONTENU d'un blob par son URL (store PRIVÉ → authentifié par token, jamais d'URL
+   * publique). Renvoie le buffer, ou `null` si le blob est indisponible (absent / non modifié).
+   * Utilisé par le proxy de téléchargement authentifié (l'URL brute n'est jamais exposée).
+   */
+  lireContenu(url: string): Promise<Buffer | null>
 }
 
 /** Métadonnées exposées au client (SANS l'url brute du blob). */

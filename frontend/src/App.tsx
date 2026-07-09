@@ -1,41 +1,55 @@
+import { lazy, Suspense } from 'react'
 import { Routes, Route, Outlet } from 'react-router-dom'
+// Pages du PREMIER RENDU / publiques → import STATIQUE (elles doivent s'afficher sans aller-retour
+// réseau : landing, connexion, inscription sont la porte d'entrée avant toute session).
 import LandingPage from '@/pages/LandingPage'
 import LoginPage from '@/pages/LoginPage'
 import InscriptionPage from '@/pages/InscriptionPage'
-import DashboardPage from '@/pages/DashboardPage'
-import MembresPage from '@/pages/MembresPage'
-import MembreFormPage from '@/pages/MembreFormPage'
-import MembreDetailPage from '@/pages/MembreDetailPage'
-import VersementFormPage from '@/pages/VersementFormPage'
-import EquilibrageFormPage from '@/pages/EquilibrageFormPage'
-import BaremePage from '@/pages/BaremePage'
-import RapportsPage from '@/pages/RapportsPage'
-import UtilisateursPage from '@/pages/UtilisateursPage'
-import MonProfilPage from '@/pages/MonProfilPage'
-import ParametresPage from '@/pages/ParametresPage'
-import ReunionsPage from '@/pages/ReunionsPage'
-import ReunionFormPage from '@/pages/ReunionFormPage'
-import ReunionDetailPage from '@/pages/ReunionDetailPage'
-import FonctionsPage from '@/pages/FonctionsPage'
-import FonctionDetailPage from '@/pages/FonctionDetailPage'
-import ConflitsPage from '@/pages/ConflitsPage'
-import ConflitFormPage from '@/pages/ConflitFormPage'
-import ConflitDetailPage from '@/pages/ConflitDetailPage'
-import CommemorationsPage from '@/pages/CommemorationsPage'
-import CommemorationFormPage from '@/pages/CommemorationFormPage'
-import CommemorationDetailPage from '@/pages/CommemorationDetailPage'
-import AuditLogPage from '@/pages/AuditLogPage'
-import SuperAdminPage from '@/pages/SuperAdminPage'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { SuperAdminRoute } from '@/components/SuperAdminRoute'
 import { AppShell } from '@/components/AppShell'
+import { RouteFallback } from '@/components/RouteFallback'
 
-/** Layout des pages authentifiées : garde d'accès + coquille d'application. */
+/**
+ * CODE-SPLITTING PAR ROUTE — la console plateforme et toutes les pages tenant sont chargées en
+ * `lazy()` : chacune part dans son propre chunk, sorti du bundle initial (seules les pages
+ * publiques ci-dessus y restent). Le `Suspense` de chaque zone affiche `RouteFallback` le temps
+ * du chargement du chunk. Toutes les pages exportent un défaut → `import('@/pages/X')` direct.
+ */
+const SuperAdminPage = lazy(() => import('@/pages/SuperAdminPage'))
+const DashboardPage = lazy(() => import('@/pages/DashboardPage'))
+const MembresPage = lazy(() => import('@/pages/MembresPage'))
+const MembreFormPage = lazy(() => import('@/pages/MembreFormPage'))
+const MembreDetailPage = lazy(() => import('@/pages/MembreDetailPage'))
+const VersementFormPage = lazy(() => import('@/pages/VersementFormPage'))
+const EquilibrageFormPage = lazy(() => import('@/pages/EquilibrageFormPage'))
+const BaremePage = lazy(() => import('@/pages/BaremePage'))
+const RapportsPage = lazy(() => import('@/pages/RapportsPage'))
+const UtilisateursPage = lazy(() => import('@/pages/UtilisateursPage'))
+const MonProfilPage = lazy(() => import('@/pages/MonProfilPage'))
+const ParametresPage = lazy(() => import('@/pages/ParametresPage'))
+const ReunionsPage = lazy(() => import('@/pages/ReunionsPage'))
+const ReunionFormPage = lazy(() => import('@/pages/ReunionFormPage'))
+const ReunionDetailPage = lazy(() => import('@/pages/ReunionDetailPage'))
+const FonctionsPage = lazy(() => import('@/pages/FonctionsPage'))
+const FonctionDetailPage = lazy(() => import('@/pages/FonctionDetailPage'))
+const ConflitsPage = lazy(() => import('@/pages/ConflitsPage'))
+const ConflitFormPage = lazy(() => import('@/pages/ConflitFormPage'))
+const ConflitDetailPage = lazy(() => import('@/pages/ConflitDetailPage'))
+const CommemorationsPage = lazy(() => import('@/pages/CommemorationsPage'))
+const CommemorationFormPage = lazy(() => import('@/pages/CommemorationFormPage'))
+const CommemorationDetailPage = lazy(() => import('@/pages/CommemorationDetailPage'))
+const AuditLogPage = lazy(() => import('@/pages/AuditLogPage'))
+
+/** Layout des pages authentifiées : garde d'accès + coquille d'application. Le `Suspense` entoure
+ *  l'`Outlet` → l'`AppShell` (nav) reste affichée pendant le chargement du chunk de page. */
 function ProtectedLayout() {
   return (
     <ProtectedRoute>
       <AppShell>
-        <Outlet />
+        <Suspense fallback={<RouteFallback />}>
+          <Outlet />
+        </Suspense>
       </AppShell>
     </ProtectedRoute>
   )
@@ -53,7 +67,9 @@ function App() {
         path="/super-admin"
         element={
           <SuperAdminRoute>
-            <SuperAdminPage />
+            <Suspense fallback={<RouteFallback pleinEcran />}>
+              <SuperAdminPage />
+            </Suspense>
           </SuperAdminRoute>
         }
       />

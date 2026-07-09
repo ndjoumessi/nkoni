@@ -45,13 +45,15 @@ interface NavItem {
 function useNavItems(): NavItem[] {
   const { user } = useAuth()
   const { t } = useTranslation()
+
+  // MEMBRE_SIMPLE : navigation RÉDUITE à son espace self-service (pas d'accès gestion).
+  if (estMembreSimple(user?.role)) {
+    return [{ to: '/mon-espace', label: t('shell.nav.monEspace'), icon: LayoutDashboard }]
+  }
+
   const items: NavItem[] = [
     { to: '/dashboard', label: t('shell.nav.tableauDeBord'), icon: LayoutDashboard },
-    {
-      to: '/membres',
-      label: estMembreSimple(user?.role) ? t('shell.nav.maFiche') : t('shell.nav.membres'),
-      icon: Users,
-    },
+    { to: '/membres', label: t('shell.nav.membres'), icon: Users },
   ]
   if (peutVoirReunions(user?.role)) {
     items.push({ to: '/reunions', label: t('shell.nav.reunions'), icon: Gavel })

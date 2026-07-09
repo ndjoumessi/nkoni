@@ -6,6 +6,7 @@ export default {
       titre: 'Navigation',
       tableauDeBord: 'Tableau de bord',
       maFiche: 'Ma fiche',
+      monEspace: 'Mon espace',
       membres: 'Membres',
       reunions: 'Réunions',
       fonctions: 'Fonctions',

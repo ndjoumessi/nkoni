@@ -12,6 +12,7 @@ import { messages as platformMsgs } from './platform'
 import { messages as notificationsMsgs } from './notifications'
 import { messages as membresMsgs } from './membres'
 import { messages as importMsgs } from './import'
+import { messages as monEspaceMsgs } from './monEspace'
 import { messages as branchesMsgs } from './branches'
 import { messages as fonctionsMsgs } from './fonctions'
 import { messages as affectationsMsgs } from './affectations'
@@ -40,6 +41,7 @@ export const en: Messages = {
   ...notificationsMsgs,
   ...membresMsgs,
   ...importMsgs,
+  ...monEspaceMsgs,
   ...branchesMsgs,
   ...fonctionsMsgs,
   ...affectationsMsgs,

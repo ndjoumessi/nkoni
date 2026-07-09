@@ -18,6 +18,7 @@ import { RouteFallback } from '@/components/RouteFallback'
  */
 const SuperAdminPage = lazy(() => import('@/pages/SuperAdminPage'))
 const DashboardPage = lazy(() => import('@/pages/DashboardPage'))
+const MonEspacePage = lazy(() => import('@/pages/MonEspacePage'))
 const MembresPage = lazy(() => import('@/pages/MembresPage'))
 const ImportMembresPage = lazy(() => import('@/pages/ImportMembresPage'))
 const MembreFormPage = lazy(() => import('@/pages/MembreFormPage'))
@@ -78,6 +79,7 @@ function App() {
       {/* Pages authentifiées, dans la coquille NKONI. Routes statiques avant /membres/:id. */}
       <Route element={<ProtectedLayout />}>
         <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/mon-espace" element={<MonEspacePage />} />
         <Route path="/bareme" element={<BaremePage />} />
         <Route path="/rapports" element={<RapportsPage />} />
         <Route path="/utilisateurs" element={<UtilisateursPage />} />

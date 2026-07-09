@@ -21,7 +21,6 @@ import {
   peutEquilibrer,
   peutGererDocument,
 } from '@/lib/roles'
-import { accesFinancierApresErreur } from '@/lib/membres'
 import { DocumentsSection } from '@/components/documents/DocumentsSection'
 import { StatutCotisationBadge, StatutMembreBadge } from '@/components/membres/StatutBadges'
 import { VersementsList } from '@/components/VersementsList'
@@ -58,7 +57,6 @@ export function MembreDetailPage() {
   const [statut, setStatut] = useState<StatutCumule | null>(null)
   const [contributions, setContributions] = useState<Contribution[]>([])
   const [financierAccessible, setFinancierAccessible] = useState(false)
-  const [financierErreur, setFinancierErreur] = useState(false)
   const [equilibrages, setEquilibrages] = useState<Equilibrage[] | null>(null)
   const [branches, setBranches] = useState<Branche[]>([])
   const [loading, setLoading] = useState(true)
@@ -91,9 +89,8 @@ export function MembreDetailPage() {
         return
       }
 
-      // Contributions : pilote la VISIBILITÉ de la carte. 403 → pas d'accès (carte masquée) ;
-      // toute autre erreur → carte visible en état d'erreur (on ne masque plus en silence le point
-      // d'entrée « Saisir un versement » — cas (a)).
+      // Contributions : pilote la VISIBILITÉ de la carte financière (lecture `Contribution`).
+      // Succès → carte visible ; 403 (pas de droit, ex. SECRETAIRE) ou erreur → carte masquée.
       try {
         const c = await contributionsApi.listByMembre(id, accessToken, signal)
         if (active) {
@@ -102,11 +99,7 @@ export function MembreDetailPage() {
         }
       } catch (e) {
         if (e instanceof DOMException && e.name === 'AbortError') return
-        if (active) {
-          const acces = accesFinancierApresErreur(e)
-          setFinancierAccessible(acces.visible)
-          setFinancierErreur(acces.erreur)
-        }
+        /* pas d'accès financier (ex. SECRETAIRE) ou erreur de lecture → carte masquée */
       }
 
       // Statut cumulatif : AUXILIAIRE (badge + synthèse, déjà null-safe dans le rendu) → chargé
@@ -254,11 +247,7 @@ export function MembreDetailPage() {
               </ButtonLink>
             )}
           </div>
-          {financierErreur ? (
-            <p className="mt-4 text-sm text-terra">
-              {t('membres.detail.contributionsErreur')}
-            </p>
-          ) : contributions.length === 0 ? (
+          {contributions.length === 0 ? (
             <p className="mt-4 text-sm text-faint">
               {t('membres.detail.aucuneContribution')}
             </p>

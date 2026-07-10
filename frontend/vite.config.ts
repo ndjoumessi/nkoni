@@ -22,10 +22,18 @@ export default defineConfig({
         display: 'standalone',
         start_url: '/',
         scope: '/',
-        icons: [{ src: '/favicon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any maskable' }],
+        // Icônes PNG dérivées de la marque NKONI (favicon.svg) — meilleure installation Android/iOS
+        // que le SVG seul. `maskable` = variante avec zone de sécurité (le masque OS ne rogne pas
+        // la marque). `favicon.svg` reste le favicon d'onglet (référencé dans index.html).
+        icons: [
+          { src: '/pwa-192x192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: '/pwa-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          { src: '/pwa-maskable-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+        ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,svg,woff2}'],
+        // `png` inclus → les icônes d'install sont précachées (install hors-ligne robuste).
+        globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
         navigateFallback: '/index.html',
         // Les requêtes /api/* ne sont PAS des navigations SPA → ne pas les rediriger vers index.html.
         navigateFallbackDenylist: [/^\/api\//],

@@ -1,4 +1,5 @@
 import { typeActif } from './notification.service'
+import { normaliserTelephone } from '../lib/telephone'
 
 /**
  * Envoi WhatsApp d'un document (reçu PDF) — Meta WhatsApp Cloud API. BEST-EFFORT : n'échoue
@@ -71,7 +72,12 @@ export interface WhatsAppPrisma {
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
-export type RaisonNonEnvoi = 'sansTelephone' | 'desactive' | 'clientIndisponible' | 'echecEnvoi'
+export type RaisonNonEnvoi =
+  | 'sansTelephone'
+  | 'telephoneInvalide'
+  | 'desactive'
+  | 'clientIndisponible'
+  | 'echecEnvoi'
 export interface ResultatEnvoiRecu {
   envoye: boolean
   raison?: RaisonNonEnvoi
@@ -94,6 +100,10 @@ export async function envoyerRecuWhatsApp(
 ): Promise<ResultatEnvoiRecu> {
   try {
     if (!params.telephone) return { envoye: false, raison: 'sansTelephone' }
+    // Normalisation E.164 (sans « + ») AVANT tout envoi : un numéro non normalisable n'est
+    // jamais transmis (mieux vaut ne rien envoyer qu'envoyer à un mauvais numéro).
+    const numero = normaliserTelephone(params.telephone)
+    if (!numero) return { envoye: false, raison: 'telephoneInvalide' }
     if (!whatsapp.disponible()) return { envoye: false, raison: 'clientIndisponible' }
 
     // Préférence du membre (VERSEMENT_RECU = notifications liées à un versement/reçu).
@@ -107,7 +117,7 @@ export async function envoyerRecuWhatsApp(
       }
     }
 
-    const res = await whatsapp.envoyerDocument(params.telephone, params.pdf, params.meta)
+    const res = await whatsapp.envoyerDocument(numero, params.pdf, params.meta)
     return res.ok ? { envoye: true } : { envoye: false, raison: 'echecEnvoi' }
   } catch {
     // Best-effort : une erreur ne doit jamais remonter.

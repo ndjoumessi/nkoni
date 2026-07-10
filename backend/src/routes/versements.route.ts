@@ -86,6 +86,17 @@ export const versementsRoutes: FastifyPluginAsync = async (
     async (req, reply) => {
       const { contributionId, montant, dateVersement, mode, note } = req.body
 
+      // IDEMPOTENCE (§ PWA hors-ligne) : si la mutation porte une clé client (rejeu de la file de
+      // synchro), on renvoie le versement déjà appliqué au lieu d'en recréer un second.
+      const cleIdempotence = req.headers['idempotence-key'] as string | undefined
+      if (cleIdempotence) {
+        const existant = await app.prisma.versement.findFirst({ where: { idempotenceKey: cleIdempotence } })
+        if (existant) {
+          const contribution = await app.prisma.contribution.findUnique({ where: { id: existant.contributionId } })
+          return reply.code(200).send({ versement: existant, contribution })
+        }
+      }
+
       // organisationId injecté par l'extension d'isolation (cf. CreationScopee) → non fourni ici.
       const data: CreationScopee<Prisma.VersementUncheckedCreateInput> = {
         contributionId,
@@ -95,6 +106,7 @@ export const versementsRoutes: FastifyPluginAsync = async (
       }
       if (note !== undefined) data.note = note
       if (req.user.sub) data.receptionnaireId = req.user.sub
+      if (cleIdempotence) data.idempotenceKey = cleIdempotence
 
       try {
         const result = await app.prisma.$transaction(async (tx) => {
@@ -133,6 +145,18 @@ export const versementsRoutes: FastifyPluginAsync = async (
             error: 'Not Found',
             message: t(langueDeRequete(req), 'versements.contributionIntrouvable'),
           })
+        }
+        // Course concurrente sur la même clé d'idempotence (2 rejeus simultanés) → renvoyer l'existant.
+        if (
+          cleIdempotence &&
+          err instanceof Prisma.PrismaClientKnownRequestError &&
+          err.code === 'P2002'
+        ) {
+          const existant = await app.prisma.versement.findFirst({ where: { idempotenceKey: cleIdempotence } })
+          if (existant) {
+            const contribution = await app.prisma.contribution.findUnique({ where: { id: existant.contributionId } })
+            return reply.code(200).send({ versement: existant, contribution })
+          }
         }
         throw err
       }

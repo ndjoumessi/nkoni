@@ -14,6 +14,7 @@ import {
   type StatutMembre,
 } from '@/lib/api'
 import { peutGererMembres } from '@/lib/roles'
+import { soumettreOuEnfiler } from '@/lib/offline-sync'
 import { useToast } from '@/components/ui/Toast'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card } from '@/components/ui/Card'
@@ -185,15 +186,22 @@ export function MembreFormPage() {
         payload.anneeFinContribution = Number(form.anneeFinContribution)
       }
 
-      const membre =
-        isEdit && id
-          ? await membresApi.update(id, payload, accessToken)
-          : await membresApi.create(payload, accessToken)
-
-      toast.success(
-        isEdit ? t('membres.form.toast.miseAJour') : t('membres.form.toast.cree'),
-        `${membre.nom} ${membre.prenom}`,
+      // La MODIFICATION reste en ligne-seulement ; la CRÉATION est optimiste (file hors-ligne).
+      if (isEdit && id) {
+        const membre = await membresApi.update(id, payload, accessToken)
+        toast.success(t('membres.form.toast.miseAJour'), `${membre.nom} ${membre.prenom}`)
+        navigate(`/membres/${membre.id}`, { replace: true })
+        return
+      }
+      const { enFile, resultat: membre } = await soumettreOuEnfiler('membre', payload, () =>
+        membresApi.create(payload, accessToken),
       )
+      if (enFile || !membre) {
+        toast.success(t('offline.enFileTitre'), t('offline.enFileDetail'))
+        navigate('/membres', { replace: true })
+        return
+      }
+      toast.success(t('membres.form.toast.cree'), `${membre.nom} ${membre.prenom}`)
       navigate(`/membres/${membre.id}`, { replace: true })
     } catch (e) {
       toast.error(

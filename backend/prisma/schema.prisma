@@ -177,9 +177,12 @@ model Membre {
   conflitsConcernes        ConflitMembreConcerne[] // V2 §4.4 (join explicite, scopé org)
   commemorationsConcernees CommemorationMembreConcerne[] // V2 (join explicite, scopé org)
   depensesBeneficiaire     Depense[]                     @relation("DepenseBeneficiaire") // Trésorerie — aides reçues
+  // Idempotence (§ PWA hors-ligne) : rejeu d'un « ajouter membre » saisi hors-ligne (uuid client).
+  idempotenceKey           String?
   createdAt                DateTime                      @default(now())
   updatedAt                DateTime                      @updatedAt
 
+  @@unique([organisationId, idempotenceKey])
   @@index([organisationId])
 }
 
@@ -226,8 +229,12 @@ model Versement {
   mode             ModeVersement
   receptionnaireId String? // FK Utilisateur (généralement la trésorière)
   note             String?
+  // Idempotence (§ PWA hors-ligne) : clé client (uuid) unique PAR organisation. Un rejeu de la
+  // même mutation (file de synchro) retrouve la ligne existante au lieu d'en créer une seconde.
+  idempotenceKey   String?
   createdAt        DateTime      @default(now())
 
+  @@unique([organisationId, idempotenceKey])
   @@index([organisationId])
 }
 

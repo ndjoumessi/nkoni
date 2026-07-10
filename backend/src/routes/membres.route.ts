@@ -246,6 +246,14 @@ export const membresRoutes: FastifyPluginAsync = async (app: FastifyInstance) =>
       const futurCheck = validerAnneeAdhesion(body.anneeAdhesion, reply)
       if (futurCheck) return futurCheck
 
+      // IDEMPOTENCE (§ PWA hors-ligne) : rejeu d'un « ajouter membre » saisi hors-ligne → on
+      // renvoie le membre déjà créé au lieu d'un doublon.
+      const cleIdempotence = req.headers['idempotence-key'] as string | undefined
+      if (cleIdempotence) {
+        const existant = await app.prisma.membre.findFirst({ where: { idempotenceKey: cleIdempotence } })
+        if (existant) return reply.code(200).send(existant)
+      }
+
       // Plafond du plan gratuit (§10.2) : 100 membres par organisation. `count()` est scopé
       // par l'extension d'isolation → compte les membres de l'organisation courante.
       const nbMembres = await app.prisma.membre.count()
@@ -275,11 +283,25 @@ export const membresRoutes: FastifyPluginAsync = async (app: FastifyInstance) =>
       if (body.dateNaissance !== undefined) data.dateNaissance = new Date(body.dateNaissance)
       const fin = finContributionAuto(body)
       if (fin !== undefined) data.anneeFinContribution = fin
+      if (cleIdempotence) data.idempotenceKey = cleIdempotence
 
-      const membre = await app.prisma.membre.create({
-        data: data as Prisma.MembreUncheckedCreateInput,
-      })
-      return reply.code(201).send(membre)
+      try {
+        const membre = await app.prisma.membre.create({
+          data: data as Prisma.MembreUncheckedCreateInput,
+        })
+        return reply.code(201).send(membre)
+      } catch (err) {
+        // Course concurrente sur la même clé (2 rejeus simultanés) → renvoyer l'existant.
+        if (
+          cleIdempotence &&
+          err instanceof Prisma.PrismaClientKnownRequestError &&
+          err.code === 'P2002'
+        ) {
+          const existant = await app.prisma.membre.findFirst({ where: { idempotenceKey: cleIdempotence } })
+          if (existant) return reply.code(200).send(existant)
+        }
+        throw err
+      }
     },
   )
 

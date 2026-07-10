@@ -4,6 +4,7 @@ import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-r
 import { CalendarPlus, Check, FileText } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
 import { focusPremierChampInvalide } from '@/lib/utils'
+import { soumettreOuEnfiler } from '@/lib/offline-sync'
 import {
   membresApi,
   contributionsApi,
@@ -154,17 +155,23 @@ export function VersementFormPage() {
       return
     }
     setSaving(true)
+    const payload = {
+      contributionId: contribId,
+      montant: Number(montant),
+      dateVersement,
+      mode,
+      ...(note.trim() ? { note: note.trim() } : {}),
+    }
     try {
-      const res = await versementsApi.create(
-        {
-          contributionId: contribId,
-          montant: Number(montant),
-          dateVersement,
-          mode,
-          ...(note.trim() ? { note: note.trim() } : {}),
-        },
-        accessToken,
+      // Écriture optimiste : hors-ligne → mise en file (rejeu idempotent au retour du réseau).
+      const { enFile, resultat: res } = await soumettreOuEnfiler('versement', payload, () =>
+        versementsApi.create(payload, accessToken),
       )
+      if (enFile || !res) {
+        toast.success(t('offline.enFileTitre'), t('offline.enFileDetail'))
+        navigate(id ? `/membres/${id}` : '/membres', { replace: true })
+        return
+      }
       setResultat(res)
       toast.success(
         t('versements.toast.enregistre'),

@@ -133,6 +133,9 @@
         @apply font-sans;
         /* Supprime le halo brun/gris par défaut au tap sur mobile (artefact navigateur). */
         -webkit-tap-highlight-color: transparent;
+        /* Défilement doux pour les ancres (#a-propos, #forfaits, #faq). Neutralisé par le
+           bloc prefers-reduced-motion plus bas (scroll-behavior: auto !important). */
+        scroll-behavior: smooth;
     }
     /* Titres : Geist (display = sans), optique auto si la fonte le supporte */
     h1, h2, h3, .font-display {

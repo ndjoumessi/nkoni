@@ -56,6 +56,16 @@ statut de déploiement Railway/Vercel confirmé au statut réel là où le backe
 - `chef_organisation` — additive (`Organisation.chefMembreId` FK Membre `ON DELETE SET NULL` +
   `chefSurnom`, colonnes nullables).
 
+### Robustesse / dette traitée
+- **Durcissement idempotence `P2002`** — le re-fetch par `idempotenceKey` (POST /versements, /membres)
+  n'a lieu QUE si `err.meta.target` cible bien l'unique `(organisationId, idempotenceKey)` ; un P2002
+  sur une autre contrainte est relevé (plus avalé en re-fetch d'une mauvaise ligne / null).
+- **Icônes PNG PWA** — `pwa-192x192`, `pwa-512x512` (any) + `pwa-maskable-512x512` (maskable, zone de
+  sécurité) dérivées de `favicon.svg`, référencées dans le manifest et précachées (`favicon.svg` conservé).
+- **Normalisation téléphone E.164** — `normaliserTelephone` (défaut Cameroun `237`, indicatif
+  paramétrable) appliquée avant tout envoi WhatsApp : local `6XXXXXXXX → 2376XXXXXXXX`, nettoyage
+  espaces/`+`/`00`, numéro invalide → pas d'envoi.
+
 ---
 
 ## 2. À faire côté PO (déploiement / config)
@@ -89,11 +99,11 @@ statut de déploiement Railway/Vercel confirmé au statut réel là où le backe
 ## 4. Points ouverts / dette légère (aucun bloquant)
 
 - **Rotation du mot de passe `admin@nkoni.com`** — optionnelle (hygiène). Via Mon Profil.
-- **Icônes PWA PNG 192/512** — le manifest utilise `favicon.svg` en `maskable` (accepté ; PNG =
-  meilleure installation Android).
-- **Durcissement `P2002`** (idempotence) — vérifier `err.meta.target` avant re-fetch (edge case).
-- **WhatsApp usage prod fiable** — le code envoie un document brut ; hors fenêtre 24h Meta exige un
-  **template pré-approuvé**. Prévoir aussi la **normalisation E.164** des téléphones (Cameroun : `2376…`).
+- **WhatsApp — templates pré-approuvés** — la **normalisation E.164** des téléphones est FAITE
+  (cf. §1). Restent, tous deux en attente de la création du **compte Meta Business** : les
+  **templates pré-approuvés** (obligatoires hors de la fenêtre de 24h Meta ; le code envoie
+  aujourd'hui un document brut) et la pose des **env vars** `WHATSAPP_TOKEN` / `WHATSAPP_PHONE_ID`
+  (cf. §2).
 
 ---
 

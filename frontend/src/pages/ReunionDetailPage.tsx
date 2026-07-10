@@ -406,7 +406,7 @@ export function ReunionDetailPage() {
                       onClick={() => deplacerPoint(index, -1)}
                       disabled={index === 0 || reorderPending}
                       aria-label={t('reunions.ordreDuJour.monter')}
-                      className="flex h-7 w-7 items-center justify-center rounded-lg text-faint transition-colors hover:text-foreground disabled:opacity-30"
+                      className="flex h-9 w-9 items-center justify-center rounded-lg text-faint transition-colors hover:text-foreground disabled:opacity-30"
                     >
                       <ArrowUp className="h-4 w-4" aria-hidden="true" />
                     </button>
@@ -415,7 +415,7 @@ export function ReunionDetailPage() {
                       onClick={() => deplacerPoint(index, 1)}
                       disabled={index === reunion.pointsOrdreDuJour.length - 1 || reorderPending}
                       aria-label={t('reunions.ordreDuJour.descendre')}
-                      className="flex h-7 w-7 items-center justify-center rounded-lg text-faint transition-colors hover:text-foreground disabled:opacity-30"
+                      className="flex h-9 w-9 items-center justify-center rounded-lg text-faint transition-colors hover:text-foreground disabled:opacity-30"
                     >
                       <ArrowDown className="h-4 w-4" aria-hidden="true" />
                     </button>
@@ -424,7 +424,7 @@ export function ReunionDetailPage() {
                       onClick={() => supprimerPoint(p.id)}
                       disabled={pointPending === p.id}
                       aria-label={t('reunions.ordreDuJour.supprimer')}
-                      className="flex h-7 w-7 items-center justify-center rounded-lg text-faint transition-colors hover:text-terra disabled:opacity-40"
+                      className="flex h-9 w-9 items-center justify-center rounded-lg text-faint transition-colors hover:text-terra disabled:opacity-40"
                     >
                       <Trash2 className="h-4 w-4" aria-hidden="true" />
                     </button>
@@ -493,7 +493,7 @@ export function ReunionDetailPage() {
                       onClick={() => supprimerResolution(r)}
                       disabled={resPending === r.id}
                       aria-label={t('resolutions.supprimerAria')}
-                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-faint transition-colors hover:text-terra disabled:opacity-40"
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-faint transition-colors hover:text-terra disabled:opacity-40"
                     >
                       <Trash2 className="h-4 w-4" aria-hidden="true" />
                     </button>

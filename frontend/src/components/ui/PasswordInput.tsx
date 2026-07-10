@@ -41,7 +41,7 @@ export const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>(
           onClick={() => setVisible((v) => !v)}
           aria-label={visible ? t('ui.motDePasse.masquer') : t('ui.motDePasse.afficher')}
           aria-pressed={visible}
-          className="absolute right-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-faint transition-colors hover:text-foreground focus:outline-none focus-visible:text-brass"
+          className="tap-target absolute right-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-faint transition-colors hover:text-foreground focus:outline-none focus-visible:text-brass"
         >
           {visible ? (
             <EyeOff className="h-4 w-4" aria-hidden="true" />

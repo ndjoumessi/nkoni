@@ -256,7 +256,10 @@ export function ImportMembresPage() {
       <ol className="mt-6 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-faint">
         {(['fichier', 'mapping', 'apercu', 'resultat'] as Etape[]).map((e, i) => (
           <li key={e} className="flex items-center gap-2">
-            <span className={etape === e ? 'font-medium text-brass' : ''}>
+            <span
+              aria-current={etape === e ? 'step' : undefined}
+              className={etape === e ? 'font-medium text-brass' : ''}
+            >
               {i + 1}. {t(`import.etapes.${e}`)}
             </span>
             {i < 3 && <ArrowRight className="h-3 w-3" aria-hidden="true" />}

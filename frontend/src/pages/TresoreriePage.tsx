@@ -22,6 +22,7 @@ import { StatCard } from '@/components/ui/StatCard'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { Field, Input } from '@/components/ui/Field'
+import { DatePicker } from '@/components/ui/DatePicker'
 import { Modal } from '@/components/ui/Modal'
 import { DataTable, type Column } from '@/components/ui/DataTable'
 
@@ -284,7 +285,7 @@ function FormDepense({ onClose, onCree }: { onClose: () => void; onCree: () => v
           <Input type="number" min={1} value={montant} onChange={(e) => setMontant(e.target.value)} />
         </Field>
         <Field label={t('tresorerie.form.date')} required>
-          <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+          <DatePicker value={date} onChange={setDate} />
         </Field>
         <Field label={t('tresorerie.form.description')} required>
           <Input value={description} onChange={(e) => setDescription(e.target.value)} maxLength={1000} />

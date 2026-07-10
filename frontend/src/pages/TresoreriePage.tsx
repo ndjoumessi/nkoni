@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Plus, Wallet, ArrowUpCircle, ArrowDownCircle, Check, X, BadgeCheck, Trash2 } from 'lucide-react'
+import { Plus, Wallet, ArrowUpCircle, ArrowDownCircle, Check, X, BadgeCheck, Pencil, Trash2 } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
 import {
   depensesApi,
@@ -51,6 +51,7 @@ export function TresoreriePage() {
   const [filtreStatut, setFiltreStatut] = useState<StatutDepense | ''>('')
   const [filtreCategorie, setFiltreCategorie] = useState<CategorieDepense | ''>('')
   const [formOuvert, setFormOuvert] = useState(false)
+  const [editDepense, setEditDepense] = useState<Depense | null>(null)
   const [rejet, setRejet] = useState<Depense | null>(null)
 
   const gestion = peutGererDepense(user?.role)
@@ -142,6 +143,16 @@ export function TresoreriePage() {
       align: 'right',
       cell: (d) => (
         <div className="flex flex-wrap justify-end gap-1.5">
+          {gestion && (d.statut === 'BROUILLON' || d.statut === 'EN_ATTENTE') && (
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={Pencil}
+              aria-label={t('tresorerie.actions.modifier')}
+              title={t('tresorerie.actions.modifier')}
+              onClick={() => setEditDepense(d)}
+            />
+          )}
           {approbation && d.statut === 'EN_ATTENTE' && (
             <>
               <Button variant="ghost" size="sm" icon={Check} onClick={() => agir(() => depensesApi.approuver(d.id, accessToken!), t('tresorerie.toast.approuvee'))}>
@@ -247,11 +258,16 @@ export function TresoreriePage() {
         )}
       </Card>
 
-      {formOuvert && (
+      {(formOuvert || editDepense) && (
         <FormDepense
-          onClose={() => setFormOuvert(false)}
-          onCree={async () => {
+          depense={editDepense ?? undefined}
+          onClose={() => {
             setFormOuvert(false)
+            setEditDepense(null)
+          }}
+          onSauvegarde={async () => {
+            setFormOuvert(false)
+            setEditDepense(null)
             await recharger()
           }}
         />
@@ -263,25 +279,45 @@ export function TresoreriePage() {
 
 /* -------------------------------------------------------------------------- */
 
-function FormDepense({ onClose, onCree }: { onClose: () => void; onCree: () => void }) {
+/**
+ * Formulaire de dépense — CRÉATION ou ÉDITION selon `depense`.
+ * En édition, on met à jour les champs SANS toucher au statut (le back n'autorise l'édition
+ * que sur BROUILLON/EN_ATTENTE ; les transitions de statut passent par les actions de ligne).
+ */
+function FormDepense({
+  depense,
+  onClose,
+  onSauvegarde,
+}: {
+  depense?: Depense
+  onClose: () => void
+  onSauvegarde: () => void
+}) {
   const { t } = useTranslation()
   const { accessToken } = useAuth()
   const toast = useToast()
-  const [montant, setMontant] = useState('')
-  const [date, setDate] = useState('')
-  const [description, setDescription] = useState('')
-  const [categorie, setCategorie] = useState<CategorieDepense>('AUTRE')
+  const edition = depense != null
+  const [montant, setMontant] = useState(depense ? String(depense.montant) : '')
+  const [date, setDate] = useState(depense ? depense.date.slice(0, 10) : '')
+  const [description, setDescription] = useState(depense?.description ?? '')
+  const [categorie, setCategorie] = useState<CategorieDepense>(depense?.categorie ?? 'AUTRE')
   const [enCours, setEnCours] = useState(false)
 
-  const enregistrer = async (statut: 'BROUILLON' | 'EN_ATTENTE') => {
+  const enregistrer = async (statut?: 'BROUILLON' | 'EN_ATTENTE') => {
     if (!accessToken) return
     const m = Number(montant)
     if (!Number.isInteger(m) || m < 1 || !date || description.trim() === '') return
     setEnCours(true)
     try {
-      await depensesApi.create({ montant: m, date, description: description.trim(), categorie, statut }, accessToken)
-      toast.success(t('tresorerie.toast.creee'))
-      onCree()
+      const champs = { montant: m, date, description: description.trim(), categorie }
+      if (edition) {
+        await depensesApi.update(depense.id, champs, accessToken)
+        toast.success(t('tresorerie.toast.modifiee'))
+      } else {
+        await depensesApi.create({ ...champs, statut: statut ?? 'EN_ATTENTE' }, accessToken)
+        toast.success(t('tresorerie.toast.creee'))
+      }
+      onSauvegarde()
     } catch (e) {
       toast.error(t('tresorerie.toast.erreur'), e instanceof ApiError ? e.message : messageErreur(e))
     } finally {
@@ -290,8 +326,8 @@ function FormDepense({ onClose, onCree }: { onClose: () => void; onCree: () => v
   }
 
   return (
-    <Modal open onClose={onClose} title={t('tresorerie.form.titre')}>
-      <form className="space-y-3" onSubmit={(e: FormEvent) => { e.preventDefault(); void enregistrer('EN_ATTENTE') }}>
+    <Modal open onClose={onClose} title={edition ? t('tresorerie.form.titreEdition') : t('tresorerie.form.titre')}>
+      <form className="space-y-3" onSubmit={(e: FormEvent) => { e.preventDefault(); void enregistrer(edition ? undefined : 'EN_ATTENTE') }}>
         <Field label={t('tresorerie.form.montant')} required>
           <Input type="number" min={1} value={montant} onChange={(e) => setMontant(e.target.value)} />
         </Field>
@@ -308,10 +344,16 @@ function FormDepense({ onClose, onCree }: { onClose: () => void; onCree: () => v
         </Field>
         <div className="flex flex-wrap justify-end gap-2 pt-2">
           <Button type="button" variant="ghost" onClick={onClose}>{t('tresorerie.form.annuler')}</Button>
-          <Button type="button" variant="outline" loading={enCours} onClick={() => void enregistrer('BROUILLON')}>
-            {t('tresorerie.form.enregistrerBrouillon')}
-          </Button>
-          <Button type="submit" loading={enCours}>{t('tresorerie.form.soumettre')}</Button>
+          {edition ? (
+            <Button type="submit" loading={enCours}>{t('tresorerie.form.enregistrer')}</Button>
+          ) : (
+            <>
+              <Button type="button" variant="outline" loading={enCours} onClick={() => void enregistrer('BROUILLON')}>
+                {t('tresorerie.form.enregistrerBrouillon')}
+              </Button>
+              <Button type="submit" loading={enCours}>{t('tresorerie.form.soumettre')}</Button>
+            </>
+          )}
         </div>
       </form>
     </Modal>

@@ -94,9 +94,6 @@ statut de déploiement Railway/Vercel confirmé au statut réel là où le backe
 - **Dashboard** : carte « Recouvrement cumulé » (courbe burn-up) + donuts de répartition bien affichés.
 - **Nom de l'organisation** : après reconnexion (token réhydraté), le nom de l'org apparaît dans le
   bloc menthe en haut de la barre latérale (et tronqué dans la topbar mobile).
-- **Chef de l'organisation** : en ADMIN/PRESIDENT, ouvrir une fiche membre → « Désigner comme chef »
-  (+ surnom) → badge « Chef » sur la fiche ET sur la ligne dans la liste ; « Retirer comme chef » le
-  déchoit. Les autres rôles ne voient pas l'action.
 - **Rapports** : retrait d'année en mode comparaison (bouton agrandi, plus d'overlay).
 - **Changement de langue** FR ↔ EN dans Mon Profil (charge le catalogue à la volée).
 

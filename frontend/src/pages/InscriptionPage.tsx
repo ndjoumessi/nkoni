@@ -11,6 +11,7 @@ import { Input, Select } from '@/components/ui/Field'
 import { PasswordInput } from '@/components/ui/PasswordInput'
 import { Card } from '@/components/ui/Card'
 import { NkoniMark } from '@/components/ui/NkoniMark'
+import { LangueToggle } from '@/components/ui/LangueToggle'
 
 /** Message d'erreur inline sous un champ (parité §8 avec la primitive Field). */
 function ErreurChamp({ id, children }: { id: string; children: string }) {
@@ -109,6 +110,10 @@ export function InscriptionPage() {
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-6 py-12">
       <div className="nk-aura pointer-events-none absolute inset-0 -z-10" aria-hidden="true" />
       <div className="nk-grid absolute inset-0 -z-10" aria-hidden="true" />
+
+      <div className="absolute right-4 top-4 z-10 sm:right-6 sm:top-6">
+        <LangueToggle />
+      </div>
 
       <div className="w-full max-w-md">
         <div className="nk-reveal nk-d1 mb-8 flex flex-col items-center text-center">

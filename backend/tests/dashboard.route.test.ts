@@ -69,6 +69,13 @@ function buildMock() {
       },
     },
     brancheFamiliale: { count: async () => 4 },
+    versement: {
+      // 2 versements de l'année courante (janvier + mars) — le service borne déjà par année.
+      findMany: async () => [
+        { montant: 6_000, dateVersement: new Date(Date.UTC(Y, 0, 10)) },
+        { montant: 4_000, dateVersement: new Date(Date.UTC(Y, 2, 5)) },
+      ],
+    },
   }
   return prisma
 }
@@ -107,6 +114,17 @@ describe('Routes Dashboard (§5.8)', () => {
     expect(b.membresParStatutMembre).toEqual({ ACTIF: 3, INACTIF: 1, DECEDE: 1 })
     expect(b.nombreBranches).toBe(4)
     expect(b.alertes.baremeAnneeCouranteManquant).toBe(true) // année Y sans barème
+    // Évolution mensuelle (§10) : 12 mois ordonnés, collecté ventilé par mois d'encaissement.
+    expect(b.evolutionMensuelle).toHaveLength(12)
+    expect(b.evolutionMensuelle[0]).toMatchObject({ mois: 1, collecte: 6_000 })
+    expect(b.evolutionMensuelle[2]).toMatchObject({ mois: 3, collecte: 4_000 })
+    // Année Y sans barème → attendu annuel 0 → cible mensuelle 0 (pas de division par un attendu absent).
+    expect(b.evolutionMensuelle.every((e: { attendu: number }) => e.attendu === 0)).toBe(true)
+  })
+
+  it('FINANCIER ne contient PAS evolutionMensuelle (champ COMPLET-only)', async () => {
+    const res = await get('TRESORIERE')
+    expect(res.json()).not.toHaveProperty('evolutionMensuelle')
   })
 
   it('PRESIDENT → vue COMPLET', async () => {

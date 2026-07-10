@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import {
   AlertTriangle,
   CalendarRange,
@@ -26,6 +27,7 @@ import {
 } from '@/components/dashboard/StatutRepartition'
 import { AnalyseMembres } from '@/components/dashboard/AnalyseMembres'
 import { ExportButtons } from '@/components/dashboard/ExportButtons'
+import { GrapheEvolution, type PointEvolution } from '@/components/dashboard/GrapheEvolution'
 import { formatMontant, formatNombre } from '@/lib/format'
 import type {
   Dashboard,
@@ -33,6 +35,7 @@ import type {
   DashboardFinancier,
   DashboardPerso,
   DashboardRestreint,
+  EvolutionMois,
   StatutContribution,
 } from '@/lib/api'
 
@@ -89,6 +92,36 @@ function OnboardingVide({ canManage }: { canManage: boolean }) {
   )
 }
 
+/**
+ * Évolution mensuelle du recouvrement (année courante) — mappe la série backend vers le
+ * graphe partagé (variante aire). Les libellés de mois sont locale-aware (Intl, §4/§5).
+ */
+function EvolutionMensuelleCard({ annee, data }: { annee: number; data: EvolutionMois[] }) {
+  const { t, i18n } = useTranslation()
+  const points = useMemo<PointEvolution[]>(() => {
+    const fmt = new Intl.DateTimeFormat(i18n.language, { month: 'short', timeZone: 'UTC' })
+    return data.map((e) => ({
+      cle: String(e.mois),
+      label: fmt.format(new Date(Date.UTC(2000, e.mois - 1, 1))),
+      attendu: e.attendu,
+      collecte: e.collecte,
+    }))
+  }, [data, i18n.language])
+
+  return (
+    <GrapheEvolution
+      points={points}
+      variant="aire"
+      titre={t('dashboard.evolution.titre', { annee })}
+      legendeAttendu={t('dashboard.evolution.attendu')}
+      legendeCollecte={t('dashboard.evolution.collecte')}
+      labelColonne={t('dashboard.evolution.colonneMois')}
+      resumeAria={t('dashboard.evolution.resumeAria', { annee })}
+      aucuneDonnee={t('dashboard.evolution.aucuneDonnee')}
+    />
+  )
+}
+
 /* -------------------------------------------------------------------------- */
 /* Vues                                                                       */
 /* -------------------------------------------------------------------------- */
@@ -126,6 +159,7 @@ function VueComplet({ d, canManage }: { d: DashboardComplet; canManage: boolean 
               icon={GitBranch}
             />
           </div>
+          <EvolutionMensuelleCard annee={d.anneeCourante} data={d.evolutionMensuelle} />
           <div className="grid gap-4 lg:grid-cols-2">
             <StatutContributionRepartition data={d.membresParStatutContribution} />
             <StatutMembreRepartition data={d.membresParStatutMembre} />

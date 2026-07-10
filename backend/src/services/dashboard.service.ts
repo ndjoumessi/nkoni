@@ -26,6 +26,9 @@ import {
   type ContributionInput,
   type StatutContributionValue,
 } from './statutContribution'
+// Réutilise le calcul d'attendu ANNUEL de Rapports (fenêtre mono-année) — pas de recalcul
+// du montant attendu / du seuil ici : l'évolution mensuelle s'appuie dessus (cf. plus bas).
+import { rapportPourAnnee } from './rapport.service'
 
 /* -------------------------------------------------------------------------- */
 /* Erreurs                                                                     */
@@ -66,12 +69,24 @@ export interface Finances {
   tauxRecouvrement: number
 }
 
+/** Un point de l'évolution mensuelle du recouvrement (§10, année courante). */
+export interface EvolutionMois {
+  /** Mois de l'année, 1 (janvier) → 12 (décembre). */
+  mois: number
+  /** Montant encaissé ce mois-là (Σ Versement.montant, cash-flow réel). */
+  collecte: number
+  /** Cible mensuelle = attendu total de l'année courante / 12 (uniforme sur les 12 mois). */
+  attendu: number
+}
+
 export interface DashboardComplet {
   vue: 'COMPLET'
   anneeCourante: number
   finances: Finances
   membresParStatutContribution: RepartitionStatutContribution
   membresParStatutMembre: RepartitionStatutMembre
+  /** Évolution mensuelle collecté vs attendu sur l'année courante (12 entrées, janv.→déc.). */
+  evolutionMensuelle: EvolutionMois[]
   nombreBranches: number
   alertes: { baremeAnneeCouranteManquant: boolean }
 }
@@ -151,6 +166,33 @@ export function agregerFinances(
   return { totalAttenduCumule, totalCollecteCumule, tauxRecouvrement, distribution }
 }
 
+/**
+ * Évolution MENSUELLE du recouvrement pour l'année courante (§10). Fonction PURE.
+ *
+ * - `collecte[m]` = Σ des versements ENCAISSÉS le mois m de l'année courante (cash-flow réel,
+ *   lu au fil des `dateVersement`). Le mois est lu en UTC → déterministe, indépendant du
+ *   fuseau du serveur ou du runner de tests (les dates du jour sont stockées à minuit UTC).
+ * - `attendu[m]` = `totalAttenduAnnee / 12` (cible mensuelle uniforme). `totalAttenduAnnee`
+ *   provient de `rapportPourAnnee` (logique d'attendu de Rapports, réutilisée — pas de recalcul).
+ *
+ * Les versements hors de l'année courante sont ignorés (un rejeu/relecture large reste sûr).
+ */
+export function construireEvolutionMensuelle(
+  versements: { montant: number; dateVersement: Date | string }[],
+  totalAttenduAnnee: number,
+  anneeCourante: number,
+): EvolutionMois[] {
+  const collecteParMois = new Array<number>(12).fill(0)
+  for (const v of versements) {
+    const d = v.dateVersement instanceof Date ? v.dateVersement : new Date(v.dateVersement)
+    if (Number.isNaN(d.getTime()) || d.getUTCFullYear() !== anneeCourante) continue
+    const mois = d.getUTCMonth() // 0..11, toujours dans les bornes du tableau
+    collecteParMois[mois] = (collecteParMois[mois] ?? 0) + v.montant
+  }
+  const attenduMensuel = Math.round(totalAttenduAnnee / 12)
+  return collecteParMois.map((collecte, i) => ({ mois: i + 1, collecte, attendu: attenduMensuel }))
+}
+
 /** Compte les membres par statut de membre (ACTIF/INACTIF/DECEDE). Fonction PURE. */
 export function compterParStatutMembre(
   membres: { statut: string }[],
@@ -183,6 +225,10 @@ export interface DashboardPrisma {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     count(args?: any): Promise<number>
   }
+  versement: {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    findMany(args?: any): Promise<{ montant: number; dateVersement: Date }[]>
+  }
 }
 
 const SELECT_BAREME = { annee: true, montantAttendu: true } as const
@@ -214,14 +260,26 @@ export async function calculerDashboardComplet(
   prisma: DashboardPrisma,
   anneeCourante: number,
 ): Promise<DashboardComplet> {
-  const [baremes, membres, nombreBranches] = await Promise.all([
+  // Bornes UTC de l'année courante pour ne charger que les versements de l'année (cash-flow mensuel).
+  const debutAnnee = new Date(Date.UTC(anneeCourante, 0, 1))
+  const debutAnneeSuivante = new Date(Date.UTC(anneeCourante + 1, 0, 1))
+
+  const [baremes, membres, nombreBranches, versements] = await Promise.all([
     prisma.baremeAnnuel.findMany({ select: SELECT_BAREME }),
     prisma.membre.findMany({ select: SELECT_MEMBRE_COTISANT }),
     prisma.brancheFamiliale.count(),
+    prisma.versement.findMany({
+      where: { dateVersement: { gte: debutAnnee, lt: debutAnneeSuivante } },
+      select: { montant: true, dateVersement: true },
+    }),
   ])
 
   const membresActifs = membres.filter((m) => m.statut === 'ACTIF')
   const fin = agregerFinances(membresActifs, baremes, anneeCourante)
+
+  // Évolution mensuelle : l'attendu de l'année courante réutilise `rapportPourAnnee` (Rapports),
+  // ventilé sur 12 mois ; le collecté est la Σ mensuelle des versements encaissés cette année.
+  const totalAttenduAnnee = rapportPourAnnee(anneeCourante, baremes, membresActifs)?.totalAttendu ?? 0
 
   return {
     vue: 'COMPLET',
@@ -233,6 +291,7 @@ export async function calculerDashboardComplet(
     },
     membresParStatutContribution: fin.distribution,
     membresParStatutMembre: compterParStatutMembre(membres),
+    evolutionMensuelle: construireEvolutionMensuelle(versements, totalAttenduAnnee, anneeCourante),
     nombreBranches,
     alertes: { baremeAnneeCouranteManquant: baremeManquant(baremes, anneeCourante) },
   }

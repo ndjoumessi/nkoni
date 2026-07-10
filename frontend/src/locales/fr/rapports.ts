@@ -14,6 +14,8 @@ export default {
       titre: 'Attendu vs collecté par année',
       attendu: 'Attendu',
       collecte: 'Collecté',
+      resumeAria: 'Graphe du recouvrement par année : attendu et collecté. Détail chiffré dans la table ci-dessous.',
+      aucuneDonnee: 'Aucune donnée à afficher.',
     },
     table: {
       annee: 'Année',

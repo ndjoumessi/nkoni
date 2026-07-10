@@ -304,12 +304,22 @@ export interface RepartitionStatutMembre {
   DECEDE: number
 }
 
+/** Un point de l'évolution mensuelle du recouvrement (année courante). */
+export interface EvolutionMois {
+  /** Mois 1 (janvier) → 12 (décembre). */
+  mois: number
+  collecte: number
+  attendu: number
+}
+
 export interface DashboardComplet {
   vue: 'COMPLET'
   anneeCourante: number
   finances: Finances
   membresParStatutContribution: RepartitionStatutContribution
   membresParStatutMembre: RepartitionStatutMembre
+  /** 12 entrées (janv.→déc.) : collecté mensuel vs cible mensuelle sur l'année courante. */
+  evolutionMensuelle: EvolutionMois[]
   nombreBranches: number
   alertes: { baremeAnneeCouranteManquant: boolean }
 }

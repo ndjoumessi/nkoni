@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   agregerFinances,
   compterParStatutMembre,
+  construireEvolutionMensuelle,
   calculerDashboardComplet,
   calculerDashboardFinancier,
   type DashboardPrisma,
@@ -56,6 +57,32 @@ describe('agregerFinances (pure, §5.8)', () => {
   })
 })
 
+describe('construireEvolutionMensuelle (pure, §10)', () => {
+  it('renvoie 12 mois ordonnés avec une cible mensuelle = attendu annuel / 12', () => {
+    const ev = construireEvolutionMensuelle([], 120_000, 2026)
+    expect(ev).toHaveLength(12)
+    expect(ev.map((e) => e.mois)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])
+    expect(ev.every((e) => e.attendu === 10_000)).toBe(true) // 120000 / 12
+    expect(ev.every((e) => e.collecte === 0)).toBe(true)
+  })
+
+  it('ventile le collecté par mois UTC et ignore les versements hors année courante', () => {
+    const ev = construireEvolutionMensuelle(
+      [
+        { montant: 5_000, dateVersement: new Date('2026-01-15T00:00:00Z') },
+        { montant: 3_000, dateVersement: new Date('2026-01-20T00:00:00Z') }, // même mois → cumulé
+        { montant: 7_000, dateVersement: new Date('2026-03-02T00:00:00Z') },
+        { montant: 9_000, dateVersement: new Date('2025-12-31T00:00:00Z') }, // année précédente → ignoré
+      ],
+      120_000,
+      2026,
+    )
+    expect(ev[0].collecte).toBe(8_000) // janvier : 5000 + 3000
+    expect(ev[2].collecte).toBe(7_000) // mars
+    expect(ev.reduce((s, e) => s + e.collecte, 0)).toBe(15_000) // le versement 2025 est exclu
+  })
+})
+
 describe('compterParStatutMembre (pure)', () => {
   it('compte ACTIF/INACTIF/DECEDE', () => {
     expect(
@@ -80,6 +107,7 @@ function buildMock(baremes: { annee: number; montantAttendu: number }[]) {
       findUnique: async () => null,
     },
     brancheFamiliale: { count: async () => 2 },
+    versement: { findMany: async () => [] as { montant: number; dateVersement: Date }[] },
   }
   return prisma as DashboardPrisma
 }

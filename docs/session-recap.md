@@ -102,6 +102,20 @@ statut de déploiement Railway/Vercel confirmé au statut réel là où le backe
   paramétrable) appliquée avant tout envoi WhatsApp : local `6XXXXXXXX → 2376XXXXXXXX`, nettoyage
   espaces/`+`/`00`, numéro invalide → pas d'envoi.
 
+### Infra / déploiement
+- **Watch Path Railway `/backend/**`** — le service backend ne rebuild QUE si un fichier sous
+  `backend/` change. Un merge qui ne touche que `frontend/` ne déclenche donc plus de déploiement
+  Railway (avant : tout push `main` rebuildait le backend inutilement). Conséquence à connaître :
+  « aucun nouveau déploiement Railway » après un push front-only est désormais **normal**, pas un
+  échec — ne vérifier le statut Railway que quand `backend/` a réellement changé. Les migrations
+  vivent sous `backend/prisma/`, donc bien couvertes par le Watch Path.
+- **Migrations en `startCommand`, pas de pre-deploy step** — on garde
+  `npx prisma migrate deploy && npm run start` (défini dans `/backend/railway.json`). Le `&&`
+  fournit déjà le fail-safe (migration KO → boot avorté → déploiement FAILED → Railway sert le
+  dernier déploiement sain). Un pre-deploy step n'apporterait un gain qu'en **multi-réplicas**
+  (course de migrations concurrentes) — non pertinent : NKONI tourne en **instance unique**
+  (cron `node-cron` in-process). À reconsidérer seulement si passage multi-instances.
+
 ---
 
 ## 2. À faire côté PO (déploiement / config)

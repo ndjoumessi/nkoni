@@ -34,10 +34,10 @@ import {
 } from '@/lib/api'
 import { peutVoirRapports } from '@/lib/roles'
 import { formatMontant, formatNombre, formatPourcent } from '@/lib/format'
-import { cn, prefersReducedMotion } from '@/lib/utils'
+import { cn } from '@/lib/utils'
 import { useToast } from '@/components/ui/Toast'
 import { PageHeader } from '@/components/ui/PageHeader'
-import { Card, Overline } from '@/components/ui/Card'
+import { Card } from '@/components/ui/Card'
 import { StatCard } from '@/components/ui/StatCard'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
@@ -47,6 +47,7 @@ import { DataTable, type Column } from '@/components/ui/DataTable'
 import { StatutCotisationBadge } from '@/components/membres/StatutBadges'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { RowsSkeleton } from '@/components/ui/Skeleton'
+import { GrapheEvolution, type PointEvolution } from '@/components/dashboard/GrapheEvolution'
 
 type Mode = 'evolution' | 'comparaison' | 'detail'
 
@@ -88,77 +89,34 @@ function VariationBadge({ valeur }: { valeur: number | null }) {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Graphe d'évolution (barres attendu vs collecté, §10)                       */
+/* Graphe d'évolution — série annuelle mappée vers le composant partagé (§10)  */
 /* -------------------------------------------------------------------------- */
 
-function GrapheEvolution({ annees }: { annees: RapportAnnee[] }) {
+/** Adapte les blocs annuels au contrat `PointEvolution` du graphe partagé (variante barres). */
+function GrapheEvolutionAnnuel({ annees }: { annees: RapportAnnee[] }) {
   const { t } = useTranslation()
-  const maxAttendu = useMemo(
-    () => Math.max(1, ...annees.map((a) => a.totalAttendu)),
+  const points = useMemo<PointEvolution[]>(
+    () =>
+      annees.map((a) => ({
+        cle: String(a.annee),
+        label: String(a.annee),
+        attendu: a.totalAttendu,
+        collecte: a.totalCollecte,
+        taux: a.tauxRecouvrement,
+      })),
     [annees],
   )
-
-  // Animation d'entrée : les barres grandissent de 0 (gated reduced-motion, §7/§10).
-  const [monte, setMonte] = useState(() => prefersReducedMotion())
-  useEffect(() => {
-    if (monte) return
-    const id = requestAnimationFrame(() => setMonte(true))
-    return () => cancelAnimationFrame(id)
-  }, [monte])
-
   return (
-    <Card className="p-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <BarChart3 className="h-4 w-4 text-brass" aria-hidden="true" />
-          <Overline>{t('rapports.graphe.titre')}</Overline>
-        </div>
-        <div className="flex items-center gap-4 text-xs text-faint">
-          <span className="inline-flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-sm bg-surface-3" aria-hidden="true" />
-            {t('rapports.graphe.attendu')}
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <span
-              className="h-2.5 w-2.5 rounded-sm bg-gradient-to-b from-jade to-brass"
-              aria-hidden="true"
-            />
-            {t('rapports.graphe.collecte')}
-          </span>
-        </div>
-      </div>
-
-      <div
-        className="mt-6 flex items-end justify-around gap-3 sm:gap-5"
-        style={{ height: '13rem' }}
-        aria-hidden="true"
-      >
-        {annees.map((a) => {
-          const hAttendu = (a.totalAttendu / maxAttendu) * 100
-          const hCollecte = (a.totalCollecte / maxAttendu) * 100
-          return (
-            <div key={a.annee} className="flex h-full flex-1 flex-col items-center justify-end gap-2">
-              <span className="num text-xs font-semibold text-jade">
-                {formatPourcent(a.tauxRecouvrement)}
-              </span>
-              <div className="relative flex h-full w-full max-w-[3.5rem] items-end justify-center">
-                {/* Piste « attendu » */}
-                <div
-                  className="absolute bottom-0 w-full rounded-t-md bg-surface-3 transition-[height] duration-700 ease-out"
-                  style={{ height: `${monte ? hAttendu : 0}%` }}
-                />
-                {/* Remplissage « collecté » */}
-                <div
-                  className="absolute bottom-0 w-full rounded-t-md bg-gradient-to-b from-jade to-brass transition-[height] duration-700 ease-out"
-                  style={{ height: `${monte ? hCollecte : 0}%` }}
-                />
-              </div>
-              <span className="num text-sm font-medium text-foreground">{a.annee}</span>
-            </div>
-          )
-        })}
-      </div>
-    </Card>
+    <GrapheEvolution
+      points={points}
+      variant="barres"
+      titre={t('rapports.graphe.titre')}
+      legendeAttendu={t('rapports.graphe.attendu')}
+      legendeCollecte={t('rapports.graphe.collecte')}
+      labelColonne={t('rapports.table.annee')}
+      resumeAria={t('rapports.graphe.resumeAria')}
+      aucuneDonnee={t('rapports.graphe.aucuneDonnee')}
+    />
   )
 }
 
@@ -808,7 +766,7 @@ export function RapportsPage() {
                       />
                     </div>
                   )}
-                  <GrapheEvolution annees={rapport.annees} />
+                  <GrapheEvolutionAnnuel annees={rapport.annees} />
                   <TableEvolution annees={rapport.annees} />
                 </div>
               )

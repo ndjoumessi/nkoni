@@ -8,24 +8,26 @@ import type {
 } from '@/lib/api'
 import { formatNombre } from '@/lib/format'
 import { Card, Overline } from '@/components/ui/Card'
+import { Donut } from '@/components/ui/Donut'
 import { cn, prefersReducedMotion } from '@/lib/utils'
 
 interface Item {
   key: string
   label: string
   count: number
-  bar: string
+  /** Classe de couleur du texte (arc du donut, via currentColor). */
+  couleur: string
   dot: string
   /** Lien optionnel : rend la ligne cliquable → liste Membres pré-filtrée. */
   href?: string
 }
 
-/** Répartition en barre segmentée + légende chiffrée, lignes cliquables si `href`. */
+/** Répartition en donut proportionnel + légende chiffrée, lignes cliquables si `href`. */
 function Repartition({ titre, items }: { titre: string; items: Item[] }) {
   const { t } = useTranslation()
   const total = items.reduce((s, it) => s + it.count, 0)
 
-  // Animation d'entrée (§10) : les segments grandissent de 0 vers leur largeur.
+  // Animation d'entrée (§10) : les arcs du donut poussent de 0 vers leur part.
   const [monte, setMonte] = useState(() => prefersReducedMotion())
   useEffect(() => {
     if (monte) return
@@ -40,27 +42,24 @@ function Repartition({ titre, items }: { titre: string; items: Item[] }) {
       {total === 0 ? (
         <p className="mt-4 text-sm text-faint">{t('dashboard.repartition.aucuneDonnee')}</p>
       ) : (
-        <>
-          <div
-            className="mt-4 flex h-2.5 w-full gap-0.5 overflow-hidden rounded-full bg-surface-2"
-            aria-hidden="true"
-          >
-            {items.map((it) =>
-              it.count > 0 ? (
-                <span
-                  key={it.key}
-                  className={cn(
-                    'h-full transition-[width] duration-700 ease-out first:rounded-l-full last:rounded-r-full',
-                    it.bar,
-                  )}
-                  style={{ width: monte ? `${(it.count / total) * 100}%` : '0%' }}
-                  title={`${it.label} : ${it.count}`}
-                />
-              ) : null,
-            )}
-          </div>
+        <div className="mt-4 flex flex-col items-center gap-5 sm:flex-row sm:items-center sm:gap-6">
+          <Donut
+            total={total}
+            monte={monte}
+            segments={items.map((it) => ({ cle: it.key, valeur: it.count, couleur: it.couleur }))}
+            centre={
+              <>
+                <span className="num text-2xl font-semibold text-foreground">
+                  {formatNombre(total)}
+                </span>
+                <span className="mt-1 text-[0.62rem] uppercase tracking-[0.12em] text-faint">
+                  {t('dashboard.repartition.total')}
+                </span>
+              </>
+            }
+          />
 
-          <ul className="mt-3">
+          <ul className="w-full flex-1">
             {items.map((it) => {
               const pct = Math.round((it.count / total) * 100)
               const inner = (
@@ -101,7 +100,7 @@ function Repartition({ titre, items }: { titre: string; items: Item[] }) {
               )
             })}
           </ul>
-        </>
+        </div>
       )}
     </Card>
   )
@@ -123,7 +122,7 @@ export function StatutContributionRepartition({
           key: 'A_JOUR',
           label: t('dashboard.statut.A_JOUR'),
           count: data.A_JOUR,
-          bar: 'bg-jade',
+          couleur: 'text-jade',
           dot: 'bg-jade',
           href: `${linkBase}?cotisation=A_JOUR`,
         },
@@ -131,7 +130,7 @@ export function StatutContributionRepartition({
           key: 'PARTIEL',
           label: t('dashboard.statut.PARTIEL'),
           count: data.PARTIEL,
-          bar: 'bg-amber',
+          couleur: 'text-amber',
           dot: 'bg-amber',
           href: `${linkBase}?cotisation=PARTIEL`,
         },
@@ -139,7 +138,7 @@ export function StatutContributionRepartition({
           key: 'NON_A_JOUR',
           label: t('dashboard.statut.NON_A_JOUR'),
           count: data.NON_A_JOUR,
-          bar: 'bg-terra',
+          couleur: 'text-terra',
           dot: 'bg-terra',
           href: `${linkBase}?cotisation=NON_A_JOUR`,
         },
@@ -164,7 +163,7 @@ export function StatutMembreRepartition({
           key: 'ACTIF',
           label: t('dashboard.repartition.membre.ACTIF'),
           count: data.ACTIF,
-          bar: 'bg-info',
+          couleur: 'text-info',
           dot: 'bg-info',
           href: `${linkBase}?statut=ACTIF`,
         },
@@ -172,7 +171,7 @@ export function StatutMembreRepartition({
           key: 'INACTIF',
           label: t('dashboard.repartition.membre.INACTIF'),
           count: data.INACTIF,
-          bar: 'bg-surface-3',
+          couleur: 'text-muted-foreground',
           dot: 'bg-muted-foreground',
           href: `${linkBase}?statut=INACTIF`,
         },
@@ -180,7 +179,7 @@ export function StatutMembreRepartition({
           key: 'DECEDE',
           label: t('dashboard.repartition.membre.DECEDE'),
           count: data.DECEDE,
-          bar: 'bg-faint/40',
+          couleur: 'text-faint',
           dot: 'bg-faint',
           href: `${linkBase}?statut=DECEDE`,
         },

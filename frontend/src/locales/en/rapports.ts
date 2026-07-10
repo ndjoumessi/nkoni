@@ -14,6 +14,8 @@ export default {
       titre: 'Expected vs collected by year',
       attendu: 'Expected',
       collecte: 'Collected',
+      resumeAria: 'Recovery chart by year: expected and collected. Full figures in the table below.',
+      aucuneDonnee: 'No data to display.',
     },
     table: {
       annee: 'Year',

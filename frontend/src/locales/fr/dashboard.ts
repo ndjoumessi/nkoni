@@ -55,6 +55,7 @@ export default {
     },
     repartition: {
       aucuneDonnee: "Aucune donnée pour l'instant.",
+      total: 'Total',
       cotisationTitre: 'Membres par statut de cotisation',
       membreTitre: 'Membres par statut',
       membre: {
@@ -62,6 +63,15 @@ export default {
         INACTIF: 'Inactifs',
         DECEDE: 'Décédés',
       },
+    },
+    evolution: {
+      titre: 'Recouvrement mensuel · {{annee}}',
+      collecte: 'Collecté',
+      attendu: 'Cible mensuelle',
+      colonneMois: 'Mois',
+      resumeAria:
+        'Évolution mensuelle du recouvrement pour {{annee}} : montant collecté chaque mois et cible mensuelle. Détail chiffré dans la table associée.',
+      aucuneDonnee: 'Aucun versement enregistré cette année pour le moment.',
     },
     analyse: {
       recouvrementBranche: 'Recouvrement par branche',

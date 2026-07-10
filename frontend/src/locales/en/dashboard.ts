@@ -55,6 +55,7 @@ export default {
     },
     repartition: {
       aucuneDonnee: 'No data yet.',
+      total: 'Total',
       cotisationTitre: 'Members by contribution status',
       membreTitre: 'Members by status',
       membre: {
@@ -62,6 +63,15 @@ export default {
         INACTIF: 'Inactive',
         DECEDE: 'Deceased',
       },
+    },
+    evolution: {
+      titre: 'Monthly collection · {{annee}}',
+      collecte: 'Collected',
+      attendu: 'Monthly target',
+      colonneMois: 'Month',
+      resumeAria:
+        'Monthly collection trend for {{annee}}: amount collected each month and the monthly target. Full figures in the companion table.',
+      aucuneDonnee: 'No payment recorded this year yet.',
     },
     analyse: {
       recouvrementBranche: 'Collection by branch',

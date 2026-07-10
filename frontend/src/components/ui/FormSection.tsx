@@ -20,13 +20,18 @@ export function FormSection({
   columns?: 1 | 2
   className?: string
 }) {
+  // `@container` + variante `@lg:` : la grille réagit à la largeur de la SECTION (pas du viewport).
+  // Deux colonnes seulement quand la section est assez large (formulaire pleine largeur) ; en
+  // conteneur étroit (modale) elle reste sur une colonne → plus de champs tronqués / labels coupés.
   return (
-    <section className={cn('rounded-2xl border border-hairline bg-surface-2/30 p-4 sm:p-5', className)}>
+    <section
+      className={cn('@container rounded-2xl border border-hairline bg-surface-2/30 p-4 sm:p-5', className)}
+    >
       <p className="mb-4 flex items-center gap-2 text-[0.7rem] font-medium uppercase tracking-[0.12em] text-faint">
         {Icon && <Icon className="h-3.5 w-3.5 text-brass" aria-hidden="true" />}
         {title}
       </p>
-      <div className={cn('grid gap-4', columns === 2 && 'sm:grid-cols-2')}>{children}</div>
+      <div className={cn('grid gap-4', columns === 2 && '@lg:grid-cols-2')}>{children}</div>
     </section>
   )
 }

@@ -29,12 +29,11 @@ export function EmptyState({
   className?: string
   tone?: 'brass' | 'jade'
 }) {
-  const ring =
-    tone === 'jade'
-      ? 'text-jade shadow-[0_0_0_1px_oklch(0.80_0.13_165/25%),0_18px_40px_-20px_oklch(0.80_0.13_165/40%)]'
-      : 'text-brass shadow-[0_0_0_1px_oklch(0.84_0.14_168/25%),0_18px_40px_-20px_oklch(0.84_0.14_168/40%)]'
-  const glow =
-    tone === 'jade' ? 'oklch(0.80 0.13 165 / 16%)' : 'oklch(0.84 0.14 168 / 16%)'
+  // Teinte pilotée par le TOKEN (plus de valeur oklch recopiée) : `color-mix` applique l'alpha.
+  const accent = tone === 'jade' ? 'var(--jade)' : 'var(--brass)'
+  const iconColor = tone === 'jade' ? 'text-jade' : 'text-brass'
+  const ringShadow = `0 0 0 1px color-mix(in oklch, ${accent} 25%, transparent), 0 18px 40px -20px color-mix(in oklch, ${accent} 40%, transparent)`
+  const glow = `color-mix(in oklch, ${accent} 16%, transparent)`
 
   return (
     <div
@@ -58,8 +57,9 @@ export function EmptyState({
       <div
         className={cn(
           'mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-surface-2',
-          ring,
+          iconColor,
         )}
+        style={{ boxShadow: ringShadow }}
       >
         <Icon className="h-7 w-7" aria-hidden="true" />
       </div>

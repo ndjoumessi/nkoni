@@ -5,6 +5,7 @@ import { AlertTriangle, CheckCircle2, Loader2, Plus, Search, Upload, Users } fro
 import { useAuth } from '@/contexts/auth-context'
 import {
   membresApi,
+  organisationApi,
   messageErreur,
   type MembreStatut,
   type StatutMembre,
@@ -14,6 +15,7 @@ import { estMembreSimple, peutGererMembres } from '@/lib/roles'
 import { resumeMembres } from '@/lib/membres'
 import { StatutCotisationBadge, StatutMembreBadge } from '@/components/membres/StatutBadges'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { Badge } from '@/components/ui/Badge'
 import { Card } from '@/components/ui/Card'
 import { StatCard } from '@/components/ui/StatCard'
 import { DataTable, type Column } from '@/components/ui/DataTable'
@@ -41,6 +43,8 @@ export function MembresPage() {
   const [membres, setMembres] = useState<MembreStatut[] | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // Chef de l'organisation (badge sur sa ligne) — best-effort, chargé indépendamment.
+  const [chef, setChef] = useState<{ id: string | null; surnom: string | null }>({ id: null, surnom: null })
 
   // Filtres initialisés depuis l'URL (dashboard actionnable : ?statut= / ?cotisation= / ?branche=).
   const [searchParams] = useSearchParams()
@@ -68,6 +72,25 @@ export function MembresPage() {
         if (active) setError(messageErreur(e))
       } finally {
         if (active) setLoading(false)
+      }
+    })()
+    return () => {
+      active = false
+      controller.abort()
+    }
+  }, [accessToken])
+
+  // Chef de l'organisation : chargé à part (best-effort, jamais bloquant pour la liste).
+  useEffect(() => {
+    if (!accessToken) return
+    const controller = new AbortController()
+    let active = true
+    void (async () => {
+      try {
+        const org = await organisationApi.moi(accessToken, controller.signal)
+        if (active) setChef({ id: org.chefMembreId, surnom: org.chefSurnom })
+      } catch {
+        /* pas d'accès (ex. droits) ou erreur → aucun badge chef, sans conséquence */
       }
     })()
     return () => {
@@ -149,8 +172,18 @@ export function MembresPage() {
       header: t('membres.liste.colonnes.membre'),
       sortable: true,
       cell: (m) => (
-        <span className="font-medium text-foreground">
-          {m.nom} <span className="text-muted-foreground">{m.prenom}</span>
+        <span className="flex flex-wrap items-center gap-2">
+          <span className="font-medium text-foreground">
+            {m.nom} <span className="text-muted-foreground">{m.prenom}</span>
+          </span>
+          {chef.id === m.id && (
+            <>
+              <Badge tone="brass" size="sm">
+                {t('membres.chef.badge')}
+              </Badge>
+              {chef.surnom && <span className="text-xs text-faint">« {chef.surnom} »</span>}
+            </>
+          )}
         </span>
       ),
     },

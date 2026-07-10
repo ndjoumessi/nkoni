@@ -76,6 +76,13 @@ model Organisation {
   actif        Boolean  @default(true)
   createdAt    DateTime @default(now())
 
+  // Chef de l'organisation (dirigeant) — Membre désigné, ACTION MUTABLE réservée ADMIN/PRESIDENT
+  // (distincte des paramètres immuables §5). ON DELETE SET NULL : supprimer le membre « déchef »
+  // l'org sans la casser. `chefSurnom` = titre honorifique optionnel affiché à côté du nom.
+  chefMembreId String?
+  chef         Membre?  @relation("ChefOrganisation", fields: [chefMembreId], references: [id], onDelete: SetNull)
+  chefSurnom   String?
+
   // Toutes les entités métier scopées (relations inverses).
   utilisateurs         Utilisateur[]
   branches             BrancheFamiliale[]
@@ -177,6 +184,7 @@ model Membre {
   conflitsConcernes        ConflitMembreConcerne[] // V2 §4.4 (join explicite, scopé org)
   commemorationsConcernees CommemorationMembreConcerne[] // V2 (join explicite, scopé org)
   depensesBeneficiaire     Depense[]                     @relation("DepenseBeneficiaire") // Trésorerie — aides reçues
+  organisationsCommeChef   Organisation[]                @relation("ChefOrganisation") // Chef de l'organisation (inverse ; rare : 1)
   // Idempotence (§ PWA hors-ligne) : rejeu d'un « ajouter membre » saisi hors-ligne (uuid client).
   idempotenceKey           String?
   createdAt                DateTime                      @default(now())

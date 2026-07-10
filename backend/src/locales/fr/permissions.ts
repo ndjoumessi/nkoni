@@ -3,4 +3,5 @@ export const messages = {
   'permissions.roleSansPermission':
     "Le rôle {role} n'a pas la permission '{action}' sur l'entité '{entite}'.",
   'permissions.reserveSuperAdmin': 'Accès réservé à un administrateur de la plateforme.',
+  'permissions.roleNonAutorise': "Cette action n'est pas autorisée pour votre rôle.",
 } as const

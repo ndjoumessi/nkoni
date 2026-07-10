@@ -216,6 +216,13 @@ export interface OrganisationCourante {
   nbMembres: number
   /** Plafond du forfait gratuit — pour situer `nbMembres` (ex. 42 / 100). */
   limiteMembres: number
+  /** Chef de l'organisation (Membre désigné) — null si non désigné. */
+  chefMembreId: string | null
+  /** Surnom / titre honorifique du chef, affiché à côté de son nom. Null si absent. */
+  chefSurnom: string | null
+  /** Nom/prénom du chef pour l'affichage (null si aucun chef désigné). */
+  chefNom: string | null
+  chefPrenom: string | null
 }
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -237,7 +244,18 @@ export async function chargerOrganisationCourante(
 ): Promise<OrganisationCourante | null> {
   const org = await prisma.organisation.findUnique({
     where: { id: organisationId },
-    select: { id: true, nom: true, devise: true, langueDefaut: true, createdAt: true },
+    select: {
+      id: true,
+      nom: true,
+      devise: true,
+      langueDefaut: true,
+      createdAt: true,
+      chefMembreId: true,
+      chefSurnom: true,
+      // Nom/prénom du chef pour l'affichage. Le chef appartient toujours à cette org (garanti à
+      // l'écriture) → lecture par la relation, sûre.
+      chef: { select: { nom: true, prenom: true } },
+    },
   })
   if (!org) return null
   // Quota du forfait = membres ACTIFS uniquement (les fiches DECEDE/INACTIF, conservées pour
@@ -251,6 +269,87 @@ export async function chargerOrganisationCourante(
     createdAt: org.createdAt,
     nbMembres,
     limiteMembres: LIMITE_MEMBRES_FORFAIT_GRATUIT,
+    chefMembreId: org.chefMembreId ?? null,
+    chefSurnom: org.chefSurnom ?? null,
+    chefNom: org.chef?.nom ?? null,
+    chefPrenom: org.chef?.prenom ?? null,
+  }
+}
+
+// ===========================================================================
+// Chef de l'organisation (§ dirigeant) — ACTION MUTABLE, réservée ADMIN/PRESIDENT côté route.
+// Distincte des paramètres immuables (§5). S'exécute DANS le contexte d'organisation :
+//   - la validation d'appartenance du membre passe par une lecture SCOPÉE (Membre) → un membre
+//     d'une AUTRE org renvoie null (isolation tenant) → refus ;
+//   - l'écriture cible `Organisation` (modèle NON scopé) par id, en FK SCALAIRE (chefMembreId),
+//     jamais `{ connect }` (cf. CLAUDE.md — écritures scopées en scalaire).
+// ===========================================================================
+
+/** Membre désigné comme chef mais introuvable dans l'organisation courante (→ 404 côté route). */
+export class MembreHorsOrganisationError extends Error {
+  readonly membreId: string
+  constructor(membreId: string) {
+    super(`Membre ${membreId} introuvable dans l'organisation courante.`)
+    this.name = 'MembreHorsOrganisationError'
+    this.membreId = membreId
+  }
+}
+
+/** Chef désigné (renvoyé après désignation/retrait) — null partout si le chef a été retiré. */
+export interface ChefOrganisation {
+  chefMembreId: string | null
+  chefSurnom: string | null
+  chefNom: string | null
+  chefPrenom: string | null
+}
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+export interface ChefOrganisationPrisma {
+  membre: { findUnique(args: any): Promise<any> }
+  organisation: { update(args: any): Promise<any> }
+}
+/* eslint-enable @typescript-eslint/no-explicit-any */
+
+/**
+ * Désigne (ou retire, si `membreId === null`) le chef de l'organisation courante.
+ *
+ * - `membreId` non null : on VÉRIFIE d'abord son appartenance à l'org via une lecture scopée
+ *   (`membre.findUnique`) — un membre inexistant OU d'une autre org (extension d'isolation → null)
+ *   lève `MembreHorsOrganisationError`. Puis on écrit `chefMembreId` + `chefSurnom` (trim, ou null).
+ * - `membreId === null` : retrait pur (chef + surnom remis à null), sans lecture de membre.
+ */
+export async function definirChefOrganisation(
+  prisma: ChefOrganisationPrisma,
+  organisationId: string,
+  membreId: string | null,
+  surnom: string | null,
+): Promise<ChefOrganisation> {
+  if (membreId !== null) {
+    const membre = await prisma.membre.findUnique({
+      where: { id: membreId },
+      select: { id: true },
+    })
+    if (!membre) throw new MembreHorsOrganisationError(membreId)
+  }
+
+  const surnomNettoye = membreId !== null && surnom ? surnom.trim() || null : null
+
+  const org = await prisma.organisation.update({
+    where: { id: organisationId },
+    // FK SCALAIRE (chefMembreId), pas `{ connect }` — cf. CLAUDE.md.
+    data: { chefMembreId: membreId, chefSurnom: surnomNettoye },
+    select: {
+      chefMembreId: true,
+      chefSurnom: true,
+      chef: { select: { nom: true, prenom: true } },
+    },
+  })
+
+  return {
+    chefMembreId: org.chefMembreId ?? null,
+    chefSurnom: org.chefSurnom ?? null,
+    chefNom: org.chef?.nom ?? null,
+    chefPrenom: org.chef?.prenom ?? null,
   }
 }
 

@@ -212,3 +212,108 @@ describe('Paramètres organisation — GET /organisations/moi', () => {
     await app.close()
   })
 })
+
+/**
+ * Chef de l'organisation — PATCH /organisations/moi/chef.
+ * Prisma mocké. Vérifie : désignation (+ trim du surnom), retrait (membreId null), refus si le
+ * membre n'appartient pas à l'org (isolation tenant simulée par un findUnique scopé → null),
+ * garde de rôle (ADMIN/PRESIDENT seulement), auth requise.
+ */
+function buildChefMock() {
+  const MEMBRES: Record<string, { nom: string; prenom: string }> = {
+    'm-1': { nom: 'NGONO', prenom: 'Marie' },
+  }
+  const state = { chefMembreId: null as string | null, chefSurnom: null as string | null, updates: 0 }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const prisma: any = {
+    membre: {
+      // Simule l'extension d'isolation : un id inconnu OU d'une autre org → null (fail-closed).
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      findUnique: async ({ where }: any) => (where.id in MEMBRES ? { id: where.id } : null),
+    },
+    organisation: {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      update: async ({ data }: any) => {
+        state.updates += 1
+        state.chefMembreId = data.chefMembreId
+        state.chefSurnom = data.chefSurnom
+        const chef = state.chefMembreId ? MEMBRES[state.chefMembreId] : null
+        return { chefMembreId: state.chefMembreId, chefSurnom: state.chefSurnom, chef }
+      },
+    },
+  }
+  return { prisma, state }
+}
+
+const patchChef = (
+  app: FastifyInstance,
+  role: string,
+  payload: unknown,
+  organisationId: string | undefined = 'org-1',
+) =>
+  app.inject({
+    method: 'PATCH',
+    url: '/organisations/moi/chef',
+    headers: authMoi(app, role, organisationId),
+    payload: payload as Record<string, unknown>,
+  })
+
+describe('Chef de l’organisation — PATCH /organisations/moi/chef', () => {
+  it('ADMIN désigne un membre + surnom (trimé) → 200, écrit chefMembreId scalaire', async () => {
+    const { prisma, state } = buildChefMock()
+    const app = await appAvec(prisma)
+    const res = await patchChef(app, 'ADMIN', { membreId: 'm-1', surnom: '  Le Patriarche  ' })
+    expect(res.statusCode).toBe(200)
+    expect(res.json()).toEqual({
+      chefMembreId: 'm-1',
+      chefSurnom: 'Le Patriarche', // trimé
+      chefNom: 'NGONO',
+      chefPrenom: 'Marie',
+    })
+    expect(state.chefMembreId).toBe('m-1')
+    await app.close()
+  })
+
+  it('PRESIDENT retire le chef (membreId null) → 200, chef + surnom remis à null', async () => {
+    const { prisma, state } = buildChefMock()
+    state.chefMembreId = 'm-1' // un chef existait
+    const app = await appAvec(prisma)
+    const res = await patchChef(app, 'PRESIDENT', { membreId: null })
+    expect(res.statusCode).toBe(200)
+    expect(res.json()).toEqual({
+      chefMembreId: null,
+      chefSurnom: null,
+      chefNom: null,
+      chefPrenom: null,
+    })
+    await app.close()
+  })
+
+  it('membre hors organisation (isolation tenant) → 404, aucune écriture', async () => {
+    const { prisma, state } = buildChefMock()
+    const app = await appAvec(prisma)
+    const res = await patchChef(app, 'ADMIN', { membreId: 'm-autre-org' })
+    expect(res.statusCode).toBe(404)
+    expect(state.updates).toBe(0) // refus AVANT toute écriture sur l'organisation
+    await app.close()
+  })
+
+  it('garde de rôle : TRESORIERE / SECRETAIRE / MEMBRE_SIMPLE → 403, aucune écriture', async () => {
+    for (const role of ['TRESORIERE', 'SECRETAIRE', 'MEMBRE_SIMPLE']) {
+      const { prisma, state } = buildChefMock()
+      const app = await appAvec(prisma)
+      const res = await patchChef(app, role, { membreId: 'm-1' })
+      expect(res.statusCode, role).toBe(403)
+      expect(state.updates, role).toBe(0)
+      await app.close()
+    }
+  })
+
+  it('sans authentification → 401', async () => {
+    const { prisma } = buildChefMock()
+    const app = await appAvec(prisma)
+    const res = await app.inject({ method: 'PATCH', url: '/organisations/moi/chef', payload: { membreId: 'm-1' } })
+    expect(res.statusCode).toBe(401)
+    await app.close()
+  })
+})

@@ -107,6 +107,106 @@ export default {
       },
       note: 'Les forfaits Pro et Entreprise ne sont pas encore commercialisés. Les fonctionnalités annoncées sont indicatives et pourront évoluer d’ici leur lancement.',
     },
+    etapes: {
+      overline: 'Prise en main',
+      titre: 'Opérationnel en trois étapes',
+      description:
+        'Pas d’installation, pas de tableur à maintenir. Créez votre espace et invitez vos membres en quelques minutes.',
+      creer: {
+        titre: 'Créez votre espace',
+        texte: 'Nommez votre association, famille ou tontine et choisissez votre devise. C’est gratuit et immédiat.',
+      },
+      inviter: {
+        titre: 'Ajoutez vos membres',
+        texte: 'Saisissez vos membres un à un ou importez-les depuis un fichier Excel / CSV existant.',
+      },
+      suivre: {
+        titre: 'Suivez les cotisations',
+        texte: 'Enregistrez les versements, générez les reçus et laissez chacun consulter son statut en temps réel.',
+      },
+    },
+    pourQui: {
+      overline: 'Pour qui',
+      titre: 'Un espace pour chaque forme de collectif',
+      description:
+        'NKONI s’adapte à la réalité des groupes qui reposent sur la confiance et la contribution de chacun.',
+      associations: {
+        titre: 'Associations',
+        texte: 'Cotisations annuelles, réunions, fonctions et résolutions — toute la vie associative au même endroit.',
+      },
+      familles: {
+        titre: 'Familles élargies',
+        texte: 'Caisses de solidarité, deuils et événements : une trésorerie claire et partagée entre les branches.',
+      },
+      tontines: {
+        titre: 'Tontines',
+        texte: 'Suivez les mises de chacun et les mouvements de caisse, sans zone d’ombre ni cahier perdu.',
+      },
+    },
+    capacites: {
+      titre: 'Et tout ce qu’il faut pour gérer au quotidien',
+      description: 'Une seule application, du recouvrement à la reddition de comptes.',
+      reunions: 'Réunions & présences',
+      resolutions: 'Résolutions & fonctions',
+      rapports: 'Rapports & exports PDF/Excel',
+      recus: 'Reçus PDF automatiques',
+      horsLigne: 'Saisie même hors-ligne',
+      multiDevise: 'Multi-devise & bilingue',
+    },
+    securite: {
+      overline: 'Sécurité & transparence',
+      titre: 'Vos finances collectives, à l’abri et vérifiables',
+      description:
+        'La confiance se construit sur la preuve : chaque espace est cloisonné et chaque mouvement laisse une trace.',
+      isolation: {
+        titre: 'Isolation totale',
+        texte: 'Chaque groupe a son espace dédié. Aucune donnée n’est jamais partagée ni visible entre organisations.',
+      },
+      tracabilite: {
+        titre: 'Traçabilité intégrale',
+        texte: 'Chaque versement, dépense et modification est horodaté et consultable dans un journal d’audit.',
+      },
+      exports: {
+        titre: 'Vos données restent les vôtres',
+        texte: 'Exportez à tout moment vos rapports et reçus en PDF ou Excel, sans dépendance ni blocage.',
+      },
+    },
+    faq: {
+      overline: 'Questions fréquentes',
+      titre: 'Ce qu’on nous demande souvent',
+      cout: {
+        q: 'NKONI est-il vraiment gratuit ?',
+        r: 'Oui. Le forfait Gratuit couvre jusqu’à 100 membres avec toutes les fonctions essentielles, sans carte bancaire.',
+      },
+      donnees: {
+        q: 'Mes données sont-elles isolées des autres groupes ?',
+        r: 'Absolument. Chaque organisation dispose d’un espace cloisonné : aucune donnée n’est jamais partagée entre espaces.',
+      },
+      horsLigne: {
+        q: 'Puis-je saisir sans connexion Internet ?',
+        r: 'Oui. NKONI s’installe comme une application et enregistre vos saisies hors-ligne, puis les synchronise sans doublon dès le retour du réseau.',
+      },
+      langues: {
+        q: 'L’application est-elle disponible en plusieurs langues ?',
+        r: 'Oui, en français et en anglais, avec les formats de dates et de montants adaptés à votre devise.',
+      },
+    },
+    ctaFinal: {
+      titre: 'Prêt à donner de la clarté à votre communauté ?',
+      description: 'Créez votre espace en quelques minutes. Gratuit, sans engagement.',
+    },
     footer: 'NKONI — gestion des cotisations & transparence financière.',
+    footerNav: {
+      produit: 'Produit',
+      pourquoi: 'Pourquoi NKONI',
+      forfaits: 'Forfaits',
+      faq: 'FAQ',
+      commencer: 'Commencer',
+      creer: 'Créer mon espace',
+      seConnecter: 'Se connecter',
+      contact: 'Nous contacter',
+      contactSujet: 'NKONI — prise de contact',
+      droits: '© 2026 NKONI. Tous droits réservés.',
+    },
   },
 }

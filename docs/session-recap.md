@@ -69,6 +69,10 @@ statut de déploiement Railway/Vercel confirmé au statut réel là où le backe
 - **Landing publique enrichie (§0)** — page d'accueil `/` étoffée : « Opérationnel en trois étapes »,
   segments (associations / familles élargies / tontines), bloc sécurité & isolation, FAQ et footer ;
   contenu entièrement traduit FR/EN (parité de clés vérifiée à la compilation).
+- **Sélecteur de langue FR/EN public (§4)** — composant `LangueToggle` (pilule accessible, persiste
+  via `appliquerLangue` en `localStorage`, sans compte — distinct du sélecteur « Mon profil » côté
+  serveur) présent sur tout le parcours non authentifié : hero + footer de la landing, et pages login
+  et inscription (en haut à droite). Un visiteur peut basculer la langue avant toute connexion.
 
 ### Migrations appliquées en prod
 - `tresorerie_depense` — additive (table `Depense` + 2 enums via `CREATE TYPE`).

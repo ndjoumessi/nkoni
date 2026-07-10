@@ -58,8 +58,8 @@ statut de déploiement Railway/Vercel confirmé au statut réel là où le backe
   la cagnotte émeraude→or, chef en or) appliqué partout (NkoniMark, favicon, icônes PWA régénérées,
   remplace l'ancien logo mauve générique) ; page de connexion enrichie en deux colonnes (panneau de
   marque + 3 arguments de valeur sur desktop, formulaire seul sur mobile).
-- **Audit UI/UX (9 fichiers)** — cibles tactiles agrandies (boutons Réunions/Documents/œil mot de
-  passe → 44 px), accessibilité (aria-label des selects de filtre Trésorerie, aria-current="step"
+- **Audit UI/UX (9 fichiers)** — cibles tactiles agrandies (boutons Réunions/Documents → 44 px),
+  accessibilité (aria-label des selects de filtre Trésorerie, aria-current="step"
   sur le fil d'import), états explicites (erreur inline `role="alert"` + loader `RowsSkeleton` sur
   Trésorerie, distinction panne réseau vs absence de fiche sur Mon espace), et nettoyage tokens
   (RecouvrementHero + EmptyState : `var(--brass|jade|hairline)` / `color-mix` au lieu d'oklch en dur).

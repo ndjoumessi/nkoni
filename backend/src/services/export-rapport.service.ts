@@ -21,6 +21,7 @@ import {
   dessinerCorpsPremium,
   montantExport,
   nombreExport,
+  pourcentExport,
   styliserEnTeteExcel,
   zebrerLigne,
   styliserTotalExcel,
@@ -312,7 +313,7 @@ export function genererComparaisonPdf(
       l.label,
       valeur(l.a, l.montant ?? false),
       valeur(l.b, l.montant ?? false),
-      l.variation === undefined ? '' : l.variation === null ? 'n/a' : String(l.variation),
+      l.variation === undefined ? '' : l.variation === null ? 'n/a' : pourcentExport(l.variation, langue),
     ])
     dessinerCorpsPremium(doc, { colonnes, lignes, gauche: GAUCHE, droite: DROITE, yStart })
   })
@@ -465,7 +466,7 @@ export function genererComparaisonMultiPdf(
         cellules.push(v === null ? '—' : metrique.montant ? nb(v) : String(v))
         if (j > 0) {
           const va = variationMulti(metrique, ac)
-          cellules.push(typeof va === 'number' ? String(va) : va)
+          cellules.push(typeof va === 'number' ? pourcentExport(va, langue) : va)
         }
       })
       return cellules

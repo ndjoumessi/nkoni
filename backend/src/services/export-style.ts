@@ -13,7 +13,7 @@
  *   gris        #636a6d                                            sous-titre discret
  *   filet       #d5d8d9                                            filets fins entre lignes
  */
-import { formatMontant, formatNombre, type Langue, type Devise } from '../lib/i18n'
+import { formatMontant, formatNombre, formatPourcentage, type Langue, type Devise } from '../lib/i18n'
 
 /** Palette hex pour PDFKit. */
 export const NK = {
@@ -52,6 +52,19 @@ export function montantExport(n: number, langue: Langue, devise: Devise): string
  */
 export function nombreExport(n: number, langue: Langue): string {
   return formatNombre(n, langue).replace(/[\u202f\u00a0]/g, ' ')
+}
+
+/**
+ * Variation en pourcentage pour un PDF : signe explicite (`+` si positif ; le `-` vient du
+ * formatage), suffixe \u00ab % \u00bb, d\u00e9cimales conserv\u00e9es. Normalis\u00e9 pour PDFKit \u2014 espaces ins\u00e9cables
+ * (U+202F/U+00A0) et le vrai signe moins (U+2212, non encod\u00e9 par Helvetica) remplac\u00e9s par leurs
+ * \u00e9quivalents ASCII. Ex. FR : `+3 500 %`, `-2,78 %`, `0 %`.
+ */
+export function pourcentExport(n: number, langue: Langue): string {
+  const texte = formatPourcentage(n, langue)
+    .replace(/[\u202f\u00a0]/g, ' ')
+    .replace(/\u2212/g, '-')
+  return `${n > 0 ? '+' : ''}${texte} %`
 }
 
 /* -------------------------------------------------------------------------- */

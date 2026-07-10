@@ -25,6 +25,7 @@ import { Field, Input } from '@/components/ui/Field'
 import { DatePicker } from '@/components/ui/DatePicker'
 import { Modal } from '@/components/ui/Modal'
 import { DataTable, type Column } from '@/components/ui/DataTable'
+import { RowsSkeleton } from '@/components/ui/Skeleton'
 
 const CATEGORIES: CategorieDepense[] = ['AIDE_MEMBRE', 'FUNERAILLES', 'EVENEMENT', 'FONCTIONNEMENT', 'AUTRE']
 const STATUTS: StatutDepense[] = ['BROUILLON', 'EN_ATTENTE', 'APPROUVEE', 'REJETEE', 'PAYEE']
@@ -234,7 +235,9 @@ export function TresoreriePage() {
           </div>
         </div>
         {loading ? (
-          <p className="mt-4 text-sm text-faint">…</p>
+          <div className="mt-4 overflow-hidden rounded-xl border border-hairline">
+            <RowsSkeleton rows={4} />
+          </div>
         ) : depenses.length === 0 ? (
           <p className="mt-4 text-sm text-faint">{t('tresorerie.liste.aucune')}</p>
         ) : (

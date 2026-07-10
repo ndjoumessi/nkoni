@@ -63,6 +63,9 @@ statut de déploiement Railway/Vercel confirmé au statut réel là où le backe
   sur le fil d'import), états explicites (erreur inline `role="alert"` + loader `RowsSkeleton` sur
   Trésorerie, distinction panne réseau vs absence de fiche sur Mon espace), et nettoyage tokens
   (RecouvrementHero + EmptyState : `var(--brass|jade|hairline)` / `color-mix` au lieu d'oklch en dur).
+- **Écran Utilisateurs & formulaires** — création de compte déplacée en modale (liste d'abord) + avatars
+  à initiales sur les lignes ; FormSection passé en container query (`@container` + `@lg:grid-cols-2`) →
+  2 colonnes en pleine largeur, 1 colonne en modale/mobile, plus de champ tronqué ni de label coupé.
 
 ### Migrations appliquées en prod
 - `tresorerie_depense` — additive (table `Depense` + 2 enums via `CREATE TYPE`).

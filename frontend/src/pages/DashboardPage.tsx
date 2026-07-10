@@ -93,19 +93,26 @@ function OnboardingVide({ canManage }: { canManage: boolean }) {
 }
 
 /**
- * Évolution mensuelle du recouvrement (année courante) — mappe la série backend vers le
- * graphe partagé (variante aire). Les libellés de mois sont locale-aware (Intl, §4/§5).
+ * Recouvrement CUMULÉ (année courante) — collecté cumulé mois après mois face à l'objectif
+ * cumulé (la trajectoire cible qui monte vers le total annuel). « Burn-up vers l'objectif »
+ * rendu par la variante aire du graphe partagé ; mois locale-aware (Intl, §4/§5).
  */
 function EvolutionMensuelleCard({ annee, data }: { annee: number; data: EvolutionMois[] }) {
   const { t, i18n } = useTranslation()
   const points = useMemo<PointEvolution[]>(() => {
     const fmt = new Intl.DateTimeFormat(i18n.language, { month: 'short', timeZone: 'UTC' })
-    return data.map((e) => ({
-      cle: String(e.mois),
-      label: fmt.format(new Date(Date.UTC(2000, e.mois - 1, 1))),
-      attendu: e.attendu,
-      collecte: e.collecte,
-    }))
+    let cumulCollecte = 0
+    let cumulAttendu = 0
+    return data.map((e) => {
+      cumulCollecte += e.collecte
+      cumulAttendu += e.attendu
+      return {
+        cle: String(e.mois),
+        label: fmt.format(new Date(Date.UTC(2000, e.mois - 1, 1))),
+        attendu: cumulAttendu,
+        collecte: cumulCollecte,
+      }
+    })
   }, [data, i18n.language])
 
   return (

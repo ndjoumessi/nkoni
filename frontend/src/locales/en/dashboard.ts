@@ -65,12 +65,12 @@ export default {
       },
     },
     evolution: {
-      titre: 'Monthly collection · {{annee}}',
-      collecte: 'Collected',
-      attendu: 'Monthly target',
+      titre: 'Cumulative recovery · {{annee}}',
+      collecte: 'Collected (cumulative)',
+      attendu: 'Target (cumulative)',
       colonneMois: 'Month',
       resumeAria:
-        'Monthly collection trend for {{annee}}: amount collected each month and the monthly target. Full figures in the companion table.',
+        'Cumulative collection progress for {{annee}}: amount collected cumulatively month over month against the cumulative target. Full figures in the companion table.',
       aucuneDonnee: 'No payment recorded this year yet.',
     },
     analyse: {

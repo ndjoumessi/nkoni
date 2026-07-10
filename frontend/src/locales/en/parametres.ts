@@ -11,6 +11,8 @@ export default {
       devise: 'Currency',
       langue: 'Default language',
       creation: 'Workspace created on',
+      chef: 'Organisation head',
+      chefNonDesigne: 'Not assigned',
     },
     immuable: {
       titre: 'Permanent settings',

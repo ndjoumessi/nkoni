@@ -1,7 +1,7 @@
 import { useEffect, useState, type ComponentType } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Navigate } from 'react-router-dom'
-import { Building2, CalendarDays, Coins, Languages, Lock, Users, type LucideProps } from 'lucide-react'
+import { Building2, CalendarDays, Coins, Crown, Languages, Lock, Users, type LucideProps } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
 import { organisationApi, messageErreur, type OrganisationCourante } from '@/lib/api'
 import { peutVoirParametres } from '@/lib/roles'
@@ -82,6 +82,10 @@ export function ParametresPage() {
 
   const deviseLabel = org ? t(`inscription.devises.${org.devise.toLowerCase()}`) : ''
   const langueLabel = org ? t(org.langueDefaut === 'EN' ? 'commun.langue.en' : 'commun.langue.fr') : ''
+  const chefLabel = org?.chefMembreId
+    ? `${org.chefNom ?? ''} ${org.chefPrenom ?? ''}`.trim() +
+      (org.chefSurnom ? ` « ${org.chefSurnom} »` : '')
+    : t('parametres.infos.chefNonDesigne')
   const pct = org ? Math.min(100, Math.round((org.nbMembres / org.limiteMembres) * 100)) : 0
   const restants = org ? Math.max(0, org.limiteMembres - org.nbMembres) : 0
   const limiteAtteinte = org ? org.nbMembres >= org.limiteMembres : false
@@ -110,6 +114,7 @@ export function ParametresPage() {
             </div>
             <dl className="mt-3 divide-y divide-hairline">
               <Info icon={Building2} label={t('parametres.infos.nom')} value={org.nom} />
+              <Info icon={Crown} label={t('parametres.infos.chef')} value={chefLabel} />
               <Info icon={Coins} label={t('parametres.infos.devise')} value={deviseLabel} />
               <Info icon={Languages} label={t('parametres.infos.langue')} value={langueLabel} />
               <Info

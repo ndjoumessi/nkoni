@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { FileText, Loader2, Download, Send } from 'lucide-react'
+import { FileText, Loader2, Download, Send, Pencil, Trash2 } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
 import {
   versementsApi,
@@ -8,6 +8,7 @@ import {
   ApiError,
   type Versement,
   type Recu,
+  type ModeVersement,
 } from '@/lib/api'
 import { peutSaisirVersement } from '@/lib/roles'
 import { formatMontant } from '@/lib/format'
@@ -15,21 +16,35 @@ import { formatDate } from '@/lib/utils'
 import { useToast } from '@/components/ui/Toast'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { Modal } from '@/components/ui/Modal'
+import { Field, Input, Select, Textarea } from '@/components/ui/Field'
+import { DatePicker } from '@/components/ui/DatePicker'
 
 /** Format numérique court (jj/mm/aaaa) selon la langue courante. */
 const DATE_COURTE = { day: '2-digit', month: '2-digit', year: 'numeric' } as const
+
+const MODES: ModeVersement[] = ['ESPECES', 'TIERS', 'AUTRE']
+
+/** ISO (…T…Z) → `yyyy-mm-dd` attendu par le DatePicker. */
+const versISODate = (iso: string): string => iso.slice(0, 10)
 
 /**
  * Liste des versements d'une contribution avec, pour chacun, le numéro de reçu s'il
  * existe déjà, sinon un bouton « Générer le reçu » (§4.6, jamais automatique).
  * Les reçus existants sont récupérés en une fois via GET /recus?membreId= (pas de N+1).
+ *
+ * Gestion (ADMIN/TRÉSORIÈRE) : chaque versement peut être MODIFIÉ (modale) ou SUPPRIMÉ
+ * (confirmation). Le back reporte le delta / décrémente les totaux ; `onChange` prévient
+ * le parent (fiche membre) pour rafraîchir les montants cumulés affichés au-dessus.
  */
 export function VersementsList({
   contributionId,
   membreId,
+  onChange,
 }: {
   contributionId: string
   membreId: string
+  onChange?: () => void
 }) {
   const { t } = useTranslation()
   const { accessToken, user } = useAuth()
@@ -40,36 +55,48 @@ export function VersementsList({
   const [error, setError] = useState<string | null>(null)
   const [generating, setGenerating] = useState<string | null>(null)
   const [whatsapping, setWhatsapping] = useState<string | null>(null)
-  const peutEnvoyer = peutSaisirVersement(user?.role)
+  const peutGerer = peutSaisirVersement(user?.role)
 
-  useEffect(() => {
-    if (!accessToken) return
-    const controller = new AbortController()
-    const { signal } = controller
-    let active = true
-    setLoading(true)
-    setError(null)
-    void (async () => {
+  // Édition (modale) — versement en cours + champs contrôlés.
+  const [editing, setEditing] = useState<Versement | null>(null)
+  const [editMontant, setEditMontant] = useState('')
+  const [editDate, setEditDate] = useState('')
+  const [editMode, setEditMode] = useState<ModeVersement>('ESPECES')
+  const [editNote, setEditNote] = useState('')
+  const [editErr, setEditErr] = useState<string | undefined>(undefined)
+  const [saving, setSaving] = useState(false)
+
+  // Suppression (confirmation).
+  const [confirmDelete, setConfirmDelete] = useState<Versement | null>(null)
+  const [deleting, setDeleting] = useState(false)
+
+  const charger = useCallback(
+    async (signal?: AbortSignal) => {
+      if (!accessToken) return
+      setLoading(true)
+      setError(null)
       try {
         const [vs, rs] = await Promise.all([
           versementsApi.listByContribution(contributionId, accessToken, signal),
           recusApi.listByMembre(membreId, accessToken, signal),
         ])
-        if (!active) return
         setVersements(vs)
         setRecus(new Map(rs.map((r) => [r.versementId, r])))
       } catch (e) {
         if (e instanceof DOMException && e.name === 'AbortError') return
-        if (active) setError(e instanceof ApiError ? e.message : 'Erreur de chargement.')
+        setError(e instanceof ApiError ? e.message : t('versements.liste.erreurChargement'))
       } finally {
-        if (active) setLoading(false)
+        setLoading(false)
       }
-    })()
-    return () => {
-      active = false
-      controller.abort()
-    }
-  }, [accessToken, contributionId, membreId])
+    },
+    [accessToken, contributionId, membreId, t],
+  )
+
+  useEffect(() => {
+    const controller = new AbortController()
+    void charger(controller.signal)
+    return () => controller.abort()
+  }, [charger])
 
   const genererRecu = async (versementId: string) => {
     if (!accessToken) return
@@ -114,6 +141,71 @@ export function VersementsList({
     }
   }
 
+  const ouvrirEdition = (v: Versement) => {
+    setEditing(v)
+    setEditMontant(String(v.montant))
+    setEditDate(versISODate(v.dateVersement))
+    setEditMode(v.mode)
+    setEditNote(v.note ?? '')
+    setEditErr(undefined)
+  }
+
+  const enregistrerEdition = async () => {
+    if (!accessToken || !editing) return
+    const m = Number(editMontant)
+    if (editMontant.trim().length === 0) {
+      setEditErr(t('versements.edition.montantRequis'))
+      return
+    }
+    if (Number.isNaN(m) || m <= 0) {
+      setEditErr(t('versements.edition.montantPositif'))
+      return
+    }
+    setSaving(true)
+    try {
+      await versementsApi.modifier(
+        editing.id,
+        {
+          montant: m,
+          dateVersement: editDate,
+          mode: editMode,
+          note: editNote.trim() ? editNote.trim() : null,
+        },
+        accessToken,
+      )
+      setEditing(null)
+      toast.success(t('versements.toast.versementModifie'))
+      await charger()
+      onChange?.()
+    } catch (e) {
+      toast.error(
+        t('versements.toast.modificationImpossible'),
+        e instanceof ApiError ? e.message : t('versements.toast.modificationEchec'),
+      )
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const supprimer = async () => {
+    if (!accessToken || !confirmDelete) return
+    setDeleting(true)
+    try {
+      await versementsApi.supprimer(confirmDelete.id, accessToken)
+      setConfirmDelete(null)
+      toast.success(t('versements.toast.versementSupprime'))
+      await charger()
+      onChange?.()
+    } catch (e) {
+      toast.error(
+        t('versements.toast.suppressionImpossible'),
+        e instanceof ApiError ? e.message : t('versements.toast.suppressionEchec'),
+      )
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center gap-2 px-4 py-3 text-sm text-muted-foreground">
@@ -149,41 +241,128 @@ export function VersementsList({
               </p>
               {v.note && <p className="mt-0.5 truncate text-xs text-faint">{v.note}</p>}
             </div>
-            {recu ? (
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge tone="jade" size="sm">
-                  <FileText className="h-3.5 w-3.5" aria-hidden="true" />
-                  {t('versements.liste.recu', { numero: recu.numero })}
-                </Badge>
-                <Button variant="ghost" size="sm" icon={Download} onClick={() => telecharger(recu.id)}>
-                  {t('versements.liste.telecharger')}
+            <div className="flex flex-wrap items-center gap-2">
+              {recu ? (
+                <>
+                  <Badge tone="jade" size="sm">
+                    <FileText className="h-3.5 w-3.5" aria-hidden="true" />
+                    {t('versements.liste.recu', { numero: recu.numero })}
+                  </Badge>
+                  <Button variant="ghost" size="sm" icon={Download} onClick={() => telecharger(recu.id)}>
+                    {t('versements.liste.telecharger')}
+                  </Button>
+                  {peutGerer && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      icon={Send}
+                      loading={whatsapping === recu.id}
+                      onClick={() => envoyerWhatsApp(recu.id)}
+                    >
+                      {t('versements.liste.whatsapp')}
+                    </Button>
+                  )}
+                </>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  icon={FileText}
+                  loading={generating === v.id}
+                  onClick={() => genererRecu(v.id)}
+                >
+                  {t('versements.liste.generer')}
                 </Button>
-                {peutEnvoyer && (
+              )}
+              {peutGerer && (
+                <>
                   <Button
                     variant="ghost"
                     size="sm"
-                    icon={Send}
-                    loading={whatsapping === recu.id}
-                    onClick={() => envoyerWhatsApp(recu.id)}
-                  >
-                    {t('versements.liste.whatsapp')}
-                  </Button>
-                )}
-              </div>
-            ) : (
-              <Button
-                variant="outline"
-                size="sm"
-                icon={FileText}
-                loading={generating === v.id}
-                onClick={() => genererRecu(v.id)}
-              >
-                {t('versements.liste.generer')}
-              </Button>
-            )}
+                    icon={Pencil}
+                    aria-label={t('versements.liste.modifier')}
+                    title={t('versements.liste.modifier')}
+                    onClick={() => ouvrirEdition(v)}
+                  />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    icon={Trash2}
+                    aria-label={t('versements.liste.supprimer')}
+                    title={t('versements.liste.supprimer')}
+                    className="hover:bg-terra/10 hover:text-terra"
+                    onClick={() => setConfirmDelete(v)}
+                  />
+                </>
+              )}
+            </div>
           </div>
         )
       })}
+
+      {/* Modale d'édition */}
+      <Modal open={editing !== null} onClose={() => setEditing(null)} title={t('versements.edition.titre')}>
+        <div className="space-y-4">
+          <Field label={t('versements.edition.montant')} required error={editErr}>
+            <Input
+              type="number"
+              inputMode="numeric"
+              min={1}
+              value={editMontant}
+              onChange={(e) => {
+                setEditMontant(e.target.value)
+                setEditErr(undefined)
+              }}
+            />
+          </Field>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label={t('versements.edition.date')} required>
+              <DatePicker value={editDate} onChange={setEditDate} />
+            </Field>
+            <Field label={t('versements.edition.mode')} required>
+              <Select value={editMode} onChange={(e) => setEditMode(e.target.value as ModeVersement)}>
+                {MODES.map((m) => (
+                  <option key={m} value={m}>
+                    {t(`versements.modes.${m}`)}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          </div>
+          <Field label={t('versements.edition.note')}>
+            <Textarea rows={2} value={editNote} onChange={(e) => setEditNote(e.target.value)} />
+          </Field>
+        </div>
+        <div className="mt-6 flex justify-end gap-2">
+          <Button variant="ghost" onClick={() => setEditing(null)}>
+            {t('versements.edition.annuler')}
+          </Button>
+          <Button loading={saving} onClick={enregistrerEdition}>
+            {t('versements.edition.enregistrer')}
+          </Button>
+        </div>
+      </Modal>
+
+      {/* Confirmation de suppression */}
+      <Modal
+        open={confirmDelete !== null}
+        onClose={() => setConfirmDelete(null)}
+        title={t('versements.suppression.titre')}
+      >
+        <p className="text-sm text-muted-foreground">
+          {t('versements.suppression.confirmation', {
+            montant: confirmDelete ? formatMontant(confirmDelete.montant) : '',
+          })}
+        </p>
+        <div className="mt-6 flex justify-end gap-2">
+          <Button variant="ghost" onClick={() => setConfirmDelete(null)}>
+            {t('versements.suppression.annuler')}
+          </Button>
+          <Button variant="danger" icon={Trash2} loading={deleting} onClick={supprimer}>
+            {t('versements.suppression.confirmer')}
+          </Button>
+        </div>
+      </Modal>
     </div>
   )
 }

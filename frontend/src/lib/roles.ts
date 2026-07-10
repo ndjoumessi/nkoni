@@ -31,6 +31,14 @@ export function estMembreSimple(role: string | undefined): boolean {
   return role === 'MEMBRE_SIMPLE'
 }
 
+/** Rôles autorisés à désigner/retirer le chef de l'organisation (miroir du garde backend). */
+const DESIGNATION_CHEF = ['ADMIN', 'PRESIDENT']
+
+/** Peut désigner ou retirer le chef de l'organisation (PATCH /organisations/moi/chef). */
+export function peutDesignerChef(role: string | undefined): boolean {
+  return role !== undefined && DESIGNATION_CHEF.includes(role)
+}
+
 /** Rôles autorisés à saisir un versement et à ouvrir une année (Contribution/Versement CRUD §2). */
 const GESTION_FINANCE = ['ADMIN', 'TRESORIERE']
 

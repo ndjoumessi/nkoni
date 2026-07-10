@@ -1,25 +1,28 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ChevronDown, ChevronRight, Pencil, Plus, Scale } from 'lucide-react'
+import { ChevronDown, ChevronRight, Crown, Pencil, Plus, Scale, UserMinus } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
 import {
   membresApi,
   branchesApi,
   contributionsApi,
   equilibragesApi,
+  organisationApi,
   ApiError,
   type Membre,
   type StatutCumule,
   type Contribution,
   type Branche,
   type Equilibrage,
+  type ChefOrganisation,
 } from '@/lib/api'
 import {
   peutGererMembres,
   peutSaisirVersement,
   peutEquilibrer,
   peutGererDocument,
+  peutDesignerChef,
 } from '@/lib/roles'
 import { DocumentsSection } from '@/components/documents/DocumentsSection'
 import { StatutCotisationBadge, StatutMembreBadge } from '@/components/membres/StatutBadges'
@@ -28,7 +31,11 @@ import { formatMontant } from '@/lib/format'
 import { formatDate } from '@/lib/utils'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, Overline } from '@/components/ui/Card'
-import { ButtonLink } from '@/components/ui/Button'
+import { Badge } from '@/components/ui/Badge'
+import { Button, ButtonLink } from '@/components/ui/Button'
+import { Field, Input } from '@/components/ui/Field'
+import { Modal } from '@/components/ui/Modal'
+import { useToast } from '@/components/ui/Toast'
 import { Skeleton } from '@/components/ui/Skeleton'
 
 function Info({ label, value }: { label: string; value: string }) {
@@ -52,6 +59,7 @@ export function MembreDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { user, accessToken } = useAuth()
   const navigate = useNavigate()
+  const toast = useToast()
 
   const [membre, setMembre] = useState<Membre | null>(null)
   const [statut, setStatut] = useState<StatutCumule | null>(null)
@@ -62,6 +70,11 @@ export function MembreDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [expandedContrib, setExpandedContrib] = useState<string | null>(null)
+  // Chef de l'organisation (§ dirigeant) — badge + actions ADMIN/PRESIDENT.
+  const [chef, setChef] = useState<ChefOrganisation | null>(null)
+  const [chefModal, setChefModal] = useState<'designer' | 'retirer' | null>(null)
+  const [surnom, setSurnom] = useState('')
+  const [chefSubmitting, setChefSubmitting] = useState(false)
 
   useEffect(() => {
     if (!accessToken || !id) return
@@ -126,6 +139,21 @@ export function MembreDetailPage() {
       } catch {
         /* pas d'accès aux équilibrages → section masquée */
       }
+
+      // Chef de l'organisation : best-effort (bureau OK, MEMBRE_SIMPLE 403) → badge + actions.
+      try {
+        const org = await organisationApi.moi(accessToken, signal)
+        if (active) {
+          setChef({
+            chefMembreId: org.chefMembreId,
+            chefSurnom: org.chefSurnom,
+            chefNom: org.chefNom,
+            chefPrenom: org.chefPrenom,
+          })
+        }
+      } catch {
+        /* pas d'accès → aucune action/badge chef */
+      }
     })()
     return () => {
       active = false
@@ -137,6 +165,39 @@ export function MembreDetailPage() {
     if (!membre?.brancheId) return '—'
     return branches.find((b) => b.id === membre.brancheId)?.nom ?? '—'
   }, [membre, branches])
+
+  const estChef = !!membre && chef?.chefMembreId === membre.id
+
+  const designerChef = async () => {
+    if (!membre || !accessToken) return
+    setChefSubmitting(true)
+    try {
+      const res = await organisationApi.definirChef(membre.id, surnom.trim() || null, accessToken)
+      setChef(res)
+      setChefModal(null)
+      setSurnom('')
+      toast.success(t('membres.chef.succesDesignation', { nom: `${membre.nom} ${membre.prenom}` }))
+    } catch {
+      toast.error(t('membres.chef.erreur'))
+    } finally {
+      setChefSubmitting(false)
+    }
+  }
+
+  const retirerChef = async () => {
+    if (!accessToken) return
+    setChefSubmitting(true)
+    try {
+      const res = await organisationApi.definirChef(null, null, accessToken)
+      setChef(res)
+      setChefModal(null)
+      toast.success(t('membres.chef.succesRetrait'))
+    } catch {
+      toast.error(t('membres.chef.erreur'))
+    } finally {
+      setChefSubmitting(false)
+    }
+  }
 
   if (loading) {
     return (
@@ -176,6 +237,13 @@ export function MembreDetailPage() {
           <span className="flex flex-wrap items-center gap-2">
             <StatutMembreBadge statut={membre.statut} size="sm" />
             {statut && <StatutCotisationBadge statut={statut.statut} size="sm" />}
+            {estChef && (
+              <Badge tone="brass" size="sm">
+                <Crown className="h-3 w-3" aria-hidden="true" />
+                {t('membres.chef.estChef')}
+                {chef?.chefSurnom ? ` · ${chef.chefSurnom}` : ''}
+              </Badge>
+            )}
           </span>
         }
         actions={
@@ -189,6 +257,23 @@ export function MembreDetailPage() {
                 {t('membres.detail.equilibrer')}
               </ButtonLink>
             )}
+            {peutDesignerChef(user?.role) &&
+              (estChef ? (
+                <Button variant="outline" icon={UserMinus} onClick={() => setChefModal('retirer')}>
+                  {t('membres.chef.retirer')}
+                </Button>
+              ) : (
+                <Button
+                  variant="outline"
+                  icon={Crown}
+                  onClick={() => {
+                    setSurnom('')
+                    setChefModal('designer')
+                  }}
+                >
+                  {t('membres.chef.designer')}
+                </Button>
+              ))}
             {peutGererMembres(user?.role) && (
               <ButtonLink to={`/membres/${membre.id}/editer`} variant="outline" icon={Pencil}>
                 {t('membres.detail.modifier')}
@@ -336,6 +421,52 @@ export function MembreDetailPage() {
         entiteId={membre.id}
         canManage={peutGererDocument(user?.role, 'MEMBRE')}
       />
+
+      {/* Désignation du chef — surnom optionnel (réutilise Modal/Field/Input/Button). */}
+      <Modal
+        open={chefModal === 'designer'}
+        onClose={() => setChefModal(null)}
+        title={t('membres.chef.modalTitre')}
+      >
+        <p className="text-sm text-muted-foreground">{t('membres.chef.description')}</p>
+        <div className="mt-4">
+          <Field label={t('membres.chef.surnomLabel')}>
+            <Input
+              value={surnom}
+              onChange={(e) => setSurnom(e.target.value)}
+              maxLength={120}
+              placeholder={t('membres.chef.surnomPlaceholder')}
+            />
+          </Field>
+        </div>
+        <div className="mt-6 flex justify-end gap-2">
+          <Button variant="ghost" onClick={() => setChefModal(null)}>
+            {t('membres.chef.annuler')}
+          </Button>
+          <Button icon={Crown} loading={chefSubmitting} onClick={designerChef}>
+            {t('membres.chef.confirmerDesignation')}
+          </Button>
+        </div>
+      </Modal>
+
+      {/* Retrait du chef — confirmation. */}
+      <Modal
+        open={chefModal === 'retirer'}
+        onClose={() => setChefModal(null)}
+        title={t('membres.chef.retraitTitre')}
+      >
+        <p className="text-sm text-muted-foreground">
+          {t('membres.chef.retraitTexte', { nom: `${membre.nom} ${membre.prenom}` })}
+        </p>
+        <div className="mt-6 flex justify-end gap-2">
+          <Button variant="ghost" onClick={() => setChefModal(null)}>
+            {t('membres.chef.annuler')}
+          </Button>
+          <Button variant="danger" icon={UserMinus} loading={chefSubmitting} onClick={retirerChef}>
+            {t('membres.chef.confirmerRetrait')}
+          </Button>
+        </div>
+      </Modal>
     </div>
   )
 }

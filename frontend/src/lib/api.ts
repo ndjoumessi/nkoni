@@ -274,11 +274,35 @@ export interface OrganisationCourante {
   createdAt: string
   nbMembres: number
   limiteMembres: number
+  /** Chef de l'organisation (Membre désigné) — null si non désigné. */
+  chefMembreId: string | null
+  chefSurnom: string | null
+  chefNom: string | null
+  chefPrenom: string | null
+}
+
+/** Réponse de PATCH /organisations/moi/chef : le chef courant après désignation/retrait. */
+export interface ChefOrganisation {
+  chefMembreId: string | null
+  chefSurnom: string | null
+  chefNom: string | null
+  chefPrenom: string | null
 }
 
 export const organisationApi = {
   moi: (accessToken: string, signal?: AbortSignal) =>
     request<OrganisationCourante>('/organisations/moi', { accessToken, signal }),
+  /** Désigne (`membreId`) ou retire (`membreId: null`) le chef de l'organisation. ADMIN/PRESIDENT. */
+  definirChef: (
+    membreId: string | null,
+    surnom: string | null,
+    accessToken: string,
+  ) =>
+    request<ChefOrganisation>('/organisations/moi/chef', {
+      method: 'PATCH',
+      json: { membreId, surnom },
+      accessToken,
+    }),
 }
 
 /* -------------------------------------------------------------------------- */

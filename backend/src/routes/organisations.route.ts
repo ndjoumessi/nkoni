@@ -3,12 +3,14 @@ import { orgContext } from '../lib/org-context'
 import { emettreSession } from '../lib/session'
 import { t, langueDeRequete } from '../lib/i18n'
 import { authenticate } from '../middlewares/authenticate'
-import { requirePermission } from '../middlewares/permissions'
+import { requirePermission, requireRoles } from '../middlewares/permissions'
 import { langueEffective } from '../services/auth.service'
 import {
   inscrireOrganisation,
   chargerOrganisationCourante,
+  definirChefOrganisation,
   EmailDejaUtiliseError,
+  MembreHorsOrganisationError,
 } from '../services/organisation.service'
 
 /**
@@ -112,6 +114,50 @@ export const organisationsRoutes: FastifyPluginAsync = async (app: FastifyInstan
           .send({ error: 'Not Found', message: t(langueDeRequete(req), 'organisations.introuvable') })
       }
       return organisation
+    },
+  )
+
+  // PATCH /organisations/moi/chef — désigne / retire le chef de l'organisation courante.
+  // ACTION MUTABLE réservée ADMIN/PRESIDENT (garde par rôle, PAS la matrice Organisation qui est
+  // en lecture seule §5). `membreId: null` retire le chef ; sinon le membre doit appartenir à l'org.
+  app.patch<{ Body: { membreId: string | null; surnom?: string | null } }>(
+    '/organisations/moi/chef',
+    {
+      preHandler: [authenticate, requireRoles(['ADMIN', 'PRESIDENT'])],
+      schema: {
+        body: {
+          type: 'object',
+          required: ['membreId'],
+          additionalProperties: false,
+          properties: {
+            membreId: { type: ['string', 'null'] },
+            surnom: { type: ['string', 'null'], maxLength: 120 },
+          },
+        },
+      },
+    },
+    async (req, reply) => {
+      const organisationId = req.user.organisationId
+      if (!organisationId) {
+        return reply
+          .code(404)
+          .send({ error: 'Not Found', message: t(langueDeRequete(req), 'organisations.introuvable') })
+      }
+      try {
+        return await definirChefOrganisation(
+          app.prisma,
+          organisationId,
+          req.body.membreId,
+          req.body.surnom ?? null,
+        )
+      } catch (err) {
+        if (err instanceof MembreHorsOrganisationError) {
+          return reply
+            .code(404)
+            .send({ error: 'Not Found', message: t(langueDeRequete(req), 'organisations.chefMembreIntrouvable') })
+        }
+        throw err
+      }
     },
   )
 }

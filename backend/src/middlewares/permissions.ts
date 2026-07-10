@@ -312,3 +312,25 @@ export const requireSuperAdmin: preHandlerHookHandler = async function requireSu
   }
   // Autorisé.
 }
+
+/**
+ * Garde par LISTE DE RÔLES — pour une action mutable qui ne relève PAS de la matrice par entité
+ * (ex. « désigner le chef de l'organisation » : action distincte des paramètres immuables §5,
+ * réservée ADMIN/PRESIDENT). À brancher APRÈS `authenticate`. 403 si le rôle n'est pas dans la liste.
+ *
+ * @example
+ *   app.patch('/organisations/moi/chef', { preHandler: [authenticate, requireRoles(['ADMIN', 'PRESIDENT'])] }, h)
+ */
+export function requireRoles(roles: Role[]): preHandlerHookHandler {
+  return async function requireRolesPreHandler(req: FastifyRequest, reply: FastifyReply): Promise<void> {
+    const role = (req as unknown as { user?: { role?: Role } }).user?.role
+    if (!role || !roles.includes(role)) {
+      reply.code(403).send({
+        error: 'Forbidden',
+        message: t(langueDeRequete(req), 'permissions.roleNonAutorise'),
+      })
+      return
+    }
+    // Autorisé.
+  }
+}

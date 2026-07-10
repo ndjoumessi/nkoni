@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ChevronDown, ChevronRight, Crown, Pencil, Plus, Scale, UserMinus } from 'lucide-react'
@@ -160,6 +160,28 @@ export function MembreDetailPage() {
       controller.abort()
     }
   }, [accessToken, id, navigate, t])
+
+  // Rafraîchit les montants affichés après modification/suppression d'un versement
+  // (totaux cumulés en tête + totaux par année dans l'accordéon des contributions).
+  const rechargerFinancier = useCallback(async () => {
+    if (!accessToken || !id) return
+    try {
+      const [m, c] = await Promise.all([
+        membresApi.get(id, accessToken),
+        contributionsApi.listByMembre(id, accessToken),
+      ])
+      setMembre(m)
+      setContributions([...c].sort((a, b) => b.annee - a.annee))
+    } catch {
+      /* rechargement best-effort — les toasts de la liste couvrent déjà l'échec de l'action */
+    }
+    try {
+      const s = await membresApi.statut(id, accessToken)
+      setStatut(s)
+    } catch {
+      /* statut best-effort */
+    }
+  }, [accessToken, id])
 
   const brancheNom = useMemo(() => {
     if (!membre?.brancheId) return '—'
@@ -376,7 +398,11 @@ export function MembreDetailPage() {
                     </div>
                     {expanded && (
                       <div className="border-t border-hairline bg-surface-2/40">
-                        <VersementsList contributionId={c.id} membreId={membre.id} />
+                        <VersementsList
+                          contributionId={c.id}
+                          membreId={membre.id}
+                          onChange={rechargerFinancier}
+                        />
                       </div>
                     )}
                   </li>

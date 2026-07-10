@@ -75,6 +75,7 @@ export const organisationsRoutes: FastifyPluginAsync = async (app: FastifyInstan
             role: admin.role,
             langue: langueEffective(admin),
             devise: admin.devise,
+            nomOrganisation: admin.nomOrganisation,
           },
         })
       } catch (err) {

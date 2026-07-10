@@ -159,7 +159,7 @@ function UserChip({ onNavigate }: { onNavigate?: () => void }) {
 }
 
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
-  const { logout } = useAuth()
+  const { logout, user } = useAuth()
   const { t } = useTranslation()
   const navigate = useNavigate()
   const [signingOut, setSigningOut] = useState(false)
@@ -184,6 +184,21 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
           NKONI
         </span>
       </Link>
+
+      {/* Organisation en relief : premier repère en entrant dans l'app (bloc menthe discret). */}
+      {user?.nomOrganisation && (
+        <div className="mt-4 shrink-0 rounded-xl border border-brass/25 bg-brass/[0.06] px-3 py-2.5">
+          <p className="text-[0.62rem] font-medium uppercase tracking-[0.14em] text-brass/80">
+            {t('shell.organisation')}
+          </p>
+          <p
+            className="mt-0.5 truncate font-display text-sm font-semibold text-foreground"
+            title={user.nomOrganisation}
+          >
+            {user.nomOrganisation}
+          </p>
+        </div>
+      )}
 
       {/* Recherche transverse (⌘K) */}
       <button
@@ -239,6 +254,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [drawer, setDrawer] = useState(false)
   const { t } = useTranslation()
+  const { user } = useAuth()
   const location = useLocation()
 
   // Ferme le drawer à chaque changement de route.
@@ -255,10 +271,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Topbar mobile */}
       <header className="sticky top-0 z-20 flex items-center justify-between border-b border-hairline bg-canvas/85 px-4 py-3 backdrop-blur-xl lg:hidden">
-        <Link to="/" title={t('shell.retourAccueilPublic')} className="flex items-center gap-2">
+        <Link to="/" title={t('shell.retourAccueilPublic')} className="flex shrink-0 items-center gap-2">
           <NkoniMark className="h-8 w-8 text-base" />
           <span className="font-display text-lg font-semibold tracking-tight">NKONI</span>
         </Link>
+        {/* Organisation en relief sur mobile aussi (visible sans ouvrir le menu). */}
+        {user?.nomOrganisation && (
+          <span
+            className="mx-2 min-w-0 flex-1 truncate text-center font-display text-sm font-semibold text-brass"
+            title={user.nomOrganisation}
+          >
+            {user.nomOrganisation}
+          </span>
+        )}
         <button
           type="button"
           onClick={() => setDrawer(true)}

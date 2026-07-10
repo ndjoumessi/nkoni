@@ -17,6 +17,8 @@ export interface AuthUser {
   langue?: 'FR' | 'EN' | null
   /** Devise de l'organisation (§5, immuable) → formatage des montants (F6). null pour le SUPER_ADMIN. */
   devise?: 'FCFA' | 'EUR' | 'USD' | 'CAD' | null
+  /** Nom de l'organisation d'appartenance → mis en relief en tête d'interface. null pour le SUPER_ADMIN. */
+  nomOrganisation?: string | null
 }
 
 /** Réponse de PATCH /auth/me/langue : nouveau token (portant la langue) + langue enregistrée. */

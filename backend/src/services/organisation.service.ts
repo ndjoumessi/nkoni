@@ -94,6 +94,7 @@ export async function inscrireOrganisation(
     // L'org vient d'être créée avec cette langue par défaut (§4) et cette devise (§5).
     organisationLangueDefaut: params.langue,
     devise: params.devise,
+    nomOrganisation: params.nomOrganisation.trim(),
   }
 }
 

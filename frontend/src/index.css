@@ -17,7 +17,7 @@
    ========================================================================== */
 
 @theme inline {
-    /* Typo — display = sans (Fraunces retiré) ; mono dédié aux chiffres/données */
+    /* Typo — display = sans (Geist) ; mono dédié aux chiffres/données */
     --font-sans: 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
     --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
     --font-display: var(--font-sans);

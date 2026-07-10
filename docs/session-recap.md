@@ -73,6 +73,9 @@ statut de déploiement Railway/Vercel confirmé au statut réel là où le backe
   via `appliquerLangue` en `localStorage`, sans compte — distinct du sélecteur « Mon profil » côté
   serveur) présent sur tout le parcours non authentifié : hero + footer de la landing, et pages login
   et inscription (en haut à droite). Un visiteur peut basculer la langue avant toute connexion.
+- **Placeholder inscription générique (§4)** — le champ « Nom de l'organisation » n'affiche plus un
+  vrai nom de famille en exemple mais un placeholder neutre (FR « Famille, amicale ou tontine… » /
+  EN « Family, association or tontine… »), dans les deux langues.
 
 ### Migrations appliquées en prod
 - `tresorerie_depense` — additive (table `Depense` + 2 enums via `CREATE TYPE`).

@@ -44,11 +44,17 @@ statut de déploiement Railway/Vercel confirmé au statut réel là où le backe
 - **Nom de l'organisation en relief** — `nomOrganisation` propagé aux réponses auth (login /
   me / inscription, champ additif sans migration) ; bloc menthe en tête d'AppShell (sidebar +
   drawer) et nom tronqué dans la topbar mobile. Null pour le SUPER_ADMIN.
+- **Chef de l'organisation** — désignation d'un membre comme dirigeant (action mutable réservée
+  ADMIN/PRESIDENT via `PATCH /organisations/moi/chef`, garde par rôle distincte des paramètres
+  immuables §5) + surnom optionnel. Badge « Chef » (brass) sur la liste et la fiche membre.
+  Validation d'appartenance scopée (isolation tenant), écriture en FK scalaire.
 
 ### Migrations appliquées en prod
 - `tresorerie_depense` — additive (table `Depense` + 2 enums via `CREATE TYPE`).
 - `idempotence_offline` — additive (colonne `idempotenceKey` nullable + index unique par org sur
   `Versement` et `Membre`).
+- `chef_organisation` — additive (`Organisation.chefMembreId` FK Membre `ON DELETE SET NULL` +
+  `chefSurnom`, colonnes nullables).
 
 ---
 
@@ -72,6 +78,9 @@ statut de déploiement Railway/Vercel confirmé au statut réel là où le backe
 - **Dashboard** : carte « Recouvrement mensuel » (aire/ligne) + donuts de répartition bien affichés.
 - **Nom de l'organisation** : après reconnexion (token réhydraté), le nom de l'org apparaît dans le
   bloc menthe en haut de la barre latérale (et tronqué dans la topbar mobile).
+- **Chef de l'organisation** : en ADMIN/PRESIDENT, ouvrir une fiche membre → « Désigner comme chef »
+  (+ surnom) → badge « Chef » sur la fiche ET sur la ligne dans la liste ; « Retirer comme chef » le
+  déchoit. Les autres rôles ne voient pas l'action.
 - **Rapports** : retrait d'année en mode comparaison (bouton agrandi, plus d'overlay).
 - **Changement de langue** FR ↔ EN dans Mon Profil (charge le catalogue à la volée).
 

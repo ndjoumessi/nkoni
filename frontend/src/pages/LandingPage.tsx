@@ -29,6 +29,7 @@ import { buttonVariants } from '@/components/ui/button-variants'
 import { Badge } from '@/components/ui/Badge'
 import { Card, Overline } from '@/components/ui/Card'
 import { NkoniMark } from '@/components/ui/NkoniMark'
+import { LangueToggle } from '@/components/ui/LangueToggle'
 import { cn } from '@/lib/utils'
 
 // Contact : mailto simple (pas de collecte d'emails en v1). Adresse validée avec le PO.
@@ -314,6 +315,7 @@ export function LandingPage() {
               <span className="font-display text-lg font-semibold tracking-tight">NKONI</span>
             </div>
             <p className="mt-3 max-w-xs text-sm text-muted-foreground">{t('landing.footer')}</p>
+            <LangueToggle className="mt-5" />
           </div>
 
           <nav aria-label={t('landing.footerNav.produit')}>

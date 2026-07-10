@@ -14,6 +14,7 @@ import {
 import { ButtonLink, Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { NkoniMark } from '@/components/ui/NkoniMark'
+import { LangueToggle } from '@/components/ui/LangueToggle'
 
 /**
  * NKONI — Hero de la page publique (avant authentification).
@@ -87,8 +88,9 @@ export function GlassmorphismTrustHero({
           <NkoniMark className="h-9 w-9 text-lg" />
           <span className="font-display text-xl font-semibold tracking-tight">NKONI</span>
         </div>
-        <div className="flex items-center gap-2">
-          <ButtonLink to={inscriptionHref} size="sm">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <LangueToggle />
+          <ButtonLink to={inscriptionHref} size="sm" className="hidden sm:inline-flex">
             {t('commun.actions.creerMonEspace')}
           </ButtonLink>
           <ButtonLink to={loginHref} variant="outline" size="sm">

@@ -21,6 +21,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { CommandPalette } from '@/components/CommandPalette'
+import { IndicateurSync } from '@/components/IndicateurSync'
 import { useAuth } from '@/contexts/auth-context'
 import {
   estMembreSimple,
@@ -199,6 +200,9 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
           ⌘K
         </kbd>
       </button>
+
+      {/* État réseau + file de synchro (§ PWA) — masqué quand en ligne et file vide. */}
+      <IndicateurSync className="mt-3 w-full justify-center" />
 
       {/* Nav scrollable : garantit que la zone compte/déconnexion en bas reste toujours
           visible même quand la liste de liens dépasse la hauteur de l'écran (min-h-0 est

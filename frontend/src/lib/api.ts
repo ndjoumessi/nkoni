@@ -126,16 +126,19 @@ interface RequestOptions {
   json?: unknown
   accessToken?: string | null
   signal?: AbortSignal
+  /** Clé d'idempotence (§ PWA hors-ligne) → en-tête `Idempotence-Key` (rejeu sans doublon). */
+  cleIdempotence?: string
   /** Interne : passe à false sur la requête REJOUÉE pour interdire une seconde tentative (anti-boucle). */
   permettreRetry?: boolean
 }
 
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const { method = 'GET', json, accessToken, signal, permettreRetry = true } = options
+  const { method = 'GET', json, accessToken, signal, permettreRetry = true, cleIdempotence } = options
 
   const headers: Record<string, string> = {}
   if (json !== undefined) headers['Content-Type'] = 'application/json'
   if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`
+  if (cleIdempotence) headers['Idempotence-Key'] = cleIdempotence
 
   const res = await fetch(`${API_URL}${path}`, {
     method,
@@ -680,8 +683,13 @@ export const membresApi = {
     request<Membre>(`/membres/${id}`, { accessToken, signal }),
   statut: (id: string, accessToken: string, signal?: AbortSignal) =>
     request<StatutCumule>(`/membres/${id}/statut`, { accessToken, signal }),
-  create: (body: MembreInput, accessToken: string) =>
-    request<Membre>('/membres', { method: 'POST', json: body, accessToken }),
+  create: (body: MembreInput, accessToken: string, cleIdempotence?: string) =>
+    request<Membre>('/membres', {
+      method: 'POST',
+      json: body,
+      accessToken,
+      ...(cleIdempotence ? { cleIdempotence } : {}),
+    }),
   update: (id: string, body: Partial<MembreInput>, accessToken: string) =>
     request<Membre>(`/membres/${id}`, { method: 'PATCH', json: body, accessToken }),
   /** Aperçu d'import (valider=true) → rapport, aucune écriture. */
@@ -881,8 +889,13 @@ export const versementsApi = {
       `/versements?contributionId=${encodeURIComponent(contributionId)}`,
       { accessToken, signal },
     ),
-  create: (body: VersementInput, accessToken: string) =>
-    request<VersementCree>('/versements', { method: 'POST', json: body, accessToken }),
+  create: (body: VersementInput, accessToken: string, cleIdempotence?: string) =>
+    request<VersementCree>('/versements', {
+      method: 'POST',
+      json: body,
+      accessToken,
+      ...(cleIdempotence ? { cleIdempotence } : {}),
+    }),
 }
 
 export const recusApi = {

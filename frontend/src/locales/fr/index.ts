@@ -17,6 +17,7 @@ import membres from './membres'
 import importMembres from './import'
 import monEspace from './monEspace'
 import tresorerie from './tresorerie'
+import offline from './offline'
 import branches from './branches'
 import versements from './versements'
 import equilibrages from './equilibrages'
@@ -47,6 +48,7 @@ const fr = {
   ...importMembres,
   ...monEspace,
   ...tresorerie,
+  ...offline,
   ...branches,
   ...versements,
   ...equilibrages,

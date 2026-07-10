@@ -1,7 +1,7 @@
 /** Chaînes FR transverses (§4 i18n) — réutilisables par plusieurs pages/composants. */
 export default {
   commun: {
-    langue: { fr: 'Français', en: 'English' },
+    langue: { fr: 'Français', en: 'English', selecteur: 'Choisir la langue' },
     actions: {
       seConnecter: 'Se connecter',
       creerMonEspace: 'Créer mon espace',

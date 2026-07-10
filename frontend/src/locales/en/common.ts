@@ -1,7 +1,7 @@
 /** Chaînes EN transverses (§4 i18n). */
 export default {
   commun: {
-    langue: { fr: 'Français', en: 'English' },
+    langue: { fr: 'Français', en: 'English', selecteur: 'Choose language' },
     actions: {
       seConnecter: 'Sign in',
       creerMonEspace: 'Create my space',

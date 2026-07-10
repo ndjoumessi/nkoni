@@ -21,6 +21,8 @@ export interface AuthenticatedUser {
   organisationLangueDefaut: Langue | null
   /** Devise de l'organisation (§5, immuable). Null pour le SUPER_ADMIN (sans org). */
   devise: Devise | null
+  /** Nom de l'organisation d'appartenance — affiché en tête d'interface. Null pour le SUPER_ADMIN. */
+  nomOrganisation: string | null
 }
 
 /**
@@ -68,7 +70,7 @@ export function hashPassword(plain: string): Promise<string> {
 function toAuthUser(record: Record<string, unknown>): AuthenticatedUser {
   const membre = record['membre'] as { id: string } | null | undefined
   const organisation = record['organisation'] as
-    | { langueDefaut?: Langue; devise?: Devise }
+    | { langueDefaut?: Langue; devise?: Devise; nom?: string }
     | null
     | undefined
   return {
@@ -81,6 +83,7 @@ function toAuthUser(record: Record<string, unknown>): AuthenticatedUser {
     langue: (record['langue'] as Langue | null | undefined) ?? null,
     organisationLangueDefaut: organisation?.langueDefaut ?? null,
     devise: organisation?.devise ?? null,
+    nomOrganisation: organisation?.nom ?? null,
   }
 }
 
@@ -110,7 +113,7 @@ export async function verifyCredentials(
       membre: { select: { id: true } },
       // §4 : défaut de langue de l'org → langue effective si l'utilisateur n'a pas de préférence.
       // §5 : devise de l'org → formatage locale-aware des montants côté front (F6).
-      organisation: { select: { langueDefaut: true, devise: true } },
+      organisation: { select: { langueDefaut: true, devise: true, nom: true } },
     },
   })
   if (!record) return null
@@ -164,7 +167,7 @@ export async function findUserById(
       organisationId: true,
       langue: true,
       membre: { select: { id: true } },
-      organisation: { select: { langueDefaut: true, devise: true } },
+      organisation: { select: { langueDefaut: true, devise: true, nom: true } },
     },
   })
   if (!record) return null

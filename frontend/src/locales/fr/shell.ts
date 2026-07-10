@@ -1,6 +1,7 @@
 /** Chaînes FR du socle applicatif (§4 i18n) — AppShell, navigation, rôles, recherche (⌘K). */
 export default {
   shell: {
+    organisation: 'Organisation',
     nav: {
       ariaPrincipale: 'Navigation principale',
       titre: 'Navigation',

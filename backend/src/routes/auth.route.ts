@@ -132,6 +132,7 @@ export const authRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
           role: user.role,
           langue: langueEffective(user),
           devise: user.devise,
+          nomOrganisation: user.nomOrganisation,
         },
       })
     },
@@ -213,6 +214,8 @@ export const authRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
       // §5 : devise de l'org → formatage locale-aware des montants côté front (F6). Null pour le
       // SUPER_ADMIN (sans org). Rechargée ici → prise en compte dès la réhydratation.
       devise: user.devise,
+      // Nom de l'org → mis en tête d'interface (AppShell). Null pour le SUPER_ADMIN.
+      nomOrganisation: user.nomOrganisation,
     }
   })
 

@@ -46,6 +46,7 @@ export function TresoreriePage() {
   const [solde, setSolde] = useState<SoldeTresorerie | null>(null)
   const [depenses, setDepenses] = useState<Depense[]>([])
   const [loading, setLoading] = useState(true)
+  const [erreur, setErreur] = useState<string | null>(null)
   const [filtreStatut, setFiltreStatut] = useState<StatutDepense | ''>('')
   const [filtreCategorie, setFiltreCategorie] = useState<CategorieDepense | ''>('')
   const [formOuvert, setFormOuvert] = useState(false)
@@ -76,6 +77,7 @@ export function TresoreriePage() {
     const controller = new AbortController()
     let actif = true
     setLoading(true)
+    setErreur(null)
     void (async () => {
       try {
         const [s, d] = await Promise.all([
@@ -87,7 +89,7 @@ export function TresoreriePage() {
         setDepenses(d)
       } catch (e) {
         if (e instanceof DOMException && e.name === 'AbortError') return
-        if (actif) toast.error(t('tresorerie.toast.erreur'), messageErreur(e))
+        if (actif) setErreur(messageErreur(e))
       } finally {
         if (actif) setLoading(false)
       }
@@ -179,6 +181,12 @@ export function TresoreriePage() {
         actions={gestion && <Button icon={Plus} onClick={() => setFormOuvert(true)}>{t('tresorerie.actions.nouvelle')}</Button>}
       />
 
+      {!loading && erreur && (
+        <Card role="alert" className="nk-reveal mt-4 border-terra/30 bg-terra/[0.07] p-5 text-terra">
+          {erreur}
+        </Card>
+      )}
+
       {/* Solde */}
       {solde && (
         <div className="nk-reveal nk-d2 mt-6 grid gap-3 sm:grid-cols-3">
@@ -215,11 +223,11 @@ export function TresoreriePage() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Overline>{t('tresorerie.liste.titre')}</Overline>
           <div className="flex flex-wrap gap-2">
-            <select className={SELECT_CLS} value={filtreStatut} onChange={(e) => setFiltreStatut(e.target.value as StatutDepense | '')}>
+            <select aria-label={t('tresorerie.liste.filtreStatut')} className={SELECT_CLS} value={filtreStatut} onChange={(e) => setFiltreStatut(e.target.value as StatutDepense | '')}>
               <option value="">{t('tresorerie.liste.tous')} — {t('tresorerie.liste.filtreStatut')}</option>
               {STATUTS.map((s) => <option key={s} value={s}>{t(`tresorerie.statuts.${s}`)}</option>)}
             </select>
-            <select className={SELECT_CLS} value={filtreCategorie} onChange={(e) => setFiltreCategorie(e.target.value as CategorieDepense | '')}>
+            <select aria-label={t('tresorerie.liste.filtreCategorie')} className={SELECT_CLS} value={filtreCategorie} onChange={(e) => setFiltreCategorie(e.target.value as CategorieDepense | '')}>
               <option value="">{t('tresorerie.liste.toutes')} — {t('tresorerie.liste.filtreCategorie')}</option>
               {CATEGORIES.map((c) => <option key={c} value={c}>{cat(c)}</option>)}
             </select>

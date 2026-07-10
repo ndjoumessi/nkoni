@@ -209,7 +209,7 @@ export function DocumentsSection({
                 onClick={() => telecharger(d)}
                 disabled={downloadId === d.id}
                 aria-label={t('documents.aria.telecharger')}
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-faint transition-colors hover:text-brass disabled:opacity-40"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-faint transition-colors hover:text-brass disabled:opacity-40"
               >
                 <Download className="h-4 w-4" aria-hidden="true" />
               </button>
@@ -219,7 +219,7 @@ export function DocumentsSection({
                   onClick={() => supprimer(d)}
                   disabled={pendingId === d.id}
                   aria-label={t('documents.aria.supprimer')}
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-faint transition-colors hover:text-terra disabled:opacity-40"
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-faint transition-colors hover:text-terra disabled:opacity-40"
                 >
                   <Trash2 className="h-4 w-4" aria-hidden="true" />
                 </button>
@@ -257,7 +257,7 @@ export function DocumentsSection({
                   type="button"
                   onClick={annuler}
                   aria-label={t('documents.aria.retirer')}
-                  className="ml-auto flex h-7 w-7 items-center justify-center rounded-lg text-faint hover:text-foreground"
+                  className="ml-auto flex h-9 w-9 items-center justify-center rounded-lg text-faint hover:text-foreground"
                 >
                   <X className="h-4 w-4" aria-hidden="true" />
                 </button>

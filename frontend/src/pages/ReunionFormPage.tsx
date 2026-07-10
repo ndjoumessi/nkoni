@@ -206,7 +206,7 @@ export function ReunionFormPage() {
                           onClick={() => deplacer(index, -1)}
                           disabled={index === 0}
                           aria-label={t('reunions.ordreDuJour.monter')}
-                          className="flex h-7 w-7 items-center justify-center rounded-lg text-faint transition-colors hover:text-foreground disabled:opacity-30"
+                          className="flex h-9 w-9 items-center justify-center rounded-lg text-faint transition-colors hover:text-foreground disabled:opacity-30"
                         >
                           <ArrowUp className="h-4 w-4" aria-hidden="true" />
                         </button>
@@ -215,7 +215,7 @@ export function ReunionFormPage() {
                           onClick={() => deplacer(index, 1)}
                           disabled={index === points.length - 1}
                           aria-label={t('reunions.ordreDuJour.descendre')}
-                          className="flex h-7 w-7 items-center justify-center rounded-lg text-faint transition-colors hover:text-foreground disabled:opacity-30"
+                          className="flex h-9 w-9 items-center justify-center rounded-lg text-faint transition-colors hover:text-foreground disabled:opacity-30"
                         >
                           <ArrowDown className="h-4 w-4" aria-hidden="true" />
                         </button>
@@ -223,7 +223,7 @@ export function ReunionFormPage() {
                           type="button"
                           onClick={() => supprimerPoint(p.key)}
                           aria-label={t('reunions.ordreDuJour.supprimer')}
-                          className="flex h-7 w-7 items-center justify-center rounded-lg text-faint transition-colors hover:text-terra"
+                          className="flex h-9 w-9 items-center justify-center rounded-lg text-faint transition-colors hover:text-terra"
                         >
                           <Trash2 className="h-4 w-4" aria-hidden="true" />
                         </button>

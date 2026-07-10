@@ -6,6 +6,7 @@ import {
   moiApi,
   recusApi,
   ApiError,
+  messageErreur,
   type SituationMembre,
   type ContributionMembre,
   type ReunionAVenir,
@@ -36,6 +37,7 @@ export function MonEspacePage() {
   const [recus, setRecus] = useState<RecuMembre[]>([])
   const [loading, setLoading] = useState(true)
   const [sansFiche, setSansFiche] = useState(false)
+  const [erreur, setErreur] = useState<string | null>(null)
 
   useEffect(() => {
     if (!accessToken) return
@@ -49,8 +51,12 @@ export function MonEspacePage() {
         setSituation(s)
       } catch (e) {
         if (e instanceof DOMException && e.name === 'AbortError') return
-        if (actif && e instanceof ApiError && e.status === 404) setSansFiche(true)
-        if (actif) setLoading(false)
+        if (!actif) return
+        // 404 = ce compte n'a pas de fiche membre liée ; toute autre erreur = panne réelle
+        // (réseau/500) → état d'erreur distinct, pour ne pas la présenter comme « aucune fiche ».
+        if (e instanceof ApiError && e.status === 404) setSansFiche(true)
+        else setErreur(messageErreur(e))
+        setLoading(false)
         return
       }
       // Listes (best-effort, chargées en parallèle).
@@ -81,6 +87,17 @@ export function MonEspacePage() {
           <Skeleton className="h-24 rounded-2xl" />
         </div>
         <Skeleton className="mt-4 h-56 rounded-2xl" />
+      </div>
+    )
+  }
+
+  if (erreur) {
+    return (
+      <div className="mx-auto max-w-4xl">
+        <PageHeader title={t('monEspace.titre')} description={t('monEspace.sousTitre')} />
+        <Card role="alert" className="mt-6 border-terra/30 bg-terra/[0.07] p-5 text-terra">
+          {erreur}
+        </Card>
       </div>
     )
   }

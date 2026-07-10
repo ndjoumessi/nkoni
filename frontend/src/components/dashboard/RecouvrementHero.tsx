@@ -32,8 +32,8 @@ function Gauge({ value }: { value: number }) {
       <svg width={size} height={size} className="-rotate-90" aria-hidden="true">
         <defs>
           <linearGradient id="nk-gauge" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="oklch(0.84 0.14 168)" />
-            <stop offset="100%" stopColor="oklch(0.80 0.13 165)" />
+            <stop offset="0%" stopColor="var(--brass)" />
+            <stop offset="100%" stopColor="var(--jade)" />
           </linearGradient>
         </defs>
         <circle
@@ -41,7 +41,7 @@ function Gauge({ value }: { value: number }) {
           cy={size / 2}
           r={r}
           fill="none"
-          stroke="oklch(1 0 0 / 8%)"
+          stroke="var(--hairline)"
           strokeWidth={stroke}
         />
         <circle

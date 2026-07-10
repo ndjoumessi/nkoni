@@ -1,22 +1,40 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import type { FastifyInstance } from 'fastify'
 import { buildApp } from '../src/app'
+import { Prisma } from '../src/generated/prisma/client'
+import { estConflitIdempotence } from '../src/lib/idempotence'
 
 /**
  * Idempotence (§ PWA hors-ligne) : un rejeu de la MÊME mutation (en-tête `Idempotence-Key`) ne
  * crée pas de doublon — il renvoie la ligne déjà appliquée (200). Prisma mocké.
+ *
+ * Durcissement P2002 : le re-fetch par `idempotenceKey` n'est déclenché QUE si le P2002 vient
+ * bien de l'unique (organisationId, idempotenceKey) ; un P2002 sur une autre contrainte est
+ * RELEVÉ (pas avalé), sinon on renverrait la mauvaise ligne ou null.
  */
 
+/** Fabrique un P2002 Prisma ciblant `target` (nom de contrainte ou liste de champs). */
+function p2002(target: string | string[]): Prisma.PrismaClientKnownRequestError {
+  return new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+    code: 'P2002',
+    clientVersion: 'test',
+    meta: { target },
+  })
+}
+
 /* eslint-disable @typescript-eslint/no-explicit-any */
-function buildMock() {
+function buildMock(opts: { versementCreateError?: unknown; membreCreateError?: unknown } = {}) {
   const versements = new Map<string, any>()
   const membres = new Map<string, any>()
-  const compteur = { versementCreate: 0, membreCreate: 0 }
+  const compteur = { versementCreate: 0, membreCreate: 0, versementFindFirst: 0, membreFindFirst: 0 }
   const prisma: any = {
     versement: {
-      findFirst: async ({ where }: any) =>
-        [...versements.values()].find((v) => v.idempotenceKey === where.idempotenceKey) ?? null,
+      findFirst: async ({ where }: any) => {
+        compteur.versementFindFirst++
+        return [...versements.values()].find((v) => v.idempotenceKey === where.idempotenceKey) ?? null
+      },
       create: async ({ data }: any) => {
+        if (opts.versementCreateError) throw opts.versementCreateError
         compteur.versementCreate++
         const v = { id: `v${compteur.versementCreate}`, ...data }
         if (data.idempotenceKey) versements.set(data.idempotenceKey, v)
@@ -30,9 +48,12 @@ function buildMock() {
     membre: {
       count: async () => membres.size,
       findUnique: async () => null, // notifierVersement (best-effort) → pas de destinataire
-      findFirst: async ({ where }: any) =>
-        [...membres.values()].find((m) => m.idempotenceKey === where.idempotenceKey) ?? null,
+      findFirst: async ({ where }: any) => {
+        compteur.membreFindFirst++
+        return [...membres.values()].find((m) => m.idempotenceKey === where.idempotenceKey) ?? null
+      },
       create: async ({ data }: any) => {
+        if (opts.membreCreateError) throw opts.membreCreateError
         compteur.membreCreate++
         const m = { id: `m${compteur.membreCreate}`, ...data }
         if (data.idempotenceKey) membres.set(data.idempotenceKey, m)
@@ -95,5 +116,68 @@ describe('Idempotence des mutations hors-ligne', () => {
     expect(r2.json().id).toBe(id1)
 
     expect(compteur.membreCreate).toBe(1)
+  })
+})
+
+describe('estConflitIdempotence (pure) — ne cible QUE l’unique (organisationId, idempotenceKey)', () => {
+  it('P2002 dont target CONTIENT idempotenceKey (liste OU nom de contrainte) → true', () => {
+    expect(estConflitIdempotence(p2002(['organisationId', 'idempotenceKey']))).toBe(true)
+    expect(estConflitIdempotence(p2002('Versement_organisationId_idempotenceKey_key'))).toBe(true)
+  })
+
+  it('P2002 sur une AUTRE contrainte → false', () => {
+    expect(estConflitIdempotence(p2002(['membreId', 'annee']))).toBe(false)
+    expect(estConflitIdempotence(p2002('Contribution_membreId_annee_key'))).toBe(false)
+    expect(estConflitIdempotence(p2002(undefined as unknown as string))).toBe(false) // target absente
+  })
+
+  it('erreur non-P2002 (ou pas une erreur Prisma) → false', () => {
+    expect(
+      estConflitIdempotence(
+        new Prisma.PrismaClientKnownRequestError('nope', {
+          code: 'P2025',
+          clientVersion: 'test',
+          meta: { target: ['idempotenceKey'] },
+        }),
+      ),
+    ).toBe(false)
+    expect(estConflitIdempotence(new Error('boom'))).toBe(false)
+  })
+})
+
+describe('Durcissement P2002 : une AUTRE contrainte est propagée, pas avalée', () => {
+  const signer = (role: string) => (app: FastifyInstance) =>
+    `Bearer ${app.jwt.sign({ sub: 'u1', role })}`
+
+  it('POST /membres : P2002 sur une autre contrainte → propagé (500), pas de re-fetch idempotent', async () => {
+    const m = buildMock({ membreCreateError: p2002(['organisationId', 'telephone']) })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const app = await buildApp({ prisma: m.prisma as any, logger: false })
+    await app.ready()
+    const res = await app.inject({
+      method: 'POST',
+      url: '/membres',
+      headers: { authorization: signer('ADMIN')(app), 'idempotence-key': 'uuid-m-x' },
+      payload: { nom: 'X', prenom: 'Y', anneeAdhesion: 2020 },
+    })
+    expect(res.statusCode).toBe(500) // erreur relevée par Fastify, pas transformée en 200
+    expect(m.compteur.membreFindFirst).toBe(1) // uniquement le pré-check ; PAS de re-fetch post-P2002
+    await app.close()
+  })
+
+  it('POST /versements : P2002 sur une autre contrainte → propagé (500), pas de re-fetch idempotent', async () => {
+    const m = buildMock({ versementCreateError: p2002('Versement_autre_unique_key') })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const app = await buildApp({ prisma: m.prisma as any, logger: false })
+    await app.ready()
+    const res = await app.inject({
+      method: 'POST',
+      url: '/versements',
+      headers: { authorization: signer('TRESORIERE')(app), 'idempotence-key': 'uuid-v-x' },
+      payload: { contributionId: 'c1', montant: 5_000, dateVersement: '2026-06-01', mode: 'ESPECES' },
+    })
+    expect(res.statusCode).toBe(500)
+    expect(m.compteur.versementFindFirst).toBe(1) // pré-check seulement, pas de re-fetch post-P2002
+    await app.close()
   })
 })

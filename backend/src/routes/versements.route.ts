@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
 import { Prisma } from '../generated/prisma/client'
 import { t, langueDeRequete } from '../lib/i18n'
+import { estConflitIdempotence } from '../lib/idempotence'
 import type { CreationScopee } from '../lib/tenant-extension'
 import { authenticate } from '../middlewares/authenticate'
 import { requirePermission } from '../middlewares/permissions'
@@ -146,12 +147,11 @@ export const versementsRoutes: FastifyPluginAsync = async (
             message: t(langueDeRequete(req), 'versements.contributionIntrouvable'),
           })
         }
-        // Course concurrente sur la même clé d'idempotence (2 rejeus simultanés) → renvoyer l'existant.
-        if (
-          cleIdempotence &&
-          err instanceof Prisma.PrismaClientKnownRequestError &&
-          err.code === 'P2002'
-        ) {
+        // Course concurrente sur la MÊME clé d'idempotence (2 rejeus simultanés) → renvoyer
+        // l'existant. On vérifie que le P2002 vient bien de l'unique (organisationId,
+        // idempotenceKey) : un P2002 sur une AUTRE contrainte doit être relevé, pas avalé
+        // (sinon on re-fetch la mauvaise ligne ou null).
+        if (cleIdempotence && estConflitIdempotence(err)) {
           const existant = await app.prisma.versement.findFirst({ where: { idempotenceKey: cleIdempotence } })
           if (existant) {
             const contribution = await app.prisma.contribution.findUnique({ where: { id: existant.contributionId } })

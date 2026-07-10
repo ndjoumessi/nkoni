@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyPluginAsync, FastifyReply } from 'fastify'
 import { Prisma } from '../generated/prisma/client'
+import { estConflitIdempotence } from '../lib/idempotence'
 import type { CreationScopee } from '../lib/tenant-extension'
 import { authenticate } from '../middlewares/authenticate'
 import { requirePermission } from '../middlewares/permissions'
@@ -291,12 +292,11 @@ export const membresRoutes: FastifyPluginAsync = async (app: FastifyInstance) =>
         })
         return reply.code(201).send(membre)
       } catch (err) {
-        // Course concurrente sur la même clé (2 rejeus simultanés) → renvoyer l'existant.
-        if (
-          cleIdempotence &&
-          err instanceof Prisma.PrismaClientKnownRequestError &&
-          err.code === 'P2002'
-        ) {
+        // Course concurrente sur la MÊME clé (2 rejeus simultanés) → renvoyer l'existant. On
+        // vérifie que le P2002 vient bien de l'unique (organisationId, idempotenceKey) : un
+        // P2002 sur une AUTRE contrainte doit être relevé, pas avalé (sinon on re-fetch la
+        // mauvaise ligne ou null).
+        if (cleIdempotence && estConflitIdempotence(err)) {
           const existant = await app.prisma.membre.findFirst({ where: { idempotenceKey: cleIdempotence } })
           if (existant) return reply.code(200).send(existant)
         }

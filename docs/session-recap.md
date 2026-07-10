@@ -39,8 +39,9 @@ statut de déploiement Railway/Vercel confirmé au statut réel là où le backe
 5. **PWA installable + hors-ligne** — manifest + service worker (Workbox), lecture hors-ligne
    (NetworkFirst), écriture hors-ligne avec file IndexedDB + idempotence backend (Versement, Membre).
 - **DatePicker trésorerie** — remplacement du champ date natif par le composant maison.
-- **Graphiques du tableau de bord** — évolution mensuelle du recouvrement (aire/ligne, composant
-  partagé avec Rapports) + répartitions en donuts.
+- **Graphiques du tableau de bord** — courbe de recouvrement **cumulé** (collecté cumulé vs
+  objectif cumulé, « burn-up » vers le total annuel ; aire, composant partagé avec Rapports)
+  + répartitions en donuts.
 - **Nom de l'organisation en relief** — `nomOrganisation` propagé aux réponses auth (login /
   me / inscription, champ additif sans migration) ; bloc menthe en tête d'AppShell (sidebar +
   drawer) et nom tronqué dans la topbar mobile. Null pour le SUPER_ADMIN.

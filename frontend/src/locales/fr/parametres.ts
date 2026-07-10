@@ -11,6 +11,8 @@ export default {
       devise: 'Devise',
       langue: 'Langue par défaut',
       creation: 'Espace créé le',
+      chef: 'Chef de l’organisation',
+      chefNonDesigne: 'Non désigné',
     },
     immuable: {
       titre: 'Paramètres définitifs',

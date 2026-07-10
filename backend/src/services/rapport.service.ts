@@ -74,7 +74,8 @@ export interface RapportFinancier {
  *  - `number` = pourcentage de variation (positif/négatif) ;
  *  - `'nouveau'` = APPARITION (base à 0 → valeur positive) : un % serait infini/trompeur, mais
  *    c'est une info réelle (la métrique passe de rien à quelque chose) — distinct de « n/a » ;
- *  - `null` = non calculable / incomparable (année sans barème, ou 0 → 0).
+ *  - `0` inclut le cas « resté à zéro » (0 → 0 = pas de variation) ;
+ *  - `null` = incomparable → rendu « n/a » (réservé aux années SANS barème).
  */
 export type Variation = number | 'nouveau' | null
 
@@ -172,13 +173,14 @@ export function genererRapportFinancier(
 }
 
 /**
- * Variation de `depuis` vers `vers`. `null` si une valeur est absente (année sans barème) ou si
- * les deux sont nulles (0 → 0, rien à comparer). Base 0 vers valeur POSITIVE → `'nouveau'`
- * (apparition, cf. type `Variation`). Sinon, % signé (positif = progression).
+ * Variation de `depuis` vers `vers`. `null` UNIQUEMENT si une valeur est absente (année sans
+ * barème → vraiment incomparable, rendu « n/a »). Base 0 → valeur POSITIVE = `'nouveau'`
+ * (apparition, cf. type `Variation`). Base 0 → 0 = `0` (resté à zéro = pas de variation, pas
+ * « n/a »). Sinon, % signé (positif = progression).
  */
 export function variationPourcent(depuis: number | null, vers: number | null): Variation {
   if (depuis === null || vers === null) return null
-  if (depuis === 0) return vers > 0 ? 'nouveau' : null
+  if (depuis === 0) return vers > 0 ? 'nouveau' : 0
   return arrondi2(((vers - depuis) / depuis) * 100)
 }
 

@@ -66,6 +66,9 @@ statut de déploiement Railway/Vercel confirmé au statut réel là où le backe
 - **Écran Utilisateurs & formulaires** — création de compte déplacée en modale (liste d'abord) + avatars
   à initiales sur les lignes ; FormSection passé en container query (`@container` + `@lg:grid-cols-2`) →
   2 colonnes en pleine largeur, 1 colonne en modale/mobile, plus de champ tronqué ni de label coupé.
+- **Landing publique enrichie (§0)** — page d'accueil `/` étoffée : « Opérationnel en trois étapes »,
+  segments (associations / familles élargies / tontines), bloc sécurité & isolation, FAQ et footer ;
+  contenu entièrement traduit FR/EN (parité de clés vérifiée à la compilation).
 
 ### Migrations appliquées en prod
 - `tresorerie_depense` — additive (table `Depense` + 2 enums via `CREATE TYPE`).

@@ -4,7 +4,7 @@ export default {
     sousTitre: 'Créez l’espace sécurisé de votre communauté',
     accroche: 'Quelques informations pour démarrer. Vous en serez l’administrateur.',
     nomLabel: 'Nom de l’organisation',
-    nomPlaceholder: 'Famille Wamba Tchoupa, Amicale…',
+    nomPlaceholder: 'Famille, amicale ou tontine…',
     deviseLabel: 'Devise',
     langueLabel: 'Langue',
     devises: {

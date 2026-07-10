@@ -48,7 +48,9 @@ statut de déploiement Railway/Vercel confirmé au statut réel là où le backe
 - **Chef de l'organisation** — désignation d'un membre comme dirigeant (action mutable réservée
   ADMIN/PRESIDENT via `PATCH /organisations/moi/chef`, garde par rôle distincte des paramètres
   immuables §5) + surnom optionnel. Badge « Chef » (brass) sur la liste et la fiche membre.
-  Validation d'appartenance scopée (isolation tenant), écriture en FK scalaire.
+  Validation d'appartenance scopée (isolation tenant), écriture en FK scalaire. Également
+  AFFICHÉ en lecture seule sur la page Paramètres (ligne « Chef de l'organisation », icône
+  couronne, nom + surnom, ou « Non désigné »).
 - **Journal d'audit plus lisible** — dans le détail déplié d'une entrée, les champs monétaires
   sont rendus en devise (`formatMontant`) et les champs de plomberie `idempotenceKey` /
   `organisationId` sont masqués (CREATE, DELETE et diff UPDATE).

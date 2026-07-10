@@ -10,6 +10,7 @@ import {
   Minus,
   Percent,
   Scale,
+  Sparkles,
   TrendingDown,
   TrendingUp,
   Users,
@@ -31,6 +32,7 @@ import {
   type RapportAnnee,
   type RapportFinancier,
   type VariationsComparaison,
+  type Variation,
 } from '@/lib/api'
 import { peutVoirRapports } from '@/lib/roles'
 import { formatMontant, formatNombre, formatPourcent } from '@/lib/format'
@@ -60,9 +62,21 @@ function estAbort(e: unknown): boolean {
 /* Variation                                                                  */
 /* -------------------------------------------------------------------------- */
 
-/** Badge de variation en % : jade si progression, terracotta si régression, neutre sinon. */
-function VariationBadge({ valeur }: { valeur: number | null }) {
+/**
+ * Badge de variation : jade si progression, terracotta si régression, neutre si nul.
+ * `'nouveau'` (apparition : base 0 → valeur positive) → badge jade « Nouveau » distinct de
+ * « n/a » (vraiment incomparable : année sans barème, ou 0 → 0).
+ */
+function VariationBadge({ valeur }: { valeur: Variation }) {
   const { t } = useTranslation()
+  if (valeur === 'nouveau') {
+    return (
+      <Badge tone="jade" size="sm">
+        <Sparkles className="h-3 w-3" aria-hidden="true" />
+        {t('rapports.variation.nouveau')}
+      </Badge>
+    )
+  }
   if (valeur === null) {
     return <span className="text-xs text-faint">{t('rapports.variation.na')}</span>
   }

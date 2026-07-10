@@ -119,8 +119,9 @@ describe('variationPourcent', () => {
     expect(variationPourcent(150, 100)).toBe(-33.33)
   })
 
-  it('null si base 0 ou valeur absente (pas de division par zéro)', () => {
-    expect(variationPourcent(0, 100)).toBeNull()
+  it('null si valeur absente ou 0 → 0 ; « nouveau » si 0 → positif (pas de division par zéro)', () => {
+    expect(variationPourcent(0, 100)).toBe('nouveau') // apparition (base 0 → positif)
+    expect(variationPourcent(0, 0)).toBeNull() // rien à comparer
     expect(variationPourcent(null, 100)).toBeNull()
     expect(variationPourcent(100, null)).toBeNull()
   })

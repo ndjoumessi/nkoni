@@ -15,6 +15,7 @@ import {
 import { peutVoirAudit } from '@/lib/roles'
 import { construireFiltresAudit } from '@/lib/audit-filtres'
 import { cn, formatDate, formatDateHeure } from '@/lib/utils'
+import { formatMontant } from '@/lib/format'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card } from '@/components/ui/Card'
 import { Badge, type BadgeProps } from '@/components/ui/Badge'
@@ -122,11 +123,31 @@ function fmt(v: unknown): string {
   return String(v)
 }
 
+/** Champs monétaires → rendus dans la devise de l'org (plus lisible qu'un entier brut). */
+const CHAMPS_MONTANT = new Set([
+  'montant',
+  'montantAttendu',
+  'montantVerse',
+  'montantValorise',
+  'totalPeriode',
+])
+
+/** Plomberie interne sans valeur d'audit → masquée du détail (bruit). */
+const CHAMPS_MASQUES = new Set(['idempotenceKey', 'organisationId'])
+
+/** Formate une valeur selon son champ : devise pour les montants, sinon `fmt` générique. */
+function fmtValeur(cle: string, v: unknown): string {
+  if (CHAMPS_MONTANT.has(cle) && typeof v === 'number') return formatMontant(v)
+  return fmt(v)
+}
+
 /** Détail lisible d'une entrée : paires clé → valeur, différences surlignées. */
 function DiffDetails({ entry }: { entry: AuditEntry }) {
   const { t } = useTranslation()
   const { donneesAvant: avant, donneesApres: apres } = entry
-  const cles = [...new Set([...Object.keys(avant ?? {}), ...Object.keys(apres ?? {})])].sort()
+  const cles = [...new Set([...Object.keys(avant ?? {}), ...Object.keys(apres ?? {})])]
+    .filter((c) => !CHAMPS_MASQUES.has(c))
+    .sort()
 
   if (cles.length === 0) {
     return <p className="text-sm text-faint">{t('audit.diff.aucuneDonnee')}</p>
@@ -145,7 +166,7 @@ function DiffDetails({ entry }: { entry: AuditEntry }) {
       {cles.map((cle) => {
         const a = avant?.[cle]
         const b = apres?.[cle]
-        const change = compare && fmt(a) !== fmt(b)
+        const change = compare && fmtValeur(cle, a) !== fmtValeur(cle, b)
         return (
           <div
             key={cle}
@@ -161,16 +182,16 @@ function DiffDetails({ entry }: { entry: AuditEntry }) {
               {compare ? (
                 change ? (
                   <>
-                    <span className="text-terra line-through">{fmt(a)}</span>
+                    <span className="text-terra line-through">{fmtValeur(cle, a)}</span>
                     <span className="mx-1 text-faint">→</span>
-                    <span className="text-jade">{fmt(b)}</span>
+                    <span className="text-jade">{fmtValeur(cle, b)}</span>
                   </>
                 ) : (
-                  <span className="text-foreground">{fmt(b)}</span>
+                  <span className="text-foreground">{fmtValeur(cle, b)}</span>
                 )
               ) : (
                 // CREATE (que après) ou DELETE (que avant)
-                <span className="text-foreground">{fmt(apres !== null ? b : a)}</span>
+                <span className="text-foreground">{fmtValeur(cle, apres !== null ? b : a)}</span>
               )}
             </span>
           </div>

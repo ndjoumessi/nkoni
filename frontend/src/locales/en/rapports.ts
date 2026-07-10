@@ -9,6 +9,7 @@ export default {
     variation: {
       na: 'n/a',
       zero: '0 %',
+      nouveau: 'New',
     },
     graphe: {
       titre: 'Expected vs collected by year',

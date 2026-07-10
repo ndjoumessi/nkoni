@@ -34,6 +34,7 @@ import type {
   ComparaisonMulti,
   RapportAnnee,
   VariationsComparaison,
+  Variation,
 } from './rapport.service'
 
 /* -------------------------------------------------------------------------- */
@@ -43,6 +44,9 @@ import type {
 /** Couleurs SÉMANTIQUES de variation (ARGB) — distinctes de l'accent menthe : vert = progression,
  * rouge = régression. Conservées pour la mise en forme conditionnelle du .xlsx. */
 const COULEUR = { vert: 'FF157A4F', rouge: 'FFB0432A' } as const
+
+/** Libellé d'une variation « apparition » (base 0 → positif) dans les exports (labels FR). */
+const LIBELLE_NOUVEAU = 'Nouveau'
 
 function arrondi2(x: number): number {
   return Math.round(x * 100) / 100
@@ -147,7 +151,7 @@ interface LigneComparaison {
   a: number | null
   b: number | null
   /** undefined = pas de variation pour cette métrique (ex. décomptes) ; null = non calculable. */
-  variation?: number | null
+  variation?: Variation
   /** La métrique porte-t-elle des MONTANTS (format #,##0) ? */
   montant?: boolean
 }
@@ -187,7 +191,13 @@ export async function genererComparaisonExcel(
 
   lignesComparaison(comp).forEach((l, i) => {
     const variationTexte =
-      l.variation === undefined ? '' : l.variation === null ? 'n/a' : l.variation
+      l.variation === undefined
+        ? ''
+        : l.variation === null
+          ? 'n/a'
+          : l.variation === 'nouveau'
+            ? LIBELLE_NOUVEAU
+            : l.variation
     const row = ws.addRow({
       metrique: l.label,
       a: l.a === null ? '—' : l.a,
@@ -198,8 +208,10 @@ export async function genererComparaisonExcel(
     // Montants (attendu/collecté) formatés ; autres valeurs simplement alignées à droite.
     ;[2, 3].forEach((c) => (l.montant ? formaterMontantCellule(row.getCell(c)) : alignerDroite(row.getCell(c))))
     alignerDroite(row.getCell(4))
-    // Mise en forme conditionnelle : vert si progression, rouge si régression (APRÈS la zébrure).
-    if (typeof l.variation === 'number' && l.variation !== 0) {
+    // Mise en forme conditionnelle : vert si progression (ou apparition), rouge si régression.
+    if (l.variation === 'nouveau') {
+      row.getCell('variation').font = { bold: true, color: { argb: COULEUR.vert } }
+    } else if (typeof l.variation === 'number' && l.variation !== 0) {
       row.getCell('variation').font = {
         bold: true,
         color: { argb: l.variation > 0 ? COULEUR.vert : COULEUR.rouge },
@@ -313,7 +325,13 @@ export function genererComparaisonPdf(
       l.label,
       valeur(l.a, l.montant ?? false),
       valeur(l.b, l.montant ?? false),
-      l.variation === undefined ? '' : l.variation === null ? 'n/a' : pourcentExport(l.variation, langue),
+      l.variation === undefined
+        ? ''
+        : l.variation === null
+          ? 'n/a'
+          : l.variation === 'nouveau'
+            ? LIBELLE_NOUVEAU
+            : pourcentExport(l.variation, langue),
     ])
     dessinerCorpsPremium(doc, { colonnes, lignes, gauche: GAUCHE, droite: DROITE, yStart })
   })
@@ -341,11 +359,13 @@ const METRIQUES_MULTI: MetriqueMulti[] = [
   { label: 'Non à jour', valeur: (r) => r?.membresParStatut.NON_A_JOUR ?? null },
 ]
 
-/** Variation (nombre pour l'Excel, '' / 'n/a' sinon). */
+/** Variation (nombre pour l'Excel ; '', 'n/a' ou libellé « Nouveau » sinon). */
 function variationMulti(m: MetriqueMulti, ac: ComparaisonMulti['annees'][number]): number | string {
   if (!m.cle) return '' // métrique de décompte : pas de variation
   const v = ac.variations ? ac.variations[m.cle] : null
-  return v === null || v === undefined ? 'n/a' : v
+  if (v === null || v === undefined) return 'n/a'
+  if (v === 'nouveau') return LIBELLE_NOUVEAU
+  return v
 }
 
 /**

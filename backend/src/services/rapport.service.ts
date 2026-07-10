@@ -69,11 +69,19 @@ export interface RapportFinancier {
   annees: RapportAnnee[]
 }
 
-/** Variation en % d'une métrique entre deux périodes (null si non calculable). */
+/**
+ * Variation d'une métrique entre deux périodes :
+ *  - `number` = pourcentage de variation (positif/négatif) ;
+ *  - `'nouveau'` = APPARITION (base à 0 → valeur positive) : un % serait infini/trompeur, mais
+ *    c'est une info réelle (la métrique passe de rien à quelque chose) — distinct de « n/a » ;
+ *  - `null` = non calculable / incomparable (année sans barème, ou 0 → 0).
+ */
+export type Variation = number | 'nouveau' | null
+
 export interface VariationsComparaison {
-  totalAttendu: number | null
-  totalCollecte: number | null
-  tauxRecouvrement: number | null
+  totalAttendu: Variation
+  totalCollecte: Variation
+  tauxRecouvrement: Variation
 }
 
 export interface ComparaisonPeriodes {
@@ -164,11 +172,13 @@ export function genererRapportFinancier(
 }
 
 /**
- * Variation en % de `depuis` vers `vers`. `null` si la base est 0 (non calculable) ou si
- * l'une des deux valeurs est absente. Positive = progression, négative = régression.
+ * Variation de `depuis` vers `vers`. `null` si une valeur est absente (année sans barème) ou si
+ * les deux sont nulles (0 → 0, rien à comparer). Base 0 vers valeur POSITIVE → `'nouveau'`
+ * (apparition, cf. type `Variation`). Sinon, % signé (positif = progression).
  */
-export function variationPourcent(depuis: number | null, vers: number | null): number | null {
-  if (depuis === null || vers === null || depuis === 0) return null
+export function variationPourcent(depuis: number | null, vers: number | null): Variation {
+  if (depuis === null || vers === null) return null
+  if (depuis === 0) return vers > 0 ? 'nouveau' : null
   return arrondi2(((vers - depuis) / depuis) * 100)
 }
 

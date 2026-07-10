@@ -405,10 +405,13 @@ export interface RapportFinancier {
   annees: RapportAnnee[]
 }
 
+/** `number` = % ; `'nouveau'` = apparition (base 0 → positif) ; `null` = incomparable / 0→0. */
+export type Variation = number | 'nouveau' | null
+
 export interface VariationsComparaison {
-  totalAttendu: number | null
-  totalCollecte: number | null
-  tauxRecouvrement: number | null
+  totalAttendu: Variation
+  totalCollecte: Variation
+  tauxRecouvrement: Variation
 }
 
 export interface ComparaisonPeriodes {

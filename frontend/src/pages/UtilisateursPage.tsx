@@ -15,7 +15,7 @@ import {
 import { peutGererUtilisateurs, ROLES } from '@/lib/roles'
 import { useToast } from '@/components/ui/Toast'
 import { PageHeader } from '@/components/ui/PageHeader'
-import { Card, Overline } from '@/components/ui/Card'
+import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Field, Input, Select } from '@/components/ui/Field'
 import { PasswordInput } from '@/components/ui/PasswordInput'
@@ -47,6 +47,7 @@ export function UtilisateursPage() {
   const [role, setRole] = useState('SECRETAIRE')
   const [membreId, setMembreId] = useState('')
   const [creating, setCreating] = useState(false)
+  const [creerOuvert, setCreerOuvert] = useState(false)
 
   const [pendingId, setPendingId] = useState<string | null>(null)
 
@@ -121,6 +122,7 @@ export function UtilisateursPage() {
       setPassword('')
       setRole('SECRETAIRE')
       setMembreId('')
+      setCreerOuvert(false)
       toast.success(t('utilisateurs.toast.compteCree'), cree.email)
     } catch (err) {
       toast.error(
@@ -190,21 +192,32 @@ export function UtilisateursPage() {
       header: t('utilisateurs.table.compte'),
       cell: (u) => {
         const estSoi = u.id === user?.id
+        const initiales = (
+          u.membre ? `${u.membre.prenom?.[0] ?? ''}${u.membre.nom?.[0] ?? ''}` : u.email.slice(0, 2)
+        ).toUpperCase()
         return (
-          <div className="min-w-0">
-            <p className="flex items-center gap-2 font-medium text-foreground">
-              <span className="truncate">{u.email}</span>
-              {estSoi && (
-                <Badge tone="brass" size="sm">
-                  {t('utilisateurs.table.vous')}
-                </Badge>
-              )}
-            </p>
-            <p className="mt-0.5 text-xs text-faint">
-              {u.membre
-                ? t('utilisateurs.table.membre', { nom: u.membre.nom, prenom: u.membre.prenom })
-                : t('utilisateurs.table.aucunMembre')}
-            </p>
+          <div className="flex min-w-0 items-center gap-3">
+            <span
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface-2 text-xs font-medium text-muted-foreground"
+              aria-hidden="true"
+            >
+              {initiales}
+            </span>
+            <div className="min-w-0">
+              <p className="flex items-center gap-2 font-medium text-foreground">
+                <span className="truncate">{u.email}</span>
+                {estSoi && (
+                  <Badge tone="brass" size="sm">
+                    {t('utilisateurs.table.vous')}
+                  </Badge>
+                )}
+              </p>
+              <p className="mt-0.5 text-xs text-faint">
+                {u.membre
+                  ? t('utilisateurs.table.membre', { nom: u.membre.nom, prenom: u.membre.prenom })
+                  : t('utilisateurs.table.aucunMembre')}
+              </p>
+            </div>
           </div>
         )
       },
@@ -285,83 +298,15 @@ export function UtilisateursPage() {
             ? t('utilisateurs.header.comptes', { count: utilisateurs.length })
             : undefined
         }
+        actions={
+          <Button icon={UserPlus} onClick={() => setCreerOuvert(true)}>
+            {t('utilisateurs.creer.titre')}
+          </Button>
+        }
       />
 
-      {/* Création d'un compte */}
-      <Card className="nk-reveal nk-d2 mt-7 p-6">
-        <div className="flex items-center gap-2">
-          <UserPlus className="h-4 w-4 text-brass" aria-hidden="true" />
-          <Overline>{t('utilisateurs.creer.titre')}</Overline>
-        </div>
-        <form onSubmit={handleCreate} className="mt-5 space-y-4">
-          {/* Section 1 — Identifiants de connexion */}
-          <FormSection icon={Mail} title={t('utilisateurs.creer.identifiants')}>
-            <Field label={t('utilisateurs.creer.email')} required>
-              <div className="relative">
-                <Mail
-                  className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-faint"
-                  aria-hidden="true"
-                />
-                <Input
-                  type="email"
-                  name="account-email"
-                  autoComplete="off"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder={t('utilisateurs.creer.emailPlaceholder')}
-                  className="pl-10"
-                />
-              </div>
-            </Field>
-            <Field
-              label={t('utilisateurs.creer.motDePasse')}
-              required
-              hint={t('utilisateurs.min8')}
-            >
-              <PasswordInput
-                name="new-password"
-                autoComplete="new-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                leftIcon={KeyRound}
-              />
-            </Field>
-          </FormSection>
-
-          {/* Section 2 — Rôle & rattachement */}
-          <FormSection icon={ShieldUser} title={t('utilisateurs.creer.roleRattachement')}>
-            <Field label={t('utilisateurs.creer.role')} required>
-              <Select value={role} onChange={(e) => setRole(e.target.value)}>
-                {ROLES.map((r) => (
-                  <option key={r} value={r}>
-                    {t(`utilisateurs.roles.${r}`)}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-            <Field label={t('utilisateurs.creer.membreLie')} hint={t('utilisateurs.creer.membreLieHint')}>
-              <Select value={membreId} onChange={(e) => setMembreId(e.target.value)}>
-                <option value="">{t('utilisateurs.creer.aucun')}</option>
-                {membresLibres.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.nom} {m.prenom}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-          </FormSection>
-
-          <div className="flex justify-end pt-1">
-            <Button type="submit" icon={UserPlus} loading={creating}>
-              {t('utilisateurs.creer.bouton')}
-            </Button>
-          </div>
-        </form>
-      </Card>
-
       {/* Liste des comptes */}
-      <div className="nk-reveal nk-d3 mt-6">
+      <div className="nk-reveal nk-d2 mt-7">
         {loading && (
           <Card className="overflow-hidden p-0">
             <RowsSkeleton rows={5} />
@@ -396,6 +341,81 @@ export function UtilisateursPage() {
           </Card>
         )}
       </div>
+
+      {/* Modal — création d'un compte (liste d'abord : le formulaire s'ouvre à la demande). */}
+      <Modal
+        open={creerOuvert}
+        onClose={() => (creating ? undefined : setCreerOuvert(false))}
+        title={t('utilisateurs.creer.titre')}
+      >
+        <form onSubmit={handleCreate} className="space-y-4">
+          <FormSection icon={Mail} title={t('utilisateurs.creer.identifiants')}>
+            <Field label={t('utilisateurs.creer.email')} required>
+              <div className="relative">
+                <Mail
+                  className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-faint"
+                  aria-hidden="true"
+                />
+                <Input
+                  type="email"
+                  name="account-email"
+                  autoComplete="off"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder={t('utilisateurs.creer.emailPlaceholder')}
+                  className="pl-10"
+                />
+              </div>
+            </Field>
+            <Field label={t('utilisateurs.creer.motDePasse')} required hint={t('utilisateurs.min8')}>
+              <PasswordInput
+                name="new-password"
+                autoComplete="new-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                leftIcon={KeyRound}
+              />
+            </Field>
+          </FormSection>
+
+          <FormSection icon={ShieldUser} title={t('utilisateurs.creer.roleRattachement')}>
+            <Field label={t('utilisateurs.creer.role')} required>
+              <Select value={role} onChange={(e) => setRole(e.target.value)}>
+                {ROLES.map((r) => (
+                  <option key={r} value={r}>
+                    {t(`utilisateurs.roles.${r}`)}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field label={t('utilisateurs.creer.membreLie')} hint={t('utilisateurs.creer.membreLieHint')}>
+              <Select value={membreId} onChange={(e) => setMembreId(e.target.value)}>
+                <option value="">{t('utilisateurs.creer.aucun')}</option>
+                {membresLibres.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.nom} {m.prenom}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          </FormSection>
+
+          <div className="flex justify-end gap-2 pt-1">
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={creating}
+              onClick={() => setCreerOuvert(false)}
+            >
+              {t('utilisateurs.reset.annuler')}
+            </Button>
+            <Button type="submit" icon={UserPlus} loading={creating}>
+              {t('utilisateurs.creer.bouton')}
+            </Button>
+          </div>
+        </form>
+      </Modal>
 
       {/* Modal — réinitialisation du mot de passe d'un compte (ADMIN, sans l'ancien) */}
       <Modal

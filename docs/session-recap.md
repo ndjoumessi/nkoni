@@ -89,7 +89,7 @@ statut de déploiement Railway/Vercel confirmé au statut réel là où le backe
   → vérifier le rejeu sans doublon.
 - **DatePicker trésorerie** : ouvrir « Nouvelle dépense » → le calendrier doit s'afficher **au-dessus**
   de la modale (popover et Modal sont tous deux `z-50`).
-- **Dashboard** : carte « Recouvrement mensuel » (aire/ligne) + donuts de répartition bien affichés.
+- **Dashboard** : carte « Recouvrement cumulé » (courbe burn-up) + donuts de répartition bien affichés.
 - **Nom de l'organisation** : après reconnexion (token réhydraté), le nom de l'org apparaît dans le
   bloc menthe en haut de la barre latérale (et tronqué dans la topbar mobile).
 - **Chef de l'organisation** : en ADMIN/PRESIDENT, ouvrir une fiche membre → « Désigner comme chef »

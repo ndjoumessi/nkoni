@@ -54,6 +54,10 @@ statut de déploiement Railway/Vercel confirmé au statut réel là où le backe
 - **Journal d'audit plus lisible** — dans le détail déplié d'une entrée, les champs monétaires
   sont rendus en devise (`formatMontant`) et les champs de plomberie `idempotenceKey` /
   `organisationId` sont masqués (CREATE, DELETE et diff UPDATE).
+- **Identité visuelle & login** — nouveau logo NKONI « Cercle d'union » (membres menthe autour de
+  la cagnotte émeraude→or, chef en or) appliqué partout (NkoniMark, favicon, icônes PWA régénérées,
+  remplace l'ancien logo mauve générique) ; page de connexion enrichie en deux colonnes (panneau de
+  marque + 3 arguments de valeur sur desktop, formulaire seul sur mobile).
 
 ### Migrations appliquées en prod
 - `tresorerie_depense` — additive (table `Depense` + 2 enums via `CREATE TYPE`).

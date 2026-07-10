@@ -76,6 +76,10 @@ statut de déploiement Railway/Vercel confirmé au statut réel là où le backe
 - **Placeholder inscription générique (§4)** — le champ « Nom de l'organisation » n'affiche plus un
   vrai nom de famille en exemple mais un placeholder neutre (FR « Famille, amicale ou tontine… » /
   EN « Family, association or tontine… »), dans les deux langues.
+- **Modifier / supprimer un versement (§4.4)** — depuis la fiche membre (rôles ADMIN/TRÉSORIÈRE) :
+  édition en modale et suppression avec confirmation. Le backend reporte le **delta** sur
+  `montantVerse` + `montantValorise` (édition) ou décrémente les totaux (suppression) **en
+  transaction** ; routes `PATCH`/`DELETE /versements/:id` confirmées déployées en prod.
 
 ### Migrations appliquées en prod
 - `tresorerie_depense` — additive (table `Depense` + 2 enums via `CREATE TYPE`).

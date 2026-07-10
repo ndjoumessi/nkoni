@@ -21,6 +21,7 @@ import { Input } from '@/components/ui/Field'
 import { PasswordInput } from '@/components/ui/PasswordInput'
 import { Card } from '@/components/ui/Card'
 import { NkoniMark } from '@/components/ui/NkoniMark'
+import { LangueToggle } from '@/components/ui/LangueToggle'
 
 /** Argument de valeur du panneau de marque (login desktop) — icône + titre + une ligne. */
 function Argument({ icon: Icon, titre, desc }: { icon: LucideIcon; titre: string; desc: string }) {
@@ -143,6 +144,10 @@ export function LoginPage() {
     <main className="relative min-h-screen overflow-hidden bg-background">
       <div className="nk-aura pointer-events-none absolute inset-0 -z-10" aria-hidden="true" />
       <div className="nk-grid absolute inset-0 -z-10" aria-hidden="true" />
+
+      <div className="absolute right-4 top-4 z-10 sm:right-6 sm:top-6">
+        <LangueToggle />
+      </div>
 
       <div className="relative mx-auto flex min-h-screen w-full max-w-6xl">
         {/* Panneau de marque — desktop uniquement (le formulaire seul sur mobile). */}

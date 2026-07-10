@@ -41,6 +41,9 @@ statut de déploiement Railway/Vercel confirmé au statut réel là où le backe
 - **DatePicker trésorerie** — remplacement du champ date natif par le composant maison.
 - **Graphiques du tableau de bord** — évolution mensuelle du recouvrement (aire/ligne, composant
   partagé avec Rapports) + répartitions en donuts.
+- **Nom de l'organisation en relief** — `nomOrganisation` propagé aux réponses auth (login /
+  me / inscription, champ additif sans migration) ; bloc menthe en tête d'AppShell (sidebar +
+  drawer) et nom tronqué dans la topbar mobile. Null pour le SUPER_ADMIN.
 
 ### Migrations appliquées en prod
 - `tresorerie_depense` — additive (table `Depense` + 2 enums via `CREATE TYPE`).
@@ -67,6 +70,8 @@ statut de déploiement Railway/Vercel confirmé au statut réel là où le backe
 - **DatePicker trésorerie** : ouvrir « Nouvelle dépense » → le calendrier doit s'afficher **au-dessus**
   de la modale (popover et Modal sont tous deux `z-50`).
 - **Dashboard** : carte « Recouvrement mensuel » (aire/ligne) + donuts de répartition bien affichés.
+- **Nom de l'organisation** : après reconnexion (token réhydraté), le nom de l'org apparaît dans le
+  bloc menthe en haut de la barre latérale (et tronqué dans la topbar mobile).
 - **Rapports** : retrait d'année en mode comparaison (bouton agrandi, plus d'overlay).
 - **Changement de langue** FR ↔ EN dans Mon Profil (charge le catalogue à la volée).
 

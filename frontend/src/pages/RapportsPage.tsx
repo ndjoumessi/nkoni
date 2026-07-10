@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Navigate } from 'react-router-dom'
 import {
@@ -212,29 +212,44 @@ const METRIQUES_COMPARAISON: MetriqueDef[] = [
 const CELLULE_COLLANTE = 'sticky left-0 z-10 border-r border-hairline bg-surface'
 
 /**
- * Table de comparaison multi-années (§10) : une colonne par année + une colonne Δ pour
- * chaque année à partir de la 2e (variation vs la précédente DANS LA LISTE). La 1re colonne
- * (Métrique) est collante et la table défile horizontalement au besoin (mobile / N années).
+ * Table de comparaison multi-années (§10) : une colonne PAR ANNÉE, la variation vs l'année
+ * précédente (dans la liste) affichée EN DESSOUS de la valeur — plus de colonnes Δ séparées,
+ * ce qui divise le nombre de colonnes par ~2 et évite le débordement horizontal pour 2–5 ans.
+ * La 1re colonne (Métrique) est collante ; un dégradé de bord signale un scroll résiduel.
  */
 function VueComparaisonMulti({ data }: { data: ComparaisonMulti }) {
   const { t } = useTranslation()
+  const scrollRef = useRef<HTMLDivElement>(null)
+  // Le dégradé de bord n'apparaît QUE s'il reste du contenu à droite (sinon il assombrirait
+  // inutilement la dernière colonne quand la table tient sans scroll).
+  const [debordeADroite, setDebordeADroite] = useState(false)
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+    const verifier = () => setDebordeADroite(el.scrollWidth - el.clientWidth - el.scrollLeft > 1)
+    verifier()
+    el.addEventListener('scroll', verifier, { passive: true })
+    window.addEventListener('resize', verifier)
+    return () => {
+      el.removeEventListener('scroll', verifier)
+      window.removeEventListener('resize', verifier)
+    }
+  }, [data.annees.length])
+
   return (
-    <Card className="overflow-hidden p-0">
-      <div className="overflow-x-auto">
+    <Card className="relative overflow-hidden p-0">
+      <div ref={scrollRef} className="overflow-x-auto">
         <table className="w-full min-w-max text-sm">
           <thead>
             <tr className="border-b border-hairline text-[0.7rem] uppercase tracking-[0.1em] text-faint">
-              <th className={cn(CELLULE_COLLANTE, 'px-4 py-2.5 text-left font-medium')}>
+              <th className={cn(CELLULE_COLLANTE, 'px-4 py-3 text-left font-medium')}>
                 {t('rapports.comparaison.metrique')}
               </th>
-              {data.annees.map((ac, i) => (
-                <Fragment key={ac.annee}>
-                  <th className="num px-4 py-2.5 text-right font-medium">
-                    {ac.annee}
-                    <NoteSansBareme rapport={ac.rapport} />
-                  </th>
-                  {i > 0 && <th className="px-4 py-2.5 text-right font-medium">Δ</th>}
-                </Fragment>
+              {data.annees.map((ac) => (
+                <th key={ac.annee} className="num px-4 py-3 text-right font-medium">
+                  {ac.annee}
+                  <NoteSansBareme rapport={ac.rapport} />
+                </th>
               ))}
             </tr>
           </thead>
@@ -244,32 +259,36 @@ function VueComparaisonMulti({ data }: { data: ComparaisonMulti }) {
                 <td
                   className={cn(
                     CELLULE_COLLANTE,
-                    'px-4 py-2.5 text-muted-foreground transition-colors group-hover:bg-surface-2',
+                    'px-4 py-3 align-top text-muted-foreground transition-colors group-hover:bg-surface-2',
                   )}
                 >
                   {t(`rapports.metriques.${m.cle}`)}
                 </td>
                 {data.annees.map((ac, i) => (
-                  <Fragment key={ac.annee}>
-                    <td className="num px-4 py-2.5 text-right text-foreground transition-colors group-hover:bg-surface-2/50">
-                      {m.valeur(ac.rapport)}
-                    </td>
-                    {i > 0 && (
-                      <td className="px-4 py-2.5 text-right transition-colors group-hover:bg-surface-2/50">
-                        {m.vkey ? (
-                          <VariationBadge valeur={ac.variations ? ac.variations[m.vkey] : null} />
-                        ) : (
-                          <span className="text-faint">—</span>
-                        )}
-                      </td>
+                  <td
+                    key={ac.annee}
+                    className="px-4 py-3 text-right align-top transition-colors group-hover:bg-surface-2/50"
+                  >
+                    <span className="num block text-foreground">{m.valeur(ac.rapport)}</span>
+                    {i > 0 && m.vkey && (
+                      <span className="mt-1 flex justify-end">
+                        <VariationBadge valeur={ac.variations ? ac.variations[m.vkey] : null} />
+                      </span>
                     )}
-                  </Fragment>
+                  </td>
                 ))}
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+      {/* Dégradé de bord droit : signale un défilement horizontal restant (masqué sinon). */}
+      {debordeADroite && (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-surface to-transparent"
+        />
+      )}
     </Card>
   )
 }

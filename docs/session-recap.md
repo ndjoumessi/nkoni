@@ -95,8 +95,6 @@ statut de déploiement Railway/Vercel confirmé au statut réel là où le backe
   (+ surnom) → badge « Chef » sur la fiche ET sur la ligne dans la liste ; « Retirer comme chef » le
   déchoit. Les autres rôles ne voient pas l'action.
 - **Rapports** : retrait d'année en mode comparaison (bouton agrandi, plus d'overlay).
-- **Journal d'audit** : déplier une entrée (ex. un versement) → montants affichés en devise,
-  et aucun champ `idempotenceKey` / `organisationId` visible dans le détail.
 - **Changement de langue** FR ↔ EN dans Mon Profil (charge le catalogue à la volée).
 
 ---

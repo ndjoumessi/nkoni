@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ChevronDown, ChevronRight, Crown, Pencil, Plus, Scale, UserMinus } from 'lucide-react'
+import { ChevronDown, ChevronRight, CreditCard, Crown, Pencil, Plus, Scale, UserMinus } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
 import {
   membresApi,
@@ -28,7 +28,7 @@ import { DocumentsSection } from '@/components/documents/DocumentsSection'
 import { StatutCotisationBadge, StatutMembreBadge } from '@/components/membres/StatutBadges'
 import { VersementsList } from '@/components/VersementsList'
 import { formatMontant } from '@/lib/format'
-import { formatDate } from '@/lib/utils'
+import { formatDate, ouvrirBlobPdf } from '@/lib/utils'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, Overline } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
@@ -78,6 +78,19 @@ export function MembreDetailPage() {
   const [chefModal, setChefModal] = useState<'designer' | 'retirer' | null>(null)
   const [surnom, setSurnom] = useState('')
   const [chefSubmitting, setChefSubmitting] = useState(false)
+  const [carteEnCours, setCarteEnCours] = useState(false)
+
+  const telechargerCarte = async () => {
+    if (!accessToken || !membre) return
+    setCarteEnCours(true)
+    try {
+      ouvrirBlobPdf(await membresApi.telechargerCarte(membre.id, accessToken))
+    } catch (e) {
+      toast.error(t('membres.carte.erreur'), e instanceof ApiError ? e.message : '')
+    } finally {
+      setCarteEnCours(false)
+    }
+  }
 
   useEffect(() => {
     if (!accessToken || !id) return
@@ -304,6 +317,16 @@ export function MembreDetailPage() {
                   {t('membres.chef.designer')}
                 </Button>
               ))}
+            {peutGererMembres(user?.role) && (
+              <Button
+                variant="outline"
+                icon={CreditCard}
+                loading={carteEnCours}
+                onClick={telechargerCarte}
+              >
+                {t('membres.carte.telecharger')}
+              </Button>
+            )}
             {peutGererMembres(user?.role) && (
               <ButtonLink to={`/membres/${membre.id}/editer`} variant="outline" icon={Pencil}>
                 {t('membres.detail.modifier')}

@@ -49,6 +49,10 @@ export const env = {
   //     nkoni.vercel.app, donc son Path doit être '/api/auth' pour être renvoyé aux
   //     requêtes /api/auth/refresh et /api/auth/logout. → REFRESH_COOKIE_PATH=/api/auth
   REFRESH_COOKIE_PATH: optional('REFRESH_COOKIE_PATH', '/auth'),
+  // Origine PUBLIQUE de l'app (front same-origin) — sert à construire l'URL absolue encodée dans le
+  // QR des cartes de membre (§4.7) : `${PUBLIC_BASE_URL}/api/membres/:id/statut-public?t=…`. Défaut
+  // prod ; à surcharger seulement si le domaine public change. À poser sur Railway si besoin.
+  PUBLIC_BASE_URL: optional('PUBLIC_BASE_URL', 'https://nkoni.vercel.app'),
 } as const
 
 export const isProd = env.NODE_ENV === 'production'

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { AlertTriangle, CheckCircle2, Loader2, Plus, Search, Upload, Users } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, CreditCard, Loader2, Plus, Search, Upload, Users } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
 import {
   membresApi,
@@ -12,6 +12,8 @@ import {
   type StatutContribution,
 } from '@/lib/api'
 import { estMembreSimple, peutGererMembres } from '@/lib/roles'
+import { ouvrirBlobPdf } from '@/lib/utils'
+import { useToast } from '@/components/ui/Toast'
 import { formatPourcent } from '@/lib/format'
 import { resumeMembres } from '@/lib/membres'
 import { StatutCotisationBadge, StatutMembreBadge } from '@/components/membres/StatutBadges'
@@ -60,6 +62,20 @@ export function MembresPage() {
   const [triDir, setTriDir] = useState<'asc' | 'desc'>('asc')
 
   const gestion = peutGererMembres(user?.role)
+  const toast = useToast()
+  const [cartesEnCours, setCartesEnCours] = useState(false)
+
+  const telechargerCartes = async () => {
+    if (!accessToken) return
+    setCartesEnCours(true)
+    try {
+      ouvrirBlobPdf(await membresApi.telechargerCartesLot(accessToken))
+    } catch (e) {
+      toast.error(t('membres.carte.erreurLot'), messageErreur(e))
+    } finally {
+      setCartesEnCours(false)
+    }
+  }
 
   useEffect(() => {
     if (!accessToken) return
@@ -245,6 +261,16 @@ export function MembresPage() {
               <ButtonLink to="/membres/import" variant="outline" icon={Upload}>
                 {t('import.boutonNav')}
               </ButtonLink>
+              {membres && membres.length > 0 && (
+                <Button
+                  variant="outline"
+                  icon={CreditCard}
+                  loading={cartesEnCours}
+                  onClick={telechargerCartes}
+                >
+                  {t('membres.carte.lot')}
+                </Button>
+              )}
               {/* « Nouveau » masqué quand la liste est vide : l'EmptyState porte déjà ce CTA. */}
               {(!membres || membres.length > 0) && (
                 <ButtonLink to="/membres/nouveau" icon={Plus}>

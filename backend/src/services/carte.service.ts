@@ -76,8 +76,8 @@ function dessinerCarte(
     .text(L.organisation, x + pad, y + 11, { width: CARD_W - pad * 2, lineBreak: false, ellipsis: true })
 
   // AVATAR (colonne gauche du corps) : photo si fournie et valide, sinon initiales sur fond menthe.
-  const aw = 48
-  const ah = 60
+  const aw = 46
+  const ah = 58
   const ax = x + pad
   const ay = y + bandH + 10
   doc.save()
@@ -102,24 +102,26 @@ function dessinerCarte(
 
   // COLONNE TEXTE à droite de l'avatar. Largeur bornée pour ne pas empiéter sur le QR.
   const tx = ax + aw + 12
-  const qrSize = 60
+  const qrSize = 58
   const qrX = x + CARD_W - pad - qrSize
   const tw = qrX - tx - 8
 
+  // `height` + `ellipsis` force UNE seule ligne tronquée : `lineBreak:false` seul laisse PDFKit
+  // couper sur l'espace (« ROMEL NELSON » → 2 lignes qui chevauchent la ligne du dessous).
   doc.fillColor(NK.or).font('Helvetica-Bold').fontSize(7)
-    .text(L.carte, tx, y + bandH + 8, { characterSpacing: 1.2, width: tw, lineBreak: false })
+    .text(L.carte, tx, y + bandH + 8, { characterSpacing: 1.2, width: tw, height: 11, ellipsis: true })
   doc.fillColor(NK.encre).font('Helvetica-Bold').fontSize(13)
-    .text(d.nom.toUpperCase(), tx, y + 58, { width: tw, lineBreak: false, ellipsis: true })
+    .text(d.nom.toUpperCase(), tx, y + 57, { width: tw, height: 17, ellipsis: true })
   doc.fillColor(NK.encre).font('Helvetica').fontSize(11)
-    .text(d.prenom, tx, y + 75, { width: tw, lineBreak: false, ellipsis: true })
+    .text(d.prenom, tx, y + 75, { width: tw, height: 15, ellipsis: true })
 
-  let ligneY = y + 94
+  let ligneY = y + 96
   doc.fillColor(NK.gris).font('Helvetica').fontSize(8)
   if (d.branche) {
-    doc.text(`${L.branche} : ${d.branche}`, tx, ligneY, { width: tw, lineBreak: false, ellipsis: true })
+    doc.text(`${L.branche} : ${d.branche}`, tx, ligneY, { width: tw, height: 11, ellipsis: true })
     ligneY += 13
   }
-  doc.text(`${L.depuis} ${d.anneeAdhesion}`, tx, ligneY, { width: tw, lineBreak: false })
+  doc.text(`${L.depuis} ${d.anneeAdhesion}`, tx, ligneY, { width: tw, height: 11, ellipsis: true })
 
   // QR (bas-droite) sur PASTILLE BLANCHE (scannabilité garantie sur fond teinté) + légende.
   const qrY = y + CARD_H - pad - qrSize - 8

@@ -21,6 +21,13 @@ export default {
       changer: 'Changer la photo',
       supprimer: 'Retirer',
       toast: { miseAJour: 'Photo mise à jour', supprimee: 'Photo retirée', erreur: 'Action impossible' },
+      recadrer: {
+        titre: 'Ajuster la photo',
+        aide: 'Glissez pour déplacer, le curseur pour zoomer.',
+        zoom: 'Zoom',
+        valider: 'Enregistrer',
+        annuler: 'Annuler',
+      },
     },
     liste: {
       overline: 'Communauté',

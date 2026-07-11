@@ -155,7 +155,7 @@
        qui posent leur propre `ring-brass/60` obtiennent exactement le même rendu. */
     :focus-visible {
         outline: none;
-        box-shadow: 0 0 0 2px var(--canvas), 0 0 0 4px oklch(0.84 0.14 168 / 0.6);
+        box-shadow: 0 0 0 2px var(--canvas), 0 0 0 4px color-mix(in oklch, var(--brass) 60%, transparent);
     }
     /* Champs de formulaire natifs → palette sombre */
     select option {
@@ -163,7 +163,7 @@
         color: var(--foreground);
     }
     ::selection {
-        background: oklch(0.84 0.14 168 / 25%);
+        background: color-mix(in oklch, var(--brass) 25%, transparent);
     }
 }
 
@@ -175,8 +175,8 @@
    Volontairement plus léger que l'ancien thème (moins de glow, plus sobre). */
 .nk-aura {
     background:
-        radial-gradient(900px 520px at 12% -8%, oklch(0.84 0.14 168 / 7%), transparent 62%),
-        radial-gradient(760px 520px at 100% 4%, oklch(0.80 0.085 85 / 5%), transparent 60%);
+        radial-gradient(900px 520px at 12% -8%, color-mix(in oklch, var(--brass) 7%, transparent), transparent 62%),
+        radial-gradient(760px 520px at 100% 4%, color-mix(in oklch, var(--amber) 5%, transparent), transparent 60%);
 }
 
 /* Grain de marque discret (bruit SVG) — texture légère sur les états vides. */
@@ -188,8 +188,8 @@
 /* Motif géométrique très léger (chevrons/losanges laiton) pour le fond des pages vides. */
 .nk-weave {
     background-image:
-        repeating-linear-gradient(45deg, oklch(0.84 0.14 168 / 3.5%) 0 1px, transparent 1px 14px),
-        repeating-linear-gradient(-45deg, oklch(0.80 0.085 85 / 3%) 0 1px, transparent 1px 14px);
+        repeating-linear-gradient(45deg, color-mix(in oklch, var(--brass) 3.5%, transparent) 0 1px, transparent 1px 14px),
+        repeating-linear-gradient(-45deg, color-mix(in oklch, var(--amber) 3%, transparent) 0 1px, transparent 1px 14px);
     -webkit-mask-image: radial-gradient(closest-side at 50% 42%, #000, transparent 85%);
     mask-image: radial-gradient(closest-side at 50% 42%, #000, transparent 85%);
 }

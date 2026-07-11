@@ -21,7 +21,7 @@ import { Card, Overline } from '@/components/ui/Card'
 import { StatCard } from '@/components/ui/StatCard'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
-import { Field, Input } from '@/components/ui/Field'
+import { Field, Input, Select } from '@/components/ui/Field'
 import { DatePicker } from '@/components/ui/DatePicker'
 import { Modal } from '@/components/ui/Modal'
 import { DataTable, type Column } from '@/components/ui/DataTable'
@@ -36,9 +36,6 @@ const TON_STATUT: Record<StatutDepense, 'neutral' | 'amber' | 'info' | 'terra' |
   REJETEE: 'terra',
   PAYEE: 'jade',
 }
-const SELECT_CLS =
-  'rounded-lg border border-hairline-strong bg-surface-2 px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass/60'
-
 export function TresoreriePage() {
   const { t } = useTranslation()
   const { accessToken, user } = useAuth()
@@ -235,14 +232,14 @@ export function TresoreriePage() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Overline>{t('tresorerie.liste.titre')}</Overline>
           <div className="flex flex-wrap gap-2">
-            <select aria-label={t('tresorerie.liste.filtreStatut')} className={SELECT_CLS} value={filtreStatut} onChange={(e) => setFiltreStatut(e.target.value as StatutDepense | '')}>
+            <Select aria-label={t('tresorerie.liste.filtreStatut')} className="w-auto" value={filtreStatut} onChange={(e) => setFiltreStatut(e.target.value as StatutDepense | '')}>
               <option value="">{t('tresorerie.liste.tous')} — {t('tresorerie.liste.filtreStatut')}</option>
               {STATUTS.map((s) => <option key={s} value={s}>{t(`tresorerie.statuts.${s}`)}</option>)}
-            </select>
-            <select aria-label={t('tresorerie.liste.filtreCategorie')} className={SELECT_CLS} value={filtreCategorie} onChange={(e) => setFiltreCategorie(e.target.value as CategorieDepense | '')}>
+            </Select>
+            <Select aria-label={t('tresorerie.liste.filtreCategorie')} className="w-auto" value={filtreCategorie} onChange={(e) => setFiltreCategorie(e.target.value as CategorieDepense | '')}>
               <option value="">{t('tresorerie.liste.toutes')} — {t('tresorerie.liste.filtreCategorie')}</option>
               {CATEGORIES.map((c) => <option key={c} value={c}>{cat(c)}</option>)}
-            </select>
+            </Select>
           </div>
         </div>
         {loading ? (
@@ -338,9 +335,9 @@ function FormDepense({
           <Input value={description} onChange={(e) => setDescription(e.target.value)} maxLength={1000} />
         </Field>
         <Field label={t('tresorerie.form.categorie')}>
-          <select className={SELECT_CLS + ' w-full'} value={categorie} onChange={(e) => setCategorie(e.target.value as CategorieDepense)}>
+          <Select value={categorie} onChange={(e) => setCategorie(e.target.value as CategorieDepense)}>
             {CATEGORIES.map((c) => <option key={c} value={c}>{t(`tresorerie.categories.${c}`)}</option>)}
-          </select>
+          </Select>
         </Field>
         <div className="flex flex-wrap justify-end gap-2 pt-2">
           <Button type="button" variant="ghost" onClick={onClose}>{t('tresorerie.form.annuler')}</Button>

@@ -287,7 +287,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <button
           type="button"
           onClick={() => setDrawer(true)}
-          className="flex h-9 w-9 items-center justify-center rounded-lg border border-hairline-strong bg-surface-2 text-foreground"
+          className="flex h-11 w-11 items-center justify-center rounded-lg border border-hairline-strong bg-surface-2 text-foreground"
           aria-label={t('shell.ouvrirMenu')}
         >
           <Menu className="h-5 w-5" aria-hidden="true" />
@@ -307,7 +307,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <button
               type="button"
               onClick={() => setDrawer(false)}
-              className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground"
+              // Bouton ABSOLUTE → pas de .tap-target (position:relative le casserait) ; la cible
+              // passe à 44px en agrandissant le bouton, ancres ajustées pour garder le X en place.
+              className="absolute right-1.5 top-1.5 flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground"
               aria-label={t('shell.fermer')}
             >
               <X className="h-5 w-5" aria-hidden="true" />

@@ -41,7 +41,10 @@ export const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>(
           onClick={() => setVisible((v) => !v)}
           aria-label={visible ? t('ui.motDePasse.masquer') : t('ui.motDePasse.afficher')}
           aria-pressed={visible}
-          className="absolute right-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-faint transition-colors hover:text-foreground focus:outline-none focus-visible:text-brass"
+          // Bouton ABSOLUTE → pas de .tap-target (position:relative le casserait, régression vécue).
+          // Cible agrandie à 40px en restant DANS le champ : l'Input réserve pr-11 (44px) à droite,
+          // le bouton occupe right-1 (4px) + w-10 (40px) = 44px → aucun débordement, œil quasi en place.
+          className="absolute right-1 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-lg text-faint transition-colors hover:text-foreground focus:outline-none focus-visible:text-brass"
         >
           {visible ? (
             <EyeOff className="h-4 w-4" aria-hidden="true" />

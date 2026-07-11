@@ -6,7 +6,7 @@ import {
   type ReactElement,
   type ReactNode,
 } from 'react'
-import { AlertCircle } from 'lucide-react'
+import { AlertCircle, ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { controlClasses } from './control-styles'
 
@@ -28,19 +28,22 @@ export const Input = forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTML
 )
 Input.displayName = 'Input'
 
+// Chevron en <ChevronDown> positionné en absolu (pointer-events-none) plutôt qu'en
+// background-image data-URI : la couleur suit le JETON `--faint` (un data-URI fige un hex
+// et survit aux changements de thème — c'était la teinte de l'ancien thème « Laiton »).
+// strokeWidth 2.25 en unités viewBox 24 ≙ le trait 1.5 de l'ancien SVG 16px (rendu identique).
 export const Select = forwardRef<
   HTMLSelectElement,
   React.SelectHTMLAttributes<HTMLSelectElement>
 >(({ className, ...props }, ref) => (
-  <select
-    ref={ref}
-    className={cn(
-      control,
-      "appearance-none bg-[url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2216%22 height=%2216%22 fill=%22none%22 stroke=%22%23b9b3a5%22 stroke-width=%221.5%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22><path d=%22M4 6l4 4 4-4%22/></svg>')] bg-[length:16px] bg-[right_0.75rem_center] bg-no-repeat pr-9",
-      className,
-    )}
-    {...props}
-  />
+  <div className="relative">
+    <select ref={ref} className={cn(control, 'appearance-none pr-9', className)} {...props} />
+    <ChevronDown
+      className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-faint"
+      strokeWidth={2.25}
+      aria-hidden="true"
+    />
+  </div>
 ))
 Select.displayName = 'Select'
 

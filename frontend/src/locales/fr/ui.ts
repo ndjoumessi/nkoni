@@ -8,6 +8,10 @@ export default {
     modal: {
       fermer: 'Fermer',
     },
+    toast: {
+      region: 'Notifications',
+      fermer: 'Fermer la notification',
+    },
     selecteurMembres: {
       recherchePlaceholder: 'Rechercher par nom ou prénom…',
       rechercheAria: 'Rechercher un membre',

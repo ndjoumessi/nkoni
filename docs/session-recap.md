@@ -132,6 +132,17 @@ statut de déploiement Railway/Vercel confirmé au statut réel là où le backe
   Postgres) verrouille le chemin signature-valide → 200 HTML. **By-design** : le QR expose nom +
   statut (jamais de montant) de façon permanente à quiconque le scanne — la fonction même d'une carte
   vérifiable ; la signature empêche l'énumération.
+- **Relevé de compte membre — PDF « relevé bancaire » (§4.8)** — `GET /membres/:id/releve` (proxy
+  authentifié) : synthèse (total attendu / valorisé cumulés, **reste à payer**, statut) + tableau
+  **par année** (attendu / versé / valorisé, ligne TOTAL) + tableau **mouvements** (versements
+  chronologiques : date, année, mode, montant). RÉUTILISE l'export « Menthe & Encre »
+  (`enteteDocument` + `dessinerCorpsPremium`) — **aucune duplication** ; `dessinerCorpsPremium`
+  renvoie désormais le **y de fin** (retour additif `void→number`) pour EMPILER les deux tableaux.
+  Statut + totaux = même source de vérité que la fiche/carte (`calculerStatutsMembres`). Accès :
+  rôles bureau **et** MEMBRE_SIMPLE sur SA propre fiche (404 sinon, pas de fuite). Locale + **devise
+  du DESTINATAIRE** (le membre, repli défaut org), comme les reçus. Bilingue FR/EN (`releve.service`).
+  Front : bouton « Relevé de compte » sur la fiche membre (`membresApi.telechargerReleve`,
+  `ouvrirBlobPdf`), i18n `membres.releve.*`. Service pur (données → Buffer), rendu vérifié FR + EN.
 
 ### Migrations appliquées en prod
 - `tresorerie_depense` — additive (table `Depense` + 2 enums via `CREATE TYPE`).

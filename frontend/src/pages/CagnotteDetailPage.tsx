@@ -21,6 +21,7 @@ import { Card, Overline } from '@/components/ui/Card'
 import { Button, ButtonLink } from '@/components/ui/Button'
 import { Field, Input, Select, Textarea } from '@/components/ui/Field'
 import { DatePicker } from '@/components/ui/DatePicker'
+import { SelecteurMembreUnique } from '@/components/membres/SelecteurMembreUnique'
 import { Modal } from '@/components/ui/Modal'
 import { useToast } from '@/components/ui/Toast'
 
@@ -338,14 +339,13 @@ export function CagnotteDetailPage() {
       <Modal open={modal === 'don'} onClose={() => setModal(null)} title={t('cagnottes.don.titre')}>
         <form onSubmit={ajouterDon} className="space-y-4">
           <Field label={t('cagnottes.don.membre')} required>
-            <Select value={donMembre} onChange={(e) => setDonMembre(e.target.value)}>
-              <option value="">{t('cagnottes.don.membrePlaceholder')}</option>
-              {membres.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.prenom} {m.nom}
-                </option>
-              ))}
-            </Select>
+            <SelecteurMembreUnique
+              membres={membres}
+              valeur={donMembre}
+              onChange={setDonMembre}
+              placeholder={t('cagnottes.don.membrePlaceholder')}
+              ariaLabel={t('cagnottes.don.membre')}
+            />
           </Field>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label={t('cagnottes.don.montant')} required>

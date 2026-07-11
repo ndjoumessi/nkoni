@@ -42,6 +42,7 @@ export type Entite =
   | 'Conflit'
   | 'Commemoration'
   | 'Depense'
+  | 'Cagnotte'
 
 export type Role =
   // Rôle PLATEFORME transverse (SaaS §2.3). Volontairement ABSENT de la matrice PERMISSIONS
@@ -243,6 +244,19 @@ export const PERMISSIONS: Record<Entite, Partial<Record<Role, Action[]>>> = {
     TRESORIERE: ['create', 'read', 'update', 'delete'],
     COMMISSAIRE_COMPTES: READ,
     SECRETAIRE: READ,
+  },
+  // Cagnottes d'événement (§4.9) — collectes de solidarité (deuil, mariage, naissance…). Gestion
+  // de la cagnotte (créer/éditer/supprimer) : bureau. La SAISIE DES DONS et le REVERSEMENT (flux
+  // d'argent) sont gardés séparément dans la route par requireRoles(['ADMIN','PRESIDENT','TRESORIERE']).
+  // Lecture ouverte à tous (chacun voit les collectes en cours). SECRETAIRE aide à organiser.
+  Cagnotte: {
+    ADMIN: CRUD,
+    PRESIDENT: CRUD,
+    TRESORIERE: ['create', 'read', 'update', 'delete'],
+    SECRETAIRE: ['create', 'read', 'update'],
+    COMMISSAIRE_COMPTES: READ,
+    GUIDE_RELIGIEUX: READ,
+    MEMBRE_SIMPLE: READ,
   },
 }
 

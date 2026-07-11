@@ -78,6 +78,26 @@ const GESTION_DEPENSE = ['ADMIN', 'PRESIDENT', 'TRESORIERE']
 const APPROBATION_DEPENSE = ['ADMIN', 'PRESIDENT', 'COMMISSAIRE_COMPTES']
 const PAIEMENT_DEPENSE = ['ADMIN', 'PRESIDENT', 'TRESORIERE']
 
+/** Cagnottes d'événement (§4.9) — miroir matrice « Cagnotte » + gardes de flux d'argent. */
+const LECTURE_CAGNOTTE = [
+  'ADMIN', 'PRESIDENT', 'TRESORIERE', 'SECRETAIRE', 'COMMISSAIRE_COMPTES', 'GUIDE_RELIGIEUX', 'MEMBRE_SIMPLE',
+]
+const GESTION_CAGNOTTE = ['ADMIN', 'PRESIDENT', 'TRESORIERE', 'SECRETAIRE'] // créer / éditer
+const ARGENT_CAGNOTTE = ['ADMIN', 'PRESIDENT', 'TRESORIERE'] // dons, reversement, clôture, suppression
+
+/** Peut consulter les cagnottes (nav + pages). Tous les rôles d'organisation. */
+export function peutVoirCagnottes(role: string | undefined): boolean {
+  return role !== undefined && LECTURE_CAGNOTTE.includes(role)
+}
+/** Peut créer / éditer une cagnotte (bureau). */
+export function peutGererCagnotte(role: string | undefined): boolean {
+  return role !== undefined && GESTION_CAGNOTTE.includes(role)
+}
+/** Peut saisir un don, reverser, clôturer, supprimer (flux d'argent : ADMIN/PRESIDENT/TRESORIERE). */
+export function peutSaisirDon(role: string | undefined): boolean {
+  return role !== undefined && ARGENT_CAGNOTTE.includes(role)
+}
+
 export function peutVoirTresorerie(role: string | undefined): boolean {
   return role !== undefined && LECTURE_DEPENSE.includes(role)
 }

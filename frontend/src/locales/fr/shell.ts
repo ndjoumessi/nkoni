@@ -14,6 +14,7 @@ export default {
       fonctions: 'Fonctions',
       conflits: 'Conflits',
       commemorations: 'Commémorations',
+      cagnottes: 'Cagnottes',
       baremeAnnuel: 'Barème annuel',
       rapports: 'Rapports',
       utilisateurs: 'Utilisateurs',

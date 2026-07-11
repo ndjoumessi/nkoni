@@ -749,6 +749,15 @@ export const membresApi = {
     await leverSiErreur(res)
     return res.blob()
   },
+  /** Télécharge le RELEVÉ DE COMPTE du membre (PDF « relevé bancaire » des cotisations). */
+  telechargerReleve: async (id: string, accessToken: string): Promise<Blob> => {
+    const res = await fetch(`${API_URL}/membres/${rid(id)}/releve`, {
+      credentials: 'include',
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+    await leverSiErreur(res)
+    return res.blob()
+  },
   /** Aperçu d'import (valider=true) → rapport, aucune écriture. */
   importerApercu: (membres: LigneImport[], creerBranchesManquantes: boolean, accessToken: string) =>
     request<RapportImport>('/membres/import', {

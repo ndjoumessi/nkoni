@@ -122,7 +122,7 @@ export function dessinerCorpsPremium(
     droite: number
     yStart: number
   },
-): void {
+): number {
   const { colonnes, lignes, total, gauche, droite, yStart } = opts
   const LARGEUR = droite - gauche
   const H = 20
@@ -176,7 +176,12 @@ export function dessinerCorpsPremium(
     doc.moveTo(gauche, y).lineTo(droite, y).lineWidth(1.5).strokeColor(NK.menthe).stroke()
     doc.fillColor(NK.mentheFonce).font('Helvetica-Bold').fontSize(9.5)
     cols.forEach((col, i) => cellule(total[i] ?? '', col, y + 6))
+    y += H + 2
   }
+  // y de fin du tableau (bas de la dernière ligne / du TOTAL) — permet d'EMPILER un second
+  // tableau dessous (cf. relevé de compte : « par année » puis « mouvements »). Les appelants
+  // à un seul tableau ignorent simplement ce retour.
+  return y
 }
 
 /* -------------------------------------------------------------------------- */

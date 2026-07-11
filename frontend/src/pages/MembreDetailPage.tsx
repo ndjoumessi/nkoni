@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ChevronDown, ChevronRight, CreditCard, Crown, Pencil, Plus, Scale, UserMinus } from 'lucide-react'
+import { ChevronDown, ChevronRight, CreditCard, Crown, FileText, Pencil, Plus, Scale, UserMinus } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
 import {
   membresApi,
@@ -79,6 +79,7 @@ export function MembreDetailPage() {
   const [surnom, setSurnom] = useState('')
   const [chefSubmitting, setChefSubmitting] = useState(false)
   const [carteEnCours, setCarteEnCours] = useState(false)
+  const [releveEnCours, setReleveEnCours] = useState(false)
 
   const telechargerCarte = async () => {
     if (!accessToken || !membre) return
@@ -89,6 +90,18 @@ export function MembreDetailPage() {
       toast.error(t('membres.carte.erreur'), e instanceof ApiError ? e.message : '')
     } finally {
       setCarteEnCours(false)
+    }
+  }
+
+  const telechargerReleve = async () => {
+    if (!accessToken || !membre) return
+    setReleveEnCours(true)
+    try {
+      ouvrirBlobPdf(await membresApi.telechargerReleve(membre.id, accessToken))
+    } catch (e) {
+      toast.error(t('membres.releve.erreur'), e instanceof ApiError ? e.message : '')
+    } finally {
+      setReleveEnCours(false)
     }
   }
 
@@ -325,6 +338,16 @@ export function MembreDetailPage() {
                 onClick={telechargerCarte}
               >
                 {t('membres.carte.telecharger')}
+              </Button>
+            )}
+            {peutGererMembres(user?.role) && (
+              <Button
+                variant="outline"
+                icon={FileText}
+                loading={releveEnCours}
+                onClick={telechargerReleve}
+              >
+                {t('membres.releve.telecharger')}
               </Button>
             )}
             {peutGererMembres(user?.role) && (

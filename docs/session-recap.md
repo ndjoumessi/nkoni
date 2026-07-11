@@ -174,6 +174,9 @@ statut de déploiement Railway/Vercel confirmé au statut réel là où le backe
   `Versement` et `Membre`).
 - `chef_organisation` — additive (`Organisation.chefMembreId` FK Membre `ON DELETE SET NULL` +
   `chefSurnom`, colonnes nullables).
+- `cagnottes_evenement` — additive (2 `CREATE TYPE` `TypeCagnotte`/`StatutCagnotte` + tables
+  `CagnotteEvenement` et `DonCagnotte` + FK, dont bénéficiaire `ON DELETE SET NULL` et don→cagnotte
+  `ON DELETE CASCADE`). Aucune opération destructive.
 
 ### Robustesse / dette traitée
 - **Durcissement idempotence `P2002`** — le re-fetch par `idempotenceKey` (POST /versements, /membres)

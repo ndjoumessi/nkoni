@@ -63,6 +63,13 @@ export function normaliserTexte(valeur: string): string {
  * pr\u00e9fixe `00`, pr\u00e9fixe `237` pour un num\u00e9ro local (8\u20139 chiffres). Renvoie `''` si rien
  * d'exploitable \u2192 `wa.me` s'ouvre alors sans destinataire (l'utilisateur choisit le contact).
  */
+/** Ouvre un Blob PDF dans un nouvel onglet (impression/téléchargement) et libère l'URL après. */
+export function ouvrirBlobPdf(blob: Blob): void {
+  const url = URL.createObjectURL(blob)
+  window.open(url, '_blank', 'noopener')
+  setTimeout(() => URL.revokeObjectURL(url), 60_000)
+}
+
 export function telephoneWaMe(brut: string | null | undefined): string {
   if (!brut) return ''
   let d = brut.replace(/\D/g, '') // chiffres uniquement (retire +, espaces, tirets\u2026)

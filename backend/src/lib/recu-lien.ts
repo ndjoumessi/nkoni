@@ -31,3 +31,23 @@ export function verifierSignatureRecu(recuId: string, signature: string): boolea
   const fournie = Buffer.from(signature)
   return attendue.length === fournie.length && timingSafeEqual(attendue, fournie)
 }
+
+/* -------------------------------------------------------------------------- */
+/* Lien public de vérification de STATUT (QR des cartes de membre, §4.7)       */
+/* -------------------------------------------------------------------------- */
+
+// Préfixe DISTINCT de celui des reçus : la signature d'un reçu ne vaut jamais pour un membre
+// (séparation de domaine). Même secret dédié (`RECU_LINK_SECRET`, repli `JWT_ACCESS_SECRET`).
+const PREFIXE_STATUT = 'carte-statut:v1:'
+
+/** Signature base64url liant un lien public de statut à l'id du MEMBRE. */
+export function signerStatutMembre(membreId: string): string {
+  return createHmac('sha256', env.RECU_LINK_SECRET).update(PREFIXE_STATUT + membreId).digest('base64url')
+}
+
+/** Vérifie une signature de lien statut en temps constant. */
+export function verifierStatutMembre(membreId: string, signature: string): boolean {
+  const attendue = Buffer.from(signerStatutMembre(membreId))
+  const fournie = Buffer.from(signature)
+  return attendue.length === fournie.length && timingSafeEqual(attendue, fournie)
+}

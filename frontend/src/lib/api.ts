@@ -731,6 +731,24 @@ export const membresApi = {
     }),
   update: (id: string, body: Partial<MembreInput>, accessToken: string) =>
     request<Membre>(`/membres/${id}`, { method: 'PATCH', json: body, accessToken }),
+  /** Télécharge la CARTE de membre (PDF) via le proxy authentifié (QR de vérif. de statut). */
+  telechargerCarte: async (id: string, accessToken: string): Promise<Blob> => {
+    const res = await fetch(`${API_URL}/membres/${rid(id)}/carte`, {
+      credentials: 'include',
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+    await leverSiErreur(res)
+    return res.blob()
+  },
+  /** Télécharge TOUTES les cartes en un PDF (grille A4 découpable). */
+  telechargerCartesLot: async (accessToken: string): Promise<Blob> => {
+    const res = await fetch(`${API_URL}/membres/cartes`, {
+      credentials: 'include',
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+    await leverSiErreur(res)
+    return res.blob()
+  },
   /** Aperçu d'import (valider=true) → rapport, aucune écriture. */
   importerApercu: (membres: LigneImport[], creerBranchesManquantes: boolean, accessToken: string) =>
     request<RapportImport>('/membres/import', {

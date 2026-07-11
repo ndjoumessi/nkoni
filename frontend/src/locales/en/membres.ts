@@ -5,6 +5,12 @@ export default {
       M: 'Male',
       F: 'Female',
     },
+    carte: {
+      telecharger: 'Member card',
+      lot: 'Cards (batch)',
+      erreur: 'Could not generate the card',
+      erreurLot: 'Could not generate the cards',
+    },
     liste: {
       overline: 'Community',
       titre: 'Members',

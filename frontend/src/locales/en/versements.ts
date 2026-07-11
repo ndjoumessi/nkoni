@@ -104,8 +104,11 @@ export default {
       confirmer: 'Delete',
     },
     partage: {
+      salutation: 'Hello',
+      salutationNom: 'Hello {{prenom}}',
+      // `*…*` = WhatsApp bold ; `\n` = line breaks (encoded in the wa.me URL).
       message:
-        'Hello, here is your NKONI payment receipt no. {{numero}} ({{montant}}). Download it here: {{lien}}',
+        '*{{organisation}}*\n\n{{salutation}}, here is your payment receipt.\n\nReceipt no. {{numero}}\nAmount: {{montant}}\n\nDownload your receipt:\n{{lien}}',
     },
   },
 }

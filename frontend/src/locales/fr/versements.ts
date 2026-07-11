@@ -104,8 +104,11 @@ export default {
       confirmer: 'Supprimer',
     },
     partage: {
+      salutation: 'Bonjour',
+      salutationNom: 'Bonjour {{prenom}}',
+      // `*…*` = gras WhatsApp ; `\n` = sauts de ligne (encodés dans l'URL wa.me).
       message:
-        'Bonjour, voici votre reçu de versement NKONI n° {{numero}} ({{montant}}). Téléchargez-le ici : {{lien}}',
+        '*{{organisation}}*\n\n{{salutation}}, voici votre reçu de versement.\n\nReçu n° {{numero}}\nMontant : {{montant}}\n\nTélécharger votre reçu :\n{{lien}}',
     },
   },
 }

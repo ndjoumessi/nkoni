@@ -138,11 +138,16 @@ statut de déploiement Railway/Vercel confirmé au statut réel là où le backe
 
 ### Infra / déploiement
 - **Watch Path Railway `/backend/**`** — le service backend ne rebuild QUE si un fichier sous
-  `backend/` change. Un merge qui ne touche que `frontend/` ne déclenche donc plus de déploiement
-  Railway (avant : tout push `main` rebuildait le backend inutilement). Conséquence à connaître :
-  « aucun nouveau déploiement Railway » après un push front-only est désormais **normal**, pas un
-  échec — ne vérifier le statut Railway que quand `backend/` a réellement changé. Les migrations
-  vivent sous `backend/prisma/`, donc bien couvertes par le Watch Path.
+  `backend/` change. Un push qui ne touche PAS `backend/` (ex. `frontend/` seul, ou `docs/`) ne
+  déclenche donc plus de déploiement Railway (avant : tout push `main` rebuildait le backend
+  inutilement). Conséquence à connaître : « aucun nouveau déploiement Railway » après un tel push
+  est désormais **normal**, pas un échec — ne vérifier le statut Railway que quand `backend/` a
+  réellement changé. Les migrations vivent sous `backend/prisma/`, donc bien couvertes par le
+  Watch Path. **Nuance** : le motif `/backend/**` englobe AUSSI `backend/tests/**` → un changement
+  **test-only backend déclenche quand même un déploiement** (inoffensif : image runtime identique,
+  les tests ne sont pas embarqués). Non filtré volontairement : un pattern de négation
+  (`!/backend/tests/**`) risquerait, mal évalué, de bloquer un vrai déploiement backend — trop
+  sensible pour un gain marginal.
 - **Migrations en `startCommand`, pas de pre-deploy step** — on garde
   `npx prisma migrate deploy && npm run start` (défini dans `/backend/railway.json`). Le `&&`
   fournit déjà le fail-safe (migration KO → boot avorté → déploiement FAILED → Railway sert le

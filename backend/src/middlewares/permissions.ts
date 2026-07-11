@@ -43,6 +43,7 @@ export type Entite =
   | 'Commemoration'
   | 'Depense'
   | 'Cagnotte'
+  | 'Amende'
 
 export type Role =
   // Rôle PLATEFORME transverse (SaaS §2.3). Volontairement ABSENT de la matrice PERMISSIONS
@@ -256,6 +257,18 @@ export const PERMISSIONS: Record<Entite, Partial<Record<Role, Action[]>>> = {
     SECRETAIRE: ['create', 'read', 'update'],
     COMMISSAIRE_COMPTES: READ,
     GUIDE_RELIGIEUX: READ,
+    MEMBRE_SIMPLE: READ,
+  },
+  // Amendes / pénalités (§4.10) — saisie/édition par le bureau ; l'ENCAISSEMENT et l'ANNULATION
+  // (transitions de statut) sont gardés séparément dans la route par requireRoles(['ADMIN',
+  // 'PRESIDENT','TRESORIERE']). Lecture rôles de gestion ; MEMBRE_SIMPLE = ses propres amendes
+  // (filtrage en route).
+  Amende: {
+    ADMIN: CRUD,
+    PRESIDENT: CRUD,
+    TRESORIERE: ['create', 'read', 'update', 'delete'],
+    SECRETAIRE: ['create', 'read', 'update'],
+    COMMISSAIRE_COMPTES: READ,
     MEMBRE_SIMPLE: READ,
   },
 }

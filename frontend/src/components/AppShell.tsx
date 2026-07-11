@@ -7,6 +7,7 @@ import {
   CalendarRange,
   Flame,
   HeartHandshake,
+  Scale,
   Gavel,
   Landmark,
   LayoutDashboard,
@@ -34,6 +35,7 @@ import {
   peutVoirConflits,
   peutVoirCommemorations,
   peutVoirCagnottes,
+  peutVoirAmendes,
   peutVoirRapports,
   peutVoirTresorerie,
   peutVoirAudit,
@@ -75,6 +77,9 @@ function useNavItems(): NavItem[] {
   }
   if (peutVoirCagnottes(user?.role)) {
     items.push({ to: '/cagnottes', label: t('shell.nav.cagnottes'), icon: HeartHandshake })
+  }
+  if (peutVoirAmendes(user?.role)) {
+    items.push({ to: '/amendes', label: t('shell.nav.amendes'), icon: Scale })
   }
   if (peutVoirBareme(user?.role)) {
     items.push({ to: '/bareme', label: t('shell.nav.baremeAnnuel'), icon: CalendarRange })

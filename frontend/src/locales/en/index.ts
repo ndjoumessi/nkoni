@@ -32,6 +32,7 @@ import audit from './audit'
 import superAdmin from './superAdmin'
 import parametres from './parametres'
 import cagnottes from './cagnottes'
+import amendes from './amendes'
 
 const en: Catalogue = {
   ...common,
@@ -64,6 +65,7 @@ const en: Catalogue = {
   ...superAdmin,
   ...parametres,
   ...cagnottes,
+  ...amendes,
 }
 
 export default en

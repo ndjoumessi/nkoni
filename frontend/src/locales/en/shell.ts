@@ -15,6 +15,7 @@ export default {
       conflits: 'Disputes',
       commemorations: 'Commemorations',
       cagnottes: 'Funds',
+      amendes: 'Fines',
       baremeAnnuel: 'Fee schedule',
       rapports: 'Reports',
       utilisateurs: 'Users',

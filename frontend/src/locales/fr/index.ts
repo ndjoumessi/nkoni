@@ -34,6 +34,7 @@ import audit from './audit'
 import superAdmin from './superAdmin'
 import parametres from './parametres'
 import cagnottes from './cagnottes'
+import amendes from './amendes'
 
 const fr = {
   ...common,
@@ -66,6 +67,7 @@ const fr = {
   ...superAdmin,
   ...parametres,
   ...cagnottes,
+  ...amendes,
 }
 
 export default fr

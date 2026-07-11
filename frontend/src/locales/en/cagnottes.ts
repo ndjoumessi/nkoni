@@ -70,7 +70,7 @@ export default {
       titreModifier: 'Edit fund',
       back: 'Funds',
       champTitre: 'Title',
-      champTitrePlaceholder: 'e.g. Passing of Papa Wamba',
+      champTitrePlaceholder: 'e.g. Collection title',
       champType: 'Event type',
       champDescription: 'Description',
       champObjectif: 'Target (optional)',

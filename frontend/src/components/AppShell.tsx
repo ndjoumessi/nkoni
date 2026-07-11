@@ -50,97 +50,101 @@ interface NavItem {
   icon: LucideIcon
 }
 
-function useNavItems(): NavItem[] {
+interface NavGroup {
+  /** En-tête de section (absent pour le groupe de tête « Tableau de bord »). */
+  label?: string
+  items: NavItem[]
+}
+
+/**
+ * Navigation groupée par domaine (§ UX) : Tableau de bord (seul, en tête), puis Communauté,
+ * Finances et Administration. Chaque item reste gouverné par les permissions ; les groupes
+ * VIDES (aucun item autorisé pour le rôle) sont retirés → pas d'en-tête orphelin.
+ */
+function useNavGroups(): NavGroup[] {
   const { user } = useAuth()
   const { t } = useTranslation()
+  const role = user?.role
 
   // MEMBRE_SIMPLE : navigation RÉDUITE à son espace self-service (pas d'accès gestion).
-  if (estMembreSimple(user?.role)) {
-    return [{ to: '/mon-espace', label: t('shell.nav.monEspace'), icon: LayoutDashboard }]
+  if (estMembreSimple(role)) {
+    return [{ items: [{ to: '/mon-espace', label: t('shell.nav.monEspace'), icon: LayoutDashboard }] }]
   }
 
-  const items: NavItem[] = [
-    { to: '/dashboard', label: t('shell.nav.tableauDeBord'), icon: LayoutDashboard },
-    { to: '/membres', label: t('shell.nav.membres'), icon: Users },
-  ]
-  if (peutVoirReunions(user?.role)) {
-    items.push({ to: '/reunions', label: t('shell.nav.reunions'), icon: Gavel })
-  }
-  if (peutVoirFonctions(user?.role)) {
-    items.push({ to: '/fonctions', label: t('shell.nav.fonctions'), icon: Landmark })
-  }
-  if (peutVoirConflits(user?.role)) {
-    items.push({ to: '/conflits', label: t('shell.nav.conflits'), icon: ShieldAlert })
-  }
-  if (peutVoirCommemorations(user?.role)) {
-    items.push({ to: '/commemorations', label: t('shell.nav.commemorations'), icon: Flame })
-  }
-  if (peutVoirCagnottes(user?.role)) {
-    items.push({ to: '/cagnottes', label: t('shell.nav.cagnottes'), icon: HeartHandshake })
-  }
-  if (peutVoirAmendes(user?.role)) {
-    items.push({ to: '/amendes', label: t('shell.nav.amendes'), icon: Scale })
-  }
-  if (peutVoirBareme(user?.role)) {
-    items.push({ to: '/bareme', label: t('shell.nav.baremeAnnuel'), icon: CalendarRange })
-  }
-  if (peutVoirRapports(user?.role)) {
-    items.push({ to: '/rapports', label: t('shell.nav.rapports'), icon: BarChart3 })
-  }
-  if (peutVoirTresorerie(user?.role)) {
-    items.push({ to: '/tresorerie', label: t('shell.nav.tresorerie'), icon: Wallet })
-  }
-  if (peutGererUtilisateurs(user?.role)) {
-    items.push({ to: '/utilisateurs', label: t('shell.nav.utilisateurs'), icon: ShieldUser })
-  }
-  if (peutVoirAudit(user?.role)) {
-    items.push({ to: '/audit', label: t('shell.nav.audit'), icon: ScrollText })
-  }
-  if (peutVoirParametres(user?.role)) {
-    items.push({ to: '/parametres', label: t('shell.nav.parametres'), icon: Settings })
-  }
-  return items
+  const communaute: NavItem[] = [{ to: '/membres', label: t('shell.nav.membres'), icon: Users }]
+  if (peutVoirReunions(role)) communaute.push({ to: '/reunions', label: t('shell.nav.reunions'), icon: Gavel })
+  if (peutVoirFonctions(role)) communaute.push({ to: '/fonctions', label: t('shell.nav.fonctions'), icon: Landmark })
+  if (peutVoirConflits(role)) communaute.push({ to: '/conflits', label: t('shell.nav.conflits'), icon: ShieldAlert })
+  if (peutVoirCommemorations(role)) communaute.push({ to: '/commemorations', label: t('shell.nav.commemorations'), icon: Flame })
+
+  const finances: NavItem[] = []
+  if (peutVoirBareme(role)) finances.push({ to: '/bareme', label: t('shell.nav.baremeAnnuel'), icon: CalendarRange })
+  if (peutVoirTresorerie(role)) finances.push({ to: '/tresorerie', label: t('shell.nav.tresorerie'), icon: Wallet })
+  if (peutVoirCagnottes(role)) finances.push({ to: '/cagnottes', label: t('shell.nav.cagnottes'), icon: HeartHandshake })
+  if (peutVoirAmendes(role)) finances.push({ to: '/amendes', label: t('shell.nav.amendes'), icon: Scale })
+  if (peutVoirRapports(role)) finances.push({ to: '/rapports', label: t('shell.nav.rapports'), icon: BarChart3 })
+
+  const administration: NavItem[] = []
+  if (peutGererUtilisateurs(role)) administration.push({ to: '/utilisateurs', label: t('shell.nav.utilisateurs'), icon: ShieldUser })
+  if (peutVoirAudit(role)) administration.push({ to: '/audit', label: t('shell.nav.audit'), icon: ScrollText })
+  if (peutVoirParametres(role)) administration.push({ to: '/parametres', label: t('shell.nav.parametres'), icon: Settings })
+
+  return [
+    { items: [{ to: '/dashboard', label: t('shell.nav.tableauDeBord'), icon: LayoutDashboard }] },
+    { label: t('shell.nav.groupes.communaute'), items: communaute },
+    { label: t('shell.nav.groupes.finances'), items: finances },
+    { label: t('shell.nav.groupes.administration'), items: administration },
+  ].filter((g) => g.items.length > 0)
 }
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
-  const items = useNavItems()
+  const groups = useNavGroups()
   const { t } = useTranslation()
   return (
-    <nav aria-label={t('shell.nav.ariaPrincipale')} className="flex flex-col gap-1">
-      {items.map((item) => {
-        const Icon = item.icon
-        return (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            onClick={onNavigate}
-            className={({ isActive }) =>
-              cn(
-                'group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150',
-                isActive
-                  ? 'bg-surface-2 text-foreground'
-                  : 'text-muted-foreground hover:bg-surface/70 hover:text-foreground',
-              )
-            }
-          >
-            {({ isActive }) => (
-              <>
-                <span
-                  className={cn(
-                    'absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-full bg-brass transition-all duration-150',
-                    isActive ? 'opacity-100' : 'opacity-0',
-                  )}
-                />
-                <Icon
-                  className={cn('h-[1.15rem] w-[1.15rem]', isActive ? 'text-brass' : '')}
-                  aria-hidden="true"
-                />
-                {item.label}
-              </>
-            )}
-          </NavLink>
-        )
-      })}
+    <nav aria-label={t('shell.nav.ariaPrincipale')} className="flex flex-col gap-5">
+      {groups.map((group, gi) => (
+        <div key={group.label ?? `groupe-${gi}`} className="flex flex-col gap-1">
+          {group.label && (
+            <p className="mb-1 px-3 text-3xs font-medium uppercase tracking-[0.14em] text-faint">
+              {group.label}
+            </p>
+          )}
+          {group.items.map((item) => {
+            const Icon = item.icon
+            return (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                onClick={onNavigate}
+                className={({ isActive }) =>
+                  cn(
+                    'group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150',
+                    isActive
+                      ? 'bg-surface-2 text-foreground'
+                      : 'text-muted-foreground hover:bg-surface/70 hover:text-foreground',
+                  )
+                }
+              >
+                {({ isActive }) => (
+                  <>
+                    <span
+                      className={cn(
+                        'absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-full bg-brass transition-all duration-150',
+                        isActive ? 'opacity-100' : 'opacity-0',
+                      )}
+                    />
+                    <Icon
+                      className={cn('h-[1.15rem] w-[1.15rem]', isActive ? 'text-brass' : '')}
+                      aria-hidden="true"
+                    />
+                    {item.label}
+                  </>
+                )}
+              </NavLink>
+            )
+          })}
+        </div>
+      ))}
     </nav>
   )
 }
@@ -268,9 +272,6 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
           visible même quand la liste de liens dépasse la hauteur de l'écran (min-h-0 est
           requis pour qu'un enfant flex puisse défiler au lieu de pousser le reste). */}
       <div className="mt-6 min-h-0 flex-1 overflow-y-auto">
-        <p className="mb-2 px-3 text-3xs font-medium uppercase tracking-[0.14em] text-faint">
-          {t('shell.nav.titre')}
-        </p>
         <NavLinks onNavigate={onNavigate} />
       </div>
 

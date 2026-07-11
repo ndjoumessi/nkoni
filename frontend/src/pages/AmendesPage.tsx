@@ -223,6 +223,9 @@ export function AmendesPage() {
   }
 
   const amendes = data?.amendes ?? []
+  // État vide « vrai » (aucune amende ET aucun filtre) → l'EmptyState porte le CTA de création.
+  // On masque alors le bouton d'en-tête pour éviter le doublon (pattern Commémorations/Cagnottes).
+  const afficheEmpty = !loading && !error && amendes.length === 0 && !fMembre && !fStatut
 
   return (
     <>
@@ -231,7 +234,7 @@ export function AmendesPage() {
         title={t('amendes.titre')}
         description={t('amendes.sousTitre')}
         actions={
-          gestion ? (
+          gestion && !afficheEmpty ? (
             <Button icon={Plus} onClick={ouvrirCreation}>
               {t('amendes.nouvelle')}
             </Button>

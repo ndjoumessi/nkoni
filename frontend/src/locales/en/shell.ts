@@ -5,6 +5,11 @@ export default {
     nav: {
       ariaPrincipale: 'Main navigation',
       titre: 'Navigation',
+      groupes: {
+        communaute: 'Community',
+        finances: 'Finance',
+        administration: 'Administration',
+      },
       tableauDeBord: 'Dashboard',
       maFiche: 'My record',
       monEspace: 'My space',

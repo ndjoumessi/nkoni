@@ -92,6 +92,21 @@ statut de déploiement Railway/Vercel confirmé au statut réel là où le backe
   (source unique) : **« Nouveau »** = apparition (base 0 → valeur positive, badge menthe + `Sparkles`),
   **0 → 0 = « 0 % »** (resté à zéro), et **« n/a »** désormais réservé aux années **sans barème**
   (vraiment incomparable). Cohérent écran + PDF + Excel, FR/EN.
+- **Audit UX — lots finaux (transverse)** — trois lots de polish issus d'un audit senior :
+  - *Quick wins transverses* — `<html lang>` **dynamique** suivant la langue active (WCAG 3.1.1) ;
+    **Toast a11y** (auto-fermeture en pause au survol/focus WCAG 2.2.1, `role="alert"` pour les
+    erreurs, labels traduits) ; cibles tactiles **44 px** (bouton œil élargi dans le `pr-11`
+    réservé, sans réintroduire `.tap-target`) ; `Select` **tokenisé** (chevron `<ChevronDown>`
+    couleur `--faint` au lieu d'un data-URI figeant un hex) ; **purge des oklch en dur** restants
+    (`:focus-visible`, `::selection`, `.nk-aura`, `.nk-weave`, ombre CTA → `color-mix` sur tokens).
+  - *Modal / feedback / erreurs* (C1/C2/M6) — **piège de focus** complet de la `Modal` (mémorise le
+    déclencheur, boucle Tab/Shift+Tab, restaure au close) ; feedback de validation du formulaire de
+    dépense ; **primitive `ErrorState`** (miroir d'`EmptyState` en tons `--terra`, `role="alert"`,
+    bouton « Réessayer »), appliquée à Dashboard / Membres / Réunions / Fiche membre / Trésorerie.
+  - *Lot final* (M7/M8/M10/M11/M12 + mineurs) — **enums traduits** (rôles/statuts, plus de libellés
+    figés) ; **UtilisateursPage** (validation + confirmation de changement de rôle) ; **AppShell**
+    a11y (skip-link, drawer) ; micro-typo tokenisée ; grille Réunions. Front-only (Vercel) ; grâce
+    au Watch Path, aucun de ces merges n'a déclenché de déploiement Railway.
 
 ### Migrations appliquées en prod
 - `tresorerie_depense` — additive (table `Depense` + 2 enums via `CREATE TYPE`).

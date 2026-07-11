@@ -189,9 +189,16 @@ export const recusRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
         return reply.code(404).send({ error: 'Not Found' })
       }
       // Résout l'organisation du reçu SANS scope (l'id est déjà autorisé par la signature).
-      const meta = await orgContext.runUnscoped(() =>
-        app.prisma.recu.findUnique({ where: { id }, select: { organisationId: true } }),
-      )
+      // IMPORTANT : on `await` DANS le callback `runUnscoped` — une requête Prisma est PARESSEUSE
+      // (elle ne s'exécute qu'au `await`) ; l'awaiter à l'extérieur exécuterait la requête HORS du
+      // contexte `unscoped` de l'AsyncLocalStorage → l'extension tenant fail-close (500 « hors
+      // contexte d'organisation »). L'await interne garantit l'exécution dans le bon contexte.
+      const meta = await orgContext.runUnscoped(async () => {
+        return await app.prisma.recu.findUnique({
+          where: { id },
+          select: { organisationId: true },
+        })
+      })
       if (!meta) return reply.code(404).send({ error: 'Not Found' })
 
       // Génération DANS le contexte de l'org du reçu → le prisma scopé ne voit que cette org.

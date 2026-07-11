@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Navigate } from 'react-router-dom'
-import { Ban, Check, Gavel, Pencil, Plus, Trash2 } from 'lucide-react'
+import { Ban, Check, Gavel, Pencil, Plus, Trash2, X } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
 import {
   amendesApi,
@@ -23,6 +23,7 @@ import { Card } from '@/components/ui/Card'
 import { StatCard } from '@/components/ui/StatCard'
 import { Button } from '@/components/ui/Button'
 import { Field, Input, Select } from '@/components/ui/Field'
+import { SelecteurMembreUnique } from '@/components/membres/SelecteurMembreUnique'
 import { DatePicker } from '@/components/ui/DatePicker'
 import { Modal } from '@/components/ui/Modal'
 import { EmptyState } from '@/components/ui/EmptyState'
@@ -249,7 +250,7 @@ export function AmendesPage() {
         </div>
       )}
 
-      <div className="nk-reveal nk-d3 mt-5 flex flex-wrap gap-3">
+      <div className="nk-reveal nk-d3 mt-5 flex flex-wrap items-center gap-3">
         <div className="w-44">
           <Select value={fStatut} onChange={(e) => setFStatut(e.target.value as StatutAmende | '')} aria-label={t('amendes.filtres.statut')}>
             <option value="">{t('amendes.filtres.tousStatuts')}</option>
@@ -260,16 +261,29 @@ export function AmendesPage() {
             ))}
           </Select>
         </div>
-        <div className="w-60">
-          <Select value={fMembre} onChange={(e) => setFMembre(e.target.value)} aria-label={t('amendes.filtres.membre')}>
-            <option value="">{t('amendes.filtres.tousMembres')}</option>
-            {membres.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.prenom} {m.nom}
-              </option>
-            ))}
-          </Select>
+        <div className="w-64">
+          <SelecteurMembreUnique
+            membres={membres}
+            valeur={fMembre}
+            onChange={setFMembre}
+            placeholder={t('amendes.filtres.tousMembres')}
+            optionTous={t('amendes.filtres.tousMembres')}
+            ariaLabel={t('amendes.filtres.membre')}
+          />
         </div>
+        {(fStatut || fMembre) && (
+          <button
+            type="button"
+            onClick={() => {
+              setFStatut('')
+              setFMembre('')
+            }}
+            className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <X className="h-4 w-4" aria-hidden="true" />
+            {t('amendes.filtres.reinitialiser')}
+          </button>
+        )}
       </div>
 
       <div className="nk-reveal nk-d3 mt-5">
@@ -369,14 +383,13 @@ export function AmendesPage() {
         <form onSubmit={soumettreForm} className="space-y-4">
           {!edit && (
             <Field label={t('amendes.form.membre')} required>
-              <Select value={fmMembre} onChange={(e) => setFmMembre(e.target.value)}>
-                <option value="">{t('amendes.form.membrePlaceholder')}</option>
-                {membres.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.prenom} {m.nom}
-                  </option>
-                ))}
-              </Select>
+              <SelecteurMembreUnique
+                membres={membres}
+                valeur={fmMembre}
+                onChange={setFmMembre}
+                placeholder={t('amendes.form.membrePlaceholder')}
+                ariaLabel={t('amendes.form.membre')}
+              />
             </Field>
           )}
           <div className="grid gap-4 sm:grid-cols-2">

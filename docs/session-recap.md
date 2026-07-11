@@ -211,6 +211,14 @@ statut de déploiement Railway/Vercel confirmé au statut réel là où le backe
   opération destructive.
 
 ### Robustesse / dette traitée
+- **i18n durci (audit FR/EN)** — (1) `t()` FRONTEND désormais **typé** contre le catalogue
+  (`src/react-i18next.d.ts` : `declare module 'i18next'` + `resources: { translation: Catalogue }`)
+  → une clé statique inexistante devient une **erreur de build** ; les ~11 clés DYNAMIQUES
+  (`` t(`ns.${var}`) ``) sont enveloppées dans le helper `cleI18n()` (identité runtime). (2) Les
+  messages des routes récentes (cagnottes/amendes/photo) migrés des maps inline vers le **catalogue
+  central** (fragments `fr,en/{cagnottes,amendes,photoMembre}.ts` + index) → `t(langue, 'clé')`,
+  clés vérifiées à la compilation (`CleMessage`) et parité FR/EN garantie (`Messages`). Audit :
+  1328 clés front utilisées toutes présentes, énums complets FR+EN, zéro chaîne en dur.
 - **Durcissement idempotence `P2002`** — le re-fetch par `idempotenceKey` (POST /versements, /membres)
   n'a lieu QUE si `err.meta.target` cible bien l'unique `(organisationId, idempotenceKey)` ; un P2002
   sur une autre contrainte est relevé (plus avalé en re-fetch d'une mauvaise ligne / null).

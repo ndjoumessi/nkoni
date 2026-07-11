@@ -192,6 +192,8 @@ statut de déploiement Railway/Vercel confirmé au statut réel là où le backe
 - `cagnottes_evenement` — additive (2 `CREATE TYPE` `TypeCagnotte`/`StatutCagnotte` + tables
   `CagnotteEvenement` et `DonCagnotte` + FK, dont bénéficiaire `ON DELETE SET NULL` et don→cagnotte
   `ON DELETE CASCADE`). Aucune opération destructive.
+- `amendes_penalites` — additive (2 `CREATE TYPE` `TypeAmende`/`StatutAmende` + table `Amende` + 2
+  index + 2 FK `ON DELETE RESTRICT` vers `Organisation`/`Membre`). Aucune opération destructive.
 
 ### Robustesse / dette traitée
 - **Durcissement idempotence `P2002`** — le re-fetch par `idempotenceKey` (POST /versements, /membres)

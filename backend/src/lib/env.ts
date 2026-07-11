@@ -18,11 +18,18 @@ function optional(name: string, fallback: string): string {
   return value && value.length > 0 ? value : fallback
 }
 
+const jwtAccessSecret = required('JWT_ACCESS_SECRET')
+
 export const env = {
   NODE_ENV: optional('NODE_ENV', 'development'),
   // Secrets JWT — distincts pour access et refresh.
-  JWT_ACCESS_SECRET: required('JWT_ACCESS_SECRET'),
+  JWT_ACCESS_SECRET: jwtAccessSecret,
   JWT_REFRESH_SECRET: required('JWT_REFRESH_SECRET'),
+  // Secret DÉDIÉ à la signature des liens publics de reçus (§4.6). Optionnel : repli sur
+  // JWT_ACCESS_SECRET si absent (rien ne casse, aucune migration). Un secret dédié permet de
+  // RÉVOQUER les liens de reçus (en le tournant) SANS invalider les sessions JWT. À poser sur
+  // Railway : RECU_LINK_SECRET (recommandé, non obligatoire).
+  RECU_LINK_SECRET: optional('RECU_LINK_SECRET', jwtAccessSecret),
   // Durées de vie (format @fastify/jwt / ms, ex. "15m", "30d").
   JWT_ACCESS_TTL: optional('JWT_ACCESS_TTL', '15m'),
   JWT_REFRESH_TTL: optional('JWT_REFRESH_TTL', '30d'),

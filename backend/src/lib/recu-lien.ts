@@ -6,8 +6,9 @@ import { env } from './env'
  *
  * Les reçus sont privés (Blob privé + proxy authentifié). Pour permettre à un MEMBRE, souvent
  * sans compte, de télécharger SON reçu depuis un lien reçu par message, on signe l'identifiant
- * du reçu par HMAC-SHA256 (secret serveur = `JWT_ACCESS_SECRET`, déjà présent). La route
- * `GET /recus/:id/pdf-public?t=<signature>` valide cette signature au lieu du JWT.
+ * du reçu par HMAC-SHA256 avec un secret DÉDIÉ (`RECU_LINK_SECRET` ; repli sur `JWT_ACCESS_SECRET`
+ * si non défini). Secret dédié = révocation des liens (rotation) SANS déconnecter les sessions.
+ * La route `GET /recus/:id/pdf-public?t=<signature>` valide cette signature au lieu du JWT.
  *
  * Propriétés de sécurité :
  *  - NON forgeable / NON énumérable : sans le secret, impossible de produire une signature valide.
@@ -21,7 +22,7 @@ const PREFIXE = 'recu-pdf-public:v1:'
 
 /** Signature base64url liant un lien public à l'id du reçu. */
 export function signerRecu(recuId: string): string {
-  return createHmac('sha256', env.JWT_ACCESS_SECRET).update(PREFIXE + recuId).digest('base64url')
+  return createHmac('sha256', env.RECU_LINK_SECRET).update(PREFIXE + recuId).digest('base64url')
 }
 
 /** Vérifie une signature en temps constant (anti-timing). `false` si longueur ou valeur diffère. */

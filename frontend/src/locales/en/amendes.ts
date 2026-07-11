@@ -11,6 +11,7 @@ export default {
       tousStatuts: 'All statuses',
       membre: 'Member',
       tousMembres: 'All members',
+      reinitialiser: 'Reset',
     },
     types: {
       RETARD_COTISATION: 'Late contribution',

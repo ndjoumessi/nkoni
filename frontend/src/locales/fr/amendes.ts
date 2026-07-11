@@ -11,6 +11,7 @@ export default {
       tousStatuts: 'Tous les statuts',
       membre: 'Membre',
       tousMembres: 'Tous les membres',
+      reinitialiser: 'Réinitialiser',
     },
     types: {
       RETARD_COTISATION: 'Retard de cotisation',

@@ -84,6 +84,14 @@ statut de déploiement Railway/Vercel confirmé au statut réel là où le backe
   **BROUILLON** ou **EN_ATTENTE** uniquement (action réservée aux rôles de gestion) : réutilise le
   formulaire de création en mode édition, sans toucher au statut (les transitions restent gérées par
   les actions de ligne) ; s'appuie sur la route existante `PATCH /depenses/:id`.
+- **Écran & exports Rapports — comparaison (§5.9/§10)** — tableau de comparaison **compact** :
+  la variation passe **sous** la valeur (fin des colonnes Δ séparées → ~2× moins de colonnes,
+  anti-débordement) + dégradé de bord conditionnel signalant un scroll résiduel. Variation des
+  **PDF** en pourcentage **signé et localisé** (`pourcentExport` : normalisation PDFKit U+202F/U+00A0
+  + signe moins U+2212 → ASCII). Sémantique de variation centralisée dans `variationPourcent`
+  (source unique) : **« Nouveau »** = apparition (base 0 → valeur positive, badge menthe + `Sparkles`),
+  **0 → 0 = « 0 % »** (resté à zéro), et **« n/a »** désormais réservé aux années **sans barème**
+  (vraiment incomparable). Cohérent écran + PDF + Excel, FR/EN.
 
 ### Migrations appliquées en prod
 - `tresorerie_depense` — additive (table `Depense` + 2 enums via `CREATE TYPE`).

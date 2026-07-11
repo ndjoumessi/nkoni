@@ -11,6 +11,10 @@ export default {
       erreur: 'Could not generate the card',
       erreurLot: 'Could not generate the cards',
     },
+    releve: {
+      telecharger: 'Account statement',
+      erreur: 'Could not generate the statement',
+    },
     liste: {
       overline: 'Community',
       titre: 'Members',

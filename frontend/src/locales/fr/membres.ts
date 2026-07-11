@@ -11,6 +11,10 @@ export default {
       erreur: 'Génération de la carte impossible',
       erreurLot: 'Génération des cartes impossible',
     },
+    releve: {
+      telecharger: 'Relevé de compte',
+      erreur: 'Génération du relevé impossible',
+    },
     liste: {
       overline: 'Communauté',
       titre: 'Membres',

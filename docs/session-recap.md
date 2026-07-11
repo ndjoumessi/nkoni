@@ -107,6 +107,17 @@ statut de déploiement Railway/Vercel confirmé au statut réel là où le backe
     figés) ; **UtilisateursPage** (validation + confirmation de changement de rôle) ; **AppShell**
     a11y (skip-link, drawer) ; micro-typo tokenisée ; grille Réunions. Front-only (Vercel) ; grâce
     au Watch Path, aucun de ces merges n'a déclenché de déploiement Railway.
+- **Partage WhatsApp du reçu (§4.6)** — depuis la fiche membre, un bouton ouvre `wa.me` avec un
+  message pré-rempli **personnalisé** (prénom du membre + nom d'organisation en gras + n° de reçu,
+  montant, lien) et un **lien PUBLIC signé** de téléchargement : `GET /recus/:id/pdf-public?t=<sig>`
+  (HMAC-SHA256 lié à l'id du reçu, vérif en **temps constant**, `404` uniforme = pas d'énumération).
+  Le membre télécharge SON reçu **sans compte** ; la signature tient lieu d'autorisation. **Isolation
+  tenant préservée** : l'org du reçu est résolue `runUnscoped` (id déjà autorisé) puis le PDF est
+  généré DANS `orgContext.run({ organisationId })`. Signature calculée avec un **secret dédié
+  `RECU_LINK_SECRET`** (repli sur `JWT_ACCESS_SECRET` → aucune migration, liens existants préservés ;
+  cf. §2). `signaturePartage` n'est renvoyée que sur les endpoints authentifiés (jamais publique
+  tant que non partagée). Côté front : `urlPartage` (URL absolue via le proxy same-origin) +
+  `telephoneWaMe` (numéro au format international sans `+`).
 
 ### Migrations appliquées en prod
 - `tresorerie_depense` — additive (table `Depense` + 2 enums via `CREATE TYPE`).

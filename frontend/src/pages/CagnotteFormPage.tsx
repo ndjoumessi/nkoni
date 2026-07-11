@@ -20,6 +20,7 @@ import { Card, Overline } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Field, Input, Select, Textarea } from '@/components/ui/Field'
 import { DatePicker } from '@/components/ui/DatePicker'
+import { SelecteurMembreUnique } from '@/components/membres/SelecteurMembreUnique'
 
 const TYPES: TypeCagnotte[] = ['DEUIL', 'MARIAGE', 'NAISSANCE', 'AUTRE']
 type BeneficiaireMode = 'aucun' | 'membre' | 'nom'
@@ -229,14 +230,13 @@ export function CagnotteFormPage() {
             </Field>
             {benefMode === 'membre' && (
               <Field label={t('cagnottes.form.beneficiaireMembre')}>
-                <Select value={benefMembreId} onChange={(e) => setBenefMembreId(e.target.value)}>
-                  <option value="">—</option>
-                  {membres.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.prenom} {m.nom}
-                    </option>
-                  ))}
-                </Select>
+                <SelecteurMembreUnique
+                  membres={membres}
+                  valeur={benefMembreId}
+                  onChange={setBenefMembreId}
+                  placeholder={t('cagnottes.don.membrePlaceholder')}
+                  ariaLabel={t('cagnottes.form.beneficiaireMembre')}
+                />
               </Field>
             )}
             {benefMode === 'nom' && (

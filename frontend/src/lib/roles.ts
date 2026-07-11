@@ -98,6 +98,24 @@ export function peutSaisirDon(role: string | undefined): boolean {
   return role !== undefined && ARGENT_CAGNOTTE.includes(role)
 }
 
+/** Amendes / pénalités (§4.10) — miroir matrice « Amende » + garde d'encaissement. */
+const LECTURE_AMENDE = ['ADMIN', 'PRESIDENT', 'TRESORIERE', 'SECRETAIRE', 'COMMISSAIRE_COMPTES', 'MEMBRE_SIMPLE']
+const GESTION_AMENDE = ['ADMIN', 'PRESIDENT', 'TRESORIERE', 'SECRETAIRE'] // saisir / éditer / supprimer
+const ARGENT_AMENDE = ['ADMIN', 'PRESIDENT', 'TRESORIERE'] // encaisser / annuler
+
+/** Peut consulter les amendes (nav + page). MEMBRE_SIMPLE = les siennes (filtrées en route). */
+export function peutVoirAmendes(role: string | undefined): boolean {
+  return role !== undefined && LECTURE_AMENDE.includes(role)
+}
+/** Peut saisir / éditer / supprimer une amende (bureau). */
+export function peutGererAmende(role: string | undefined): boolean {
+  return role !== undefined && GESTION_AMENDE.includes(role)
+}
+/** Peut encaisser (payer) ou annuler une amende (ADMIN/PRESIDENT/TRESORIERE). */
+export function peutEncaisserAmende(role: string | undefined): boolean {
+  return role !== undefined && ARGENT_AMENDE.includes(role)
+}
+
 export function peutVoirTresorerie(role: string | undefined): boolean {
   return role !== undefined && LECTURE_DEPENSE.includes(role)
 }

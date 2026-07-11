@@ -81,6 +81,7 @@ export const SCOPED_MODELS = new Set<string>([
   'Depense',
   'CagnotteEvenement',
   'DonCagnotte',
+  'Amende',
 ])
 
 /** Levée quand une requête scopée n'a pas de contexte org valide, ou vise une autre org. */

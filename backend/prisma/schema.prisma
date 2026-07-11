@@ -109,6 +109,7 @@ model Organisation {
   depenses             Depense[]
   cagnottes            CagnotteEvenement[]
   donsCagnotte         DonCagnotte[]
+  amendes              Amende[]
 }
 
 model Utilisateur {
@@ -188,6 +189,7 @@ model Membre {
   depensesBeneficiaire     Depense[]                     @relation("DepenseBeneficiaire") // Trésorerie — aides reçues
   cagnottesBeneficiaire    CagnotteEvenement[]           @relation("CagnotteBeneficiaire") // Cagnottes dont il est bénéficiaire
   donsCagnotte             DonCagnotte[]                  @relation("DonCagnotteMembre") // Dons faits par ce membre
+  amendes                  Amende[]                      @relation("AmendeMembre") // Amendes/pénalités du membre
   organisationsCommeChef   Organisation[]                @relation("ChefOrganisation") // Chef de l'organisation (inverse ; rare : 1)
   // Idempotence (§ PWA hors-ligne) : rejeu d'un « ajouter membre » saisi hors-ligne (uuid client).
   idempotenceKey           String?
@@ -777,4 +779,43 @@ model DonCagnotte {
   createdAt      DateTime          @default(now())
 
   @@index([organisationId, cagnotteId])
+}
+
+/* -------------------------------------------------------------------------- */
+/* Amendes / pénalités (§4.10) — sanctions financières (retard de cotisation,  */
+/* absence aux réunions, autre). Saisie MANUELLE par le bureau. Poche de suivi */
+/* SÉPARÉE (n'affecte pas encore le solde de trésorerie générale). SCOPÉE.     */
+/* -------------------------------------------------------------------------- */
+
+enum TypeAmende {
+  RETARD_COTISATION
+  ABSENCE_REUNION
+  AUTRE
+}
+
+enum StatutAmende {
+  IMPAYEE
+  PAYEE
+  ANNULEE
+}
+
+model Amende {
+  id             String         @id @default(uuid())
+  organisationId String
+  organisation   Organisation   @relation(fields: [organisationId], references: [id])
+  membreId       String
+  membre         Membre         @relation("AmendeMembre", fields: [membreId], references: [id])
+  type           TypeAmende     @default(AUTRE)
+  motif          String
+  montant        Int
+  dateAmende     DateTime
+  statut         StatutAmende   @default(IMPAYEE)
+  datePaiement   DateTime?
+  modePaiement   ModeVersement?
+  creeParId      String // auteur de la saisie (FK scalaire)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@index([organisationId, statut])
+  @@index([organisationId, membreId])
 }

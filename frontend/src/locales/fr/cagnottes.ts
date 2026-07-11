@@ -70,7 +70,7 @@ export default {
       titreModifier: 'Modifier la cagnotte',
       back: 'Cagnottes',
       champTitre: 'Titre',
-      champTitrePlaceholder: 'ex. Décès de Papa Wamba',
+      champTitrePlaceholder: 'ex. Titre de la collecte',
       champType: 'Type d’événement',
       champDescription: 'Description',
       champObjectif: 'Objectif (facultatif)',

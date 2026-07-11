@@ -767,10 +767,10 @@ export const membresApi = {
     await leverSiErreur(res)
     return res.blob()
   },
-  /** Téléverse la photo du membre (JPEG/PNG). NE PAS fixer Content-Type : le navigateur pose le boundary. */
-  uploadPhoto: async (id: string, fichier: File, accessToken: string): Promise<void> => {
+  /** Téléverse la photo du membre (JPEG/PNG, éventuellement recadrée → Blob). NE PAS fixer Content-Type. */
+  uploadPhoto: async (id: string, fichier: Blob, accessToken: string): Promise<void> => {
     const form = new FormData()
-    form.append('photo', fichier)
+    form.append('photo', fichier, 'photo.jpg')
     const res = await fetch(`${API_URL}/membres/${rid(id)}/photo`, {
       method: 'POST',
       credentials: 'include',

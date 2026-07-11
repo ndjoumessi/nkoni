@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Camera, ChevronDown, ChevronRight, CreditCard, Crown, FileText, Pencil, Plus, Scale, Trash2, UserMinus } from 'lucide-react'
 import { AvatarMembre } from '@/components/membres/AvatarMembre'
+import { CropperPhoto } from '@/components/membres/CropperPhoto'
 import { useAuth } from '@/contexts/auth-context'
 import {
   membresApi,
@@ -108,16 +109,23 @@ export function MembreDetailPage() {
 
   const [photoRefresh, setPhotoRefresh] = useState(0)
   const [photoBusy, setPhotoBusy] = useState(false)
+  const [fichierPhoto, setFichierPhoto] = useState<File | null>(null)
   const photoInputRef = useRef<HTMLInputElement>(null)
 
-  const onPhotoChoisie = async (e: ChangeEvent<HTMLInputElement>) => {
+  // Choix d'un fichier → ouvre le recadreur (l'upload a lieu après validation du recadrage).
+  const onPhotoChoisie = (e: ChangeEvent<HTMLInputElement>) => {
     const fichier = e.target.files?.[0]
     e.target.value = '' // autorise le re-choix du même fichier
-    if (!fichier || !accessToken || !membre) return
+    if (fichier) setFichierPhoto(fichier)
+  }
+
+  const enregistrerPhotoRecadree = async (blob: Blob) => {
+    if (!accessToken || !membre) return
     setPhotoBusy(true)
     try {
-      await membresApi.uploadPhoto(membre.id, fichier, accessToken)
+      await membresApi.uploadPhoto(membre.id, blob, accessToken)
       setPhotoRefresh((k) => k + 1)
+      setFichierPhoto(null)
       toast.success(t('membres.photo.toast.miseAJour'))
     } catch (err) {
       toast.error(t('membres.photo.toast.erreur'), err instanceof ApiError ? err.message : '')
@@ -622,6 +630,21 @@ export function MembreDetailPage() {
             {t('membres.chef.confirmerRetrait')}
           </Button>
         </div>
+      </Modal>
+
+      <Modal
+        open={fichierPhoto !== null}
+        onClose={() => setFichierPhoto(null)}
+        title={t('membres.photo.recadrer.titre')}
+      >
+        {fichierPhoto && (
+          <CropperPhoto
+            fichier={fichierPhoto}
+            onValider={enregistrerPhotoRecadree}
+            onAnnuler={() => setFichierPhoto(null)}
+            enCours={photoBusy}
+          />
+        )}
       </Modal>
     </div>
   )

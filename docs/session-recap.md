@@ -118,6 +118,20 @@ statut de déploiement Railway/Vercel confirmé au statut réel là où le backe
   cf. §2). `signaturePartage` n'est renvoyée que sur les endpoints authentifiés (jamais publique
   tant que non partagée). Côté front : `urlPartage` (URL absolue via le proxy same-origin) +
   `telephoneWaMe` (numéro au format international sans `+`).
+- **Cartes de membre imprimables + QR de vérification (§4.7)** — PDF « Menthe & Encre » (fond menthe
+  clair + bandeau d'en-tête, branche masquée si absente), généré à l'**unité** (`GET /membres/:id/carte`,
+  fiche membre) ou en **lot** A4 découpable (`GET /membres/cartes`, page Membres) — réservé au bureau
+  (pas MEMBRE_SIMPLE). Chaque carte porte un **QR** vers une page PUBLIQUE de vérification
+  (`GET /membres/:id/statut-public?t=<sig>`) : HTML autonome affichant nom + **statut de cotisation**
+  (À jour / Partiel / Non à jour) de l'année courante, **SANS aucun montant**. Signature HMAC à
+  **préfixe distinct** (`carte-statut:v1:` ≠ reçus, séparation de domaine), secret dédié
+  `RECU_LINK_SECRET` (repli `JWT_ACCESS_SECRET`), **isolation tenant préservée** (`await` DANS
+  `runUnscoped`, cf. §4.6), `esc()` anti-XSS, `noindex`. Carte + page bilingues FR/EN (suivent
+  `Organisation.langueDefaut`). Dép. `qrcode` ; nouvelle env `PUBLIC_BASE_URL` (défaut
+  `nkoni.vercel.app`) pour l'URL absolue du QR. Test d'intégration `cartes-statut-public` (vraie
+  Postgres) verrouille le chemin signature-valide → 200 HTML. **By-design** : le QR expose nom +
+  statut (jamais de montant) de façon permanente à quiconque le scanne — la fonction même d'une carte
+  vérifiable ; la signature empêche l'énumération.
 
 ### Migrations appliquées en prod
 - `tresorerie_depense` — additive (table `Depense` + 2 enums via `CREATE TYPE`).

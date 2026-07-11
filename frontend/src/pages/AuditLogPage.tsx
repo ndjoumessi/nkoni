@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { cleI18n } from '@/lib/i18n'
 import { Link, Navigate } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, ExternalLink, RotateCcw, ScrollText } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
@@ -176,7 +177,7 @@ function DiffDetails({ entry }: { entry: AuditEntry }) {
             )}
           >
             <span className="truncate font-medium text-muted-foreground" title={cle}>
-              {CLES_CHAMP[cle] ? t(CLES_CHAMP[cle]) : cle}
+              {CLES_CHAMP[cle] ? t(cleI18n(CLES_CHAMP[cle])) : cle}
             </span>
             <span className="min-w-0 break-words font-mono text-xs">
               {compare ? (
@@ -345,7 +346,7 @@ export function AuditLogPage() {
               <option value="">{t('audit.filtres.toutes')}</option>
               {ENTITES.map((type) => (
                 <option key={type} value={type}>
-                  {t(`audit.entites.${type}`)}
+                  {t(cleI18n(`audit.entites.${type}`))}
                 </option>
               ))}
             </Select>

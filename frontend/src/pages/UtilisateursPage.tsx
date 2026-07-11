@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { cleI18n } from '@/lib/i18n'
 import { Navigate } from 'react-router-dom'
 import { KeyRound, Mail, Power, ShieldUser, UserPlus } from 'lucide-react'
 import type { FormEvent } from 'react'
@@ -515,7 +516,7 @@ export function UtilisateursPage() {
             <p className="text-sm text-muted-foreground">
               {t('utilisateurs.roleModal.texte', {
                 compte: roleChange.utilisateur.email,
-                role: t(`utilisateurs.roles.${roleChange.role}`),
+                role: t(cleI18n(`utilisateurs.roles.${roleChange.role}`)),
               })}
             </p>
             <div className="mt-6 flex justify-end gap-2">

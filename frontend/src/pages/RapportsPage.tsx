@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { cleI18n } from '@/lib/i18n'
 import { Navigate } from 'react-router-dom'
 import {
   ArrowLeftRight,
@@ -276,7 +277,7 @@ function VueComparaisonMulti({ data }: { data: ComparaisonMulti }) {
                     'px-4 py-3 align-top text-muted-foreground transition-colors group-hover:bg-surface-2',
                   )}
                 >
-                  {t(`rapports.metriques.${m.cle}`)}
+                  {t(cleI18n(`rapports.metriques.${m.cle}`))}
                 </td>
                 {data.annees.map((ac, i) => (
                   <td

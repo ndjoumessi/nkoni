@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next'
+import { cleI18n } from '@/lib/i18n'
 import {
   ArrowRight,
   Info,
@@ -191,7 +192,7 @@ export function GlassmorphismTrustHero({
                 {STATUS_LEGEND.map((s) => (
                   <span key={s.key} className="inline-flex items-center gap-1.5 text-xs text-faint">
                     <span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} />
-                    {t(`landing.hero.apercu.legende.${s.key}`)}
+                    {t(cleI18n(`landing.hero.apercu.legende.${s.key}`))}
                   </span>
                 ))}
               </div>
@@ -223,7 +224,7 @@ export function GlassmorphismTrustHero({
                       className="inline-flex shrink-0 items-center gap-2 rounded-full border border-hairline bg-surface-2/70 px-4 py-2 text-sm text-muted-foreground"
                     >
                       <Icon className="h-4 w-4 text-brass" aria-hidden="true" />
-                      {t(`landing.hero.valeurs.${v.key}`)}
+                      {t(cleI18n(`landing.hero.valeurs.${v.key}`))}
                     </span>
                   )
                 })}

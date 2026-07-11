@@ -1,5 +1,6 @@
 import { useRef, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
+import { cleI18n } from '@/lib/i18n'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { AlertCircle, ArrowLeft, ArrowRight, Building2, Lock, Mail } from 'lucide-react'
 import { ApiError } from '@/lib/api'
@@ -175,7 +176,7 @@ export function InscriptionPage() {
                 >
                   {DEVISES.map((d) => (
                     <option key={d.value} value={d.value}>
-                      {t(d.labelKey)}
+                      {t(cleI18n(d.labelKey))}
                     </option>
                   ))}
                 </Select>
@@ -192,7 +193,7 @@ export function InscriptionPage() {
                 >
                   {LANGUES.map((l) => (
                     <option key={l.value} value={l.value}>
-                      {t(l.labelKey)}
+                      {t(cleI18n(l.labelKey))}
                     </option>
                   ))}
                 </Select>

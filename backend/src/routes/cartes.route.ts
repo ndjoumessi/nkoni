@@ -6,7 +6,7 @@ import { env } from '../lib/env'
 import { signerStatutMembre, verifierStatutMembre } from '../lib/recu-lien'
 import { calculerStatutsMembres, type MembreAvecStatut } from '../services/membreStatut.service'
 import { genererCartesPdf, type DonneesCarte } from '../services/carte.service'
-import type { Langue } from '../lib/i18n'
+import { formatDateHeure, type Langue } from '../lib/i18n'
 
 /**
  * Cartes de membre (§4.7) — génération PDF (unité + lot) réservée au bureau, et page PUBLIQUE de
@@ -38,11 +38,23 @@ function versDonneesCarte(m: MembreAvecStatut): DonneesCarte {
 
 const STATUT_UI: Record<
   MembreAvecStatut['statutCotisation'],
-  { fr: string; en: string; bg: string; fg: string; dot: string }
+  { fr: string; en: string; descFr: string; descEn: string; bg: string; fg: string; dot: string }
 > = {
-  A_JOUR: { fr: 'À jour', en: 'Up to date', bg: '#e9f8f0', fg: '#006a48', dot: '#009b66' },
-  PARTIEL: { fr: 'Partiel', en: 'Partial', bg: '#fbf3e2', fg: '#7a5a17', dot: '#c8891a' },
-  NON_A_JOUR: { fr: 'Non à jour', en: 'Overdue', bg: '#fbece9', fg: '#8a2f1c', dot: '#b0432a' },
+  A_JOUR: {
+    fr: 'À jour', en: 'Up to date',
+    descFr: 'Cotisations à jour', descEn: 'Contributions up to date',
+    bg: '#e9f8f0', fg: '#006a48', dot: '#009b66',
+  },
+  PARTIEL: {
+    fr: 'Partiel', en: 'Partial',
+    descFr: 'Cotisations partiellement réglées', descEn: 'Contributions partially paid',
+    bg: '#fbf3e2', fg: '#7a5a17', dot: '#c8891a',
+  },
+  NON_A_JOUR: {
+    fr: 'Non à jour', en: 'Overdue',
+    descFr: 'Cotisations en retard', descEn: 'Contributions overdue',
+    bg: '#fbece9', fg: '#8a2f1c', dot: '#b0432a',
+  },
 }
 
 /** Échappe le HTML (protège des données membre/organisation dans le rendu). */
@@ -56,15 +68,32 @@ function pageStatut(o: {
   prenom: string
   statut: MembreAvecStatut['statutCotisation']
   annee: number
+  branche: string | null
+  anneeAdhesion: number
+  estChef: boolean
+  chefSurnom: string | null
+  verifieLe: string
   langue: Langue
 }): string {
   const en = o.langue === 'EN'
   const s = STATUT_UI[o.statut]
   const label = en ? s.en : s.fr
+  const desc = en ? s.descEn : s.descFr
   const membreLbl = en ? 'Member' : 'Membre'
   const anneeLbl = en ? `Year ${o.annee}` : `Année ${o.annee}`
   const verifie = en ? 'Verified with' : 'Vérifié avec'
+  const chefLbl = en ? 'Organisation head' : "Chef de l'organisation"
   const nom = `${esc(o.prenom)} ${esc(o.nom)}`.trim()
+
+  // Ligne méta NON financière : branche (si présente) · ancienneté.
+  const metaParts: string[] = []
+  if (o.branche) metaParts.push(en ? `Branch: ${esc(o.branche)}` : `Branche : ${esc(o.branche)}`)
+  metaParts.push(en ? `Member since ${o.anneeAdhesion}` : `Membre depuis ${o.anneeAdhesion}`)
+  const meta = metaParts.join(' · ')
+
+  const chefTexte = o.chefSurnom ? `${chefLbl} · ${esc(o.chefSurnom)}` : chefLbl
+  const verifieLeLbl = en ? `Verified on ${esc(o.verifieLe)}` : `Vérifié le ${esc(o.verifieLe)}`
+
   return `<!doctype html><html lang="${en ? 'en' : 'fr'}"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
@@ -75,22 +104,30 @@ function pageStatut(o: {
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:#f4f6f6;color:#222b2b;display:flex;min-height:100vh;align-items:center;justify-content:center;padding:20px}
 .card{background:#fff;border-radius:18px;box-shadow:0 8px 40px -18px rgba(0,0,0,.25);max-width:380px;width:100%;padding:28px;text-align:center}
 .org{color:#009b66;font-weight:700;font-size:15px;letter-spacing:.02em}
-.rule{height:2px;background:#a28137;border-radius:2px;width:44px;margin:12px auto 20px}
+.rule{height:2px;background:#a28137;border-radius:2px;width:44px;margin:12px auto 18px}
+.chef{display:inline-block;margin:0 0 10px;padding:5px 14px;border-radius:999px;background:#fbf3e2;color:#7a5a17;font-size:12px;font-weight:600;letter-spacing:.02em}
 .membre-lbl{color:#636a6d;font-size:12px;text-transform:uppercase;letter-spacing:.12em}
 .membre{font-size:22px;font-weight:700;margin-top:4px}
-.badge{display:inline-flex;align-items:center;gap:9px;margin:24px 0 6px;padding:12px 22px;border-radius:999px;font-size:18px;font-weight:700;background:${s.bg};color:${s.fg}}
+.meta{color:#636a6d;font-size:13px;margin-top:8px}
+.badge{display:inline-flex;align-items:center;gap:9px;margin:22px 0 6px;padding:12px 22px;border-radius:999px;font-size:18px;font-weight:700;background:${s.bg};color:${s.fg}}
 .dot{width:11px;height:11px;border-radius:50%;background:${s.dot}}
-.annee{color:#636a6d;font-size:14px}
-.foot{margin-top:24px;color:#9aa0a2;font-size:12px}
+.desc{color:#636a6d;font-size:13px}
+.annee{color:#9aa0a2;font-size:13px;margin-top:6px}
+.verif{color:#9aa0a2;font-size:12px;margin-top:16px}
+.foot{margin-top:6px;color:#9aa0a2;font-size:12px}
 .foot b{color:#009b66}
 </style></head><body>
 <div class="card">
   <div class="org">${esc(o.orgNom)}</div>
   <div class="rule"></div>
+  ${o.estChef ? `<div class="chef">★ ${chefTexte}</div>` : ''}
   <div class="membre-lbl">${membreLbl}</div>
   <div class="membre">${nom}</div>
+  <div class="meta">${meta}</div>
   <div class="badge"><span class="dot"></span>${label}</div>
+  <div class="desc">${desc}</div>
   <div class="annee">${anneeLbl}</div>
+  <div class="verif">${verifieLeLbl}</div>
   <div class="foot">${verifie} <b>NKONI</b></div>
 </div></body></html>`
 }
@@ -166,15 +203,21 @@ export const cartesRoutes: FastifyPluginAsync = async (app: FastifyInstance) => 
         if (!m) return null
         const org = await app.prisma.organisation.findUnique({
           where: { id: meta.organisationId },
-          select: { nom: true, langueDefaut: true },
+          select: { nom: true, langueDefaut: true, chefMembreId: true, chefSurnom: true },
         })
+        const langue = org?.langueDefaut ?? 'FR'
         return pageStatut({
           orgNom: org?.nom ?? 'NKONI',
           nom: m.nom,
           prenom: m.prenom,
           statut: m.statutCotisation,
           annee,
-          langue: org?.langueDefaut ?? 'FR',
+          branche: m.branche?.nom ?? null,
+          anneeAdhesion: m.anneeAdhesion,
+          estChef: org?.chefMembreId === m.id,
+          chefSurnom: org?.chefSurnom ?? null,
+          verifieLe: formatDateHeure(new Date(), langue),
+          langue,
         })
       })
       if (!html) return reply.code(404).send({ error: 'Not Found' })

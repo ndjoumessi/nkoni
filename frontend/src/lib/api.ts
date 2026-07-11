@@ -758,6 +758,30 @@ export const membresApi = {
     await leverSiErreur(res)
     return res.blob()
   },
+  /** Récupère la PHOTO du membre (Blob privé, proxy authentifié). Rejette (404) si aucune photo. */
+  chargerPhoto: async (id: string, accessToken: string): Promise<Blob> => {
+    const res = await fetch(`${API_URL}/membres/${rid(id)}/photo`, {
+      credentials: 'include',
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+    await leverSiErreur(res)
+    return res.blob()
+  },
+  /** Téléverse la photo du membre (JPEG/PNG). NE PAS fixer Content-Type : le navigateur pose le boundary. */
+  uploadPhoto: async (id: string, fichier: File, accessToken: string): Promise<void> => {
+    const form = new FormData()
+    form.append('photo', fichier)
+    const res = await fetch(`${API_URL}/membres/${rid(id)}/photo`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { Authorization: `Bearer ${accessToken}` },
+      body: form,
+    })
+    await leverSiErreur(res)
+  },
+  /** Supprime la photo du membre. */
+  supprimerPhoto: (id: string, accessToken: string) =>
+    request<void>(`/membres/${rid(id)}/photo`, { method: 'DELETE', accessToken }),
   /** Aperçu d'import (valider=true) → rapport, aucune écriture. */
   importerApercu: (membres: LigneImport[], creerBranchesManquantes: boolean, accessToken: string) =>
     request<RapportImport>('/membres/import', {

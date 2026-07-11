@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ChevronDown, ChevronRight, CreditCard, Crown, FileText, Pencil, Plus, Scale, UserMinus } from 'lucide-react'
+import { Camera, ChevronDown, ChevronRight, CreditCard, Crown, FileText, Pencil, Plus, Scale, Trash2, UserMinus } from 'lucide-react'
+import { AvatarMembre } from '@/components/membres/AvatarMembre'
 import { useAuth } from '@/contexts/auth-context'
 import {
   membresApi,
@@ -102,6 +103,40 @@ export function MembreDetailPage() {
       toast.error(t('membres.releve.erreur'), e instanceof ApiError ? e.message : '')
     } finally {
       setReleveEnCours(false)
+    }
+  }
+
+  const [photoRefresh, setPhotoRefresh] = useState(0)
+  const [photoBusy, setPhotoBusy] = useState(false)
+  const photoInputRef = useRef<HTMLInputElement>(null)
+
+  const onPhotoChoisie = async (e: ChangeEvent<HTMLInputElement>) => {
+    const fichier = e.target.files?.[0]
+    e.target.value = '' // autorise le re-choix du même fichier
+    if (!fichier || !accessToken || !membre) return
+    setPhotoBusy(true)
+    try {
+      await membresApi.uploadPhoto(membre.id, fichier, accessToken)
+      setPhotoRefresh((k) => k + 1)
+      toast.success(t('membres.photo.toast.miseAJour'))
+    } catch (err) {
+      toast.error(t('membres.photo.toast.erreur'), err instanceof ApiError ? err.message : '')
+    } finally {
+      setPhotoBusy(false)
+    }
+  }
+
+  const supprimerPhoto = async () => {
+    if (!accessToken || !membre) return
+    setPhotoBusy(true)
+    try {
+      await membresApi.supprimerPhoto(membre.id, accessToken)
+      setPhotoRefresh((k) => k + 1)
+      toast.success(t('membres.photo.toast.supprimee'))
+    } catch (err) {
+      toast.error(t('membres.photo.toast.erreur'), err instanceof ApiError ? err.message : '')
+    } finally {
+      setPhotoBusy(false)
     }
   }
 
@@ -358,6 +393,41 @@ export function MembreDetailPage() {
           </>
         }
       />
+
+      <Card className="nk-reveal nk-d1 mt-6 flex items-center gap-4 p-5">
+        <AvatarMembre
+          membreId={membre.id}
+          nom={membre.nom}
+          prenom={membre.prenom}
+          accessToken={accessToken}
+          refreshKey={photoRefresh}
+        />
+        {peutGererMembres(user?.role) ? (
+          <div className="min-w-0">
+            <Overline>{t('membres.photo.titre')}</Overline>
+            <p className="mt-1 text-sm text-muted-foreground">{t('membres.photo.aide')}</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <input
+                ref={photoInputRef}
+                type="file"
+                accept="image/jpeg,image/png"
+                className="hidden"
+                onChange={onPhotoChoisie}
+              />
+              <Button variant="outline" icon={Camera} loading={photoBusy} onClick={() => photoInputRef.current?.click()}>
+                {t('membres.photo.changer')}
+              </Button>
+              <Button variant="ghost" icon={Trash2} onClick={supprimerPhoto}>
+                {t('membres.photo.supprimer')}
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <p className="font-display text-lg font-semibold text-foreground">
+            {membre.nom} <span className="text-muted-foreground">{membre.prenom}</span>
+          </p>
+        )}
+      </Card>
 
       {statut && (
         <section className="nk-reveal nk-d2 mt-7 grid gap-4 sm:grid-cols-2">

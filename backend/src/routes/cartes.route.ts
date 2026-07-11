@@ -135,16 +135,42 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 export const cartesRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
   const bureau = requireRoles([...ROLES_BUREAU])
 
+  // Charge les octets des photos (Blob PRIVÉ) pour un ensemble de membres → map id→Buffer.
+  // Best-effort : un blob illisible est ignoré (la carte retombe sur les initiales).
+  const chargerPhotos = async (ids: string[]): Promise<Map<string, Buffer>> => {
+    const lignes = await app.prisma.membre.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, photoBlobUrl: true },
+    })
+    const avecUrl = lignes.filter((l) => l.photoBlobUrl)
+    const buffers = await Promise.all(
+      avecUrl.map((l) => app.blob.lireContenu(l.photoBlobUrl as string).catch(() => null)),
+    )
+    const map = new Map<string, Buffer>()
+    avecUrl.forEach((l, i) => {
+      const b = buffers[i]
+      if (b) map.set(l.id, b)
+    })
+    return map
+  }
+
+  const avecPhoto = (dc: DonneesCarte, photos: Map<string, Buffer>): DonneesCarte => {
+    const p = photos.get(dc.id)
+    return p ? { ...dc, photo: p } : dc
+  }
+
   // GET /membres/cartes — PDF EN LOT (grille A4 découpable) de tous les membres non décédés.
   app.get('/membres/cartes', { preHandler: [authenticate, bureau] }, async (req, reply) => {
     const annee = new Date().getFullYear()
     const membres = await calculerStatutsMembres(app.prisma, annee)
     const actifs = membres.filter((m) => m.statut !== 'DECEDE')
+    const photos = await chargerPhotos(actifs.map((m) => m.id))
     const org = await app.prisma.organisation.findUnique({
       where: { id: req.user.organisationId ?? '' },
       select: { nom: true, langueDefaut: true },
     })
-    const pdf = await genererCartesPdf(actifs.map(versDonneesCarte), org?.nom ?? 'NKONI', org?.langueDefaut ?? 'FR')
+    const cartes = actifs.map((m) => avecPhoto(versDonneesCarte(m), photos))
+    const pdf = await genererCartesPdf(cartes, org?.nom ?? 'NKONI', org?.langueDefaut ?? 'FR')
     reply.header('Content-Type', 'application/pdf')
     reply.header('Content-Disposition', 'inline; filename="cartes-membres.pdf"')
     return reply.send(pdf)
@@ -159,11 +185,12 @@ export const cartesRoutes: FastifyPluginAsync = async (app: FastifyInstance) => 
       const membres = await calculerStatutsMembres(app.prisma, annee, { id: req.params.id })
       const m = membres[0]
       if (!m) return reply.code(404).send({ error: 'Not Found' })
+      const photos = await chargerPhotos([m.id])
       const org = await app.prisma.organisation.findUnique({
         where: { id: req.user.organisationId ?? '' },
         select: { nom: true, langueDefaut: true },
       })
-      const pdf = await genererCartesPdf([versDonneesCarte(m)], org?.nom ?? 'NKONI', org?.langueDefaut ?? 'FR')
+      const pdf = await genererCartesPdf([avecPhoto(versDonneesCarte(m), photos)], org?.nom ?? 'NKONI', org?.langueDefaut ?? 'FR')
       reply.header('Content-Type', 'application/pdf')
       reply.header('Content-Disposition', `inline; filename="carte-${m.nom}.pdf"`)
       return reply.send(pdf)

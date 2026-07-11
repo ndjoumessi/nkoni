@@ -15,6 +15,13 @@ export default {
       telecharger: 'Account statement',
       erreur: 'Could not generate the statement',
     },
+    photo: {
+      titre: 'Member photo',
+      aide: 'JPEG or PNG, 5 MB max. It appears on the member card.',
+      changer: 'Change photo',
+      supprimer: 'Remove',
+      toast: { miseAJour: 'Photo updated', supprimee: 'Photo removed', erreur: 'Action unavailable' },
+    },
     liste: {
       overline: 'Community',
       titre: 'Members',

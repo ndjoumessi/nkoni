@@ -12,7 +12,7 @@ import {
 } from '@/lib/api'
 import { peutSaisirVersement } from '@/lib/roles'
 import { formatMontant } from '@/lib/format'
-import { formatDate } from '@/lib/utils'
+import { formatDate, telephoneWaMe } from '@/lib/utils'
 import { useToast } from '@/components/ui/Toast'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
@@ -40,10 +40,13 @@ const versISODate = (iso: string): string => iso.slice(0, 10)
 export function VersementsList({
   contributionId,
   membreId,
+  membreTelephone,
   onChange,
 }: {
   contributionId: string
   membreId: string
+  /** Téléphone du membre — pré-remplit le destinataire du lien `wa.me` de partage du reçu. */
+  membreTelephone?: string | null
   onChange?: () => void
 }) {
   const { t } = useTranslation()
@@ -54,7 +57,6 @@ export function VersementsList({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [generating, setGenerating] = useState<string | null>(null)
-  const [whatsapping, setWhatsapping] = useState<string | null>(null)
   const peutGerer = peutSaisirVersement(user?.role)
 
   // Édition (modale) — versement en cours + champs contrôlés.
@@ -127,18 +129,18 @@ export function VersementsList({
     }
   }
 
-  const envoyerWhatsApp = async (recuId: string) => {
-    if (!accessToken) return
-    setWhatsapping(recuId)
-    try {
-      const res = await recusApi.envoyerWhatsApp(recuId, accessToken)
-      if (res.envoye) toast.success(t('versements.toast.whatsappEnvoye'))
-      else toast.error(t('versements.toast.whatsappNonEnvoye'), t(`versements.toast.whatsappRaison.${res.raison ?? 'echecEnvoi'}`))
-    } catch (e) {
-      toast.error(t('versements.toast.whatsappNonEnvoye'), e instanceof ApiError ? e.message : '')
-    } finally {
-      setWhatsapping(null)
-    }
+  // Partage du reçu via WhatsApp « click-to-chat » (wa.me) : ouvre WhatsApp de l'utilisateur avec
+  // un message pré-rempli (récap + LIEN PUBLIC signé de téléchargement). Aucun envoi automatique,
+  // aucune config Meta requise — le membre télécharge son reçu depuis le lien, sans compte.
+  const partagerWhatsApp = (recu: Recu, montant: number) => {
+    const numero = telephoneWaMe(membreTelephone)
+    const message = t('versements.partage.message', {
+      numero: recu.numero,
+      montant: formatMontant(montant),
+      lien: recusApi.urlPartage(recu),
+    })
+    const base = numero ? `https://wa.me/${numero}` : 'https://wa.me/'
+    window.open(`${base}?text=${encodeURIComponent(message)}`, '_blank', 'noopener')
   }
 
   const ouvrirEdition = (v: Versement) => {
@@ -256,8 +258,7 @@ export function VersementsList({
                       variant="ghost"
                       size="sm"
                       icon={Send}
-                      loading={whatsapping === recu.id}
-                      onClick={() => envoyerWhatsApp(recu.id)}
+                      onClick={() => partagerWhatsApp(recu, v.montant)}
                     >
                       {t('versements.liste.whatsapp')}
                     </Button>

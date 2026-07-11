@@ -413,6 +413,7 @@ export function MembreDetailPage() {
                         <VersementsList
                           contributionId={c.id}
                           membreId={membre.id}
+                          membreTelephone={membre.telephone}
                           onChange={rechargerFinancier}
                         />
                       </div>

@@ -10,6 +10,14 @@ import {
   resoudreLangueDestinataire,
   resoudreDeviseDestinataire,
 } from '../services/notification.service'
+import { orgContext } from '../lib/org-context'
+import { signerRecu, verifierSignatureRecu } from '../lib/recu-lien'
+
+/** Enrichit un reçu de sa `signaturePartage` (jeton du lien public de téléchargement WhatsApp). */
+const avecLienPartage = <T extends { id: string }>(recu: T): T & { signaturePartage: string } => ({
+  ...recu,
+  signaturePartage: signerRecu(recu.id),
+})
 
 /**
  * Reçu de versement (§4.6) — génération À LA DEMANDE et lecture.
@@ -68,7 +76,7 @@ export const recusRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
 
       try {
         const recu = await genererRecu(app.prisma, versementId, req.user.sub ?? '')
-        return reply.code(201).send(recu)
+        return reply.code(201).send(avecLienPartage(recu))
       } catch (err) {
         if (err instanceof VersementIntrouvableError) {
           return reply.code(404).send({
@@ -95,7 +103,8 @@ export const recusRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
       if (!scoping && membreId === undefined) {
         const where: Prisma.RecuWhereInput = {}
         if (versementId !== undefined) where.versementId = versementId
-        return app.prisma.recu.findMany({ where, orderBy: { dateGeneration: 'desc' } })
+        const rs = await app.prisma.recu.findMany({ where, orderBy: { dateGeneration: 'desc' } })
+        return rs.map(avecLienPartage)
       }
 
       // Filtrage par membre : on résout d'abord les versements concernés
@@ -113,10 +122,11 @@ export const recusRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
       })
       const ids = versements.map((v) => v.id)
 
-      return app.prisma.recu.findMany({
+      const rs = await app.prisma.recu.findMany({
         where: { versementId: { in: ids } },
         orderBy: { dateGeneration: 'desc' },
       })
+      return rs.map(avecLienPartage)
     },
   )
 
@@ -152,6 +162,53 @@ export const recusRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
       reply.header('Content-Type', 'application/pdf')
       reply.header('Content-Disposition', `inline; filename="recu-${ctx.donnees.numero}.pdf"`)
       return reply.send(buffer)
+    },
+  )
+
+  // GET /recus/:id/pdf-public?t=<signature> — TÉLÉCHARGEMENT PUBLIC SIGNÉ (partage `wa.me`).
+  // PAS d'authentification : la signature HMAC (liée à CET id) tient lieu d'autorisation, pour
+  // que le membre destinataire télécharge SON reçu sans compte. Isolation tenant préservée :
+  // l'org du reçu est résolue HORS scope (id déjà autorisé par la signature) puis la génération
+  // s'exécute DANS le contexte de cette org (aucune fuite cross-tenant, aucune énumération).
+  // 404 uniforme sur signature invalide / reçu inconnu (pas de fuite d'existence).
+  app.get<{ Params: { id: string }; Querystring: { t?: string } }>(
+    '/recus/:id/pdf-public',
+    {
+      schema: {
+        querystring: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['t'],
+          properties: { t: { type: 'string' } },
+        },
+      } as const,
+    },
+    async (req, reply) => {
+      const { id } = req.params
+      if (!req.query.t || !verifierSignatureRecu(id, req.query.t)) {
+        return reply.code(404).send({ error: 'Not Found' })
+      }
+      // Résout l'organisation du reçu SANS scope (l'id est déjà autorisé par la signature).
+      const meta = await orgContext.runUnscoped(() =>
+        app.prisma.recu.findUnique({ where: { id }, select: { organisationId: true } }),
+      )
+      if (!meta) return reply.code(404).send({ error: 'Not Found' })
+
+      // Génération DANS le contexte de l'org du reçu → le prisma scopé ne voit que cette org.
+      return orgContext.run({ organisationId: meta.organisationId }, async () => {
+        const ctx = await chargerDonneesRecuPdf(app.prisma, id)
+        if (!ctx) return reply.code(404).send({ error: 'Not Found' })
+        const langue = ctx.membreCompteId
+          ? await resoudreLangueDestinataire(app.prisma, ctx.membreCompteId)
+          : 'FR'
+        const devise = ctx.membreCompteId
+          ? await resoudreDeviseDestinataire(app.prisma, ctx.membreCompteId)
+          : 'FCFA'
+        const { buffer } = await produireRecuPdf(app.prisma, app.blob, ctx, langue, devise)
+        reply.header('Content-Type', 'application/pdf')
+        reply.header('Content-Disposition', `inline; filename="recu-${ctx.donnees.numero}.pdf"`)
+        return reply.send(buffer)
+      })
     },
   )
 

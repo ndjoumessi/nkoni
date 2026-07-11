@@ -103,5 +103,9 @@ export default {
       annuler: 'Annuler',
       confirmer: 'Supprimer',
     },
+    partage: {
+      message:
+        'Bonjour, voici votre reçu de versement NKONI n° {{numero}} ({{montant}}). Téléchargez-le ici : {{lien}}',
+    },
   },
 }

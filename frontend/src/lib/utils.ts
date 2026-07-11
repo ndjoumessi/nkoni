@@ -58,6 +58,22 @@ export function normaliserTexte(valeur: string): string {
 }
 
 /**
+ * Num\u00e9ro au format attendu par `wa.me` : chiffres INTERNATIONAUX sans `+`. Miroir l\u00e9ger de la
+ * normalisation E.164 du back (d\u00e9faut Cameroun `237`) : retire `+`/espaces/tirets, g\u00e8re un
+ * pr\u00e9fixe `00`, pr\u00e9fixe `237` pour un num\u00e9ro local (8\u20139 chiffres). Renvoie `''` si rien
+ * d'exploitable \u2192 `wa.me` s'ouvre alors sans destinataire (l'utilisateur choisit le contact).
+ */
+export function telephoneWaMe(brut: string | null | undefined): string {
+  if (!brut) return ''
+  let d = brut.replace(/\D/g, '') // chiffres uniquement (retire +, espaces, tirets\u2026)
+  d = d.replace(/^00/, '') // pr\u00e9fixe international 00 \u2192 rien
+  if (d.startsWith('237')) return d // d\u00e9j\u00e0 international (Cameroun)
+  d = d.replace(/^0+/, '') // 0 initial local \u00e9ventuel
+  if (d.length >= 8 && d.length <= 9) return `237${d}` // local Cameroun \u2192 international
+  return d // autre indicatif pr\u00e9sum\u00e9 d\u00e9j\u00e0 international, ou vide
+}
+
+/**
  * Après un échec de validation (§8 `focus-management`) : place le focus sur le premier
  * contrôle en erreur d'un formulaire pour que l'utilisateur atterrisse là où corriger.
  * Les champs Field portent `aria-invalid="true"` quand ils ont une erreur — on cible ça.

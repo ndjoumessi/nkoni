@@ -928,6 +928,8 @@ export interface Recu {
   genereParId: string
   dateGeneration: string
   urlPdf: string | null
+  /** Jeton signé du lien PUBLIC de téléchargement (partage WhatsApp), fourni par le backend. */
+  signaturePartage: string
 }
 
 export const versementsApi = {
@@ -975,12 +977,23 @@ export const recusApi = {
     await leverSiErreur(res)
     return res.blob()
   },
-  /** Envoie le reçu au membre par WhatsApp (best-effort côté serveur). */
+  /** Envoie le reçu au membre par WhatsApp (best-effort côté serveur, Meta Cloud API). */
   envoyerWhatsApp: (recuId: string, accessToken: string) =>
     request<{ envoye: boolean; raison?: string }>(`/recus/${rid(recuId)}/whatsapp`, {
       method: 'POST',
       accessToken,
     }),
+  /**
+   * URL PUBLIQUE ABSOLUE de téléchargement du reçu (lien à partager, ex. via `wa.me`). Passe par
+   * le proxy `/api/*` same-origin en prod ; `new URL(..., origin)` la rend absolue quel que soit
+   * `API_URL` (relatif `/api` en prod, absolu en dev). Le membre télécharge sans compte : c'est
+   * la signature qui autorise (cf. backend `GET /recus/:id/pdf-public`).
+   */
+  urlPartage: (recu: Recu): string =>
+    new URL(
+      `${API_URL}/recus/${rid(recu.id)}/pdf-public?t=${encodeURIComponent(recu.signaturePartage)}`,
+      window.location.origin,
+    ).href,
 }
 
 /* Trésorerie / dépenses (§5) ------------------------------------------------ */

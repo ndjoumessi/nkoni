@@ -103,5 +103,9 @@ export default {
       annuler: 'Cancel',
       confirmer: 'Delete',
     },
+    partage: {
+      message:
+        'Hello, here is your NKONI payment receipt no. {{numero}} ({{montant}}). Download it here: {{lien}}',
+    },
   },
 }

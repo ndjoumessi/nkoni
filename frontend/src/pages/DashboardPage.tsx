@@ -18,6 +18,7 @@ import { Card, Overline } from '@/components/ui/Card'
 import { Badge, type BadgeProps } from '@/components/ui/Badge'
 import { StatCard } from '@/components/ui/StatCard'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { ErrorState } from '@/components/ui/ErrorState'
 import { ButtonLink } from '@/components/ui/Button'
 import { Skeleton, StatCardSkeleton } from '@/components/ui/Skeleton'
 import { RecouvrementHero } from '@/components/dashboard/RecouvrementHero'
@@ -295,7 +296,7 @@ function DashboardSkeleton() {
 export function DashboardPage() {
   const { t } = useTranslation()
   const { user } = useAuth()
-  const { data, loading, error } = useDashboard()
+  const { data, loading, error, recharger } = useDashboard()
   const canManage = peutGererBareme(user?.role)
 
   return (
@@ -310,7 +311,11 @@ export function DashboardPage() {
         {loading && <DashboardSkeleton />}
 
         {!loading && error && (
-          <Card className="border-terra/30 bg-terra/[0.07] p-5 text-terra">{error}</Card>
+          <ErrorState
+            title={t('commun.erreurs.chargementImpossible')}
+            description={error}
+            onRetry={recharger}
+          />
         )}
 
         {!loading && !error && data && (

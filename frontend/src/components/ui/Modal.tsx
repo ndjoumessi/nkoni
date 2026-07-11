@@ -1,14 +1,25 @@
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 /**
+ * Sélecteur des éléments focusables au clavier À L'INTÉRIEUR du panneau — utilisé par le
+ * piège de focus (§1/§8). Le `[tabindex="-1"]` du panneau lui-même est volontairement exclu.
+ */
+const FOCUSABLES =
+  'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+
+/**
  * Modale légère centrée — direction « Laiton & Jade » : overlay flouté + Card.
  * Ferme sur Escape et sur clic backdrop. Verrouille le scroll du body à l'ouverture.
  *
- * Volontairement minimale (pas de piège de focus complet) : suffisant pour les petits
- * formulaires ponctuels de l'admin. À enrichir si un usage plus exigeant apparaît.
+ * Accessibilité (§1/§8) — piège de focus complet :
+ * - à l'OUVERTURE : l'élément déclencheur (`document.activeElement`) est mémorisé, puis le
+ *   focus est déplacé sur le panneau (rendu focusable via `tabIndex={-1}`) ;
+ * - PENDANT : Tab / Shift+Tab bouclent à l'intérieur du panneau (dernier → premier et
+ *   inversement) ; Échap et le clic backdrop restent inchangés ;
+ * - à la FERMETURE : le focus est restauré sur le déclencheur mémorisé s'il existe encore.
  */
 export function Modal({
   open,
@@ -24,10 +35,55 @@ export function Modal({
   className?: string
 }) {
   const { t } = useTranslation()
+  const panneauRef = useRef<HTMLDivElement>(null)
+  const declencheurRef = useRef<HTMLElement | null>(null)
+
+  // Focus : entrée dans la modale à l'ouverture, restauration au déclencheur à la fermeture.
+  // Dépendance [open] UNIQUEMENT : un `onClose` recréé à chaque render ne doit pas re-mémoriser
+  // un activeElement devenu interne à la modale.
+  useEffect(() => {
+    if (!open) return
+    declencheurRef.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null
+    panneauRef.current?.focus()
+    return () => {
+      const declencheur = declencheurRef.current
+      if (declencheur && declencheur.isConnected) declencheur.focus()
+    }
+  }, [open])
+
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
+      if (e.key === 'Escape') {
+        onClose()
+        return
+      }
+      // Piège de focus : Tab / Shift+Tab bouclent dans le panneau (§8 focus-management).
+      if (e.key !== 'Tab') return
+      const panneau = panneauRef.current
+      if (!panneau) return
+      const focusables = Array.from(panneau.querySelectorAll<HTMLElement>(FOCUSABLES))
+      if (focusables.length === 0) {
+        e.preventDefault()
+        panneau.focus()
+        return
+      }
+      const premier = focusables[0]
+      const dernier = focusables[focusables.length - 1]
+      const actif = document.activeElement
+      const dansPanneau = actif instanceof HTMLElement && panneau.contains(actif)
+      if (e.shiftKey) {
+        // Shift+Tab depuis le premier focusable (ou depuis le panneau lui-même) → dernier.
+        if (!dansPanneau || actif === premier || actif === panneau) {
+          e.preventDefault()
+          dernier.focus()
+        }
+      } else if (!dansPanneau || actif === dernier) {
+        // Tab depuis le dernier focusable → premier.
+        e.preventDefault()
+        premier.focus()
+      }
     }
     window.addEventListener('keydown', onKey)
     const prevOverflow = document.body.style.overflow
@@ -54,6 +110,8 @@ export function Modal({
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
       />
       <div
+        ref={panneauRef}
+        tabIndex={-1}
         className={cn(
           'nk-toast-in relative w-full max-w-md rounded-2xl border border-hairline bg-canvas p-6 shadow-xl',
           className,

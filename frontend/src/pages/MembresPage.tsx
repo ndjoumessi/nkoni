@@ -22,6 +22,7 @@ import { DataTable, type Column } from '@/components/ui/DataTable'
 import { ButtonLink, Button } from '@/components/ui/Button'
 import { Input, Select } from '@/components/ui/Field'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { ErrorState } from '@/components/ui/ErrorState'
 import { RowsSkeleton } from '@/components/ui/Skeleton'
 
 type ColonneTri = 'nom' | 'branche' | 'statut' | 'cotisation' | 'adhesion'
@@ -43,6 +44,8 @@ export function MembresPage() {
   const [membres, setMembres] = useState<MembreStatut[] | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // Incrémenté par le bouton « Réessayer » de l'ErrorState : relance l'effet de chargement.
+  const [reloadKey, setReloadKey] = useState(0)
   // Chef de l'organisation (badge sur sa ligne) — best-effort, chargé indépendamment.
   const [chef, setChef] = useState<{ id: string | null; surnom: string | null }>({ id: null, surnom: null })
 
@@ -78,7 +81,7 @@ export function MembresPage() {
       active = false
       controller.abort()
     }
-  }, [accessToken])
+  }, [accessToken, reloadKey])
 
   // Chef de l'organisation : chargé à part (best-effort, jamais bloquant pour la liste).
   useEffect(() => {
@@ -332,7 +335,11 @@ export function MembresPage() {
         )}
 
         {!loading && error && (
-          <Card className="border-terra/30 bg-terra/[0.07] p-5 text-terra">{error}</Card>
+          <ErrorState
+            title={t('commun.erreurs.chargementImpossible')}
+            description={error}
+            onRetry={() => setReloadKey((k) => k + 1)}
+          />
         )}
 
         {!loading && !error && membres && membres.length === 0 && (

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Plus, Wallet, ArrowUpCircle, ArrowDownCircle, Check, X, BadgeCheck, Pencil, Trash2 } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
@@ -14,7 +14,7 @@ import {
 } from '@/lib/api'
 import { peutGererDepense, peutApprouverDepense, peutMarquerPayee } from '@/lib/roles'
 import { formatMontant } from '@/lib/format'
-import { formatDate } from '@/lib/utils'
+import { formatDate, focusPremierChampInvalide } from '@/lib/utils'
 import { useToast } from '@/components/ui/Toast'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, Overline } from '@/components/ui/Card'
@@ -299,11 +299,32 @@ function FormDepense({
   const [description, setDescription] = useState(depense?.description ?? '')
   const [categorie, setCategorie] = useState<CategorieDepense>(depense?.categorie ?? 'AUTRE')
   const [enCours, setEnCours] = useState(false)
+  // Erreurs inline par champ (§8) — même pattern que Login/MonProfil/VersementForm.
+  const [erreurs, setErreurs] = useState<{ montant?: string; date?: string; description?: string }>({})
+  const formRef = useRef<HTMLFormElement>(null)
+
+  /** Efface l'erreur d'un champ dès qu'il change (comme Login). */
+  const effacerErreur = (champ: 'montant' | 'date' | 'description') =>
+    setErreurs((e) => (e[champ] ? { ...e, [champ]: undefined } : e))
 
   const enregistrer = async (statut?: 'BROUILLON' | 'EN_ATTENTE') => {
     if (!accessToken) return
     const m = Number(montant)
-    if (!Number.isInteger(m) || m < 1 || !date || description.trim() === '') return
+    // Validation inline par champ + focus sur le 1er en erreur (§8) — plus de retour silencieux.
+    const eMontant =
+      montant.trim() === ''
+        ? t('tresorerie.form.validation.montantRequis')
+        : !Number.isInteger(m) || m < 1
+          ? t('tresorerie.form.validation.montantPositif')
+          : undefined
+    const eDate = !date ? t('tresorerie.form.validation.dateRequise') : undefined
+    const eDescription =
+      description.trim() === '' ? t('tresorerie.form.validation.descriptionRequise') : undefined
+    setErreurs({ montant: eMontant, date: eDate, description: eDescription })
+    if (eMontant || eDate || eDescription) {
+      requestAnimationFrame(() => focusPremierChampInvalide(formRef.current))
+      return
+    }
     setEnCours(true)
     try {
       const champs = { montant: m, date, description: description.trim(), categorie }
@@ -324,15 +345,15 @@ function FormDepense({
 
   return (
     <Modal open onClose={onClose} title={edition ? t('tresorerie.form.titreEdition') : t('tresorerie.form.titre')}>
-      <form className="space-y-3" onSubmit={(e: FormEvent) => { e.preventDefault(); void enregistrer(edition ? undefined : 'EN_ATTENTE') }}>
-        <Field label={t('tresorerie.form.montant')} required>
-          <Input type="number" min={1} value={montant} onChange={(e) => setMontant(e.target.value)} />
+      <form ref={formRef} className="space-y-3" onSubmit={(e: FormEvent) => { e.preventDefault(); void enregistrer(edition ? undefined : 'EN_ATTENTE') }}>
+        <Field label={t('tresorerie.form.montant')} required error={erreurs.montant}>
+          <Input type="number" min={1} value={montant} onChange={(e) => { setMontant(e.target.value); effacerErreur('montant') }} />
         </Field>
-        <Field label={t('tresorerie.form.date')} required>
-          <DatePicker value={date} onChange={setDate} />
+        <Field label={t('tresorerie.form.date')} required error={erreurs.date}>
+          <DatePicker value={date} onChange={(v) => { setDate(v); effacerErreur('date') }} />
         </Field>
-        <Field label={t('tresorerie.form.description')} required>
-          <Input value={description} onChange={(e) => setDescription(e.target.value)} maxLength={1000} />
+        <Field label={t('tresorerie.form.description')} required error={erreurs.description}>
+          <Input value={description} onChange={(e) => { setDescription(e.target.value); effacerErreur('description') }} maxLength={1000} />
         </Field>
         <Field label={t('tresorerie.form.categorie')}>
           <Select value={categorie} onChange={(e) => setCategorie(e.target.value as CategorieDepense)}>

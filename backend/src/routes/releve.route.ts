@@ -36,13 +36,13 @@ export const releveRoutes: FastifyPluginAsync = async (app: FastifyInstance) => 
           nom: true,
           prenom: true,
           anneeAdhesion: true,
+          anneeFinContribution: true,
           compteUtilisateurId: true,
           branche: { select: { nom: true } },
           contributions: {
             orderBy: { annee: 'asc' },
             select: {
               annee: true,
-              montantAttendu: true,
               montantVerse: true,
               montantValorise: true,
               versements: {
@@ -74,8 +74,35 @@ export const releveRoutes: FastifyPluginAsync = async (app: FastifyInstance) => 
         ? await resoudreDeviseDestinataire(app.prisma, compteId)
         : (org?.devise ?? 'FCFA')
 
-      // Mouvements = versements aplatis (Contribution → Versement), triés chronologiquement.
+      // Borne de cumul §4.1 : [anneeAdhesion .. min(anneeCourante, anneeFinContribution)].
+      // Le tableau « par année » doit se recouper EXACTEMENT avec la synthèse (mêmes bornes,
+      // mêmes barèmes COURANTS). On liste donc TOUTES les années attendues (un barème existe)
+      // OU cotisées dans la borne — pas seulement les `Contribution` ouvertes ; sinon une année
+      // au barème mais sans contribution (fréquent à l'adhésion) gonfle le total attendu de la
+      // synthèse sans apparaître dans le tableau (incohérence visible).
+      const borneFin = Math.min(annee, membre.anneeFinContribution ?? annee)
+      const dansLaBorne = (an: number): boolean => an >= membre.anneeAdhesion && an <= borneFin
+      const baremes = await app.prisma.baremeAnnuel.findMany({
+        select: { annee: true, montantAttendu: true },
+      })
+      const baremeParAnnee = new Map(baremes.map((b) => [b.annee, b.montantAttendu]))
+      const contribParAnnee = new Map(membre.contributions.map((c) => [c.annee, c]))
+
+      const anneesSet = new Set<number>()
+      for (const b of baremes) if (dansLaBorne(b.annee)) anneesSet.add(b.annee)
+      for (const c of membre.contributions) if (dansLaBorne(c.annee)) anneesSet.add(c.annee)
+      const annees = [...anneesSet]
+        .sort((a, b) => a - b)
+        .map((an) => ({
+          annee: an,
+          attendu: baremeParAnnee.get(an) ?? 0,
+          verse: contribParAnnee.get(an)?.montantVerse ?? 0,
+          valorise: contribParAnnee.get(an)?.montantValorise ?? 0,
+        }))
+
+      // Mouvements = versements aplatis (Contribution → Versement) DANS la borne, chronologiques.
       const mouvements: MouvementReleve[] = membre.contributions
+        .filter((c) => dansLaBorne(c.annee))
         .flatMap((c) =>
           c.versements.map((v) => ({
             date: v.dateVersement,
@@ -95,12 +122,7 @@ export const releveRoutes: FastifyPluginAsync = async (app: FastifyInstance) => 
         statut: avecStatut.statutCotisation,
         totalAttendu: avecStatut.totalAttenduCumule,
         totalValorise: avecStatut.totalValoriseCumule,
-        annees: membre.contributions.map((c) => ({
-          annee: c.annee,
-          attendu: c.montantAttendu,
-          verse: c.montantVerse,
-          valorise: c.montantValorise,
-        })),
+        annees,
         mouvements,
         genereLe: new Date(),
       }

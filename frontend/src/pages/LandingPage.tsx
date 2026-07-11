@@ -386,7 +386,7 @@ function SectionHeading({
 }) {
   return (
     <div className="text-center">
-      <p className="text-[0.72rem] font-medium uppercase tracking-[0.16em] text-brass/80">
+      <p className="text-2xs font-medium uppercase tracking-[0.16em] text-brass/80">
         {overline}
       </p>
       <h2 className="mx-auto mt-3 max-w-2xl text-balance font-display text-3xl font-semibold tracking-tight sm:text-4xl">

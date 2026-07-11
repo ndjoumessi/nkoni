@@ -44,7 +44,7 @@ export function Overline({ className, ...props }: React.HTMLAttributes<HTMLParag
   return (
     <p
       className={cn(
-        'text-[0.7rem] font-medium uppercase tracking-[0.14em] text-faint',
+        'text-2xs font-medium uppercase tracking-[0.14em] text-faint',
         className,
       )}
       {...props}

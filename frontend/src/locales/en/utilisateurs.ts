@@ -61,6 +61,12 @@ export default {
       desactiver: 'Deactivate',
       reactiver: 'Reactivate',
     },
+    roleModal: {
+      titre: 'Change role',
+      texte: 'Change the role of {{compte}} to “{{role}}”?',
+      confirmer: 'Change role',
+      annuler: 'Cancel',
+    },
     vide: {
       titre: 'No account',
       description: 'Create the first sign-in account above.',

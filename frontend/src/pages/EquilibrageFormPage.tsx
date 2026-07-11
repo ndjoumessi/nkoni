@@ -275,7 +275,7 @@ export function EquilibrageFormPage() {
               </div>
 
               {/* En-tête de tableau */}
-              <div className="mt-4 hidden grid-cols-[1fr_1.3fr_auto_1.3fr] items-center gap-3 px-1 text-[0.7rem] font-medium uppercase tracking-[0.12em] text-faint sm:grid">
+              <div className="mt-4 hidden grid-cols-[1fr_1.3fr_auto_1.3fr] items-center gap-3 px-1 text-2xs font-medium uppercase tracking-[0.12em] text-faint sm:grid">
                 <span>{t('equilibrages.repartition.colAnnee')}</span>
                 <span>{t('equilibrages.repartition.colAvant')}</span>
                 <span className="sr-only">→</span>

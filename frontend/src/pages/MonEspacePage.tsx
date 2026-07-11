@@ -19,12 +19,12 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, Overline } from '@/components/ui/Card'
 import { StatCard } from '@/components/ui/StatCard'
 import { Button } from '@/components/ui/Button'
-import { Badge } from '@/components/ui/Badge'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { DataTable, type Column } from '@/components/ui/DataTable'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { StatutCotisationBadge, StatutMembreBadge } from '@/components/membres/StatutBadges'
-import type { StatutContribution, StatutMembre } from '@/lib/api'
+import { TypeReunionBadge } from '@/components/reunions/StatutBadges'
+import type { StatutContribution, StatutMembre, TypeReunion } from '@/lib/api'
 
 export function MonEspacePage() {
   const { t } = useTranslation()
@@ -215,7 +215,7 @@ export function MonEspacePage() {
                   <p className="font-medium text-foreground">{formatDate(r.date, { dateStyle: 'long' })}</p>
                   <p className="mt-0.5 text-xs text-faint">{t('monEspace.reunions.lieu')} : {r.lieu}</p>
                 </div>
-                <Badge tone="neutral" size="sm">{r.type}</Badge>
+                <TypeReunionBadge type={r.type as TypeReunion} size="sm" />
               </li>
             ))}
           </ul>

@@ -100,7 +100,7 @@ export function Field({
     <div className={cn('block', className)}>
       <label
         htmlFor={controlId}
-        className="mb-1.5 flex items-center gap-1 text-[0.72rem] font-medium uppercase tracking-[0.1em] text-faint"
+        className="mb-1.5 flex items-center gap-1 text-2xs font-medium uppercase tracking-[0.1em] text-faint"
       >
         {label}
         {required && (

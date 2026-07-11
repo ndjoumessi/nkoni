@@ -74,7 +74,7 @@ export function ReunionsPage() {
       />
 
       {reunions && reunions.length > 0 && (
-        <div className="nk-reveal nk-d2 mt-7 grid grid-cols-3 gap-3">
+        <div className="nk-reveal nk-d2 mt-7 grid grid-cols-1 gap-3 sm:grid-cols-3">
           <StatCard label={t('reunions.stats.total')} value={String(reunions.length)} icon={CalendarRange} />
           <StatCard
             label={t('reunions.stats.planifiees')}

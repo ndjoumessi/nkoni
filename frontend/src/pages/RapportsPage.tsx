@@ -145,7 +145,7 @@ function TableEvolution({ annees }: { annees: RapportAnnee[] }) {
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-hairline text-[0.7rem] uppercase tracking-[0.1em] text-faint">
+            <tr className="border-b border-hairline text-2xs uppercase tracking-[0.1em] text-faint">
               <th className="px-4 py-2.5 text-left font-medium">{t('rapports.table.annee')}</th>
               <th className="px-4 py-2.5 text-right font-medium">{t('rapports.table.attendu')}</th>
               <th className="px-4 py-2.5 text-right font-medium">{t('rapports.table.collecte')}</th>
@@ -194,7 +194,7 @@ function NoteSansBareme({ rapport }: { rapport: RapportAnnee | null }) {
   const { t } = useTranslation()
   if (rapport) return null
   return (
-    <span className="mt-0.5 block text-[0.65rem] font-normal normal-case tracking-normal text-faint">
+    <span className="mt-0.5 block text-3xs font-normal normal-case tracking-normal text-faint">
       {t('rapports.aucunBareme')}
     </span>
   )
@@ -255,7 +255,7 @@ function VueComparaisonMulti({ data }: { data: ComparaisonMulti }) {
       <div ref={scrollRef} className="overflow-x-auto">
         <table className="w-full min-w-max text-sm">
           <thead>
-            <tr className="border-b border-hairline text-[0.7rem] uppercase tracking-[0.1em] text-faint">
+            <tr className="border-b border-hairline text-2xs uppercase tracking-[0.1em] text-faint">
               <th className={cn(CELLULE_COLLANTE, 'px-4 py-3 text-left font-medium')}>
                 {t('rapports.comparaison.metrique')}
               </th>
@@ -383,7 +383,7 @@ function VueDetailMembres({ data }: { data: DetailMembres }) {
           rowKey={(r) => r.membreId}
           caption={t('rapports.mode.detail')}
         />
-        <div className="border-t border-hairline-strong px-4 py-2.5 text-[0.7rem] uppercase tracking-[0.1em] text-faint">
+        <div className="border-t border-hairline-strong px-4 py-2.5 text-2xs uppercase tracking-[0.1em] text-faint">
           {t('rapports.detail.totalMembres', { count: data.lignes.length })}
         </div>
       </Card>
@@ -681,7 +681,7 @@ export function RapportsPage() {
                 </Field>
               ) : (
                 <div className="flex flex-col">
-                  <span className="mb-1.5 text-[0.72rem] font-medium uppercase tracking-[0.1em] text-faint">
+                  <span className="mb-1.5 text-2xs font-medium uppercase tracking-[0.1em] text-faint">
                     {t('rapports.comparaison.anneesComparees')}
                   </span>
                   <div className="flex flex-wrap items-center gap-2">
@@ -725,7 +725,7 @@ export function RapportsPage() {
 
               {/* Export du rapport courant — rattaché aux sélecteurs qui le définissent. */}
               <div className="ml-auto flex flex-col">
-                <span className="mb-1.5 text-[0.72rem] font-medium uppercase tracking-[0.1em] text-faint">
+                <span className="mb-1.5 text-2xs font-medium uppercase tracking-[0.1em] text-faint">
                   {t('rapports.export.titre')}
                 </span>
                 <div className="flex gap-2">

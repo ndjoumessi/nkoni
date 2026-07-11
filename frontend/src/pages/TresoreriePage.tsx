@@ -167,7 +167,7 @@ export function TresoreriePage() {
           )}
           {gestion && d.statut === 'BROUILLON' && (
             <>
-              <Button variant="ghost" size="sm" icon={ArrowUpCircle} onClick={() => agir(() => depensesApi.update(d.id, { statut: 'EN_ATTENTE' }, accessToken!), t('tresorerie.toast.creee'))}>
+              <Button variant="ghost" size="sm" icon={ArrowUpCircle} onClick={() => agir(() => depensesApi.update(d.id, { statut: 'EN_ATTENTE' }, accessToken!), t('tresorerie.toast.soumise'))}>
                 {t('tresorerie.actions.soumettre')}
               </Button>
               <Button variant="ghost" size="sm" icon={Trash2} onClick={() => agir(() => depensesApi.remove(d.id, accessToken!), t('tresorerie.toast.supprimee'))}>

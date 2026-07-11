@@ -191,7 +191,7 @@ export function BaremePage() {
               <div className="flex flex-col">
                 {/* Mêmes classes que le label de Field → hauteur identique, bouton aligné. */}
                 <span
-                  className="mb-1.5 flex items-center gap-1 text-[0.72rem] font-medium uppercase tracking-[0.1em]"
+                  className="mb-1.5 flex items-center gap-1 text-2xs font-medium uppercase tracking-[0.1em]"
                   aria-hidden="true"
                 >
                   &nbsp;
@@ -230,7 +230,7 @@ export function BaremePage() {
 
         {!loading && !error && baremes.length > 0 && (
           <Card className="overflow-hidden p-0">
-            <div className="grid grid-cols-[1fr_2fr_auto] gap-4 border-b border-hairline px-5 py-3 text-[0.7rem] font-medium uppercase tracking-[0.12em] text-faint">
+            <div className="grid grid-cols-[1fr_2fr_auto] gap-4 border-b border-hairline px-5 py-3 text-2xs font-medium uppercase tracking-[0.12em] text-faint">
               <span>{t('bareme.colonneAnnee')}</span>
               <span>{t('bareme.colonneMontant')}</span>
               <span className="sr-only">{t('bareme.colonneActions')}</span>

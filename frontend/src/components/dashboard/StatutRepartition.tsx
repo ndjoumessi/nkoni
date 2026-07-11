@@ -52,7 +52,7 @@ function Repartition({ titre, items }: { titre: string; items: Item[] }) {
                 <span className="num text-2xl font-semibold text-foreground">
                   {formatNombre(total)}
                 </span>
-                <span className="mt-1 text-[0.62rem] uppercase tracking-[0.12em] text-faint">
+                <span className="mt-1 text-3xs uppercase tracking-[0.12em] text-faint">
                   {t('dashboard.repartition.total')}
                 </span>
               </>

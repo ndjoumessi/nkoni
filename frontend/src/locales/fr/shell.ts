@@ -34,6 +34,8 @@ export default {
     ouvrirMenu: 'Ouvrir le menu',
     fermerMenu: 'Fermer le menu',
     fermer: 'Fermer',
+    allerAuContenu: 'Aller au contenu',
+    menuNavigation: 'Menu de navigation',
     seDeconnecter: 'Se déconnecter',
     deconnexionEnCours: 'Déconnexion…',
     recherche: {

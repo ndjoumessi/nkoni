@@ -262,7 +262,7 @@ export function CommandPalette() {
             className="w-full bg-transparent py-3.5 text-sm text-foreground outline-none placeholder:text-faint"
             aria-label={t('shell.recherche.ariaTerme')}
           />
-          <kbd className="hidden shrink-0 rounded border border-hairline-strong px-1.5 py-0.5 text-[0.65rem] text-faint sm:block">
+          <kbd className="hidden shrink-0 rounded border border-hairline-strong px-1.5 py-0.5 text-3xs text-faint sm:block">
             {t('shell.recherche.echap')}
           </kbd>
         </div>
@@ -297,7 +297,7 @@ export function CommandPalette() {
                       <span className="block truncate text-sm text-foreground">{it.label}</span>
                       {it.sub && <span className="block truncate text-xs text-faint">{it.sub}</span>}
                     </span>
-                    <span className="shrink-0 text-[0.65rem] uppercase tracking-wide text-faint">
+                    <span className="shrink-0 text-3xs uppercase tracking-wide text-faint">
                       {t(`shell.recherche.types.${it.typeKey}`)}
                     </span>
                     {i === actif && (

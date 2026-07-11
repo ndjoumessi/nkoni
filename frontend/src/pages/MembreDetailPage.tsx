@@ -42,7 +42,7 @@ import { Skeleton } from '@/components/ui/Skeleton'
 function Info({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="text-[0.7rem] font-medium uppercase tracking-[0.12em] text-faint">{label}</dt>
+      <dt className="text-2xs font-medium uppercase tracking-[0.12em] text-faint">{label}</dt>
       <dd className="mt-1 break-words text-pretty text-sm text-foreground/85">{value || '—'}</dd>
     </div>
   )
@@ -333,7 +333,11 @@ export function MembreDetailPage() {
       <Card className="nk-reveal nk-d3 mt-4 p-6">
         <Overline>{t('membres.detail.informations')}</Overline>
         <dl className="mt-4 grid gap-5 sm:grid-cols-2">
-          <Info label={t('membres.detail.info.sexe')} value={membre.sexe ?? '—'} />
+          <Info
+            label={t('membres.detail.info.sexe')}
+            // Enum brut M/F → libellé traduit ; valeur absente/inattendue → tiret (M7).
+            value={membre.sexe === 'M' || membre.sexe === 'F' ? t(`membres.sexe.${membre.sexe}`) : '—'}
+          />
           <Info label={t('membres.detail.info.dateNaissance')} value={formatDate(membre.dateNaissance, DATE_COURTE)} />
           <Info label={t('membres.detail.info.fonctionSociale')} value={membre.fonctionSociale ?? '—'} />
           <Info label={t('membres.detail.info.brancheFamiliale')} value={brancheNom} />
@@ -426,7 +430,7 @@ export function MembreDetailPage() {
         <Card className="nk-reveal nk-d5 mt-4 p-6">
           <Overline>{t('membres.detail.equilibragesAppliques')}</Overline>
           <div className="mt-4 overflow-hidden rounded-xl border border-hairline">
-            <div className="grid grid-cols-[1fr_1.3fr_1fr] gap-3 border-b border-hairline bg-surface-2/40 px-4 py-2.5 text-[0.7rem] font-medium uppercase tracking-[0.12em] text-faint">
+            <div className="grid grid-cols-[1fr_1.3fr_1fr] gap-3 border-b border-hairline bg-surface-2/40 px-4 py-2.5 text-2xs font-medium uppercase tracking-[0.12em] text-faint">
               <span>{t('membres.detail.col.plage')}</span>
               <span>{t('membres.detail.col.totalPeriode')}</span>
               <span>{t('membres.detail.col.appliqueLe')}</span>

@@ -12,6 +12,7 @@ import {
   type StatutContribution,
 } from '@/lib/api'
 import { estMembreSimple, peutGererMembres } from '@/lib/roles'
+import { formatPourcent } from '@/lib/format'
 import { resumeMembres } from '@/lib/membres'
 import { StatutCotisationBadge, StatutMembreBadge } from '@/components/membres/StatutBadges'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -265,7 +266,7 @@ export function MembresPage() {
             tone="jade"
             icon={CheckCircle2}
             // % à jour PARMI les membres actifs (dénominateur = population éligible, pas l'effectif total).
-            hint={resume.actifs ? `${Math.round((resume.aJour / resume.actifs) * 100)}%` : undefined}
+            hint={resume.actifs ? formatPourcent(Math.round((resume.aJour / resume.actifs) * 100)) : undefined}
           />
           <StatCard label={t('membres.liste.resume.nonAJour')} value={String(resume.nonAJour)} tone="brass" icon={AlertTriangle} />
           <StatCard label={t('membres.liste.resume.inactifsDecedes')} value={String(resume.inactifs)} icon={Users} />

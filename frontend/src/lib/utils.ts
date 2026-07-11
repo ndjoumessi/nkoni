@@ -66,7 +66,12 @@ export function normaliserTexte(valeur: string): string {
 export function focusPremierChampInvalide(form: HTMLElement | null): void {
   const cible = form?.querySelector<HTMLElement>('[aria-invalid="true"]')
   if (cible) {
-    cible.focus()
+    // Field pose `aria-invalid` sur son ENFANT DIRECT : quand c'est un conteneur (wrapper
+    // d'icône, PasswordInput…), on descend vers le contrôle réel — un div n'est pas focusable.
+    const controle = cible.matches('input, select, textarea')
+      ? cible
+      : (cible.querySelector<HTMLElement>('input, select, textarea') ?? cible)
+    controle.focus()
     cible.scrollIntoView({ block: 'center', behavior: 'smooth' })
   }
 }

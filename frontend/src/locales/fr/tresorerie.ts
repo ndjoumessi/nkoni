@@ -64,6 +64,7 @@ export default {
     },
     toast: {
       creee: 'Dépense enregistrée',
+      soumise: 'Dépense soumise',
       modifiee: 'Dépense modifiée',
       approuvee: 'Dépense approuvée',
       rejetee: 'Dépense rejetée',

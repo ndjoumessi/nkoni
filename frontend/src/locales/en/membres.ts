@@ -1,6 +1,10 @@
 /** Chaînes EN du domaine « membres » (§4 i18n). */
 export default {
   membres: {
+    sexe: {
+      M: 'Male',
+      F: 'Female',
+    },
     liste: {
       overline: 'Community',
       titre: 'Members',

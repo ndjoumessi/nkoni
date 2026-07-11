@@ -96,7 +96,7 @@ export function DataTable<T>({
                   aria-sort={ariaSort}
                   style={col.width ? { width: col.width } : undefined}
                   className={cn(
-                    'border-b border-hairline-strong px-4 py-2.5 text-[0.7rem] font-medium uppercase tracking-[0.1em] text-faint',
+                    'border-b border-hairline-strong px-4 py-2.5 text-2xs font-medium uppercase tracking-[0.1em] text-faint',
                     alignClass(col),
                     col.headerClassName,
                   )}

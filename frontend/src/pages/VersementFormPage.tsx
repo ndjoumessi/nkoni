@@ -245,7 +245,7 @@ export function VersementFormPage() {
             </p>
             <dl className="mt-4 grid grid-cols-2 gap-4 text-sm">
               <div>
-                <dt className="text-[0.7rem] font-medium uppercase tracking-[0.12em] text-faint">
+                <dt className="text-2xs font-medium uppercase tracking-[0.12em] text-faint">
                   {t('versements.form.totalVerse')}
                 </dt>
                 <dd className="num mt-1 font-semibold text-foreground">
@@ -253,7 +253,7 @@ export function VersementFormPage() {
                 </dd>
               </div>
               <div>
-                <dt className="text-[0.7rem] font-medium uppercase tracking-[0.12em] text-faint">
+                <dt className="text-2xs font-medium uppercase tracking-[0.12em] text-faint">
                   {t('versements.form.totalValorise')}
                 </dt>
                 <dd className="num mt-1 font-semibold text-foreground">

@@ -24,7 +24,7 @@ function Info({
     <div className="flex items-start gap-3 py-3">
       <Icon className="mt-0.5 h-4 w-4 shrink-0 text-brass" aria-hidden="true" />
       <div className="min-w-0">
-        <dt className="text-[0.7rem] font-medium uppercase tracking-[0.12em] text-faint">{label}</dt>
+        <dt className="text-2xs font-medium uppercase tracking-[0.12em] text-faint">{label}</dt>
         <dd className="mt-0.5 break-words text-sm font-medium text-foreground">{value}</dd>
       </div>
     </div>
@@ -92,8 +92,11 @@ export function ParametresPage() {
 
   return (
     <div className="mx-auto max-w-2xl">
-      <PageHeader overline={t('parametres.overline')} title={t('parametres.titre')} />
-      <p className="mt-2 text-sm text-muted-foreground">{t('parametres.sousTitre')}</p>
+      <PageHeader
+        overline={t('parametres.overline')}
+        title={t('parametres.titre')}
+        description={t('parametres.sousTitre')}
+      />
 
       {loading ? (
         <div className="mt-7 space-y-6">

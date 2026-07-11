@@ -23,6 +23,11 @@
     --font-display: var(--font-sans);
     --font-heading: var(--font-display);
 
+    /* Échelle micro-typo (labels/overlines) — PLANCHER de lisibilité à 0.68rem :
+       remplace les tailles arbitraires text-[0.6–0.72rem] éparpillées (M11). */
+    --text-2xs: 0.72rem;
+    --text-3xs: 0.68rem;
+
     /* Rayons */
     --radius-sm: calc(var(--radius) * 0.55);
     --radius-md: calc(var(--radius) * 0.75);

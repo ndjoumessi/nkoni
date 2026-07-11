@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
@@ -22,6 +22,7 @@ import {
 } from 'lucide-react'
 import { CommandPalette } from '@/components/CommandPalette'
 import { IndicateurSync } from '@/components/IndicateurSync'
+import { moiApi } from '@/lib/api'
 import { useAuth } from '@/contexts/auth-context'
 import {
   estMembreSimple,
@@ -134,10 +135,44 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   )
 }
 
+// Identité du membre lié (nom/prénom) — cache module : un seul fetch best-effort par session,
+// même si le chip est monté deux fois (sidebar desktop + drawer mobile).
+let identiteMembreCache: { membreId: string; nom: string; prenom: string } | null = null
+
 function UserChip({ onNavigate }: { onNavigate?: () => void }) {
-  const { user } = useAuth()
+  const { user, accessToken } = useAuth()
   const { t } = useTranslation()
-  const initials = (user?.email ?? '?').slice(0, 2).toUpperCase()
+  const [identite, setIdentite] = useState<{ nom: string; prenom: string } | null>(
+    user?.membreId && identiteMembreCache?.membreId === user.membreId ? identiteMembreCache : null,
+  )
+
+  // m9 : initiales dérivées du nom/prénom du membre lié quand il existe (comme UtilisateursPage),
+  // via le self-service /moi/situation (best-effort : 404 sans fiche → repli e-mail).
+  useEffect(() => {
+    const membreId = user?.membreId
+    if (!membreId || !accessToken || identite) return
+    const controller = new AbortController()
+    let actif = true
+    moiApi
+      .situation(accessToken, controller.signal)
+      .then((s) => {
+        if (!actif) return
+        identiteMembreCache = { membreId, nom: s.membre.nom, prenom: s.membre.prenom }
+        setIdentite({ nom: s.membre.nom, prenom: s.membre.prenom })
+      })
+      .catch(() => {
+        /* pas de fiche liée ou erreur → initiales e-mail */
+      })
+    return () => {
+      actif = false
+      controller.abort()
+    }
+  }, [user?.membreId, accessToken, identite])
+
+  const initialesMembre = identite
+    ? `${identite.prenom?.[0] ?? ''}${identite.nom?.[0] ?? ''}`.trim()
+    : ''
+  const initials = (initialesMembre || (user?.email ?? '?').slice(0, 2)).toUpperCase()
   return (
     <Link
       to="/mon-profil"
@@ -188,7 +223,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       {/* Organisation en relief : premier repère en entrant dans l'app (bloc menthe discret). */}
       {user?.nomOrganisation && (
         <div className="mt-4 shrink-0 rounded-xl border border-brass/25 bg-brass/[0.06] px-3 py-2.5">
-          <p className="text-[0.62rem] font-medium uppercase tracking-[0.14em] text-brass/80">
+          <p className="text-3xs font-medium uppercase tracking-[0.14em] text-brass/80">
             {t('shell.organisation')}
           </p>
           <p
@@ -211,7 +246,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       >
         <Search className="h-4 w-4 text-faint" aria-hidden="true" />
         <span className="flex-1 text-left">{t('shell.rechercher')}</span>
-        <kbd className="rounded border border-hairline-strong px-1.5 py-0.5 text-[0.6rem] text-faint">
+        <kbd className="rounded border border-hairline-strong px-1.5 py-0.5 text-3xs text-faint">
           ⌘K
         </kbd>
       </button>
@@ -223,7 +258,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
           visible même quand la liste de liens dépasse la hauteur de l'écran (min-h-0 est
           requis pour qu'un enfant flex puisse défiler au lieu de pousser le reste). */}
       <div className="mt-6 min-h-0 flex-1 overflow-y-auto">
-        <p className="mb-2 px-3 text-[0.68rem] font-medium uppercase tracking-[0.14em] text-faint">
+        <p className="mb-2 px-3 text-3xs font-medium uppercase tracking-[0.14em] text-faint">
           {t('shell.nav.titre')}
         </p>
         <NavLinks onNavigate={onNavigate} />
@@ -256,12 +291,41 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { t } = useTranslation()
   const { user } = useAuth()
   const location = useLocation()
+  const fermerDrawerRef = useRef<HTMLButtonElement>(null)
+  const ouvrirDrawerRef = useRef<HTMLButtonElement>(null)
+  const drawerEtaitOuvert = useRef(false)
 
   // Ferme le drawer à chaque changement de route.
   useEffect(() => setDrawer(false), [location.pathname])
 
+  // Drawer mobile (M10) : à l'ouverture le focus entre sur le bouton fermer + Échap ferme ;
+  // à la fermeture, si le focus est tombé sur <body> (panneau démonté), on le rend au déclencheur.
+  useEffect(() => {
+    if (drawer) {
+      drawerEtaitOuvert.current = true
+      fermerDrawerRef.current?.focus()
+      const onKey = (e: KeyboardEvent) => {
+        if (e.key === 'Escape' && !e.defaultPrevented) setDrawer(false)
+      }
+      window.addEventListener('keydown', onKey)
+      return () => window.removeEventListener('keydown', onKey)
+    }
+    if (drawerEtaitOuvert.current) {
+      drawerEtaitOuvert.current = false
+      if (document.activeElement === document.body) ouvrirDrawerRef.current?.focus()
+    }
+  }, [drawer])
+
   return (
     <div className="relative min-h-screen">
+      {/* Skip-link (M10) : premier focusable — masqué sauf au focus clavier. */}
+      <a
+        href="#contenu-principal"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[100] focus:rounded-lg focus:border focus:border-brass/40 focus:bg-surface-2 focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-foreground"
+      >
+        {t('shell.allerAuContenu')}
+      </a>
+
       <div className="nk-aura pointer-events-none fixed inset-0 -z-10" aria-hidden="true" />
 
       {/* Sidebar desktop */}
@@ -286,6 +350,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         )}
         <button
           type="button"
+          ref={ouvrirDrawerRef}
           onClick={() => setDrawer(true)}
           className="flex h-11 w-11 items-center justify-center rounded-lg border border-hairline-strong bg-surface-2 text-foreground"
           aria-label={t('shell.ouvrirMenu')}
@@ -303,9 +368,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             onClick={() => setDrawer(false)}
             aria-label={t('shell.fermerMenu')}
           />
-          <div className="nk-toast-in absolute inset-y-0 left-0 w-[17rem] border-r border-hairline bg-canvas p-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={t('shell.menuNavigation')}
+            className="nk-toast-in absolute inset-y-0 left-0 w-[17rem] border-r border-hairline bg-canvas p-4"
+          >
             <button
               type="button"
+              ref={fermerDrawerRef}
               onClick={() => setDrawer(false)}
               // Bouton ABSOLUTE → pas de .tap-target (position:relative le casserait) ; la cible
               // passe à 44px en agrandissant le bouton, ancres ajustées pour garder le X en place.
@@ -319,9 +390,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       )}
 
-      {/* Contenu */}
+      {/* Contenu — cible du skip-link (tabIndex -1 : focusable par programme uniquement). */}
       <div className="lg:pl-64">
-        <div className="mx-auto max-w-5xl px-5 py-8 sm:px-8 sm:py-10">{children}</div>
+        <div
+          id="contenu-principal"
+          tabIndex={-1}
+          className="mx-auto max-w-5xl px-5 py-8 sm:px-8 sm:py-10"
+        >
+          {children}
+        </div>
       </div>
 
       {/* Recherche transverse (⌘K) — montée une fois, globale */}

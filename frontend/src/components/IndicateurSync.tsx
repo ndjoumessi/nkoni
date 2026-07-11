@@ -35,7 +35,7 @@ export function IndicateurSync({ className = '' }: { className?: string }) {
       )}
       <span>{libelle}</span>
       {nbAttente > 0 && (
-        <span className="num rounded-full bg-current/15 px-1.5 text-[0.65rem] leading-4">{nbAttente}</span>
+        <span className="num rounded-full bg-current/15 px-1.5 text-3xs leading-4">{nbAttente}</span>
       )}
     </button>
   )

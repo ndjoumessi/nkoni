@@ -158,7 +158,7 @@ function CorpsAire({ points, monte }: { points: PointEvolution[]; monte: boolean
     <div className="mt-5">
       <div className="relative">
         {/* Échelle haute (valeur max), lisible et non déformée. */}
-        <span className="num absolute -top-1 left-0 z-10 text-[0.65rem] text-faint">
+        <span className="num absolute -top-1 left-0 z-10 text-3xs text-faint">
           {formatNombre(max)}
         </span>
         <svg
@@ -219,7 +219,7 @@ function CorpsAire({ points, monte }: { points: PointEvolution[]; monte: boolean
         {points.map((p, i) => (
           <span
             key={p.cle}
-            className="absolute -translate-x-1/2 text-[0.65rem] text-faint"
+            className="absolute -translate-x-1/2 text-3xs text-faint"
             style={{ left: `${(x(i) / W) * 100}%` }}
           >
             {p.label}

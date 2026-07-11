@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Navigate } from 'react-router-dom'
 import { KeyRound, Mail, Power, ShieldUser, UserPlus } from 'lucide-react'
@@ -13,6 +13,7 @@ import {
   type MembreStatut,
 } from '@/lib/api'
 import { peutGererUtilisateurs, ROLES } from '@/lib/roles'
+import { focusPremierChampInvalide } from '@/lib/utils'
 import { useToast } from '@/components/ui/Toast'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card } from '@/components/ui/Card'
@@ -48,13 +49,20 @@ export function UtilisateursPage() {
   const [membreId, setMembreId] = useState('')
   const [creating, setCreating] = useState(false)
   const [creerOuvert, setCreerOuvert] = useState(false)
+  // Erreurs inline par champ (§8) — même pattern que Login/MonProfil ; toasts réservés au succès.
+  const [erreursCreation, setErreursCreation] = useState<{ email?: string; password?: string }>({})
+  const creerFormRef = useRef<HTMLFormElement>(null)
 
   const [pendingId, setPendingId] = useState<string | null>(null)
+  // Changement de rôle À CONFIRMER (M8) : le select ne l'applique plus directement au onChange.
+  const [roleChange, setRoleChange] = useState<{ utilisateur: Utilisateur; role: string } | null>(null)
 
   // Modal de réinitialisation du mot de passe d'un compte (ADMIN).
   const [resetCible, setResetCible] = useState<Utilisateur | null>(null)
   const [resetPassword, setResetPassword] = useState('')
   const [resetting, setResetting] = useState(false)
+  const [erreurReset, setErreurReset] = useState<string | undefined>(undefined)
+  const resetFormRef = useRef<HTMLFormElement>(null)
 
   useEffect(() => {
     if (!accessToken) return
@@ -103,12 +111,12 @@ export function UtilisateursPage() {
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!accessToken) return
-    if (!email.includes('@')) {
-      toast.error(t('utilisateurs.toast.emailInvalide'), t('utilisateurs.toast.emailInvalideDetail'))
-      return
-    }
-    if (password.length < 8) {
-      toast.error(t('utilisateurs.toast.motDePasseCourt'), t('utilisateurs.min8'))
+    // Validation inline par champ + focus sur le 1er en erreur (§8) — plus de toast d'erreur de saisie.
+    const eEmail = !email.includes('@') ? t('utilisateurs.toast.emailInvalideDetail') : undefined
+    const ePassword = password.length < 8 ? t('utilisateurs.min8') : undefined
+    if (eEmail || ePassword) {
+      setErreursCreation({ email: eEmail, password: ePassword })
+      requestAnimationFrame(() => focusPremierChampInvalide(creerFormRef.current))
       return
     }
     setCreating(true)
@@ -137,13 +145,16 @@ export function UtilisateursPage() {
   const ouvrirReset = (u: Utilisateur) => {
     setResetCible(u)
     setResetPassword('')
+    setErreurReset(undefined)
   }
 
   const handleReset = async (e: FormEvent) => {
     e.preventDefault()
     if (!accessToken || !resetCible) return
+    // Validation inline (§8) — le toast ne sert plus qu'au succès.
     if (resetPassword.length < 8) {
-      toast.error(t('utilisateurs.toast.motDePasseCourt'), t('utilisateurs.min8'))
+      setErreurReset(t('utilisateurs.min8'))
+      requestAnimationFrame(() => focusPremierChampInvalide(resetFormRef.current))
       return
     }
     setResetting(true)
@@ -184,6 +195,13 @@ export function UtilisateursPage() {
     } finally {
       setPendingId(null)
     }
+  }
+
+  // Applique le rôle APRÈS confirmation dans la Modal (M8) — jamais au onChange du select.
+  const confirmerChangementRole = async () => {
+    if (!roleChange) return
+    await patch(roleChange.utilisateur, { role: roleChange.role })
+    setRoleChange(null)
   }
 
   const colonnesComptes: Column<Utilisateur>[] = [
@@ -233,7 +251,10 @@ export function UtilisateursPage() {
           <Select
             value={u.role}
             disabled={estSoi || busy}
-            onChange={(e) => patch(u, { role: e.target.value })}
+            // Ne PAS appliquer directement (une molette suffirait à promouvoir un compte) :
+            // on demande confirmation ; le select étant contrôlé par u.role, il revient
+            // de lui-même à l'ancienne valeur tant que le patch n'est pas confirmé.
+            onChange={(e) => setRoleChange({ utilisateur: u, role: e.target.value })}
             aria-label={t('utilisateurs.table.roleAria', { email: u.email })}
           >
             {ROLES.map((r) => (
@@ -299,7 +320,13 @@ export function UtilisateursPage() {
             : undefined
         }
         actions={
-          <Button icon={UserPlus} onClick={() => setCreerOuvert(true)}>
+          <Button
+            icon={UserPlus}
+            onClick={() => {
+              setErreursCreation({})
+              setCreerOuvert(true)
+            }}
+          >
             {t('utilisateurs.creer.titre')}
           </Button>
         }
@@ -348,9 +375,9 @@ export function UtilisateursPage() {
         onClose={() => (creating ? undefined : setCreerOuvert(false))}
         title={t('utilisateurs.creer.titre')}
       >
-        <form onSubmit={handleCreate} className="space-y-4">
+        <form ref={creerFormRef} onSubmit={handleCreate} className="space-y-4">
           <FormSection icon={Mail} title={t('utilisateurs.creer.identifiants')}>
-            <Field label={t('utilisateurs.creer.email')} required>
+            <Field label={t('utilisateurs.creer.email')} required error={erreursCreation.email}>
               <div className="relative">
                 <Mail
                   className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-faint"
@@ -361,18 +388,30 @@ export function UtilisateursPage() {
                   name="account-email"
                   autoComplete="off"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEmail(e.target.value)
+                    // Efface l'erreur du champ dès la saisie (comme Login).
+                    setErreursCreation((er) => (er.email ? { ...er, email: undefined } : er))
+                  }}
                   placeholder={t('utilisateurs.creer.emailPlaceholder')}
                   className="pl-10"
                 />
               </div>
             </Field>
-            <Field label={t('utilisateurs.creer.motDePasse')} required hint={t('utilisateurs.min8')}>
+            <Field
+              label={t('utilisateurs.creer.motDePasse')}
+              required
+              hint={t('utilisateurs.min8')}
+              error={erreursCreation.password}
+            >
               <PasswordInput
                 name="new-password"
                 autoComplete="new-password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value)
+                  setErreursCreation((er) => (er.password ? { ...er, password: undefined } : er))
+                }}
                 placeholder="••••••••"
                 leftIcon={KeyRound}
               />
@@ -423,18 +462,26 @@ export function UtilisateursPage() {
         onClose={() => (resetting ? undefined : setResetCible(null))}
         title={t('utilisateurs.reset.titre')}
       >
-        <form onSubmit={handleReset} className="space-y-4">
+        <form ref={resetFormRef} onSubmit={handleReset} className="space-y-4">
           <p className="text-sm text-muted-foreground">
             {t('utilisateurs.reset.intro')}{' '}
             <span className="font-medium text-foreground">{resetCible?.email}</span>
             {t('utilisateurs.reset.introSuite')}
           </p>
-          <Field label={t('utilisateurs.reset.nouveau')} required hint={t('utilisateurs.min8')}>
+          <Field
+            label={t('utilisateurs.reset.nouveau')}
+            required
+            hint={t('utilisateurs.min8')}
+            error={erreurReset}
+          >
             <PasswordInput
               name="reset-new-password"
               autoComplete="new-password"
               value={resetPassword}
-              onChange={(e) => setResetPassword(e.target.value)}
+              onChange={(e) => {
+                setResetPassword(e.target.value)
+                setErreurReset(undefined)
+              }}
               placeholder="••••••••"
               leftIcon={KeyRound}
               autoFocus
@@ -454,6 +501,43 @@ export function UtilisateursPage() {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Modal — confirmation de changement de rôle (M8) : évite la promotion accidentelle
+          (molette/flèches sur le select). Annuler → le select contrôlé revient à u.role. */}
+      <Modal
+        open={roleChange !== null}
+        onClose={() => (pendingId ? undefined : setRoleChange(null))}
+        title={t('utilisateurs.roleModal.titre')}
+      >
+        {roleChange && (
+          <>
+            <p className="text-sm text-muted-foreground">
+              {t('utilisateurs.roleModal.texte', {
+                compte: roleChange.utilisateur.email,
+                role: t(`utilisateurs.roles.${roleChange.role}`),
+              })}
+            </p>
+            <div className="mt-6 flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={pendingId === roleChange.utilisateur.id}
+                onClick={() => setRoleChange(null)}
+              >
+                {t('utilisateurs.roleModal.annuler')}
+              </Button>
+              <Button
+                type="button"
+                icon={ShieldUser}
+                loading={pendingId === roleChange.utilisateur.id}
+                onClick={() => void confirmerChangementRole()}
+              >
+                {t('utilisateurs.roleModal.confirmer')}
+              </Button>
+            </div>
+          </>
+        )}
       </Modal>
     </>
   )

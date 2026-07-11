@@ -202,7 +202,7 @@ export function GlassmorphismTrustHero({
           <div className="overflow-hidden rounded-3xl border border-hairline bg-surface/60 p-5 backdrop-blur-xl">
             <div className="mb-4 flex items-center gap-2 px-1">
               <HeartHandshake className="h-4 w-4 text-jade" aria-hidden="true" />
-              <p className="text-[0.7rem] font-medium uppercase tracking-[0.14em] text-faint">
+              <p className="text-2xs font-medium uppercase tracking-[0.14em] text-faint">
                 {t('landing.hero.valeurs.titre')}
               </p>
             </div>

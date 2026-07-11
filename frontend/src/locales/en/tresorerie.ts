@@ -64,6 +64,7 @@ export default {
     },
     toast: {
       creee: 'Expense saved',
+      soumise: 'Expense submitted',
       modifiee: 'Expense updated',
       approuvee: 'Expense approved',
       rejetee: 'Expense rejected',

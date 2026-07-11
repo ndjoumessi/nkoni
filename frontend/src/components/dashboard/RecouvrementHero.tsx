@@ -61,7 +61,7 @@ function Gauge({ value }: { value: number }) {
         <span className="num text-3xl font-semibold tracking-tight text-foreground">
           {formatPourcent(Math.round(pct))}
         </span>
-        <span className="mt-0.5 text-[0.65rem] uppercase tracking-[0.12em] text-faint">
+        <span className="mt-0.5 text-3xs uppercase tracking-[0.12em] text-faint">
           {t('dashboard.hero.recouvre')}
         </span>
       </div>
@@ -82,7 +82,7 @@ export function RecouvrementHero({
   const { t } = useTranslation()
   return (
     <Card variant="feature" className="p-6 sm:p-7">
-      <p className="text-[0.7rem] font-medium uppercase tracking-[0.14em] text-brass/80">
+      <p className="text-2xs font-medium uppercase tracking-[0.14em] text-brass/80">
         {t('dashboard.hero.indicateur')}
       </p>
       <div className="mt-5 flex flex-col items-center gap-7 sm:flex-row sm:gap-9">

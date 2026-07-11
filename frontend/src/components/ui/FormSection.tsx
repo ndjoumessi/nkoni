@@ -27,7 +27,7 @@ export function FormSection({
     <section
       className={cn('@container rounded-2xl border border-hairline bg-surface-2/30 p-4 sm:p-5', className)}
     >
-      <p className="mb-4 flex items-center gap-2 text-[0.7rem] font-medium uppercase tracking-[0.12em] text-faint">
+      <p className="mb-4 flex items-center gap-2 text-2xs font-medium uppercase tracking-[0.12em] text-faint">
         {Icon && <Icon className="h-3.5 w-3.5 text-brass" aria-hidden="true" />}
         {title}
       </p>

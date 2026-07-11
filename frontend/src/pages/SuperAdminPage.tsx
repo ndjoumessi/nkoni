@@ -456,7 +456,7 @@ export function SuperAdminPage() {
                   )}
                 >
                   {seg.libelle}
-                  <span className={cn('num text-[0.7rem]', actif ? 'text-brass' : 'text-faint')}>
+                  <span className={cn('num text-2xs', actif ? 'text-brass' : 'text-faint')}>
                     {seg.compte}
                   </span>
                 </button>

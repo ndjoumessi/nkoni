@@ -158,7 +158,7 @@ function DiffDetails({ entry }: { entry: AuditEntry }) {
   return (
     <div className="mt-1 space-y-1 rounded-xl border border-hairline bg-surface-2/40 p-3">
       {compare && (
-        <div className="mb-1 grid grid-cols-[minmax(0,11rem)_1fr] gap-x-3 px-2 text-[0.68rem] uppercase tracking-wide text-faint">
+        <div className="mb-1 grid grid-cols-[minmax(0,11rem)_1fr] gap-x-3 px-2 text-3xs uppercase tracking-wide text-faint">
           <span>{t('audit.diff.champ')}</span>
           <span>{t('audit.diff.avantApres')}</span>
         </div>

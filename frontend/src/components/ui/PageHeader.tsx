@@ -33,7 +33,7 @@ export function PageHeader({
       <div className={cn('flex flex-wrap items-start justify-between gap-4', back && 'mt-4')}>
         <div className="min-w-0">
           {overline && (
-            <p className="text-[0.72rem] font-medium uppercase tracking-[0.14em] text-brass/80">
+            <p className="text-2xs font-medium uppercase tracking-[0.14em] text-brass/80">
               {overline}
             </p>
           )}

@@ -26,7 +26,7 @@ export function StatCard({
   return (
     <Card interactive className={cn('p-5', className)}>
       <div className="flex items-center justify-between">
-        <p className="text-[0.7rem] font-medium uppercase tracking-[0.12em] text-faint">{label}</p>
+        <p className="text-2xs font-medium uppercase tracking-[0.12em] text-faint">{label}</p>
         {Icon && (
           <span className={cn('flex h-8 w-8 items-center justify-center rounded-lg bg-surface-2', iconTone)}>
             <Icon className="h-4 w-4" aria-hidden="true" />

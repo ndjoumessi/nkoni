@@ -470,7 +470,7 @@ export function DatePicker({
                 <div role="grid" onKeyDown={onGridKeyDown}>
                   <div role="row" className="mb-1 grid grid-cols-7">
                     {enTetes.map((h) => (
-                      <span key={h.key} role="columnheader" className="py-1 text-center text-[0.65rem] font-medium uppercase tracking-wide text-faint">
+                      <span key={h.key} role="columnheader" className="py-1 text-center text-3xs font-medium uppercase tracking-wide text-faint">
                         {h.court}
                       </span>
                     ))}

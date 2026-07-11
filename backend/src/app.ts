@@ -22,6 +22,7 @@ import { equilibragesRoutes } from './routes/equilibrages.route'
 import { recusRoutes } from './routes/recus.route'
 import { cartesRoutes } from './routes/cartes.route'
 import { releveRoutes } from './routes/releve.route'
+import { cagnottesRoutes } from './routes/cagnottes.route'
 import { dashboardRoutes } from './routes/dashboard.route'
 import { exportsRoutes } from './routes/exports.route'
 import { utilisateursRoutes } from './routes/utilisateurs.route'
@@ -111,6 +112,7 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   await app.register(recusRoutes)
   await app.register(cartesRoutes)
   await app.register(releveRoutes)
+  await app.register(cagnottesRoutes)
   await app.register(dashboardRoutes)
   await app.register(exportsRoutes)
   await app.register(utilisateursRoutes)

@@ -149,6 +149,24 @@ statut de déploiement Railway/Vercel confirmé au statut réel là où le backe
   Désormais il couvre TOUTES les années de la **borne §4.1** `[anneeAdhesion .. min(anneeCourante,
   anneeFinContribution)]` (union barème ∪ contributions), l'attendu venant du **barème courant** —
   même source que la synthèse → recoupement exact ; les mouvements sont aussi bornés à cette fenêtre.
+- **Cagnottes d'événement (§4.9)** — collectes de solidarité ponctuelles (deuil, mariage, naissance…),
+  **poche SÉPARÉE** de la trésorerie générale : dons des membres → **reversement au bénéficiaire**
+  (jamais mêlé au solde de caisse). 2 modèles SCOPÉS (`CagnotteEvenement`, `DonCagnotte` → 24ᵉ/25ᵉ
+  SCOPED_MODEL) + 2 enums (`TypeCagnotte` DEUIL/MARIAGE/NAISSANCE/AUTRE, `StatutCagnotte`
+  OUVERTE/CLOTUREE). Bénéficiaire = **membre OU nom libre** (FK `ON DELETE SET NULL`). Suivi **par
+  membre** (chaque don enregistré : membre, montant, mode, date, note). Cycle OUVERTE→CLOTUREE
+  (rouvrable) ; clôture = saisie du **montant reversé** borné à `[0, collecté]`. `routes/cagnottes.route.ts` :
+  CRUD cagnotte + dons (add/del) + `cloturer`/`rouvrir`. Permissions : entité `Cagnotte` (gestion =
+  bureau) ; les FLUX D'ARGENT (dons, reversement, clôture, suppression) gardés par
+  `requireRoles(['ADMIN','PRESIDENT','TRESORIERE'])`. Lecture ouverte à tous. Écritures en **FK
+  scalaires** (`creeParId`/`saisiParId`/`cagnotteId`/`membreId`, `organisationId` injecté).
+  Logique métier PURE testée : `cagnotte.service.ts` (collecte, solde, progression %, `validerReversement`)
+  — 5/5. Front : nav « Cagnottes », pages liste (cartes + barre de progression, sections en cours/
+  clôturées), détail (synthèse collecté/reversé/solde + table des dons + modales don/clôture/suppression),
+  formulaire création/édition ; `cagnottesApi`, miroir rôles (`peutVoirCagnottes`/`peutGererCagnotte`/
+  `peutSaisirDon`), i18n `cagnottes.*` FR/EN. **Migration `cagnottes_evenement`** générée et committée
+  (additive : 2 `CREATE TYPE` + 2 tables + FK) ; s'applique en prod via `prisma migrate deploy` au
+  déploiement Railway (`startCommand`).
 
 ### Migrations appliquées en prod
 - `tresorerie_depense` — additive (table `Depense` + 2 enums via `CREATE TYPE`).

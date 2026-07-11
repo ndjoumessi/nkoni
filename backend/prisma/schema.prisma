@@ -107,6 +107,8 @@ model Organisation {
   auditLogs            AuditLog[]
   notifications        Notification[]
   depenses             Depense[]
+  cagnottes            CagnotteEvenement[]
+  donsCagnotte         DonCagnotte[]
 }
 
 model Utilisateur {
@@ -184,6 +186,8 @@ model Membre {
   conflitsConcernes        ConflitMembreConcerne[] // V2 §4.4 (join explicite, scopé org)
   commemorationsConcernees CommemorationMembreConcerne[] // V2 (join explicite, scopé org)
   depensesBeneficiaire     Depense[]                     @relation("DepenseBeneficiaire") // Trésorerie — aides reçues
+  cagnottesBeneficiaire    CagnotteEvenement[]           @relation("CagnotteBeneficiaire") // Cagnottes dont il est bénéficiaire
+  donsCagnotte             DonCagnotte[]                  @relation("DonCagnotteMembre") // Dons faits par ce membre
   organisationsCommeChef   Organisation[]                @relation("ChefOrganisation") // Chef de l'organisation (inverse ; rare : 1)
   // Idempotence (§ PWA hors-ligne) : rejeu d'un « ajouter membre » saisi hors-ligne (uuid client).
   idempotenceKey           String?
@@ -710,4 +714,67 @@ model Depense {
 
   @@index([organisationId, statut])
   @@index([organisationId, date])
+}
+
+/* -------------------------------------------------------------------------- */
+/* Cagnottes d'événement (§4.9) — collectes ponctuelles (deuil, mariage,       */
+/* naissance…). POCHE SÉPARÉE de la caisse générale : dons des membres →        */
+/* reversement au bénéficiaire. Modèles SCOPÉS (isolation tenant).             */
+/* -------------------------------------------------------------------------- */
+
+enum TypeCagnotte {
+  DEUIL
+  MARIAGE
+  NAISSANCE
+  AUTRE
+}
+
+enum StatutCagnotte {
+  OUVERTE
+  CLOTUREE
+}
+
+model CagnotteEvenement {
+  id                   String         @id @default(uuid())
+  organisationId       String
+  organisation         Organisation   @relation(fields: [organisationId], references: [id])
+  titre                String
+  type                 TypeCagnotte   @default(AUTRE)
+  description          String?
+  objectif             Int? // montant cible optionnel (barre de progression)
+  dateEvenement        DateTime?
+  statut               StatutCagnotte @default(OUVERTE)
+  // Bénéficiaire : un membre OU un nom libre (personne extérieure). ON DELETE SET NULL.
+  beneficiaireMembreId String?
+  beneficiaireMembre   Membre?        @relation("CagnotteBeneficiaire", fields: [beneficiaireMembreId], references: [id], onDelete: SetNull)
+  beneficiaireNom      String?
+  // Reversement au bénéficiaire (poche séparée : Σ dons − reversé = solde restant).
+  montantReverse       Int            @default(0)
+  dateReversement      DateTime?
+  creeParId            String // auteur de la création (FK scalaire, pas de relation inverse)
+  dons                 DonCagnotte[]
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+
+  @@index([organisationId, statut])
+  @@index([organisationId, type])
+}
+
+model DonCagnotte {
+  id             String            @id @default(uuid())
+  organisationId String
+  organisation   Organisation      @relation(fields: [organisationId], references: [id])
+  cagnotteId     String
+  cagnotte       CagnotteEvenement @relation(fields: [cagnotteId], references: [id], onDelete: Cascade)
+  // Donateur = membre de l'association (suivi par membre).
+  membreId       String
+  membre         Membre            @relation("DonCagnotteMembre", fields: [membreId], references: [id])
+  montant        Int
+  date           DateTime
+  mode           ModeVersement     @default(ESPECES)
+  note           String?
+  saisiParId     String // FK scalaire (auteur de la saisie)
+  createdAt      DateTime          @default(now())
+
+  @@index([organisationId, cagnotteId])
 }

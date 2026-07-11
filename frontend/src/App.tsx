@@ -43,6 +43,9 @@ const CommemorationsPage = lazy(() => import('@/pages/CommemorationsPage'))
 const CommemorationFormPage = lazy(() => import('@/pages/CommemorationFormPage'))
 const CommemorationDetailPage = lazy(() => import('@/pages/CommemorationDetailPage'))
 const AuditLogPage = lazy(() => import('@/pages/AuditLogPage'))
+const CagnottesPage = lazy(() => import('@/pages/CagnottesPage'))
+const CagnotteFormPage = lazy(() => import('@/pages/CagnotteFormPage'))
+const CagnotteDetailPage = lazy(() => import('@/pages/CagnotteDetailPage'))
 
 /** Layout des pages authentifiées : garde d'accès + coquille d'application. Le `Suspense` entoure
  *  l'`Outlet` → l'`AppShell` (nav) reste affichée pendant le chargement du chunk de page. */
@@ -96,6 +99,10 @@ function App() {
         <Route path="/conflits" element={<ConflitsPage />} />
         <Route path="/conflits/nouveau" element={<ConflitFormPage />} />
         <Route path="/conflits/:id" element={<ConflitDetailPage />} />
+        <Route path="/cagnottes" element={<CagnottesPage />} />
+        <Route path="/cagnottes/nouvelle" element={<CagnotteFormPage />} />
+        <Route path="/cagnottes/:id/editer" element={<CagnotteFormPage />} />
+        <Route path="/cagnottes/:id" element={<CagnotteDetailPage />} />
         <Route path="/commemorations" element={<CommemorationsPage />} />
         <Route path="/commemorations/nouvelle" element={<CommemorationFormPage />} />
         <Route path="/commemorations/:id/editer" element={<CommemorationFormPage />} />

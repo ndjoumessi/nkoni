@@ -143,6 +143,12 @@ statut de déploiement Railway/Vercel confirmé au statut réel là où le backe
   du DESTINATAIRE** (le membre, repli défaut org), comme les reçus. Bilingue FR/EN (`releve.service`).
   Front : bouton « Relevé de compte » sur la fiche membre (`membresApi.telechargerReleve`,
   `ouvrirBlobPdf`), i18n `membres.releve.*`. Service pur (données → Buffer), rendu vérifié FR + EN.
+  **Correctif « par année » (recoupe la synthèse)** : le tableau annuel se construisait à partir des
+  seules `Contribution` existantes → une année **au barème mais sans contribution** (fréquent à
+  l'adhésion) gonflait le total attendu de la synthèse sans y figurer (incohérence visible).
+  Désormais il couvre TOUTES les années de la **borne §4.1** `[anneeAdhesion .. min(anneeCourante,
+  anneeFinContribution)]` (union barème ∪ contributions), l'attendu venant du **barème courant** —
+  même source que la synthèse → recoupement exact ; les mouvements sont aussi bornés à cette fenêtre.
 
 ### Migrations appliquées en prod
 - `tresorerie_depense` — additive (table `Depense` + 2 enums via `CREATE TYPE`).

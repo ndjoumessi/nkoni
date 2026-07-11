@@ -219,8 +219,7 @@ export function CagnotteFormPage() {
         </Card>
 
         <Card className="p-6">
-          <Overline>{t('cagnottes.form.champBeneficiaire')}</Overline>
-          <div className="mt-4 space-y-4">
+          <div className="space-y-4">
             <Field label={t('cagnottes.form.champBeneficiaire')}>
               <Select value={benefMode} onChange={(e) => setBenefMode(e.target.value as BeneficiaireMode)}>
                 <option value="aucun">{t('cagnottes.form.beneficiaireAucun')}</option>

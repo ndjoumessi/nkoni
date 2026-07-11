@@ -1,9 +1,9 @@
-import type { FastifyInstance, FastifyPluginAsync, FastifyRequest } from 'fastify'
+import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
 import { Prisma } from '../generated/prisma/client'
 import type { CreationScopee } from '../lib/tenant-extension'
 import { authenticate } from '../middlewares/authenticate'
 import { requirePermission, requireRoles, type Role } from '../middlewares/permissions'
-import { langueDeRequete } from '../lib/i18n'
+import { t, langueDeRequete } from '../lib/i18n'
 import {
   estEditableAmende,
   validerTransitionAmende,
@@ -26,14 +26,6 @@ const TYPES = ['RETARD_COTISATION', 'ABSENCE_REUNION', 'AUTRE'] as const
 const STATUTS = ['IMPAYEE', 'PAYEE', 'ANNULEE'] as const
 const MODES = ['ESPECES', 'TIERS', 'AUTRE'] as const
 const ROLES_ARGENT: readonly Role[] = ['ADMIN', 'PRESIDENT', 'TRESORIERE']
-
-type Langue = 'FR' | 'EN'
-const MSG = {
-  introuvable: { FR: 'Amende introuvable.', EN: 'Fine not found.' },
-  membreIntrouvable: { FR: 'Membre introuvable.', EN: 'Member not found.' },
-  nonEditable: { FR: 'Amende réglée ou annulée : non modifiable.', EN: 'Fine settled or cancelled: not editable.' },
-  transition: { FR: 'Action impossible sur cette amende.', EN: 'Action not allowed on this fine.' },
-} as const
 
 interface CreateBody {
   membreId: string
@@ -106,10 +98,6 @@ interface AmendeRow {
 }
 
 export const amendesRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
-  const msg = (req: FastifyRequest, k: keyof typeof MSG): string => {
-    const langue = langueDeRequete(req) as Langue
-    return MSG[k][langue] ?? MSG[k].FR
-  }
   const charger = (id: string) => app.prisma.amende.findUnique({ where: { id }, select: AMENDE_SELECT })
 
   // GET /amendes?membreId=&statut= — liste + totaux (dû / encaissé). MEMBRE_SIMPLE : les siennes.
@@ -148,7 +136,7 @@ export const amendesRoutes: FastifyPluginAsync = async (app: FastifyInstance) =>
     async (req, reply) => {
       const b = req.body
       const m = await app.prisma.membre.findUnique({ where: { id: b.membreId }, select: { id: true } })
-      if (!m) return reply.code(400).send({ error: 'Bad Request', message: msg(req, 'membreIntrouvable') })
+      if (!m) return reply.code(400).send({ error: 'Bad Request', message: t(langueDeRequete(req), 'amendes.membreIntrouvable') })
       const data: CreationScopee<Prisma.AmendeUncheckedCreateInput> = {
         membreId: b.membreId,
         motif: b.motif,
@@ -171,9 +159,9 @@ export const amendesRoutes: FastifyPluginAsync = async (app: FastifyInstance) =>
     { schema: updateSchema, preHandler: [authenticate, requirePermission('Amende', 'update')] },
     async (req, reply) => {
       const a = await charger(req.params.id)
-      if (!a) return reply.code(404).send({ error: 'Not Found', message: msg(req, 'introuvable') })
+      if (!a) return reply.code(404).send({ error: 'Not Found', message: t(langueDeRequete(req), 'amendes.introuvable') })
       if (!estEditableAmende((a as unknown as AmendeRow).statut)) {
-        return reply.code(409).send({ error: 'Conflict', message: msg(req, 'nonEditable') })
+        return reply.code(409).send({ error: 'Conflict', message: t(langueDeRequete(req), 'amendes.nonEditable') })
       }
       const b = req.body
       const data: Prisma.AmendeUncheckedUpdateInput = {}
@@ -191,9 +179,9 @@ export const amendesRoutes: FastifyPluginAsync = async (app: FastifyInstance) =>
     { preHandler: [authenticate, requirePermission('Amende', 'delete')] },
     async (req, reply) => {
       const a = await charger(req.params.id)
-      if (!a) return reply.code(404).send({ error: 'Not Found', message: msg(req, 'introuvable') })
+      if (!a) return reply.code(404).send({ error: 'Not Found', message: t(langueDeRequete(req), 'amendes.introuvable') })
       if (!estEditableAmende((a as unknown as AmendeRow).statut)) {
-        return reply.code(409).send({ error: 'Conflict', message: msg(req, 'nonEditable') })
+        return reply.code(409).send({ error: 'Conflict', message: t(langueDeRequete(req), 'amendes.nonEditable') })
       }
       await app.prisma.amende.delete({ where: { id: req.params.id } })
       return reply.code(204).send()
@@ -206,12 +194,12 @@ export const amendesRoutes: FastifyPluginAsync = async (app: FastifyInstance) =>
     { schema: payerSchema, preHandler: [authenticate, requireRoles([...ROLES_ARGENT])] },
     async (req, reply) => {
       const a = await charger(req.params.id)
-      if (!a) return reply.code(404).send({ error: 'Not Found', message: msg(req, 'introuvable') })
+      if (!a) return reply.code(404).send({ error: 'Not Found', message: t(langueDeRequete(req), 'amendes.introuvable') })
       try {
         validerTransitionAmende((a as unknown as AmendeRow).statut, 'PAYEE')
       } catch (err) {
         if (err instanceof TransitionAmendeInvalideError) {
-          return reply.code(409).send({ error: 'Conflict', message: msg(req, 'transition') })
+          return reply.code(409).send({ error: 'Conflict', message: t(langueDeRequete(req), 'amendes.transition') })
         }
         throw err
       }
@@ -233,12 +221,12 @@ export const amendesRoutes: FastifyPluginAsync = async (app: FastifyInstance) =>
     { preHandler: [authenticate, requireRoles([...ROLES_ARGENT])] },
     async (req, reply) => {
       const a = await charger(req.params.id)
-      if (!a) return reply.code(404).send({ error: 'Not Found', message: msg(req, 'introuvable') })
+      if (!a) return reply.code(404).send({ error: 'Not Found', message: t(langueDeRequete(req), 'amendes.introuvable') })
       try {
         validerTransitionAmende((a as unknown as AmendeRow).statut, 'ANNULEE')
       } catch (err) {
         if (err instanceof TransitionAmendeInvalideError) {
-          return reply.code(409).send({ error: 'Conflict', message: msg(req, 'transition') })
+          return reply.code(409).send({ error: 'Conflict', message: t(langueDeRequete(req), 'amendes.transition') })
         }
         throw err
       }

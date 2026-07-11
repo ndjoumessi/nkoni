@@ -1,7 +1,7 @@
-import type { FastifyInstance, FastifyPluginAsync, FastifyRequest } from 'fastify'
+import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
 import { authenticate } from '../middlewares/authenticate'
 import { requirePermission } from '../middlewares/permissions'
-import { langueDeRequete } from '../lib/i18n'
+import { t, langueDeRequete } from '../lib/i18n'
 
 /**
  * Photo du membre (§4.11) — stockée sur le Blob PRIVÉ (comme les documents/reçus) : l'URL interne
@@ -16,21 +16,7 @@ import { langueDeRequete } from '../lib/i18n'
 const MIMES_AUTORISES = ['image/jpeg', 'image/png'] as const
 const TAILLE_MAX = 5 * 1024 * 1024 // 5 Mo
 
-type Langue = 'FR' | 'EN'
-const MSG = {
-  introuvable: { FR: 'Membre introuvable.', EN: 'Member not found.' },
-  aucunFichier: { FR: 'Aucun fichier reçu.', EN: 'No file received.' },
-  typeInvalide: { FR: 'Format non supporté (JPEG ou PNG uniquement).', EN: 'Unsupported format (JPEG or PNG only).' },
-  tropVolumineux: { FR: 'Image trop volumineuse (max 5 Mo).', EN: 'Image too large (max 5 MB).' },
-  indisponible: { FR: 'Photo indisponible.', EN: 'Photo unavailable.' },
-  aucunePhoto: { FR: 'Aucune photo.', EN: 'No photo.' },
-} as const
-
 export const membrePhotoRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
-  const msg = (req: FastifyRequest, k: keyof typeof MSG): string => {
-    const langue = langueDeRequete(req) as Langue
-    return MSG[k][langue] ?? MSG[k].FR
-  }
 
   // POST /membres/:id/photo — téléversement (multipart, 1 image JPEG/PNG).
   app.post<{ Params: { id: string } }>(
@@ -41,7 +27,7 @@ export const membrePhotoRoutes: FastifyPluginAsync = async (app: FastifyInstance
         where: { id: req.params.id },
         select: { id: true, photoBlobUrl: true },
       })
-      if (!membre) return reply.code(404).send({ error: 'Not Found', message: msg(req, 'introuvable') })
+      if (!membre) return reply.code(404).send({ error: 'Not Found', message: t(langueDeRequete(req), 'photoMembre.introuvable') })
 
       let fichier: { buffer: Buffer; mimetype: string } | undefined
       try {
@@ -49,14 +35,14 @@ export const membrePhotoRoutes: FastifyPluginAsync = async (app: FastifyInstance
           if (part.type === 'file') fichier = { buffer: await part.toBuffer(), mimetype: part.mimetype }
         }
       } catch {
-        return reply.code(400).send({ error: 'Bad Request', message: msg(req, 'tropVolumineux') })
+        return reply.code(400).send({ error: 'Bad Request', message: t(langueDeRequete(req), 'photoMembre.tropVolumineux') })
       }
-      if (!fichier) return reply.code(400).send({ error: 'Bad Request', message: msg(req, 'aucunFichier') })
+      if (!fichier) return reply.code(400).send({ error: 'Bad Request', message: t(langueDeRequete(req), 'photoMembre.aucunFichier') })
       if (!MIMES_AUTORISES.includes(fichier.mimetype as (typeof MIMES_AUTORISES)[number])) {
-        return reply.code(400).send({ error: 'Bad Request', message: msg(req, 'typeInvalide') })
+        return reply.code(400).send({ error: 'Bad Request', message: t(langueDeRequete(req), 'photoMembre.typeInvalide') })
       }
       if (fichier.buffer.length > TAILLE_MAX) {
-        return reply.code(400).send({ error: 'Bad Request', message: msg(req, 'tropVolumineux') })
+        return reply.code(400).send({ error: 'Bad Request', message: t(langueDeRequete(req), 'photoMembre.tropVolumineux') })
       }
 
       // Remplace l'ancienne photo (best-effort : ne bloque pas si la suppression du blob échoue).
@@ -81,15 +67,15 @@ export const membrePhotoRoutes: FastifyPluginAsync = async (app: FastifyInstance
         where: { id: req.params.id },
         select: { photoBlobUrl: true, photoMime: true, compteUtilisateurId: true },
       })
-      if (!membre) return reply.code(404).send({ error: 'Not Found', message: msg(req, 'introuvable') })
+      if (!membre) return reply.code(404).send({ error: 'Not Found', message: t(langueDeRequete(req), 'photoMembre.introuvable') })
       if (req.user.role === 'MEMBRE_SIMPLE' && membre.compteUtilisateurId !== req.user.sub) {
-        return reply.code(404).send({ error: 'Not Found', message: msg(req, 'introuvable') })
+        return reply.code(404).send({ error: 'Not Found', message: t(langueDeRequete(req), 'photoMembre.introuvable') })
       }
       if (!membre.photoBlobUrl) {
-        return reply.code(404).send({ error: 'Not Found', message: msg(req, 'aucunePhoto') })
+        return reply.code(404).send({ error: 'Not Found', message: t(langueDeRequete(req), 'photoMembre.aucunePhoto') })
       }
       const buffer = await app.blob.lireContenu(membre.photoBlobUrl)
-      if (!buffer) return reply.code(502).send({ error: 'Bad Gateway', message: msg(req, 'indisponible') })
+      if (!buffer) return reply.code(502).send({ error: 'Bad Gateway', message: t(langueDeRequete(req), 'photoMembre.indisponible') })
       reply.header('Content-Type', membre.photoMime ?? 'image/jpeg')
       reply.header('Cache-Control', 'private, no-cache')
       return reply.send(buffer)
@@ -105,7 +91,7 @@ export const membrePhotoRoutes: FastifyPluginAsync = async (app: FastifyInstance
         where: { id: req.params.id },
         select: { photoBlobUrl: true },
       })
-      if (!membre) return reply.code(404).send({ error: 'Not Found', message: msg(req, 'introuvable') })
+      if (!membre) return reply.code(404).send({ error: 'Not Found', message: t(langueDeRequete(req), 'photoMembre.introuvable') })
       if (membre.photoBlobUrl) {
         await app.blob.del(membre.photoBlobUrl).catch(() => undefined)
         await app.prisma.membre.update({

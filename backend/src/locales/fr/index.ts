@@ -33,6 +33,9 @@ import { messages as auditMsgs } from './audit'
 import { messages as dashboardMsgs } from './dashboard'
 import { messages as rapportsMsgs } from './rapports'
 import { messages as exportsMsgs } from './exports'
+import { messages as cagnottesMsgs } from './cagnottes'
+import { messages as amendesMsgs } from './amendes'
+import { messages as photoMembreMsgs } from './photoMembre'
 
 export const fr = {
   ...communMsgs,
@@ -63,6 +66,9 @@ export const fr = {
   ...dashboardMsgs,
   ...rapportsMsgs,
   ...exportsMsgs,
+  ...cagnottesMsgs,
+  ...amendesMsgs,
+  ...photoMembreMsgs,
 } as const
 
 /** Clé de message valide (union dérivée du catalogue FR agrégé). */

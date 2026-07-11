@@ -1,9 +1,9 @@
-import type { FastifyInstance, FastifyPluginAsync, FastifyRequest } from 'fastify'
+import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
 import { Prisma } from '../generated/prisma/client'
 import type { CreationScopee } from '../lib/tenant-extension'
 import { authenticate } from '../middlewares/authenticate'
 import { requirePermission, requireRoles, type Role } from '../middlewares/permissions'
-import { langueDeRequete } from '../lib/i18n'
+import { t, langueDeRequete } from '../lib/i18n'
 import {
   collecteCagnotte,
   soldeCagnotte,
@@ -28,17 +28,6 @@ const TYPES = ['DEUIL', 'MARIAGE', 'NAISSANCE', 'AUTRE'] as const
 const MODES = ['ESPECES', 'TIERS', 'AUTRE'] as const
 const ROLES_ARGENT: readonly Role[] = ['ADMIN', 'PRESIDENT', 'TRESORIERE']
 
-type Langue = 'FR' | 'EN'
-const MSG = {
-  introuvable: { FR: 'Cagnotte introuvable.', EN: 'Fund not found.' },
-  cloturee: { FR: 'Cagnotte clôturée : rouvrez-la pour la modifier.', EN: 'Fund closed: reopen it to edit.' },
-  reversement: {
-    FR: 'Montant de reversement invalide (supérieur au montant collecté).',
-    EN: 'Invalid payout amount (exceeds the collected total).',
-  },
-  membreIntrouvable: { FR: 'Membre introuvable.', EN: 'Member not found.' },
-  donIntrouvable: { FR: 'Don introuvable.', EN: 'Donation not found.' },
-} as const
 
 interface CreateBody {
   titre: string
@@ -162,10 +151,6 @@ function presenter(c: CagnotteRow, collecte: number, nbDons: number) {
 }
 
 export const cagnottesRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
-  const msg = (req: FastifyRequest, k: keyof typeof MSG): string => {
-    const langue = langueDeRequete(req) as Langue
-    return MSG[k][langue] ?? MSG[k].FR
-  }
   const charger = (id: string) =>
     app.prisma.cagnotteEvenement.findUnique({ where: { id }, select: CAGNOTTE_SELECT })
 
@@ -200,7 +185,7 @@ export const cagnottesRoutes: FastifyPluginAsync = async (app: FastifyInstance) 
     { preHandler: [authenticate, requirePermission('Cagnotte', 'read')] },
     async (req, reply) => {
       const c = await charger(req.params.id)
-      if (!c) return reply.code(404).send({ error: 'Not Found', message: msg(req, 'introuvable') })
+      if (!c) return reply.code(404).send({ error: 'Not Found', message: t(langueDeRequete(req), 'cagnottes.introuvable') })
       const dons = await app.prisma.donCagnotte.findMany({
         where: { cagnotteId: req.params.id },
         orderBy: { date: 'desc' },
@@ -222,7 +207,7 @@ export const cagnottesRoutes: FastifyPluginAsync = async (app: FastifyInstance) 
           where: { id: b.beneficiaireMembreId },
           select: { id: true },
         })
-        if (!m) return reply.code(400).send({ error: 'Bad Request', message: msg(req, 'membreIntrouvable') })
+        if (!m) return reply.code(400).send({ error: 'Bad Request', message: t(langueDeRequete(req), 'cagnottes.membreIntrouvable') })
       }
       const data: CreationScopee<Prisma.CagnotteEvenementUncheckedCreateInput> = {
         titre: b.titre,
@@ -248,9 +233,9 @@ export const cagnottesRoutes: FastifyPluginAsync = async (app: FastifyInstance) 
     { schema: updateSchema, preHandler: [authenticate, requirePermission('Cagnotte', 'update')] },
     async (req, reply) => {
       const c = await charger(req.params.id)
-      if (!c) return reply.code(404).send({ error: 'Not Found', message: msg(req, 'introuvable') })
+      if (!c) return reply.code(404).send({ error: 'Not Found', message: t(langueDeRequete(req), 'cagnottes.introuvable') })
       if (!estEditableCagnotte((c as unknown as CagnotteRow).statut)) {
-        return reply.code(409).send({ error: 'Conflict', message: msg(req, 'cloturee') })
+        return reply.code(409).send({ error: 'Conflict', message: t(langueDeRequete(req), 'cagnottes.cloturee') })
       }
       const b = req.body
       if (b.beneficiaireMembreId) {
@@ -258,7 +243,7 @@ export const cagnottesRoutes: FastifyPluginAsync = async (app: FastifyInstance) 
           where: { id: b.beneficiaireMembreId },
           select: { id: true },
         })
-        if (!m) return reply.code(400).send({ error: 'Bad Request', message: msg(req, 'membreIntrouvable') })
+        if (!m) return reply.code(400).send({ error: 'Bad Request', message: t(langueDeRequete(req), 'cagnottes.membreIntrouvable') })
       }
       const data: Prisma.CagnotteEvenementUncheckedUpdateInput = {}
       if (b.titre !== undefined) data.titre = b.titre
@@ -288,7 +273,7 @@ export const cagnottesRoutes: FastifyPluginAsync = async (app: FastifyInstance) 
     { preHandler: [authenticate, requirePermission('Cagnotte', 'delete')] },
     async (req, reply) => {
       const c = await charger(req.params.id)
-      if (!c) return reply.code(404).send({ error: 'Not Found', message: msg(req, 'introuvable') })
+      if (!c) return reply.code(404).send({ error: 'Not Found', message: t(langueDeRequete(req), 'cagnottes.introuvable') })
       await app.prisma.cagnotteEvenement.delete({ where: { id: req.params.id } })
       return reply.code(204).send()
     },
@@ -300,13 +285,13 @@ export const cagnottesRoutes: FastifyPluginAsync = async (app: FastifyInstance) 
     { schema: donSchema, preHandler: [authenticate, requireRoles([...ROLES_ARGENT])] },
     async (req, reply) => {
       const c = await charger(req.params.id)
-      if (!c) return reply.code(404).send({ error: 'Not Found', message: msg(req, 'introuvable') })
+      if (!c) return reply.code(404).send({ error: 'Not Found', message: t(langueDeRequete(req), 'cagnottes.introuvable') })
       if (!estEditableCagnotte((c as unknown as CagnotteRow).statut)) {
-        return reply.code(409).send({ error: 'Conflict', message: msg(req, 'cloturee') })
+        return reply.code(409).send({ error: 'Conflict', message: t(langueDeRequete(req), 'cagnottes.cloturee') })
       }
       const b = req.body
       const m = await app.prisma.membre.findUnique({ where: { id: b.membreId }, select: { id: true } })
-      if (!m) return reply.code(400).send({ error: 'Bad Request', message: msg(req, 'membreIntrouvable') })
+      if (!m) return reply.code(400).send({ error: 'Bad Request', message: t(langueDeRequete(req), 'cagnottes.membreIntrouvable') })
       const data: CreationScopee<Prisma.DonCagnotteUncheckedCreateInput> = {
         cagnotteId: req.params.id,
         membreId: b.membreId,
@@ -330,16 +315,16 @@ export const cagnottesRoutes: FastifyPluginAsync = async (app: FastifyInstance) 
     { preHandler: [authenticate, requireRoles([...ROLES_ARGENT])] },
     async (req, reply) => {
       const c = await charger(req.params.id)
-      if (!c) return reply.code(404).send({ error: 'Not Found', message: msg(req, 'introuvable') })
+      if (!c) return reply.code(404).send({ error: 'Not Found', message: t(langueDeRequete(req), 'cagnottes.introuvable') })
       if (!estEditableCagnotte((c as unknown as CagnotteRow).statut)) {
-        return reply.code(409).send({ error: 'Conflict', message: msg(req, 'cloturee') })
+        return reply.code(409).send({ error: 'Conflict', message: t(langueDeRequete(req), 'cagnottes.cloturee') })
       }
       const don = await app.prisma.donCagnotte.findUnique({
         where: { id: req.params.donId },
         select: { cagnotteId: true },
       })
       if (!don || don.cagnotteId !== req.params.id) {
-        return reply.code(404).send({ error: 'Not Found', message: msg(req, 'donIntrouvable') })
+        return reply.code(404).send({ error: 'Not Found', message: t(langueDeRequete(req), 'cagnottes.donIntrouvable') })
       }
       await app.prisma.donCagnotte.delete({ where: { id: req.params.donId } })
       return reply.code(204).send()
@@ -352,7 +337,7 @@ export const cagnottesRoutes: FastifyPluginAsync = async (app: FastifyInstance) 
     { schema: clotureSchema, preHandler: [authenticate, requireRoles([...ROLES_ARGENT])] },
     async (req, reply) => {
       const c = await charger(req.params.id)
-      if (!c) return reply.code(404).send({ error: 'Not Found', message: msg(req, 'introuvable') })
+      if (!c) return reply.code(404).send({ error: 'Not Found', message: t(langueDeRequete(req), 'cagnottes.introuvable') })
       const agg = await app.prisma.donCagnotte.aggregate({
         where: { cagnotteId: req.params.id },
         _sum: { montant: true },
@@ -364,7 +349,7 @@ export const cagnottesRoutes: FastifyPluginAsync = async (app: FastifyInstance) 
         validerReversement(montantReverse, collecte)
       } catch (err) {
         if (err instanceof ReversementInvalideError) {
-          return reply.code(400).send({ error: 'Bad Request', message: msg(req, 'reversement') })
+          return reply.code(400).send({ error: 'Bad Request', message: t(langueDeRequete(req), 'cagnottes.reversement') })
         }
         throw err
       }
@@ -387,7 +372,7 @@ export const cagnottesRoutes: FastifyPluginAsync = async (app: FastifyInstance) 
     { preHandler: [authenticate, requireRoles([...ROLES_ARGENT])] },
     async (req, reply) => {
       const c = await charger(req.params.id)
-      if (!c) return reply.code(404).send({ error: 'Not Found', message: msg(req, 'introuvable') })
+      if (!c) return reply.code(404).send({ error: 'Not Found', message: t(langueDeRequete(req), 'cagnottes.introuvable') })
       const maj = await app.prisma.cagnotteEvenement.update({
         where: { id: req.params.id },
         data: { statut: 'OUVERTE', montantReverse: 0, dateReversement: null },

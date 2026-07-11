@@ -1,5 +1,6 @@
 import { useEffect, useState, type ComponentType } from 'react'
 import { useTranslation } from 'react-i18next'
+import { cleI18n } from '@/lib/i18n'
 import { Navigate } from 'react-router-dom'
 import { Building2, CalendarDays, Coins, Crown, Languages, Lock, Users, type LucideProps } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
@@ -80,7 +81,7 @@ export function ParametresPage() {
     return <Navigate to="/dashboard" replace />
   }
 
-  const deviseLabel = org ? t(`inscription.devises.${org.devise.toLowerCase()}`) : ''
+  const deviseLabel = org ? t(cleI18n(`inscription.devises.${org.devise.toLowerCase()}`)) : ''
   const langueLabel = org ? t(org.langueDefaut === 'EN' ? 'commun.langue.en' : 'commun.langue.fr') : ''
   const chefLabel = org?.chefMembreId
     ? `${org.chefNom ?? ''} ${org.chefPrenom ?? ''}`.trim() +

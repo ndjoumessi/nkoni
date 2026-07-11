@@ -1,5 +1,6 @@
 import { type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
+import { cleI18n } from '@/lib/i18n'
 import { Link } from 'react-router-dom'
 import {
   ShieldCheck,
@@ -119,7 +120,7 @@ export function LandingPage() {
                 className="inline-flex items-center gap-2 rounded-full border border-hairline bg-surface px-4 py-2 text-sm text-muted-foreground"
               >
                 <Icon className="h-4 w-4 shrink-0 text-brass" aria-hidden="true" />
-                {t(`landing.capacites.${key}`)}
+                {t(cleI18n(`landing.capacites.${key}`))}
               </span>
             ))}
           </div>

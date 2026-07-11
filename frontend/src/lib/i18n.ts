@@ -101,4 +101,14 @@ export function langueCourante(): Langue {
   return versBackend(i18n.language)
 }
 
+/**
+ * Clé i18n DYNAMIQUE (indexée par une variable / valeur d'énum, connue seulement au runtime).
+ * Le typage de `t()` vérifie désormais l'EXISTENCE des clés STATIQUES à la compilation ; ce helper
+ * contourne ce contrôle pour les clés calculées à l'exécution. Runtime : simple identité.
+ * Usage : `t(cleI18n(`amendes.statuts.${statut}`))`.
+ */
+export function cleI18n(cle: string): never {
+  return cle as never
+}
+
 export default i18n

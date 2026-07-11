@@ -54,34 +54,50 @@ function dessinerCarte(
   L: LibellesCarte,
 ): void {
   const pad = 14
-  // Cadre (repère de découpe) + liseré menthe fin.
-  doc.roundedRect(x, y, CARD_W, CARD_H, 10).lineWidth(1).strokeColor(NK.menthe).stroke()
+  const bandH = 34
+  const radius = 10
 
-  // En-tête : organisation (menthe) + filet or + label « CARTE DE MEMBRE » (or).
-  doc.fillColor(NK.menthe).font('Helvetica-Bold').fontSize(12)
-    .text(L.organisation, x + pad, y + pad, { width: CARD_W - pad * 2, lineBreak: false, ellipsis: true })
-  doc.moveTo(x + pad, y + pad + 20).lineTo(x + CARD_W - pad, y + pad + 20).lineWidth(1).strokeColor(NK.or).stroke()
+  // Fond TEINTÉ (background) — menthe très clair, sobre à l'impression.
+  doc.roundedRect(x, y, CARD_W, CARD_H, radius).fill(NK.mentheTint)
+
+  // Bandeau d'en-tête menthe (coins hauts arrondis via clip sur la carte).
+  doc.save()
+  doc.roundedRect(x, y, CARD_W, CARD_H, radius).clip()
+  doc.rect(x, y, CARD_W, bandH).fill(NK.menthe)
+  doc.restore()
+
+  // Cadre (repère de découpe).
+  doc.roundedRect(x, y, CARD_W, CARD_H, radius).lineWidth(1).strokeColor(NK.menthe).stroke()
+
+  // Organisation dans le bandeau (texte blanc) + label « CARTE DE MEMBRE » (or) sous le bandeau.
+  doc.fillColor(NK.blanc).font('Helvetica-Bold').fontSize(12)
+    .text(L.organisation, x + pad, y + 11, { width: CARD_W - pad * 2, lineBreak: false, ellipsis: true })
   doc.fillColor(NK.or).font('Helvetica-Bold').fontSize(7)
-    .text(L.carte, x + pad, y + pad + 25, { characterSpacing: 1.2 })
+    .text(L.carte, x + pad, y + bandH + 8, { characterSpacing: 1.2 })
 
-  // Corps : nom (bold) + prénom, branche, année d'adhésion. Zone gauche (le QR occupe la droite).
-  const largeurTexte = CARD_W - pad * 2 - 92
+  // Corps : nom (bold) + prénom, puis (branche si présente) + année d'adhésion — position ADAPTATIVE.
+  const largeurTexte = CARD_W - pad * 2 - 88
   doc.fillColor(NK.encre).font('Helvetica-Bold').fontSize(14)
-    .text(d.nom.toUpperCase(), x + pad, y + 60, { width: largeurTexte, lineBreak: false, ellipsis: true })
+    .text(d.nom.toUpperCase(), x + pad, y + 62, { width: largeurTexte, lineBreak: false, ellipsis: true })
   doc.fillColor(NK.encre).font('Helvetica').fontSize(12)
-    .text(d.prenom, x + pad, y + 78, { width: largeurTexte, lineBreak: false, ellipsis: true })
+    .text(d.prenom, x + pad, y + 80, { width: largeurTexte, lineBreak: false, ellipsis: true })
 
+  let ligneY = y + 106
   doc.fillColor(NK.gris).font('Helvetica').fontSize(8)
-  if (d.branche) doc.text(`${L.branche} : ${d.branche}`, x + pad, y + 104, { width: largeurTexte, lineBreak: false, ellipsis: true })
-  doc.text(`${L.depuis} ${d.anneeAdhesion}`, x + pad, y + 118, { width: largeurTexte, lineBreak: false })
+  if (d.branche) {
+    doc.text(`${L.branche} : ${d.branche}`, x + pad, ligneY, { width: largeurTexte, lineBreak: false, ellipsis: true })
+    ligneY += 14
+  }
+  doc.text(`${L.depuis} ${d.anneeAdhesion}`, x + pad, ligneY, { width: largeurTexte, lineBreak: false })
 
-  // QR (bas-droite) + légende.
-  const qrSize = 78
+  // QR (bas-droite) sur PASTILLE BLANCHE (scannabilité garantie sur fond teinté) + légende.
+  const qrSize = 74
   const qrX = x + CARD_W - pad - qrSize
-  const qrY = y + CARD_H - pad - qrSize - 8
+  const qrY = y + CARD_H - pad - qrSize - 6
+  doc.roundedRect(qrX - 4, qrY - 4, qrSize + 8, qrSize + 8, 6).fill(NK.blanc)
   doc.image(qr, qrX, qrY, { width: qrSize, height: qrSize })
   doc.fillColor(NK.gris).font('Helvetica').fontSize(5.5)
-    .text(L.scanner, qrX - 6, qrY + qrSize + 1, { width: qrSize + 12, align: 'center', lineBreak: false })
+    .text(L.scanner, qrX - 8, qrY + qrSize + 2, { width: qrSize + 16, align: 'center', lineBreak: false })
 }
 
 /**

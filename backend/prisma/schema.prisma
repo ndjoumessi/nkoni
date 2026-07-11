@@ -180,6 +180,10 @@ model Membre {
   anneeAdhesion            Int // année à partir de laquelle la contribution est attendue
   anneeFinContribution     Int? // renseignée automatiquement si statut = DECEDE ou INACTIF
   dateDeces                DateTime?
+  // Photo du membre (§4.11) — Blob PRIVÉ (jamais exposé au client) : `photoBlobUrl` = URL interne
+  // du store, servie via le proxy authentifié GET /membres/:id/photo. `photoMime` = type (jpeg/png).
+  photoBlobUrl             String?
+  photoMime                String?
   compteUtilisateurId      String?                       @unique
   compteUtilisateur        Utilisateur?                  @relation("CompteMembre", fields: [compteUtilisateurId], references: [id])
   contributions            Contribution[]

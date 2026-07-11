@@ -183,6 +183,19 @@ statut de déploiement Railway/Vercel confirmé au statut réel là où le backe
   **Migration `amendes_penalites`** générée et committée (additive : 2 `CREATE TYPE` + table + FK) ;
   s'applique en prod via `prisma migrate deploy` au déploiement Railway (`startCommand`).
 
+- **Photo du membre (§4.11)** — vraie carte d'identité : la carte PDF affiche désormais un **avatar**
+  (photo si présente, sinon **initiales** sur fond menthe) à gauche, infos à droite, QR en bas — layout
+  unifié. 2 colonnes nullables sur `Membre` (`photoBlobUrl`, `photoMime`), photo stockée sur le **Blob
+  PRIVÉ** (jamais exposée au client). `routes/membre-photo.route.ts` : `POST /membres/:id/photo`
+  (multipart, **JPEG/PNG** ≤ 5 Mo, remplace + supprime l'ancien blob), `GET` (proxy authentifié,
+  MEMBRE_SIMPLE = sa propre photo), `DELETE`. Rendu carte : `carte.service` prend `photo?: Buffer`
+  (fallback initiales robuste `try/catch`), `cartes.route` charge les octets (best-effort). **La photo
+  n'apparaît PAS sur la page publique de statut** (PII fort). Front : `AvatarMembre` (fetch blob
+  authentifié → objectURL, fallback initiales, révocation), carte profil sur la fiche membre avec
+  **Changer / Retirer** (gestion) ; `membresApi.{chargerPhoto,uploadPhoto,supprimerPhoto}` ;
+  i18n `membres.photo.*` FR/EN. **Migration `photo_membre`** générée et committée (additive : 2
+  colonnes TEXT nullables) ; s'applique en prod via `prisma migrate deploy` au déploiement Railway.
+
 ### Migrations appliquées en prod
 - `tresorerie_depense` — additive (table `Depense` + 2 enums via `CREATE TYPE`).
 - `idempotence_offline` — additive (colonne `idempotenceKey` nullable + index unique par org sur
@@ -194,6 +207,8 @@ statut de déploiement Railway/Vercel confirmé au statut réel là où le backe
   `ON DELETE CASCADE`). Aucune opération destructive.
 - `amendes_penalites` — additive (2 `CREATE TYPE` `TypeAmende`/`StatutAmende` + table `Amende` + 2
   index + 2 FK `ON DELETE RESTRICT` vers `Organisation`/`Membre`). Aucune opération destructive.
+- `photo_membre` — additive (`Membre.photoBlobUrl` + `photoMime`, 2 colonnes TEXT nullables). Aucune
+  opération destructive.
 
 ### Robustesse / dette traitée
 - **Durcissement idempotence `P2002`** — le re-fetch par `idempotenceKey` (POST /versements, /membres)

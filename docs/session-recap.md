@@ -168,6 +168,21 @@ statut de déploiement Railway/Vercel confirmé au statut réel là où le backe
   (additive : 2 `CREATE TYPE` + 2 tables + FK) ; s'applique en prod via `prisma migrate deploy` au
   déploiement Railway (`startCommand`).
 
+- **Amendes / pénalités (§4.10)** — sanctions financières saisies **manuellement** par le bureau
+  (retard de cotisation, absence réunion, autre), poche de suivi **séparée** (n'affecte pas encore le
+  solde de trésorerie). 1 modèle SCOPÉ `Amende` (26ᵉ) + 2 enums (`TypeAmende`, `StatutAmende`
+  IMPAYEE/PAYEE/ANNULEE). Cycle **IMPAYEE → PAYEE | ANNULEE** (transitions validées, service pur) ;
+  édition/suppression seulement si IMPAYEE. `routes/amendes.route.ts` : CRUD + `payer` (encaissement,
+  mode + date) + `annuler`. Permissions : entité `Amende` (saisie/édition = bureau) ; ENCAISSEMENT &
+  ANNULATION gardés par `requireRoles(['ADMIN','PRESIDENT','TRESORIERE'])` ; MEMBRE_SIMPLE ne voit
+  QUE ses amendes (filtrage en route). Écritures FK scalaires (`membreId`/`creeParId`). `GET /amendes`
+  renvoie la liste + **totaux dû/encaissé** (ANNULEE exclues). Service pur testé 3/3
+  (`amende.service.ts` : transitions, totaux). Front : nav « Amendes », page unique (totaux + filtres
+  statut/membre + table + modales création/édition/encaissement/annulation/suppression), `amendesApi`,
+  miroir rôles (`peutVoirAmendes`/`peutGererAmende`/`peutEncaisserAmende`), i18n `amendes.*` FR/EN.
+  **Migration `amendes_penalites`** générée et committée (additive : 2 `CREATE TYPE` + table + FK) ;
+  s'applique en prod via `prisma migrate deploy` au déploiement Railway (`startCommand`).
+
 ### Migrations appliquées en prod
 - `tresorerie_depense` — additive (table `Depense` + 2 enums via `CREATE TYPE`).
 - `idempotence_offline` — additive (colonne `idempotenceKey` nullable + index unique par org sur

@@ -41,12 +41,15 @@ export function VersementsList({
   contributionId,
   membreId,
   membreTelephone,
+  membrePrenom,
   onChange,
 }: {
   contributionId: string
   membreId: string
   /** Téléphone du membre — pré-remplit le destinataire du lien `wa.me` de partage du reçu. */
   membreTelephone?: string | null
+  /** Prénom du membre — personnalise la salutation du message WhatsApp (« Bonjour Romel, … »). */
+  membrePrenom?: string | null
   onChange?: () => void
 }) {
   const { t } = useTranslation()
@@ -134,7 +137,15 @@ export function VersementsList({
   // aucune config Meta requise — le membre télécharge son reçu depuis le lien, sans compte.
   const partagerWhatsApp = (recu: Recu, montant: number) => {
     const numero = telephoneWaMe(membreTelephone)
+    // Salutation personnalisée si le prénom est connu, sinon générique.
+    const prenom = membrePrenom?.trim()
+    const salutation = prenom
+      ? t('versements.partage.salutationNom', { prenom })
+      : t('versements.partage.salutation')
+    // Nom d'organisation en tête (gras WhatsApp `*…*`) ; repli « NKONI » si absent.
     const message = t('versements.partage.message', {
+      organisation: user?.nomOrganisation?.trim() || 'NKONI',
+      salutation,
       numero: recu.numero,
       montant: formatMontant(montant),
       lien: recusApi.urlPartage(recu),

@@ -414,6 +414,7 @@ export function MembreDetailPage() {
                           contributionId={c.id}
                           membreId={membre.id}
                           membreTelephone={membre.telephone}
+                          membrePrenom={membre.prenom}
                           onChange={rechargerFinancier}
                         />
                       </div>

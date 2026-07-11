@@ -65,7 +65,7 @@ export function Modal({
             type="button"
             onClick={onClose}
             aria-label={t('ui.modal.fermer')}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground"
+            className="tap-target flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground"
           >
             <X className="h-5 w-5" aria-hidden="true" />
           </button>

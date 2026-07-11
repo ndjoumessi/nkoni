@@ -70,6 +70,12 @@ export async function initI18n(): Promise<void> {
     fallbackLng: 'fr',
     interpolation: { escapeValue: false }, // React échappe déjà le rendu
   })
+  // `<html lang>` suit la langue ACTIVE (a11y : prononciation correcte des lecteurs d'écran,
+  // WCAG 3.1.1) — appliqué à la langue de démarrage puis à chaque basculement.
+  document.documentElement.lang = lng
+  i18n.on('languageChanged', (code) => {
+    document.documentElement.lang = code
+  })
 }
 
 /** Charge le catalogue cible si besoin, puis bascule l'interface. */

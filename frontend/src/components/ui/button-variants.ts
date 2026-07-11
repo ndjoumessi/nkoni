@@ -14,7 +14,7 @@ export const buttonVariants = cva(
     variants: {
       variant: {
         brass:
-          'bg-gradient-to-br from-emerald-deep to-amber text-brass-foreground shadow-[0_1px_0_oklch(1_0_0/25%)_inset,0_10px_24px_-10px_oklch(0.60_0.15_163/55%)] hover:brightness-[1.08] active:brightness-95',
+          'bg-gradient-to-br from-emerald-deep to-amber text-brass-foreground shadow-[0_1px_0_oklch(1_0_0/25%)_inset,0_10px_24px_-10px_color-mix(in_oklch,var(--emerald-deep)_55%,transparent)] hover:brightness-[1.08] active:brightness-95',
         outline:
           'border border-hairline-strong bg-surface-2/60 text-foreground hover:border-brass/40 hover:bg-surface-3',
         ghost: 'text-muted-foreground hover:bg-surface-2 hover:text-foreground',

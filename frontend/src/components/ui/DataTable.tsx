@@ -183,7 +183,7 @@ export function DataTable<T>({
                           }}
                           aria-expanded={ouvert}
                           aria-label={ouvert ? t('ui.table.masquerDetails') : t('ui.table.afficherDetails')}
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-faint transition-colors hover:text-foreground"
+                          className="tap-target inline-flex h-8 w-8 items-center justify-center rounded-lg text-faint transition-colors hover:text-foreground"
                         >
                           <ChevronDown
                             className={cn('h-4 w-4 transition-transform', ouvert && 'rotate-180')}

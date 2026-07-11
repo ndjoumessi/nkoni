@@ -73,9 +73,9 @@ export function GlassmorphismTrustHero({
         className="absolute inset-0 -z-20"
         style={{
           background:
-            'radial-gradient(1100px 620px at 12% -12%, oklch(0.84 0.14 168 / 14%), transparent 60%),' +
-            'radial-gradient(900px 520px at 108% 4%, oklch(0.80 0.085 85 / 9%), transparent 58%),' +
-            'radial-gradient(700px 700px at 50% 122%, oklch(0.84 0.14 168 / 6%), transparent 60%)',
+            'radial-gradient(1100px 620px at 12% -12%, color-mix(in oklch, var(--brass) 14%, transparent), transparent 60%),' +
+            'radial-gradient(900px 520px at 108% 4%, color-mix(in oklch, var(--amber) 9%, transparent), transparent 58%),' +
+            'radial-gradient(700px 700px at 50% 122%, color-mix(in oklch, var(--brass) 6%, transparent), transparent 60%)',
           WebkitMaskImage: 'linear-gradient(180deg, #000 0%, #000 70%, transparent 100%)',
           maskImage: 'linear-gradient(180deg, #000 0%, #000 70%, transparent 100%)',
         }}

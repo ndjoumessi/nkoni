@@ -178,12 +178,17 @@ statut de déploiement Railway/Vercel confirmé au statut réel là où le backe
     `whatsapp_business_messaging`.
   - `WHATSAPP_PHONE_ID` — *Phone number ID* Meta Cloud API.
   - Sans ces variables : le PDF reste téléchargeable, l'envoi WhatsApp est un no-op inoffensif.
-- **`RECU_LINK_SECRET` (Railway, recommandé, non obligatoire)** — secret dédié à la signature des
-  **liens publics de reçus** (partage `wa.me`, §4.6). Le code **replie sur `JWT_ACCESS_SECRET`** s'il
-  est absent : ne rien poser = comportement inchangé, aucune migration. Poser une valeur **aléatoire
-  distincte** active la **séparation des clés** → on peut alors **révoquer** les liens de reçus
-  déjà partagés (en tournant ce seul secret) **SANS invalider les sessions JWT** (donc sans
-  déconnecter tout le monde). À faire quand on veut cette capacité de révocation ; sinon, sans objet.
+- **`RECU_LINK_SECRET` (Railway, recommandé, non obligatoire)** — secret dédié à la signature de
+  **tous les liens publics signés** : liens de téléchargement des reçus (partage `wa.me`, §4.6) **ET**
+  QR de vérification de statut des cartes de membre (§4.7). Les deux usages emploient le même secret
+  mais des **préfixes distincts** (`recu-pdf-public:v1:` vs `carte-statut:v1:`), donc une signature
+  ne vaut jamais d'un domaine à l'autre. Le code **replie sur `JWT_ACCESS_SECRET`** s'il est absent :
+  ne rien poser = comportement inchangé, aucune migration. Poser une valeur **aléatoire distincte**
+  active la **séparation des clés** → on peut alors **révoquer** ces liens (en tournant ce seul
+  secret) **SANS invalider les sessions JWT** (donc sans déconnecter tout le monde). **Attention** :
+  le tourner révoque **à la fois** les liens de reçus déjà partagés **ET** les QR des cartes déjà
+  imprimées/distribuées (ils renverront alors `404`). À faire quand on veut cette capacité de
+  révocation ; sinon, sans objet.
 
 ---
 

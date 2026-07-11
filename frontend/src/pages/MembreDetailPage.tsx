@@ -35,6 +35,7 @@ import { Badge } from '@/components/ui/Badge'
 import { Button, ButtonLink } from '@/components/ui/Button'
 import { Field, Input } from '@/components/ui/Field'
 import { Modal } from '@/components/ui/Modal'
+import { ErrorState } from '@/components/ui/ErrorState'
 import { useToast } from '@/components/ui/Toast'
 import { Skeleton } from '@/components/ui/Skeleton'
 
@@ -69,6 +70,8 @@ export function MembreDetailPage() {
   const [branches, setBranches] = useState<Branche[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // Incrémenté par le bouton « Réessayer » de l'ErrorState : relance l'effet de chargement.
+  const [reloadKey, setReloadKey] = useState(0)
   const [expandedContrib, setExpandedContrib] = useState<string | null>(null)
   // Chef de l'organisation (§ dirigeant) — badge + actions ADMIN/PRESIDENT.
   const [chef, setChef] = useState<ChefOrganisation | null>(null)
@@ -159,7 +162,7 @@ export function MembreDetailPage() {
       active = false
       controller.abort()
     }
-  }, [accessToken, id, navigate, t])
+  }, [accessToken, id, navigate, t, reloadKey])
 
   // Rafraîchit les montants affichés après modification/suppression d'un versement
   // (totaux cumulés en tête + totaux par année dans l'accordéon des contributions).
@@ -239,7 +242,12 @@ export function MembreDetailPage() {
     return (
       <div className="mx-auto max-w-3xl">
         <PageHeader title={t('membres.detail.fiche')} back={{ to: '/membres', label: t('membres.detail.retour') }} />
-        <Card className="mt-6 border-terra/30 bg-terra/[0.07] p-5 text-terra">{error}</Card>
+        <ErrorState
+          className="mt-6"
+          title={t('commun.erreurs.chargementImpossible')}
+          description={error}
+          onRetry={() => setReloadKey((k) => k + 1)}
+        />
       </div>
     )
   }

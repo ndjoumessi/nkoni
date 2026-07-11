@@ -11,6 +11,7 @@ import { Card } from '@/components/ui/Card'
 import { StatCard } from '@/components/ui/StatCard'
 import { ButtonLink } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { ErrorState } from '@/components/ui/ErrorState'
 import { RowsSkeleton } from '@/components/ui/Skeleton'
 import { StatutReunionBadge, TypeReunionBadge } from '@/components/reunions/StatutBadges'
 
@@ -22,6 +23,8 @@ export function ReunionsPage() {
   const [reunions, setReunions] = useState<ReunionListItem[] | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // Incrémenté par le bouton « Réessayer » de l'ErrorState : relance l'effet de chargement.
+  const [reloadKey, setReloadKey] = useState(0)
 
   const gestion = peutGererReunions(user?.role)
 
@@ -46,7 +49,7 @@ export function ReunionsPage() {
       active = false
       controller.abort()
     }
-  }, [accessToken])
+  }, [accessToken, reloadKey])
 
   if (!peutVoirReunions(user?.role)) {
     return <Navigate to="/dashboard" replace />
@@ -96,7 +99,11 @@ export function ReunionsPage() {
         )}
 
         {!loading && error && (
-          <Card className="border-terra/30 bg-terra/[0.07] p-5 text-terra">{error}</Card>
+          <ErrorState
+            title={t('commun.erreurs.chargementImpossible')}
+            description={error}
+            onRetry={() => setReloadKey((k) => k + 1)}
+          />
         )}
 
         {!loading && !error && reunions && reunions.length === 0 && (

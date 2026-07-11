@@ -55,6 +55,12 @@ export default {
       motifRejet: 'Motif du rejet',
       motifRejetPlaceholder: 'Indiquez la raison du rejet…',
       confirmerRejet: 'Confirmer le rejet',
+      validation: {
+        montantRequis: 'Le montant est requis.',
+        montantPositif: 'Le montant doit être supérieur à 0.',
+        dateRequise: 'La date est requise.',
+        descriptionRequise: 'La description est requise.',
+      },
     },
     toast: {
       creee: 'Dépense enregistrée',

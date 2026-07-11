@@ -55,6 +55,12 @@ export default {
       motifRejet: 'Rejection reason',
       motifRejetPlaceholder: 'State the reason for rejection…',
       confirmerRejet: 'Confirm rejection',
+      validation: {
+        montantRequis: 'The amount is required.',
+        montantPositif: 'The amount must be greater than 0.',
+        dateRequise: 'The date is required.',
+        descriptionRequise: 'The description is required.',
+      },
     },
     toast: {
       creee: 'Expense saved',

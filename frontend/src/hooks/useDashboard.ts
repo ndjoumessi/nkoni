@@ -13,6 +13,8 @@ export function useDashboard() {
   const [data, setData] = useState<Dashboard | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // Incrémenté par `recharger()` : relance l'effet de chargement (retry après erreur).
+  const [reloadKey, setReloadKey] = useState(0)
 
   useEffect(() => {
     if (!accessToken) return
@@ -39,7 +41,7 @@ export function useDashboard() {
       active = false
       controller.abort()
     }
-  }, [accessToken, t])
+  }, [accessToken, t, reloadKey])
 
-  return { data, loading, error }
+  return { data, loading, error, recharger: () => setReloadKey((k) => k + 1) }
 }

@@ -77,6 +77,17 @@ export interface EvolutionMois {
   collecte: number
   /** Cible mensuelle = attendu total de l'année courante / 12 (uniforme sur les 12 mois). */
   attendu: number
+  /** Montant encaissé ce même mois l'année PRÉCÉDENTE (comparaison N vs N-1). 0 si aucune donnée. */
+  collecteN1: number
+}
+
+/** Anniversaire d'un membre tombant dans le mois courant (dashboard « humanisé »). */
+export interface AnniversaireMembre {
+  id: string
+  nom: string
+  prenom: string
+  /** Jour du mois (1 → 31). */
+  jour: number
 }
 
 export interface DashboardComplet {
@@ -88,6 +99,8 @@ export interface DashboardComplet {
   /** Évolution mensuelle collecté vs attendu sur l'année courante (12 entrées, janv.→déc.). */
   evolutionMensuelle: EvolutionMois[]
   nombreBranches: number
+  /** Membres dont l'anniversaire tombe ce mois-ci (triés par jour). */
+  anniversaires: AnniversaireMembre[]
   alertes: { baremeAnneeCouranteManquant: boolean }
 }
 
@@ -181,16 +194,48 @@ export function construireEvolutionMensuelle(
   versements: { montant: number; dateVersement: Date | string }[],
   totalAttenduAnnee: number,
   anneeCourante: number,
+  versementsN1: { montant: number; dateVersement: Date | string }[] = [],
 ): EvolutionMois[] {
-  const collecteParMois = new Array<number>(12).fill(0)
-  for (const v of versements) {
-    const d = v.dateVersement instanceof Date ? v.dateVersement : new Date(v.dateVersement)
-    if (Number.isNaN(d.getTime()) || d.getUTCFullYear() !== anneeCourante) continue
-    const mois = d.getUTCMonth() // 0..11, toujours dans les bornes du tableau
-    collecteParMois[mois] = (collecteParMois[mois] ?? 0) + v.montant
+  const ventiler = (
+    liste: { montant: number; dateVersement: Date | string }[],
+    annee: number,
+  ): number[] => {
+    const parMois = new Array<number>(12).fill(0)
+    for (const v of liste) {
+      const d = v.dateVersement instanceof Date ? v.dateVersement : new Date(v.dateVersement)
+      if (Number.isNaN(d.getTime()) || d.getUTCFullYear() !== annee) continue
+      const mois = d.getUTCMonth() // 0..11, toujours dans les bornes du tableau
+      parMois[mois] = (parMois[mois] ?? 0) + v.montant
+    }
+    return parMois
   }
+  const collecteParMois = ventiler(versements, anneeCourante)
+  const collecteN1ParMois = ventiler(versementsN1, anneeCourante - 1)
   const attenduMensuel = Math.round(totalAttenduAnnee / 12)
-  return collecteParMois.map((collecte, i) => ({ mois: i + 1, collecte, attendu: attenduMensuel }))
+  return collecteParMois.map((collecte, i) => ({
+    mois: i + 1,
+    collecte,
+    attendu: attenduMensuel,
+    collecteN1: collecteN1ParMois[i] ?? 0,
+  }))
+}
+
+/**
+ * Membres dont l'anniversaire tombe dans le mois `moisCourant` (1→12), triés par jour. Pure.
+ * Mois/jour lus en UTC (déterministe). Les membres sans date de naissance sont ignorés.
+ */
+export function anniversairesDuMois(
+  membres: { id: string; nom: string; prenom: string; dateNaissance: Date | string | null }[],
+  moisCourant: number,
+): AnniversaireMembre[] {
+  const res: AnniversaireMembre[] = []
+  for (const m of membres) {
+    if (!m.dateNaissance) continue
+    const d = m.dateNaissance instanceof Date ? m.dateNaissance : new Date(m.dateNaissance)
+    if (Number.isNaN(d.getTime()) || d.getUTCMonth() + 1 !== moisCourant) continue
+    res.push({ id: m.id, nom: m.nom, prenom: m.prenom, jour: d.getUTCDate() })
+  }
+  return res.sort((a, b) => a.jour - b.jour)
 }
 
 /** Compte les membres par statut de membre (ACTIF/INACTIF/DECEDE). Fonction PURE. */
@@ -260,17 +305,26 @@ export async function calculerDashboardComplet(
   prisma: DashboardPrisma,
   anneeCourante: number,
 ): Promise<DashboardComplet> {
-  // Bornes UTC de l'année courante pour ne charger que les versements de l'année (cash-flow mensuel).
+  // Bornes UTC : versements de l'année courante + de l'année précédente (comparaison N vs N-1).
+  const debutAnneePrecedente = new Date(Date.UTC(anneeCourante - 1, 0, 1))
   const debutAnnee = new Date(Date.UTC(anneeCourante, 0, 1))
   const debutAnneeSuivante = new Date(Date.UTC(anneeCourante + 1, 0, 1))
 
-  const [baremes, membres, nombreBranches, versements] = await Promise.all([
+  const [baremes, membres, nombreBranches, versements, versementsN1, membresAnniv] = await Promise.all([
     prisma.baremeAnnuel.findMany({ select: SELECT_BAREME }),
     prisma.membre.findMany({ select: SELECT_MEMBRE_COTISANT }),
     prisma.brancheFamiliale.count(),
     prisma.versement.findMany({
       where: { dateVersement: { gte: debutAnnee, lt: debutAnneeSuivante } },
       select: { montant: true, dateVersement: true },
+    }),
+    prisma.versement.findMany({
+      where: { dateVersement: { gte: debutAnneePrecedente, lt: debutAnnee } },
+      select: { montant: true, dateVersement: true },
+    }),
+    prisma.membre.findMany({
+      where: { statut: { not: 'DECEDE' }, dateNaissance: { not: null } },
+      select: { id: true, nom: true, prenom: true, dateNaissance: true },
     }),
   ])
 
@@ -280,6 +334,7 @@ export async function calculerDashboardComplet(
   // Évolution mensuelle : l'attendu de l'année courante réutilise `rapportPourAnnee` (Rapports),
   // ventilé sur 12 mois ; le collecté est la Σ mensuelle des versements encaissés cette année.
   const totalAttenduAnnee = rapportPourAnnee(anneeCourante, baremes, membresActifs)?.totalAttendu ?? 0
+  const moisCourant = new Date().getUTCMonth() + 1
 
   return {
     vue: 'COMPLET',
@@ -291,8 +346,9 @@ export async function calculerDashboardComplet(
     },
     membresParStatutContribution: fin.distribution,
     membresParStatutMembre: compterParStatutMembre(membres),
-    evolutionMensuelle: construireEvolutionMensuelle(versements, totalAttenduAnnee, anneeCourante),
+    evolutionMensuelle: construireEvolutionMensuelle(versements, totalAttenduAnnee, anneeCourante, versementsN1),
     nombreBranches,
+    anniversaires: anniversairesDuMois(membresAnniv, moisCourant),
     alertes: { baremeAnneeCouranteManquant: baremeManquant(baremes, anneeCourante) },
   }
 }

@@ -52,6 +52,11 @@ export default {
       recouvre: 'recouvré',
       totalCollecte: 'Total collecté',
       totalAttendu: 'Total attendu',
+      resteACollecter: 'Reste à collecter',
+    },
+    anniversaires: {
+      titre: 'Anniversaires du mois',
+      leJour: 'le {{jour}}',
     },
     repartition: {
       aucuneDonnee: "Aucune donnée pour l'instant.",
@@ -68,6 +73,7 @@ export default {
       titre: 'Recouvrement cumulé · {{annee}}',
       collecte: 'Collecté (cumulé)',
       attendu: 'Objectif (cumulé)',
+      n1: 'Année {{annee}}',
       colonneMois: 'Mois',
       resumeAria:
         'Progression cumulée du recouvrement pour {{annee}} : montant collecté cumulé mois après mois face à l’objectif cumulé. Détail chiffré dans la table associée.',

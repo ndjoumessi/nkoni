@@ -52,6 +52,11 @@ export default {
       recouvre: 'collected',
       totalCollecte: 'Total collected',
       totalAttendu: 'Total expected',
+      resteACollecter: 'Left to collect',
+    },
+    anniversaires: {
+      titre: 'Birthdays this month',
+      leJour: 'on the {{jour}}',
     },
     repartition: {
       aucuneDonnee: 'No data yet.',
@@ -68,6 +73,7 @@ export default {
       titre: 'Cumulative recovery · {{annee}}',
       collecte: 'Collected (cumulative)',
       attendu: 'Target (cumulative)',
+      n1: 'Year {{annee}}',
       colonneMois: 'Month',
       resumeAria:
         'Cumulative collection progress for {{annee}}: amount collected cumulatively month over month against the cumulative target. Full figures in the companion table.',

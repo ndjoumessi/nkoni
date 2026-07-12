@@ -27,6 +27,8 @@ export interface PointEvolution {
   collecte: number
   /** Taux de recouvrement en %, affiché au-dessus des barres (variante `barres`). */
   taux?: number
+  /** Collecté (cumulé) du même point l'année PRÉCÉDENTE — courbe de comparaison (variante `aire`). */
+  collecteN1?: number
 }
 
 interface GrapheEvolutionProps {
@@ -35,6 +37,8 @@ interface GrapheEvolutionProps {
   titre: string
   legendeAttendu: string
   legendeCollecte: string
+  /** Libellé de la courbe année précédente (comparaison N-1) ; absent → pas de courbe N-1. */
+  legendeN1?: string
   /** En-têtes de la table accessible (équivalent chiffré). */
   labelColonne: string
   /** Résumé lu par les lecteurs d'écran (role="img"). */
@@ -58,13 +62,15 @@ function Legende({
   variant,
   legendeAttendu,
   legendeCollecte,
+  legendeN1,
 }: {
   variant: 'barres' | 'aire'
   legendeAttendu: string
   legendeCollecte: string
+  legendeN1?: string
 }) {
   return (
-    <div className="flex items-center gap-4 text-xs text-faint">
+    <div className="flex flex-wrap items-center gap-4 text-xs text-faint">
       <span className="inline-flex items-center gap-1.5">
         {variant === 'aire' ? (
           <span
@@ -83,6 +89,12 @@ function Legende({
         />
         {legendeCollecte}
       </span>
+      {legendeN1 && (
+        <span className="inline-flex items-center gap-1.5">
+          <span className="h-0 w-3.5 border-t-2 border-jade/70" aria-hidden="true" />
+          {legendeN1}
+        </span>
+      )}
     </div>
   )
 }
@@ -140,7 +152,7 @@ function CorpsAire({ points, monte }: { points: PointEvolution[]; monte: boolean
   const gradId = useId()
   const innerW = W - PAD_X * 2
   const max = useMemo(
-    () => Math.max(1, ...points.flatMap((p) => [p.attendu, p.collecte])),
+    () => Math.max(1, ...points.flatMap((p) => [p.attendu, p.collecte, p.collecteN1 ?? 0])),
     [points],
   )
   const n = points.length
@@ -149,6 +161,8 @@ function CorpsAire({ points, monte }: { points: PointEvolution[]; monte: boolean
 
   const ligneCollecte = points.map((p, i) => `${x(i)},${y(p.collecte)}`).join(' ')
   const ligneAttendu = points.map((p, i) => `${x(i)},${y(p.attendu)}`).join(' ')
+  const montreN1 = points.some((p) => (p.collecteN1 ?? 0) > 0)
+  const ligneN1 = points.map((p, i) => `${x(i)},${y(p.collecteN1 ?? 0)}`).join(' ')
   const aire = `M ${x(0)},${H} ${points
     .map((p, i) => `L ${x(i)},${y(p.collecte)}`)
     .join(' ')} L ${x(n - 1)},${H} Z`
@@ -195,6 +209,20 @@ function CorpsAire({ points, monte }: { points: PointEvolution[]; monte: boolean
             vectorEffect="non-scaling-stroke"
           />
 
+          {/* Courbe année précédente (N-1) — trait fin jade, référence de comparaison. */}
+          {montreN1 && (
+            <polyline
+              points={ligneN1}
+              fill="none"
+              stroke="var(--jade)"
+              strokeWidth="1.75"
+              opacity="0.55"
+              strokeLinejoin="round"
+              strokeLinecap="round"
+              vectorEffect="non-scaling-stroke"
+            />
+          )}
+
           {/* Aire + ligne « collecté » (révélées par le clip animé). */}
           <g clipPath={`url(#${clipId})`}>
             <path d={aire} fill={`url(#${gradId})`} />
@@ -236,6 +264,7 @@ export function GrapheEvolution({
   titre,
   legendeAttendu,
   legendeCollecte,
+  legendeN1,
   labelColonne,
   resumeAria,
   aucuneDonnee,
@@ -244,6 +273,7 @@ export function GrapheEvolution({
   const Icon = variant === 'aire' ? Activity : BarChart3
   const vide = points.length === 0 || points.every((p) => p.attendu === 0 && p.collecte === 0)
   const avecTaux = points.some((p) => p.taux !== undefined)
+  const montreN1 = Boolean(legendeN1) && points.some((p) => (p.collecteN1 ?? 0) > 0)
 
   return (
     <Card className="p-6">
@@ -252,7 +282,12 @@ export function GrapheEvolution({
           <Icon className="h-4 w-4 text-brass" aria-hidden="true" />
           <Overline>{titre}</Overline>
         </div>
-        <Legende variant={variant} legendeAttendu={legendeAttendu} legendeCollecte={legendeCollecte} />
+        <Legende
+          variant={variant}
+          legendeAttendu={legendeAttendu}
+          legendeCollecte={legendeCollecte}
+          legendeN1={montreN1 ? legendeN1 : undefined}
+        />
       </div>
 
       {vide ? (
@@ -273,6 +308,7 @@ export function GrapheEvolution({
                 <th scope="col">{labelColonne}</th>
                 <th scope="col">{legendeCollecte}</th>
                 <th scope="col">{legendeAttendu}</th>
+                {montreN1 && <th scope="col">{legendeN1}</th>}
                 {avecTaux && <th scope="col">%</th>}
               </tr>
             </thead>
@@ -282,6 +318,7 @@ export function GrapheEvolution({
                   <th scope="row">{p.label}</th>
                   <td>{formatMontant(p.collecte)}</td>
                   <td>{formatMontant(p.attendu)}</td>
+                  {montreN1 && <td>{formatMontant(p.collecteN1 ?? 0)}</td>}
                   {avecTaux && <td>{p.taux !== undefined ? formatPourcent(p.taux) : ''}</td>}
                 </tr>
               ))}

@@ -196,6 +196,28 @@ statut de déploiement Railway/Vercel confirmé au statut réel là où le backe
   i18n `membres.photo.*` FR/EN. **Migration `photo_membre`** générée et committée (additive : 2
   colonnes TEXT nullables) ; s'applique en prod via `prisma migrate deploy` au déploiement Railway.
 
+- **Dashboard enrichi — N vs N-1, anniversaires, reste à collecter (§ dashboard)** — trois ajouts
+  au tableau de bord, **sans migration** (agrégats en lecture). (1) **Comparaison N-1** : le graphe
+  d'évolution mensuelle superpose la collecte du même mois l'**année précédente**
+  (`construireEvolutionMensuelle` prend désormais `versementsN1`, ventilation factorisée en `ventiler`,
+  champ additif `collecteN1`). (2) **Anniversaires du mois** : nouvelle carte `AnniversairesCard`
+  listant les membres dont l'anniversaire tombe dans le mois courant, triés par jour — fonction pure
+  `anniversairesDuMois` (mois/jour lus en **UTC**, membres sans `dateNaissance` ignorés). (3) **Reste
+  à collecter** : ligne `RecouvrementHero` affichant `max(0, attendu − collecté)` en ton `--terra`.
+  Service pur testé (+2 cas). i18n `dashboard.{hero.resteACollecter, anniversaires.*, evolution.n1}`
+  FR/EN.
+- **Dashboard — vue financière consolidée + relance WhatsApp (§ dashboard)** — deux ajouts pour le
+  dirigeant, **sans migration**. (1) **Vue financière consolidée** (`FinancesConsolideesCard`) :
+  au-delà des seules cotisations, agrège en **un aller-retour groupé** (`calculerFinancesConsolidees`,
+  `Promise.all`) le **solde de caisse** (Σ versements − Σ dépenses APPROUVÉE/PAYÉE), les **cagnottes
+  ouvertes** (nombre + collecté) et les **amendes** (dû IMPAYÉ / encaissé PAYÉ) — vue de TOUT l'argent
+  de l'association. Calculée en **route** et greffée sur le dashboard **uniquement** pour les rôles
+  dirigeants (ADMIN / PRESIDENT / COMMISSAIRE_COMPTES) ; champ `financesConsolidees?` optionnel.
+  (2) **Relance WhatsApp** : dans la liste « membres à relancer » (`AnalyseMembres`), un bouton `wa.me`
+  par membre ouvre un message pré-rempli **personnalisé** (prénom + reste dû), numéro normalisé via
+  `telephoneWaMe` (masqué si téléphone absent/invalide). Service pur testé (+3), route testée (+1).
+  i18n `dashboard.{consolide.*, analyse.relancerWhatsApp, analyse.relanceMessage}` FR/EN.
+
 ### Migrations appliquées en prod
 - `tresorerie_depense` — additive (table `Depense` + 2 enums via `CREATE TYPE`).
 - `idempotence_offline` — additive (colonne `idempotenceKey` nullable + index unique par org sur
@@ -277,7 +299,11 @@ statut de déploiement Railway/Vercel confirmé au statut réel là où le backe
   → vérifier le rejeu sans doublon.
 - **DatePicker trésorerie** : ouvrir « Nouvelle dépense » → le calendrier doit s'afficher **au-dessus**
   de la modale (popover et Modal sont tous deux `z-50`).
-- **Dashboard** : carte « Recouvrement cumulé » (courbe burn-up) + donuts de répartition bien affichés.
+- **Dashboard** : carte « Recouvrement cumulé » (courbe burn-up) + donuts de répartition bien affichés ;
+  superposition **N-1** sur le graphe mensuel, carte **Anniversaires du mois**, ligne **Reste à
+  collecter** (hero) ; en rôle dirigeant : carte **Vue financière consolidée** (solde caisse /
+  cagnottes / amendes) et bouton **relance WhatsApp** sur les membres à relancer (ouvre `wa.me`
+  pré-rempli, masqué si téléphone absent).
 - **Nom de l'organisation** : après reconnexion (token réhydraté), le nom de l'org apparaît dans le
   bloc menthe en haut de la barre latérale (et tronqué dans la topbar mobile).
 - **Rapports** : retrait d'année en mode comparaison (bouton agrandi, plus d'overlay).

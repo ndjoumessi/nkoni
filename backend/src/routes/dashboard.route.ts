@@ -6,6 +6,7 @@ import {
   calculerDashboardFinancier,
   calculerDashboardRestreint,
   calculerDashboardPerso,
+  calculerFinancesConsolidees,
   MembreIntrouvableError,
 } from '../services/dashboard.service'
 
@@ -38,12 +39,22 @@ export const dashboardRoutes: FastifyPluginAsync = async (app: FastifyInstance) 
 
       switch (role) {
         case 'ADMIN':
-        case 'PRESIDENT':
-          return calculerDashboardComplet(app.prisma, annee)
+        case 'PRESIDENT': {
+          const [base, financesConsolidees] = await Promise.all([
+            calculerDashboardComplet(app.prisma, annee),
+            calculerFinancesConsolidees(app.prisma),
+          ])
+          return { ...base, financesConsolidees }
+        }
 
         case 'TRESORIERE':
-        case 'COMMISSAIRE_COMPTES':
-          return calculerDashboardFinancier(app.prisma, annee)
+        case 'COMMISSAIRE_COMPTES': {
+          const [base, financesConsolidees] = await Promise.all([
+            calculerDashboardFinancier(app.prisma, annee),
+            calculerFinancesConsolidees(app.prisma),
+          ])
+          return { ...base, financesConsolidees }
+        }
 
         case 'SECRETAIRE':
           return calculerDashboardRestreint(app.prisma)

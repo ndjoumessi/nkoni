@@ -28,6 +28,7 @@ import {
 } from '@/components/dashboard/StatutRepartition'
 import { AnalyseMembres } from '@/components/dashboard/AnalyseMembres'
 import { AnniversairesCard } from '@/components/dashboard/AnniversairesCard'
+import { FinancesConsolideesCard } from '@/components/dashboard/FinancesConsolideesCard'
 import { ExportButtons } from '@/components/dashboard/ExportButtons'
 import { GrapheEvolution, type PointEvolution } from '@/components/dashboard/GrapheEvolution'
 import { formatMontant, formatNombre } from '@/lib/format'
@@ -172,6 +173,7 @@ function VueComplet({ d, canManage }: { d: DashboardComplet; canManage: boolean 
               icon={GitBranch}
             />
           </div>
+          {d.financesConsolidees && <FinancesConsolideesCard data={d.financesConsolidees} />}
           <EvolutionMensuelleCard annee={d.anneeCourante} data={d.evolutionMensuelle} />
           <div className="grid gap-4 lg:grid-cols-2">
             <StatutContributionRepartition data={d.membresParStatutContribution} />
@@ -201,6 +203,7 @@ function VueFinancier({ d, canManage }: { d: DashboardFinancier; canManage: bool
             collecte={d.finances.totalCollecteCumule}
             attendu={d.finances.totalAttenduCumule}
           />
+          {d.financesConsolidees && <FinancesConsolideesCard data={d.financesConsolidees} />}
           <StatutContributionRepartition data={d.membresParStatutContribution} />
           <AnalyseMembres />
           <ExportButtons />

@@ -69,6 +69,17 @@ export interface Finances {
   tauxRecouvrement: number
 }
 
+/**
+ * Vue financière CONSOLIDÉE (§ dashboard) — au-delà des cotisations : solde de la caisse générale,
+ * cagnottes ouvertes, amendes. Donne au dirigeant une vue de TOUT l'argent de l'association.
+ */
+export interface FinancesConsolidees {
+  /** Solde de caisse = Σ versements − Σ dépenses APPROUVÉES/PAYÉES (cotisations). */
+  soldeTresorerie: number
+  cagnottes: { nombreOuvertes: number; totalCollecte: number }
+  amendes: { du: number; encaisse: number }
+}
+
 /** Un point de l'évolution mensuelle du recouvrement (§10, année courante). */
 export interface EvolutionMois {
   /** Mois de l'année, 1 (janvier) → 12 (décembre). */
@@ -101,6 +112,8 @@ export interface DashboardComplet {
   nombreBranches: number
   /** Membres dont l'anniversaire tombe ce mois-ci (triés par jour). */
   anniversaires: AnniversaireMembre[]
+  /** Vue financière consolidée (trésorerie + cagnottes + amendes) — ajoutée par la route. */
+  financesConsolidees?: FinancesConsolidees
   alertes: { baremeAnneeCouranteManquant: boolean }
 }
 
@@ -109,6 +122,8 @@ export interface DashboardFinancier {
   anneeCourante: number
   finances: Finances
   membresParStatutContribution: RepartitionStatutContribution
+  /** Vue financière consolidée (trésorerie + cagnottes + amendes) — ajoutée par la route. */
+  financesConsolidees?: FinancesConsolidees
   alertes: { baremeAnneeCouranteManquant: boolean }
 }
 
@@ -286,6 +301,61 @@ const SELECT_MEMBRE_COTISANT = {
 
 function baremeManquant(baremes: BaremeAnnuelInput[], annee: number): boolean {
   return !baremes.some((b) => b.annee === annee)
+}
+
+/** Contrat Prisma minimal pour la vue consolidée (agrégats trésorerie/cagnottes/amendes). */
+export interface FinancesConsolideesPrisma {
+  versement: {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    aggregate(args?: any): Promise<{ _sum?: { montant?: number | null } | undefined }>
+  }
+  depense: {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    aggregate(args?: any): Promise<{ _sum?: { montant?: number | null } | undefined }>
+  }
+  cagnotteEvenement: {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    count(args?: any): Promise<number>
+  }
+  donCagnotte: {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    aggregate(args?: any): Promise<{ _sum?: { montant?: number | null } | undefined }>
+  }
+  amende: {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    aggregate(args?: any): Promise<{ _sum?: { montant?: number | null } | undefined }>
+  }
+}
+
+/**
+ * Vue financière consolidée (§ dashboard) : solde de caisse (Σ versements − Σ dépenses
+ * approuvées/payées), cagnottes OUVERTES (nombre + collecté), amendes (dû IMPAYÉ / encaissé PAYÉ).
+ * Un seul aller-retour groupé.
+ */
+export async function calculerFinancesConsolidees(
+  prisma: FinancesConsolideesPrisma,
+): Promise<FinancesConsolidees> {
+  const [entrees, sorties, nombreOuvertes, donsOuverts, amendesDu, amendesEncaisse] =
+    await Promise.all([
+      prisma.versement.aggregate({ _sum: { montant: true } }),
+      prisma.depense.aggregate({
+        where: { statut: { in: ['APPROUVEE', 'PAYEE'] } },
+        _sum: { montant: true },
+      }),
+      prisma.cagnotteEvenement.count({ where: { statut: 'OUVERTE' } }),
+      prisma.donCagnotte.aggregate({
+        where: { cagnotte: { statut: 'OUVERTE' } },
+        _sum: { montant: true },
+      }),
+      prisma.amende.aggregate({ where: { statut: 'IMPAYEE' }, _sum: { montant: true } }),
+      prisma.amende.aggregate({ where: { statut: 'PAYEE' }, _sum: { montant: true } }),
+    ])
+
+  return {
+    soldeTresorerie: (entrees._sum?.montant ?? 0) - (sorties._sum?.montant ?? 0),
+    cagnottes: { nombreOuvertes, totalCollecte: donsOuverts._sum?.montant ?? 0 },
+    amendes: { du: amendesDu._sum?.montant ?? 0, encaisse: amendesEncaisse._sum?.montant ?? 0 },
+  }
 }
 
 /* -------------------------------------------------------------------------- */

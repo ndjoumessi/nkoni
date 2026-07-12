@@ -58,6 +58,15 @@ export default {
       titre: 'Anniversaires du mois',
       leJour: 'le {{jour}}',
     },
+    consolide: {
+      titre: 'Vue financière consolidée',
+      soldeCaisse: 'Solde de caisse',
+      cagnottes: 'Cagnottes',
+      cagnottesOuvertes_one: '{{count}} en cours',
+      cagnottesOuvertes_other: '{{count}} en cours',
+      amendes: 'Amendes à recouvrer',
+      amendesEncaisse: '{{montant}} encaissé',
+    },
     repartition: {
       aucuneDonnee: "Aucune donnée pour l'instant.",
       total: 'Total',
@@ -85,6 +94,9 @@ export default {
       tousAJour: 'Tous les membres actifs sont à jour. 🎉',
       reste: 'Reste {{montant}}',
       voirTous: 'Voir tous les membres à relancer',
+      relancerWhatsApp: 'Relancer par WhatsApp',
+      relanceMessage:
+        'Bonjour {{prenom}}, petit rappel : il vous reste {{montant}} à régler pour vos cotisations. Merci !',
     },
     export: {
       titre: 'Exporter les contributions',

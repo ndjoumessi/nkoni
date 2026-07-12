@@ -4,6 +4,7 @@ import {
   compterParStatutMembre,
   construireEvolutionMensuelle,
   anniversairesDuMois,
+  calculerFinancesConsolidees,
   calculerDashboardComplet,
   calculerDashboardFinancier,
   type DashboardPrisma,
@@ -113,6 +114,43 @@ describe('anniversairesDuMois (pure)', () => {
     )
     expect(r.map((x) => x.id)).toEqual(['b', 'a']) // triés par jour (3 puis 20)
     expect(r[0].jour).toBe(3)
+  })
+})
+
+describe('calculerFinancesConsolidees (agrégats)', () => {
+  it('solde = entrées − sorties ; cagnottes ouvertes ; amendes dû/encaissé', async () => {
+    const r = await calculerFinancesConsolidees({
+      versement: { aggregate: async () => ({ _sum: { montant: 100_000 } }) },
+      depense: { aggregate: async () => ({ _sum: { montant: 30_000 } }) },
+      cagnotteEvenement: { count: async () => 3 },
+      donCagnotte: { aggregate: async () => ({ _sum: { montant: 12_000 } }) },
+      amende: {
+        aggregate: async (a: { where?: { statut?: string } } = {}) => ({
+          _sum: { montant: a.where?.statut === 'PAYEE' ? 4_000 : 7_000 },
+        }),
+      },
+    })
+    expect(r).toEqual({
+      soldeTresorerie: 70_000,
+      cagnottes: { nombreOuvertes: 3, totalCollecte: 12_000 },
+      amendes: { du: 7_000, encaisse: 4_000 },
+    })
+  })
+
+  it('sommes nulles → 0', async () => {
+    const nul = { aggregate: async () => ({ _sum: { montant: null } }) }
+    const r = await calculerFinancesConsolidees({
+      versement: nul,
+      depense: nul,
+      cagnotteEvenement: { count: async () => 0 },
+      donCagnotte: nul,
+      amende: nul,
+    })
+    expect(r).toEqual({
+      soldeTresorerie: 0,
+      cagnottes: { nombreOuvertes: 0, totalCollecte: 0 },
+      amendes: { du: 0, encaisse: 0 },
+    })
   })
 })
 

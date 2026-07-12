@@ -348,6 +348,14 @@ export interface AnniversaireMembre {
   jour: number
 }
 
+/** Vue financière consolidée du dashboard : au-delà des cotisations (caisse, cagnottes, amendes). */
+export interface FinancesConsolidees {
+  /** Solde de caisse = Σ versements − Σ dépenses approuvées/payées. */
+  soldeTresorerie: number
+  cagnottes: { nombreOuvertes: number; totalCollecte: number }
+  amendes: { du: number; encaisse: number }
+}
+
 export interface DashboardComplet {
   vue: 'COMPLET'
   anneeCourante: number
@@ -359,6 +367,8 @@ export interface DashboardComplet {
   nombreBranches: number
   /** Membres fêtant leur anniversaire ce mois-ci (triés par jour). */
   anniversaires: AnniversaireMembre[]
+  /** Vue financière consolidée (trésorerie + cagnottes + amendes). */
+  financesConsolidees?: FinancesConsolidees
   alertes: { baremeAnneeCouranteManquant: boolean }
 }
 
@@ -367,6 +377,8 @@ export interface DashboardFinancier {
   anneeCourante: number
   finances: Finances
   membresParStatutContribution: RepartitionStatutContribution
+  /** Vue financière consolidée (trésorerie + cagnottes + amendes). */
+  financesConsolidees?: FinancesConsolidees
   alertes: { baremeAnneeCouranteManquant: boolean }
 }
 

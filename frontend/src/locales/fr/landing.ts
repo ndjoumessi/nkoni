@@ -62,6 +62,10 @@ export default {
           titre: 'Reçus archivés',
           texte: 'Chaque cotisation peut générer un reçu conservé et consultable à tout moment.',
         },
+        cartes: {
+          titre: 'Cartes de membre',
+          texte: 'Des cartes avec photo et QR : un scan vérifie le statut du membre en direct.',
+        },
       },
       dejaEspace: 'Vous avez déjà un espace ? Se connecter',
     },
@@ -148,7 +152,11 @@ export default {
       description: 'Une seule application, du recouvrement à la reddition de comptes.',
       reunions: 'Réunions & présences',
       resolutions: 'Résolutions & fonctions',
+      cagnottes: 'Cagnottes d’événement',
+      amendes: 'Amendes & pénalités',
+      cartes: 'Cartes de membre + QR',
       rapports: 'Rapports & exports PDF/Excel',
+      releve: 'Relevé de compte PDF',
       recus: 'Reçus PDF automatiques',
       horsLigne: 'Saisie même hors-ligne',
       multiDevise: 'Multi-devise & bilingue',
@@ -177,6 +185,10 @@ export default {
       cout: {
         q: 'NKONI est-il vraiment gratuit ?',
         r: 'Oui. Le forfait Gratuit couvre jusqu’à 100 membres avec toutes les fonctions essentielles, sans carte bancaire.',
+      },
+      modules: {
+        q: 'NKONI gère-t-il autre chose que les cotisations ?',
+        r: 'Oui : cagnottes d’événement (deuil, mariage, naissance…), amendes et pénalités, cartes de membre avec QR de vérification, relevés de compte PDF, réunions et rapports — le tout dans le même espace.',
       },
       donnees: {
         q: 'Mes données sont-elles isolées des autres groupes ?',

@@ -19,6 +19,9 @@ import {
   FileBarChart,
   WifiOff,
   Globe,
+  HeartHandshake,
+  CreditCard,
+  FileText,
   ListChecks,
   Download,
   ChevronDown,
@@ -84,7 +87,7 @@ export function LandingPage() {
           description={t('landing.apropos.description')}
         />
 
-        <div className="mt-14 grid grid-cols-1 gap-5 sm:grid-cols-3">
+        <div className="mt-14 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
           <FeatureCard
             icon={ShieldCheck}
             tone="jade"
@@ -102,6 +105,12 @@ export function LandingPage() {
             tone="jade"
             title={t('landing.apropos.cards.recus.titre')}
             text={t('landing.apropos.cards.recus.texte')}
+          />
+          <FeatureCard
+            icon={CreditCard}
+            tone="brass"
+            title={t('landing.apropos.cards.cartes.titre')}
+            text={t('landing.apropos.cards.cartes.texte')}
           />
         </div>
 
@@ -367,13 +376,17 @@ export function LandingPage() {
 const CAPACITES: { key: string; icon: LucideIcon }[] = [
   { key: 'reunions', icon: CalendarCheck },
   { key: 'resolutions', icon: Gavel },
+  { key: 'cagnottes', icon: HeartHandshake },
+  { key: 'amendes', icon: Scale },
+  { key: 'cartes', icon: CreditCard },
   { key: 'rapports', icon: FileBarChart },
+  { key: 'releve', icon: FileText },
   { key: 'recus', icon: Receipt },
   { key: 'horsLigne', icon: WifiOff },
   { key: 'multiDevise', icon: Globe },
 ]
 
-const FAQ_ITEMS = ['cout', 'donnees', 'horsLigne', 'langues'] as const
+const FAQ_ITEMS = ['cout', 'modules', 'donnees', 'horsLigne', 'langues'] as const
 
 /** En-tête de section réutilisable (overline menthe + titre display + description). */
 function SectionHeading({

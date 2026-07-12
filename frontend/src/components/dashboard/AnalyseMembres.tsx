@@ -8,7 +8,7 @@ import { formatMontant, formatPourcent } from '@/lib/format'
 import { Card, Overline } from '@/components/ui/Card'
 import { Badge, type BadgeProps } from '@/components/ui/Badge'
 import { Skeleton } from '@/components/ui/Skeleton'
-import { cn, telephoneWaMe } from '@/lib/utils'
+import { cn, lienRelanceWhatsApp } from '@/lib/utils'
 
 /**
  * Analyses complémentaires du dashboard, 100% côté client à partir de GET /membres/statuts
@@ -166,7 +166,10 @@ export function AnalyseMembres() {
           <>
             <ul className="mt-4 divide-y divide-hairline">
               {relance.slice(0, 6).map((m) => {
-                const numeroWa = telephoneWaMe(m.telephone)
+                const lienWa = lienRelanceWhatsApp(
+                  m.telephone,
+                  t('dashboard.analyse.relanceMessage', { prenom: m.prenom, montant: formatMontant(m.manque) }),
+                )
                 return (
                   <li key={m.id} className="flex items-center gap-2">
                     <Link
@@ -186,9 +189,9 @@ export function AnalyseMembres() {
                         {t(`dashboard.statut.${m.statutCotisation as 'PARTIEL' | 'NON_A_JOUR'}`)}
                       </Badge>
                     </Link>
-                    {numeroWa && (
+                    {lienWa && (
                       <a
-                        href={`https://wa.me/${numeroWa}?text=${encodeURIComponent(t('dashboard.analyse.relanceMessage', { prenom: m.prenom, montant: formatMontant(m.manque) }))}`}
+                        href={lienWa}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="shrink-0 rounded-lg p-2 text-jade transition-colors hover:bg-jade/10"

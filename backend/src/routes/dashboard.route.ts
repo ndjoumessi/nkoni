@@ -42,7 +42,9 @@ export const dashboardRoutes: FastifyPluginAsync = async (app: FastifyInstance) 
         case 'PRESIDENT': {
           const [base, financesConsolidees] = await Promise.all([
             calculerDashboardComplet(app.prisma, annee),
-            calculerFinancesConsolidees(app.prisma),
+            // Best-effort : un agrégat qui échoue ne doit PAS casser tout le dashboard (la carte
+            // consolidée se masque simplement — le champ est optionnel).
+            calculerFinancesConsolidees(app.prisma).catch(() => undefined),
           ])
           return { ...base, financesConsolidees }
         }
@@ -51,7 +53,9 @@ export const dashboardRoutes: FastifyPluginAsync = async (app: FastifyInstance) 
         case 'COMMISSAIRE_COMPTES': {
           const [base, financesConsolidees] = await Promise.all([
             calculerDashboardFinancier(app.prisma, annee),
-            calculerFinancesConsolidees(app.prisma),
+            // Best-effort : un agrégat qui échoue ne doit PAS casser tout le dashboard (la carte
+            // consolidée se masque simplement — le champ est optionnel).
+            calculerFinancesConsolidees(app.prisma).catch(() => undefined),
           ])
           return { ...base, financesConsolidees }
         }

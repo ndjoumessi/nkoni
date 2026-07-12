@@ -147,7 +147,7 @@ const PAD_X = 12
  * AUCUN texte n'est placé dans le SVG (il serait déformé) — l'échelle max et les libellés
  * de mois sont rendus en HTML, alignés sur les points via des pourcentages de largeur.
  */
-function CorpsAire({ points, monte }: { points: PointEvolution[]; monte: boolean }) {
+function CorpsAire({ points, monte, montreN1 }: { points: PointEvolution[]; monte: boolean; montreN1: boolean }) {
   const clipId = useId()
   const gradId = useId()
   const innerW = W - PAD_X * 2
@@ -161,7 +161,6 @@ function CorpsAire({ points, monte }: { points: PointEvolution[]; monte: boolean
 
   const ligneCollecte = points.map((p, i) => `${x(i)},${y(p.collecte)}`).join(' ')
   const ligneAttendu = points.map((p, i) => `${x(i)},${y(p.attendu)}`).join(' ')
-  const montreN1 = points.some((p) => (p.collecteN1 ?? 0) > 0)
   const ligneN1 = points.map((p, i) => `${x(i)},${y(p.collecteN1 ?? 0)}`).join(' ')
   const aire = `M ${x(0)},${H} ${points
     .map((p, i) => `L ${x(i)},${y(p.collecte)}`)
@@ -295,7 +294,7 @@ export function GrapheEvolution({
       ) : (
         <div role="img" aria-label={resumeAria}>
           {variant === 'aire' ? (
-            <CorpsAire points={points} monte={monte} />
+            <CorpsAire points={points} monte={monte} montreN1={montreN1} />
           ) : (
             <CorpsBarres points={points} monte={monte} />
           )}

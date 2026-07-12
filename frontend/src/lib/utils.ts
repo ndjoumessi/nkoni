@@ -81,6 +81,19 @@ export function telephoneWaMe(brut: string | null | undefined): string {
 }
 
 /**
+ * Lien `wa.me` de relance pr\u00e9-rempli (click-to-chat) \u2014 PARTAG\u00c9 (dashboard + fiche membre) pour ne
+ * pas dupliquer la construction. `null` si le t\u00e9l\u00e9phone est absent/invalide (bouton \u00e0 masquer).
+ * `message` est encod\u00e9 (prot\u00e8ge des `&`/`#`/retours dans le texte).
+ */
+export function lienRelanceWhatsApp(
+  telephone: string | null | undefined,
+  message: string,
+): string | null {
+  const numero = telephoneWaMe(telephone)
+  return numero ? `https://wa.me/${numero}?text=${encodeURIComponent(message)}` : null
+}
+
+/**
  * Après un échec de validation (§8 `focus-management`) : place le focus sur le premier
  * contrôle en erreur d'un formulaire pour que l'utilisateur atterrisse là où corriger.
  * Les champs Field portent `aria-invalid="true"` quand ils ont une erreur — on cible ça.

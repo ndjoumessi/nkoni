@@ -104,13 +104,17 @@ function EvolutionMensuelleCard({ annee, data }: { annee: number; data: Evolutio
   const { t, i18n } = useTranslation()
   const points = useMemo<PointEvolution[]>(() => {
     const fmt = new Intl.DateTimeFormat(i18n.language, { month: 'short', timeZone: 'UTC' })
+    // La courbe collectée se fige naturellement après le mois courant (mois futurs = 0). On BORNE
+    // donc la courbe N-1 au même mois pour comparer la MÊME période (sinon la N-1 monte jusqu'à
+    // décembre et donne une fausse impression de retard). `?? 0` : jamais de NaN (réponse cache/skew).
+    const moisCourant = new Date().getMonth() + 1
     let cumulCollecte = 0
     let cumulAttendu = 0
     let cumulN1 = 0
     return data.map((e) => {
       cumulCollecte += e.collecte
       cumulAttendu += e.attendu
-      cumulN1 += e.collecteN1
+      if (e.mois <= moisCourant) cumulN1 += e.collecteN1 ?? 0
       return {
         cle: String(e.mois),
         label: fmt.format(new Date(Date.UTC(2000, e.mois - 1, 1))),

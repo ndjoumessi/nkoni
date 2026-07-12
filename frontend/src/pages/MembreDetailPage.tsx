@@ -30,7 +30,7 @@ import { DocumentsSection } from '@/components/documents/DocumentsSection'
 import { StatutCotisationBadge, StatutMembreBadge } from '@/components/membres/StatutBadges'
 import { VersementsList } from '@/components/VersementsList'
 import { formatMontant } from '@/lib/format'
-import { formatDate, ouvrirBlobPdf, telephoneWaMe } from '@/lib/utils'
+import { formatDate, ouvrirBlobPdf, telephoneWaMe, lienRelanceWhatsApp } from '@/lib/utils'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, Overline } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
@@ -393,24 +393,20 @@ export function MembreDetailPage() {
                 {t('membres.releve.telecharger')}
               </Button>
             )}
-            {statut && statut.statut !== 'A_JOUR' && telephoneWaMe(membre.telephone) && (
+            {peutGererMembres(user?.role) && statut && statut.statut !== 'A_JOUR' && telephoneWaMe(membre.telephone) && (
               <Button
                 variant="outline"
                 icon={MessageCircle}
-                onClick={() =>
-                  window.open(
-                    `https://wa.me/${telephoneWaMe(membre.telephone)}?text=${encodeURIComponent(
-                      t('dashboard.analyse.relanceMessage', {
-                        prenom: membre.prenom,
-                        montant: formatMontant(
-                          Math.max(0, statut.totalAttenduCumule - statut.totalValoriseCumule),
-                        ),
-                      }),
-                    )}`,
-                    '_blank',
-                    'noopener,noreferrer',
+                onClick={() => {
+                  const lien = lienRelanceWhatsApp(
+                    membre.telephone,
+                    t('dashboard.analyse.relanceMessage', {
+                      prenom: membre.prenom,
+                      montant: formatMontant(Math.max(0, statut.totalAttenduCumule - statut.totalValoriseCumule)),
+                    }),
                   )
-                }
+                  if (lien) window.open(lien, '_blank', 'noopener,noreferrer')
+                }}
               >
                 {t('membres.detail.relancerWhatsApp')}
               </Button>

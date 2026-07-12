@@ -3,6 +3,7 @@ import {
   agregerFinances,
   compterParStatutMembre,
   construireEvolutionMensuelle,
+  anniversairesDuMois,
   calculerDashboardComplet,
   calculerDashboardFinancier,
   type DashboardPrisma,
@@ -80,6 +81,38 @@ describe('construireEvolutionMensuelle (pure, §10)', () => {
     expect(ev[0].collecte).toBe(8_000) // janvier : 5000 + 3000
     expect(ev[2].collecte).toBe(7_000) // mars
     expect(ev.reduce((s, e) => s + e.collecte, 0)).toBe(15_000) // le versement 2025 est exclu
+  })
+
+  it('ventile aussi le collecté de l’année précédente (collecteN1), N-2 exclu', () => {
+    const ev = construireEvolutionMensuelle(
+      [{ montant: 5_000, dateVersement: new Date('2026-02-10T00:00:00Z') }],
+      120_000,
+      2026,
+      [
+        { montant: 3_000, dateVersement: new Date('2025-02-05T00:00:00Z') }, // fév N-1
+        { montant: 1_000, dateVersement: new Date('2024-02-05T00:00:00Z') }, // N-2 → ignoré
+      ],
+    )
+    expect(ev[1].collecte).toBe(5_000) // février N
+    expect(ev[1].collecteN1).toBe(3_000) // février N-1
+    expect(ev[0].collecteN1).toBe(0)
+    expect(ev.reduce((s, e) => s + e.collecteN1, 0)).toBe(3_000) // le versement 2024 est exclu
+  })
+})
+
+describe('anniversairesDuMois (pure)', () => {
+  it('filtre par mois UTC, ignore les membres sans date, trie par jour', () => {
+    const r = anniversairesDuMois(
+      [
+        { id: 'a', nom: 'A', prenom: 'Ana', dateNaissance: new Date('1990-07-20T00:00:00Z') },
+        { id: 'b', nom: 'B', prenom: 'Bea', dateNaissance: new Date('1985-07-03T00:00:00Z') },
+        { id: 'c', nom: 'C', prenom: 'Cid', dateNaissance: new Date('1980-08-01T00:00:00Z') }, // autre mois
+        { id: 'd', nom: 'D', prenom: 'Dan', dateNaissance: null }, // sans date → ignoré
+      ],
+      7,
+    )
+    expect(r.map((x) => x.id)).toEqual(['b', 'a']) // triés par jour (3 puis 20)
+    expect(r[0].jour).toBe(3)
   })
 })
 

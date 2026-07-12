@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Coins, Wallet } from 'lucide-react'
+import { Coins, TrendingDown, Wallet } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { formatMontant, formatPourcent } from '@/lib/format'
 import { prefersReducedMotion } from '@/lib/utils'
@@ -105,6 +105,17 @@ export function RecouvrementHero({
               {t('dashboard.hero.totalAttendu')}
             </span>
             <span className="num text-lg font-semibold text-foreground">{formatMontant(attendu)}</span>
+          </div>
+          <div className="flex items-center justify-between gap-4 rounded-xl border border-hairline bg-surface/60 px-4 py-3.5">
+            <span className="flex items-center gap-2.5 text-sm text-muted-foreground">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-surface-2 text-terra">
+                <TrendingDown className="h-4 w-4" aria-hidden="true" />
+              </span>
+              {t('dashboard.hero.resteACollecter')}
+            </span>
+            <span className="num text-lg font-semibold text-terra">
+              {formatMontant(Math.max(0, attendu - collecte))}
+            </span>
           </div>
         </div>
       </div>

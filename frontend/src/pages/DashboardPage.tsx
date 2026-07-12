@@ -27,6 +27,7 @@ import {
   StatutMembreRepartition,
 } from '@/components/dashboard/StatutRepartition'
 import { AnalyseMembres } from '@/components/dashboard/AnalyseMembres'
+import { AnniversairesCard } from '@/components/dashboard/AnniversairesCard'
 import { ExportButtons } from '@/components/dashboard/ExportButtons'
 import { GrapheEvolution, type PointEvolution } from '@/components/dashboard/GrapheEvolution'
 import { formatMontant, formatNombre } from '@/lib/format'
@@ -104,14 +105,17 @@ function EvolutionMensuelleCard({ annee, data }: { annee: number; data: Evolutio
     const fmt = new Intl.DateTimeFormat(i18n.language, { month: 'short', timeZone: 'UTC' })
     let cumulCollecte = 0
     let cumulAttendu = 0
+    let cumulN1 = 0
     return data.map((e) => {
       cumulCollecte += e.collecte
       cumulAttendu += e.attendu
+      cumulN1 += e.collecteN1
       return {
         cle: String(e.mois),
         label: fmt.format(new Date(Date.UTC(2000, e.mois - 1, 1))),
         attendu: cumulAttendu,
         collecte: cumulCollecte,
+        collecteN1: cumulN1,
       }
     })
   }, [data, i18n.language])
@@ -123,6 +127,7 @@ function EvolutionMensuelleCard({ annee, data }: { annee: number; data: Evolutio
       titre={t('dashboard.evolution.titre', { annee })}
       legendeAttendu={t('dashboard.evolution.attendu')}
       legendeCollecte={t('dashboard.evolution.collecte')}
+      legendeN1={t('dashboard.evolution.n1', { annee: annee - 1 })}
       labelColonne={t('dashboard.evolution.colonneMois')}
       resumeAria={t('dashboard.evolution.resumeAria', { annee })}
       aucuneDonnee={t('dashboard.evolution.aucuneDonnee')}
@@ -172,6 +177,7 @@ function VueComplet({ d, canManage }: { d: DashboardComplet; canManage: boolean 
             <StatutContributionRepartition data={d.membresParStatutContribution} />
             <StatutMembreRepartition data={d.membresParStatutMembre} />
           </div>
+          <AnniversairesCard anniversaires={d.anniversaires} />
           <AnalyseMembres />
           <ExportButtons />
         </>

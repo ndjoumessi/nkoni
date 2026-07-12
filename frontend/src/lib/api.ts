@@ -336,6 +336,16 @@ export interface EvolutionMois {
   mois: number
   collecte: number
   attendu: number
+  /** Collecté du même mois l'année précédente (comparaison N vs N-1). */
+  collecteN1: number
+}
+
+export interface AnniversaireMembre {
+  id: string
+  nom: string
+  prenom: string
+  /** Jour du mois (1 → 31). */
+  jour: number
 }
 
 export interface DashboardComplet {
@@ -347,6 +357,8 @@ export interface DashboardComplet {
   /** 12 entrées (janv.→déc.) : collecté mensuel vs cible mensuelle sur l'année courante. */
   evolutionMensuelle: EvolutionMois[]
   nombreBranches: number
+  /** Membres fêtant leur anniversaire ce mois-ci (triés par jour). */
+  anniversaires: AnniversaireMembre[]
   alertes: { baremeAnneeCouranteManquant: boolean }
 }
 

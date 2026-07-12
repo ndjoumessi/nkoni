@@ -211,8 +211,9 @@ statut de déploiement Railway/Vercel confirmé au statut réel là où le backe
   au-delà des seules cotisations, agrège en **un aller-retour groupé** (`calculerFinancesConsolidees`,
   `Promise.all`) le **solde de caisse** (Σ versements − Σ dépenses APPROUVÉE/PAYÉE), les **cagnottes
   ouvertes** (nombre + collecté) et les **amendes** (dû IMPAYÉ / encaissé PAYÉ) — vue de TOUT l'argent
-  de l'association. Calculée en **route** et greffée sur le dashboard **uniquement** pour les rôles
-  dirigeants (ADMIN / PRESIDENT / COMMISSAIRE_COMPTES) ; champ `financesConsolidees?` optionnel.
+  de l'association. Calculée en **route** et greffée sur le dashboard **uniquement** pour les
+  rôles financiers/dirigeants (ADMIN / PRESIDENT / TRESORIERE / COMMISSAIRE_COMPTES) ; champ
+  `financesConsolidees?` optionnel, calcul **best-effort** (un agrégat en échec ne casse pas le dashboard).
   (2) **Relance WhatsApp** : dans la liste « membres à relancer » (`AnalyseMembres`), un bouton `wa.me`
   par membre ouvre un message pré-rempli **personnalisé** (prénom + reste dû), numéro normalisé via
   `telephoneWaMe` (masqué si téléphone absent/invalide). Service pur testé (+3), route testée (+1).
@@ -233,6 +234,19 @@ statut de déploiement Railway/Vercel confirmé au statut réel là où le backe
   opération destructive.
 
 ### Robustesse / dette traitée
+- **Revue de code dashboard — correctifs (revue « high effort »)** — quatre défauts confirmés,
+  corrigés : (1) **comparaison N‑1 bornée au mois courant** (`DashboardPage`) — la courbe N‑1
+  cumulait toute l'année précédente pendant que la courbe courante plafonnait au mois en cours →
+  fausse impression de retard sur les mois futurs ; désormais `if (e.mois <= moisCourant)` + `?? 0`
+  (plus de `NaN` si le champ manque, ex. réponse SW en cache) ; garde `montreN1` unifiée (threadée
+  en prop de `GrapheEvolution`). (2) **Bouton « Relancer (WhatsApp) » gardé** — ajout de
+  `peutGererMembres(user?.role)` sur la fiche membre (un MEMBRE_SIMPLE voyait une auto‑relance sur
+  SON propre numéro). (3) **Anniversaires du mois en fuseau `Africa/Douala`** (comme le scheduler),
+  plus en UTC serveur (évite d'afficher le mois précédent la 1ʳᵉ heure locale du mois). (4) **Finances
+  consolidées best‑effort** (`.catch(() => undefined)`) : un agrégat en échec masque la carte au lieu
+  de renvoyer 500 sur tout le dashboard. Bonus : lien `wa.me` factorisé en helper partagé
+  `lienRelanceWhatsApp` (fiche + `AnalyseMembres`, plus de copier‑coller ; `encodeURIComponent`
+  conservé). Isolation multi‑tenant, injection `wa.me` et parité i18n : RAS à la revue.
 - **i18n durci (audit FR/EN)** — (1) `t()` FRONTEND désormais **typé** contre le catalogue
   (`src/react-i18next.d.ts` : `declare module 'i18next'` + `resources: { translation: Catalogue }`)
   → une clé statique inexistante devient une **erreur de build** ; les ~11 clés DYNAMIQUES

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { Camera, ChevronDown, ChevronRight, CreditCard, Crown, FileText, Pencil, Plus, Scale, Trash2, UserMinus } from 'lucide-react'
+import { Camera, ChevronDown, ChevronRight, CreditCard, Crown, FileText, MessageCircle, Pencil, Plus, Scale, Trash2, UserMinus } from 'lucide-react'
 import { AvatarMembre } from '@/components/membres/AvatarMembre'
 import { CropperPhoto } from '@/components/membres/CropperPhoto'
 import { useAuth } from '@/contexts/auth-context'
@@ -30,7 +30,7 @@ import { DocumentsSection } from '@/components/documents/DocumentsSection'
 import { StatutCotisationBadge, StatutMembreBadge } from '@/components/membres/StatutBadges'
 import { VersementsList } from '@/components/VersementsList'
 import { formatMontant } from '@/lib/format'
-import { formatDate, ouvrirBlobPdf } from '@/lib/utils'
+import { formatDate, ouvrirBlobPdf, telephoneWaMe } from '@/lib/utils'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, Overline } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
@@ -391,6 +391,28 @@ export function MembreDetailPage() {
                 onClick={telechargerReleve}
               >
                 {t('membres.releve.telecharger')}
+              </Button>
+            )}
+            {statut && statut.statut !== 'A_JOUR' && telephoneWaMe(membre.telephone) && (
+              <Button
+                variant="outline"
+                icon={MessageCircle}
+                onClick={() =>
+                  window.open(
+                    `https://wa.me/${telephoneWaMe(membre.telephone)}?text=${encodeURIComponent(
+                      t('dashboard.analyse.relanceMessage', {
+                        prenom: membre.prenom,
+                        montant: formatMontant(
+                          Math.max(0, statut.totalAttenduCumule - statut.totalValoriseCumule),
+                        ),
+                      }),
+                    )}`,
+                    '_blank',
+                    'noopener,noreferrer',
+                  )
+                }
+              >
+                {t('membres.detail.relancerWhatsApp')}
               </Button>
             )}
             {peutGererMembres(user?.role) && (

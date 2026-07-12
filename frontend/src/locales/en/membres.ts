@@ -118,6 +118,7 @@ export default {
       erreurChargement: 'Failed to load the record.',
       equilibrer: 'Balance contributions',
       modifier: 'Edit',
+      relancerWhatsApp: 'Follow up (WhatsApp)',
       totalAttendu: 'Total expected (cumulative)',
       totalValorise: 'Total valued (cumulative)',
       informations: 'Information',

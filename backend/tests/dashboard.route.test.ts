@@ -75,6 +75,17 @@ function buildMock() {
         { montant: 6_000, dateVersement: new Date(Date.UTC(Y, 0, 10)) },
         { montant: 4_000, dateVersement: new Date(Date.UTC(Y, 2, 5)) },
       ],
+      aggregate: async () => ({ _sum: { montant: 25_000 } }),
+    },
+    // Agrégats de la vue financière consolidée (dashboard COMPLET/FINANCIER).
+    depense: { aggregate: async () => ({ _sum: { montant: 5_000 } }) },
+    cagnotteEvenement: { count: async () => 2 },
+    donCagnotte: { aggregate: async () => ({ _sum: { montant: 8_000 } }) },
+    amende: {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      aggregate: async ({ where }: any = {}) => ({
+        _sum: { montant: where?.statut === 'PAYEE' ? 3_000 : 1_000 },
+      }),
     },
   }
   return prisma

@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
-import { ArrowRight, BellRing, GitBranch } from 'lucide-react'
+import { ArrowRight, BellRing, GitBranch, MessageCircle } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
 import { membresApi, type MembreStatut } from '@/lib/api'
 import { formatMontant, formatPourcent } from '@/lib/format'
 import { Card, Overline } from '@/components/ui/Card'
 import { Badge, type BadgeProps } from '@/components/ui/Badge'
 import { Skeleton } from '@/components/ui/Skeleton'
-import { cn } from '@/lib/utils'
+import { cn, telephoneWaMe } from '@/lib/utils'
 
 /**
  * Analyses complémentaires du dashboard, 100% côté client à partir de GET /membres/statuts
@@ -165,27 +165,42 @@ export function AnalyseMembres() {
         ) : (
           <>
             <ul className="mt-4 divide-y divide-hairline">
-              {relance.slice(0, 6).map((m) => (
-                <li key={m.id}>
-                  <Link
-                    to={`/membres/${m.id}`}
-                    className="group flex items-center justify-between gap-3 py-2.5 text-sm transition-colors"
-                  >
-                    <span className="min-w-0">
-                      <span className="block truncate font-medium text-foreground group-hover:text-brass">
-                        {m.nom} {m.prenom}
+              {relance.slice(0, 6).map((m) => {
+                const numeroWa = telephoneWaMe(m.telephone)
+                return (
+                  <li key={m.id} className="flex items-center gap-2">
+                    <Link
+                      to={`/membres/${m.id}`}
+                      className="group flex min-w-0 flex-1 items-center justify-between gap-3 py-2.5 text-sm transition-colors"
+                    >
+                      <span className="min-w-0">
+                        <span className="block truncate font-medium text-foreground group-hover:text-brass">
+                          {m.nom} {m.prenom}
+                        </span>
+                        <span className="num block truncate text-xs text-faint">
+                          {t('dashboard.analyse.reste', { montant: formatMontant(m.manque) })}
+                          {m.branche ? ` · ${m.branche.nom}` : ''}
+                        </span>
                       </span>
-                      <span className="num block truncate text-xs text-faint">
-                        {t('dashboard.analyse.reste', { montant: formatMontant(m.manque) })}
-                        {m.branche ? ` · ${m.branche.nom}` : ''}
-                      </span>
-                    </span>
-                    <Badge tone={RELANCE_TONE[m.statutCotisation as 'PARTIEL' | 'NON_A_JOUR']} size="sm">
-                      {t(`dashboard.statut.${m.statutCotisation as 'PARTIEL' | 'NON_A_JOUR'}`)}
-                    </Badge>
-                  </Link>
-                </li>
-              ))}
+                      <Badge tone={RELANCE_TONE[m.statutCotisation as 'PARTIEL' | 'NON_A_JOUR']} size="sm">
+                        {t(`dashboard.statut.${m.statutCotisation as 'PARTIEL' | 'NON_A_JOUR'}`)}
+                      </Badge>
+                    </Link>
+                    {numeroWa && (
+                      <a
+                        href={`https://wa.me/${numeroWa}?text=${encodeURIComponent(t('dashboard.analyse.relanceMessage', { prenom: m.prenom, montant: formatMontant(m.manque) }))}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="shrink-0 rounded-lg p-2 text-jade transition-colors hover:bg-jade/10"
+                        aria-label={t('dashboard.analyse.relancerWhatsApp')}
+                        title={t('dashboard.analyse.relancerWhatsApp')}
+                      >
+                        <MessageCircle className="h-4 w-4" aria-hidden="true" />
+                      </a>
+                    )}
+                  </li>
+                )
+              })}
             </ul>
             {relance.length > 6 && (
               <Link

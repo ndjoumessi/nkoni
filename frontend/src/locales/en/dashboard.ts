@@ -58,6 +58,15 @@ export default {
       titre: 'Birthdays this month',
       leJour: 'on the {{jour}}',
     },
+    consolide: {
+      titre: 'Consolidated finances',
+      soldeCaisse: 'Cash balance',
+      cagnottes: 'Event funds',
+      cagnottesOuvertes_one: '{{count}} ongoing',
+      cagnottesOuvertes_other: '{{count}} ongoing',
+      amendes: 'Fines to collect',
+      amendesEncaisse: '{{montant}} collected',
+    },
     repartition: {
       aucuneDonnee: 'No data yet.',
       total: 'Total',
@@ -85,6 +94,9 @@ export default {
       tousAJour: 'All active members are up to date. 🎉',
       reste: 'Remaining {{montant}}',
       voirTous: 'See all members to follow up',
+      relancerWhatsApp: 'Follow up on WhatsApp',
+      relanceMessage:
+        'Hello {{prenom}}, a friendly reminder: {{montant}} remaining on your contributions. Thank you!',
     },
     export: {
       titre: 'Export contributions',

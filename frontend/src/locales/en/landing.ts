@@ -61,6 +61,10 @@ export default {
           titre: 'Archived receipts',
           texte: 'Each contribution can generate a receipt kept and viewable at any time.',
         },
+        cartes: {
+          titre: 'Member cards',
+          texte: 'Cards with photo and QR: a scan verifies the member’s status live.',
+        },
       },
       dejaEspace: 'Already have a space? Sign in',
     },
@@ -147,7 +151,11 @@ export default {
       description: 'One single app, from collection to accountability.',
       reunions: 'Meetings & attendance',
       resolutions: 'Resolutions & roles',
+      cagnottes: 'Event funds',
+      amendes: 'Fines & penalties',
+      cartes: 'Member cards + QR',
       rapports: 'Reports & PDF/Excel exports',
+      releve: 'Account statement PDF',
       recus: 'Automatic PDF receipts',
       horsLigne: 'Works even offline',
       multiDevise: 'Multi-currency & bilingual',
@@ -176,6 +184,10 @@ export default {
       cout: {
         q: 'Is NKONI really free?',
         r: 'Yes. The Free plan covers up to 100 members with all the essential features, no credit card required.',
+      },
+      modules: {
+        q: 'Does NKONI handle more than contributions?',
+        r: 'Yes: event funds (bereavement, wedding, birth…), fines and penalties, member cards with a verification QR, PDF account statements, meetings and reports — all in the same space.',
       },
       donnees: {
         q: 'Is my data isolated from other groups?',

@@ -43,6 +43,7 @@ import {
 } from '@/lib/roles'
 import { cn } from '@/lib/utils'
 import { NkoniMark } from '@/components/ui/NkoniMark'
+import { useFocusTrap } from '@/hooks/useFocusTrap'
 
 interface NavItem {
   to: string
@@ -305,6 +306,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const fermerDrawerRef = useRef<HTMLButtonElement>(null)
   const ouvrirDrawerRef = useRef<HTMLButtonElement>(null)
   const drawerEtaitOuvert = useRef(false)
+  const drawerPanneauRef = useRef<HTMLDivElement>(null)
+  // Piège de focus + verrou de scroll tant que le drawer est ouvert (a11y §8). Le focus initial
+  // reste géré par l'effet existant (bouton fermer) ; le hook ajoute le trap Tab + le verrou body.
+  useFocusTrap(drawerPanneauRef, drawer)
 
   // Ferme le drawer à chaque changement de route.
   useEffect(() => setDrawer(false), [location.pathname])
@@ -380,6 +385,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             aria-label={t('shell.fermerMenu')}
           />
           <div
+            ref={drawerPanneauRef}
             role="dialog"
             aria-modal="true"
             aria-label={t('shell.menuNavigation')}

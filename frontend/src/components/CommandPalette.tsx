@@ -28,6 +28,7 @@ import {
 } from '@/lib/roles'
 import { formatDate } from '@/lib/utils'
 import { cn } from '@/lib/utils'
+import { useFocusTrap } from '@/hooks/useFocusTrap'
 
 interface Item {
   id: string
@@ -55,6 +56,9 @@ export function CommandPalette() {
   const [chargement, setChargement] = useState(false)
   const [actif, setActif] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
+  const panneauRef = useRef<HTMLDivElement>(null)
+  // Piège de focus + verrou de scroll tant que la palette est ouverte (a11y §8).
+  useFocusTrap(panneauRef, open)
 
   // Raccourci global ⌘K / Ctrl+K (toggle) + Escape (ferme).
   useEffect(() => {
@@ -250,7 +254,7 @@ export function CommandPalette() {
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
         onClick={() => setOpen(false)}
       />
-      <div className="nk-toast-in relative w-full max-w-xl overflow-hidden rounded-2xl border border-hairline-strong bg-surface shadow-2xl">
+      <div ref={panneauRef} className="nk-toast-in relative w-full max-w-xl overflow-hidden rounded-2xl border border-hairline-strong bg-surface shadow-2xl">
         <div className="flex items-center gap-3 border-b border-hairline px-4">
           <Search className="h-4 w-4 shrink-0 text-faint" aria-hidden="true" />
           <input

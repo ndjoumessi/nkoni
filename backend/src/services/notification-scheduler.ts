@@ -16,8 +16,12 @@
  *
  * Contexte Railway : un seul process Node long-vivant (app.listen) → les timers node-cron
  * vivent tant que le process vit ; ré-enregistrés au boot après un redéploiement/redémarrage.
- * En cas de scaling multi-instance, la tâche tournerait sur chaque instance, mais l'anti-spam
- * 7 jours rend l'opération IDEMPOTENTE (pas de doublon de notification) → sûr même ainsi.
+ *
+ * ⚠️ HYPOTHÈSE SINGLE-INSTANCE (audit M4). L'anti-spam 7 jours est un `findFirst` PUIS `create`
+ * NON atomique : il N'EST PAS un verrou. À 2+ instances déclenchées au même cron (03:00), les deux
+ * passent le check avant qu'aucune n'ait créé → notifications DOUBLÉES. Aujourd'hui sûr car une
+ * seule instance. AVANT tout scale-out, ajouter un `pg_advisory_lock` autour de la boucle (ou un
+ * index unique partiel `(destinataireId, type, jour)` sur Notification). Ne PAS supposer l'idempotence.
  */
 
 import cron from 'node-cron'

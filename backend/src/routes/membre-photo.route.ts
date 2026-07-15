@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
 import { authenticate } from '../middlewares/authenticate'
 import { requirePermission } from '../middlewares/permissions'
 import { t, langueDeRequete } from '../lib/i18n'
+import { signatureCoherente } from '../services/document.service'
 
 /**
  * Photo du membre (§4.11) — stockée sur le Blob PRIVÉ (comme les documents/reçus) : l'URL interne
@@ -39,6 +40,11 @@ export const membrePhotoRoutes: FastifyPluginAsync = async (app: FastifyInstance
       }
       if (!fichier) return reply.code(400).send({ error: 'Bad Request', message: t(langueDeRequete(req), 'photoMembre.aucunFichier') })
       if (!MIMES_AUTORISES.includes(fichier.mimetype as (typeof MIMES_AUTORISES)[number])) {
+        return reply.code(400).send({ error: 'Bad Request', message: t(langueDeRequete(req), 'photoMembre.typeInvalide') })
+      }
+      // Magic bytes : le Content-Type déclaré est falsifiable — on vérifie la vraie signature du
+      // fichier (JPEG `FF D8 FF` / PNG `89 50 4E 47`) comme pour les Documents.
+      if (!signatureCoherente(fichier.buffer, fichier.mimetype)) {
         return reply.code(400).send({ error: 'Bad Request', message: t(langueDeRequete(req), 'photoMembre.typeInvalide') })
       }
       if (fichier.buffer.length > TAILLE_MAX) {

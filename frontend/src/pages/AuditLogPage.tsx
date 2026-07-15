@@ -25,6 +25,7 @@ import { DataTable, type Column } from '@/components/ui/DataTable'
 import { Field, Select } from '@/components/ui/Field'
 import { DatePicker } from '@/components/ui/DatePicker'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { ErrorState } from '@/components/ui/ErrorState'
 import { RowsSkeleton } from '@/components/ui/Skeleton'
 
 /* Types d'entités auditées (libellés résolus via `audit.entites.*`). */
@@ -385,7 +386,7 @@ export function AuditLogPage() {
         )}
 
         {!loading && error && (
-          <Card className="border-terra/30 bg-terra/[0.07] p-5 text-terra">{error}</Card>
+          <ErrorState title={t('commun.erreurs.chargementImpossible')} description={error} />
         )}
 
         {!loading && !error && data && data.donnees.length === 0 && (

@@ -59,7 +59,8 @@ interface InscriptionBody {
 export const organisationsRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
   app.post<{ Body: InscriptionBody }>(
     '/organisations/inscription',
-    { schema: inscriptionSchema },
+    // Rate-limit resserré (anti-spam de création d'espaces). Ignoré en test (plugin non enregistré).
+    { schema: inscriptionSchema, config: { rateLimit: { max: 5, timeWindow: '1 minute' } } },
     async (req, reply) => {
       try {
         // Flux public : pas encore d'organisation ni de contexte → runUnscoped (l'email est

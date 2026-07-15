@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/Button'
 import { Field, Input } from '@/components/ui/Field'
 import { SelecteurAnnee } from '@/components/ui/SelecteurAnnee'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { ErrorState } from '@/components/ui/ErrorState'
 import { RowsSkeleton } from '@/components/ui/Skeleton'
 
 /**
@@ -213,7 +214,7 @@ export function BaremePage() {
         )}
 
         {!loading && error && (
-          <Card className="border-terra/30 bg-terra/[0.07] p-5 text-terra">{error}</Card>
+          <ErrorState title={t('commun.erreurs.chargementImpossible')} description={error} />
         )}
 
         {!loading && !error && baremes.length === 0 && (

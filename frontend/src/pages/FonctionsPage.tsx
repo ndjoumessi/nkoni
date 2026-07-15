@@ -19,6 +19,7 @@ import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Field, Input, Textarea } from '@/components/ui/Field'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { ErrorState } from '@/components/ui/ErrorState'
 import { RowsSkeleton } from '@/components/ui/Skeleton'
 import { Modal } from '@/components/ui/Modal'
 
@@ -148,7 +149,7 @@ export function FonctionsPage() {
         )}
 
         {!loading && error && (
-          <Card className="border-terra/30 bg-terra/[0.07] p-5 text-terra">{error}</Card>
+          <ErrorState title={t('commun.erreurs.chargementImpossible')} description={error} />
         )}
 
         {!loading && !error && fonctions && fonctions.length === 0 && (

@@ -70,6 +70,10 @@ function buildMock() {
       findMany: async () => [],
       findUnique: async () => null,
     },
+    // Aucun reçu émis par défaut → la suppression de versement n'est pas bloquée (garde M3).
+    recu: {
+      findFirst: async () => null,
+    },
     // $transaction interactif : passe le mock lui-même comme tx.
     $transaction: async (arg: any) =>
       typeof arg === 'function' ? arg(prisma) : Promise.all(arg),
@@ -187,6 +191,28 @@ describe('CRUD Versement — module financier', () => {
       montantVerse: 0,
       montantValorise: 0,
     })
+  })
+
+  it('DELETE versement AVEC reçu émis → 409 (intégrité M3, aucune suppression)', async () => {
+    const created = await post('TRESORIERE', {
+      contributionId: 'c1',
+      montant: 500,
+      dateVersement: '2025-06-01',
+      mode: 'ESPECES',
+    })
+    const versementId = created.json().versement.id
+    // Un reçu existe pour ce versement → la suppression doit être refusée.
+    store.prisma.recu.findFirst = async () => ({ id: 'r1' })
+
+    const res = await app.inject({
+      method: 'DELETE',
+      url: `/versements/${versementId}`,
+      headers: auth('ADMIN'),
+    })
+    expect(res.statusCode).toBe(409)
+    // Le versement est toujours là et les compteurs inchangés (rien décrémenté).
+    expect(store.versements.get(versementId)).toBeDefined()
+    expect(store.contributions.get('c1')).toMatchObject({ montantVerse: 500, montantValorise: 500 })
   })
 
   it('DELETE versement inexistant → 404', async () => {

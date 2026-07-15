@@ -40,8 +40,9 @@ import { orgContext } from './org-context'
  *   - Les lectures IMBRIQUÉES via include/select ne sont pas RE-filtrées par l'extension
  *     (Prisma n'expose que l'opération de plus haut niveau) ; l'isolation repose sur
  *     l'intégrité des données garantie par les écritures scopées ci-dessus.
- *   - Opérations non couvertes ici : `createManyAndReturn`, écritures imbriquées profondes
- *     (on écrit donc les liens M2M via des opérations top-level, cf. services conflit/commémo).
+ *   - Opérations non couvertes ici (`createManyAndReturn`, écritures imbriquées profondes) →
+ *     FAIL-CLOSED : `OperationNonIsoleeError` (on écrit donc les liens M2M via des opérations
+ *     top-level scopées, cf. services conflit/commémo, jamais une écriture imbriquée profonde).
  */
 
 /**
@@ -52,9 +53,10 @@ import { orgContext } from './org-context'
  */
 export type CreationScopee<T> = Omit<T, 'organisationId' | 'organisation'>
 
-/** Les 23 modèles métier scopés par organisation (tous portent `organisationId`).
+/** Les 26 modèles métier scopés par organisation (tous portent `organisationId`).
  *  Inclut les 2 tables de jointure M2M explicites (Conflit/Commémoration ↔ Membre) :
- *  leurs liens sont créés/lus via des opérations scopées, pas via un M2M implicite. */
+ *  leurs liens sont créés/lus via des opérations scopées, pas via un M2M implicite.
+ *  PARITÉ VÉRIFIÉE À LA COMPILATION par `tests/tenant-scoped-models.test.ts` (schéma ↔ Set). */
 export const SCOPED_MODELS = new Set<string>([
   'Utilisateur',
   'BrancheFamiliale',
@@ -89,6 +91,18 @@ export class TenantContextError extends Error {
   constructor(model: string, operation: string) {
     super(`Isolation multi-tenant : opération '${operation}' sur '${model}' hors contexte d'organisation.`)
     this.name = 'TenantContextError'
+  }
+}
+
+/**
+ * Levée (FAIL-CLOSED) quand une opération sur un modèle scopé n'est PAS couverte par l'extension
+ * (ex. une nouvelle API Prisma adoptée sans y penser). On refuse plutôt que de laisser passer une
+ * requête non isolée : mieux vaut une erreur bruyante qu'une fuite silencieuse.
+ */
+export class OperationNonIsoleeError extends Error {
+  constructor(model: string, operation: string) {
+    super(`Isolation multi-tenant : opération '${operation}' sur '${model}' non couverte par l'extension (fail-closed).`)
+    this.name = 'OperationNonIsoleeError'
   }
 }
 
@@ -221,7 +235,10 @@ export async function intercepterTenant(
     })
   }
 
-  return query(args)
+  // FAIL-CLOSED : opération inconnue sur un modèle scopé (ex. `createManyAndReturn`, future API
+  // Prisma) → on REFUSE au lieu de laisser passer une requête non isolée (défaut permissif = C2
+  // de l'audit). Ajouter le support explicite de l'opération ici avant de l'utiliser.
+  throw new OperationNonIsoleeError(model, operation)
 }
 
 /** Extension à chaîner via `prisma.$extends(tenantExtension(base))`. */

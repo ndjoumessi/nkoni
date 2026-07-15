@@ -63,6 +63,15 @@ export function validerFichier(buffer: Buffer, mimetype: string): void {
   if (!signatures.some((sig) => commencePar(buffer, sig))) throw new TypeFichierNonAutoriseError()
 }
 
+/**
+ * True si les magic bytes du `buffer` correspondent au `mimetype` DÉCLARÉ (mime devant être connu).
+ * Réutilisé par l'upload de photo membre pour ne pas se fier au seul `Content-Type` (falsifiable).
+ */
+export function signatureCoherente(buffer: Buffer, mimetype: string): boolean {
+  const signatures = SIGNATURES[mimetype]
+  return !!signatures && signatures.some((sig) => commencePar(buffer, sig))
+}
+
 /* -------------------------------------------------------------------------- */
 /* RÈGLE D'ACCÈS — fonction pure (visibilité héritée du parent)               */
 /* -------------------------------------------------------------------------- */

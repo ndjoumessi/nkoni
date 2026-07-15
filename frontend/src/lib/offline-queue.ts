@@ -88,3 +88,24 @@ export async function marquerErreur(id: string, message: string): Promise<void> 
 export async function compterFile(): Promise<number> {
   return avecStore<number>('readonly', (s) => s.count())
 }
+
+/**
+ * Purge les données locales à la DÉCONNEXION (poste partagé) : vide la file offline (IndexedDB)
+ * et supprime les caches Workbox de l'app (réponses GET authentifiées `/api/*`). Best-effort :
+ * n'échoue jamais la déconnexion.
+ */
+export async function purgerDonneesLocales(): Promise<void> {
+  try {
+    await avecStore('readwrite', (s) => s.clear())
+  } catch {
+    /* best-effort */
+  }
+  try {
+    if ('caches' in globalThis) {
+      const noms = await caches.keys()
+      await Promise.all(noms.filter((n) => n.includes('nkoni')).map((n) => caches.delete(n)))
+    }
+  } catch {
+    /* best-effort */
+  }
+}

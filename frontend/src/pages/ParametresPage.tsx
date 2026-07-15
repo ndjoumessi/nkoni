@@ -9,6 +9,7 @@ import { peutVoirParametres } from '@/lib/roles'
 import { cn, formatDate } from '@/lib/utils'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, Overline } from '@/components/ui/Card'
+import { ErrorState } from '@/components/ui/ErrorState'
 import { Skeleton } from '@/components/ui/Skeleton'
 
 /** Ligne d'information en lecture seule (icône + libellé + valeur). */
@@ -108,9 +109,9 @@ export function ParametresPage() {
           <Skeleton className="h-32" />
         </div>
       ) : error ? (
-        <Card className="nk-reveal mt-7 p-6">
-          <p className="text-sm text-terra">{error}</p>
-        </Card>
+        <div className="nk-reveal mt-7">
+          <ErrorState title={t('commun.erreurs.chargementImpossible')} description={error} />
+        </div>
       ) : org ? (
         <div className="mt-7 space-y-6">
           {/* Informations immuables */}

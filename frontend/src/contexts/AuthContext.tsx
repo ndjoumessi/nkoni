@@ -3,6 +3,7 @@ import { authApi, configurerAuthBridge, rafraichirAccessToken } from '@/lib/api'
 import type { AuthUser, InscriptionInput } from '@/lib/api'
 import { appliquerLangue } from '@/lib/i18n'
 import { appliquerDevise } from '@/lib/format'
+import { purgerDonneesLocales } from '@/lib/offline-queue'
 import { AuthContext, type AuthContextValue } from './auth-context'
 
 /** Expiration (epoch secondes) encodée dans un access token JWT, ou null si indéchiffrable. */
@@ -142,6 +143,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null)
     // Repli sur la devise par défaut : le prochain login réappliquera celle de son org.
     appliquerDevise('FCFA')
+    // Poste partagé : purge la file offline + les caches SW GET du tenant qui se déconnecte.
+    void purgerDonneesLocales()
   }, [])
 
   const value: AuthContextValue = {

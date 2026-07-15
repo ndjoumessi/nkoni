@@ -1123,12 +1123,26 @@ export interface FiltreDepenses {
   dateFin?: string
 }
 
-function qsDepenses(f: FiltreDepenses = {}): string {
+/** Réponse paginée générique (miroir de `backend/src/lib/pagination.ts::PageResultat`). */
+export interface Paginated<T> {
+  items: T[]
+  total: number
+  page: number
+  pageSize: number
+}
+
+/**
+ * Query string des dépenses. `pagination` n'est ajoutée QUE pour la liste — l'endpoint /tresorerie
+ * (solde), qui partage ce helper, refuse les paramètres inconnus (`additionalProperties: false`).
+ */
+function qsDepenses(f: FiltreDepenses = {}, pagination?: { page?: number; pageSize?: number }): string {
   const p = new URLSearchParams()
   if (f.statut) p.set('statut', f.statut)
   if (f.categorie) p.set('categorie', f.categorie)
   if (f.dateDebut) p.set('dateDebut', f.dateDebut)
   if (f.dateFin) p.set('dateFin', f.dateFin)
+  if (pagination?.page) p.set('page', String(pagination.page))
+  if (pagination?.pageSize) p.set('pageSize', String(pagination.pageSize))
   const s = p.toString()
   return s ? `?${s}` : ''
 }
@@ -1136,8 +1150,13 @@ function qsDepenses(f: FiltreDepenses = {}): string {
 export const depensesApi = {
   solde: (filtre: FiltreDepenses, accessToken: string, signal?: AbortSignal) =>
     request<SoldeTresorerie>(`/tresorerie${qsDepenses(filtre)}`, { accessToken, signal }),
-  list: (filtre: FiltreDepenses, accessToken: string, signal?: AbortSignal) =>
-    request<Depense[]>(`/depenses${qsDepenses(filtre)}`, { accessToken, signal }),
+  list: (
+    filtre: FiltreDepenses,
+    pagination: { page?: number; pageSize?: number },
+    accessToken: string,
+    signal?: AbortSignal,
+  ) =>
+    request<Paginated<Depense>>(`/depenses${qsDepenses(filtre, pagination)}`, { accessToken, signal }),
   create: (body: DepenseInput, accessToken: string) =>
     request<Depense>('/depenses', { method: 'POST', json: body, accessToken }),
   update: (id: string, body: Partial<DepenseInput>, accessToken: string) =>

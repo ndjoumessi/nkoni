@@ -5,6 +5,7 @@ import { authenticate } from '../middlewares/authenticate'
 import { requirePermission, type Role } from '../middlewares/permissions'
 import { t, langueDeRequete } from '../lib/i18n'
 import { reconcilierVersements } from '../services/versement.service'
+import { resoudrePagination, PAGINATION_PROPS } from '../lib/pagination'
 import {
   calculerTresorerie,
   validerTransition,
@@ -71,6 +72,7 @@ const listSchema = {
       categorie: { type: 'string', enum: CATEGORIES },
       dateDebut: { type: 'string', maxLength: 40 },
       dateFin: { type: 'string', maxLength: 40 },
+      ...PAGINATION_PROPS,
     },
   },
 } as const
@@ -160,8 +162,17 @@ export const depensesRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
     },
   )
 
-  // GET /depenses — liste filtrable (statut, catégorie, période).
-  app.get<{ Querystring: { statut?: StatutDepense; categorie?: string; dateDebut?: string; dateFin?: string } }>(
+  // GET /depenses — liste filtrable (statut, catégorie, période) + PAGINÉE (audit m4).
+  app.get<{
+    Querystring: {
+      statut?: StatutDepense
+      categorie?: string
+      dateDebut?: string
+      dateFin?: string
+      page?: number
+      pageSize?: number
+    }
+  }>(
     '/depenses',
     { schema: listSchema, preHandler: [authenticate, perm('read')] },
     async (req) => {
@@ -171,7 +182,14 @@ export const depensesRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
       const d1 = parseDateFiltre(req.query.dateDebut)
       const d2 = parseDateFiltre(req.query.dateFin)
       if (d1 || d2) where.date = { ...(d1 ? { gte: d1 } : {}), ...(d2 ? { lte: d2 } : {}) }
-      return app.prisma.depense.findMany({ where, orderBy: { date: 'desc' } })
+
+      const { page, pageSize, skip, take } = resoudrePagination(req.query)
+      // `count` + `findMany` scopés par le contexte tenant (extension d'isolation).
+      const [total, items] = await Promise.all([
+        app.prisma.depense.count({ where }),
+        app.prisma.depense.findMany({ where, orderBy: { date: 'desc' }, skip, take }),
+      ])
+      return { items, total, page, pageSize }
     },
   )
 

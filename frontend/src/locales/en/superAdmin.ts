@@ -35,6 +35,9 @@ export default {
     table: {
       caption: 'Client organisations',
       organisation: 'Organisation',
+      forfait: 'Plan',
+      forfaitLabel: 'Plan for {{nom}}',
+      illimite: 'unlimited',
       membres: 'Members',
       creeeLe: 'Created on',
       statut: 'Status',
@@ -60,6 +63,8 @@ export default {
       reessayer: 'Please try again later.',
       reactivee: 'Organisation reactivated',
       reactivationImpossible: 'Could not reactivate',
+      forfaitMisAJour: 'Plan updated',
+      forfaitImpossible: 'Could not change plan',
     },
     modal: {
       titre: 'Suspend the organisation',

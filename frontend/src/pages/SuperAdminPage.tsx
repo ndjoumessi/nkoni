@@ -31,12 +31,14 @@ import { RowsSkeleton } from '@/components/ui/Skeleton'
 import { NkoniMark } from '@/components/ui/NkoniMark'
 import { Input } from '@/components/ui/Field'
 import { cn, formatDate } from '@/lib/utils'
+import { FORFAITS, limiteMembresForfait, type Forfait } from '@/lib/forfait'
+import { cleI18n } from '@/lib/i18n'
 
 /** Format long pour l'info-bulle (attribut title). */
 const DATE_LONGUE = { day: 'numeric', month: 'long', year: 'numeric' } as const
 
-/** Plafond du forfait gratuit (§5) — base de la visualisation de quota. */
-const LIMITE_FORFAIT_GRATUIT = 100
+/** Clé i18n du libellé d'un forfait (clé DYNAMIQUE → `cleI18n` contourne le typage strict). */
+const cleForfait = (f: Forfait) => cleI18n(`commun.forfaits.${f}`)
 
 type FiltreStatut = 'tous' | 'actives' | 'suspendues'
 type ColonneTri = 'organisation' | 'membres' | 'creee' | 'statut'
@@ -70,14 +72,31 @@ function tempsRelatif(iso: string, langue: string): string {
 function QuotaMembres({
   n,
   max,
+  illimiteLabel,
   ariaLabel,
   titre,
 }: {
   n: number
-  max: number
+  /** Plafond du forfait — `null` = illimité (Pro/Entreprise). */
+  max: number | null
+  illimiteLabel: string
   ariaLabel: string
   titre?: string
 }) {
+  // Forfait illimité (Pro/Entreprise) : pas de jauge, juste le compteur + mention « illimité ».
+  if (max === null) {
+    return (
+      <div className="w-full" title={titre}>
+        <div className="flex items-baseline justify-end gap-1">
+          <span className="num text-sm font-medium text-foreground">{n}</span>
+          <span className="text-xs text-faint">/ {illimiteLabel}</span>
+        </div>
+        <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-surface-2">
+          <div className="h-full rounded-full bg-jade/40" style={{ width: '100%' }} />
+        </div>
+      </div>
+    )
+  }
   const pct = max > 0 ? Math.min(100, Math.round((n / max) * 100)) : 0
   const atteint = n >= max
   const proche = !atteint && pct >= 80
@@ -255,6 +274,31 @@ export function SuperAdminPage() {
     }
   }
 
+  /** Attribue un forfait à une organisation (activation manuelle §3.1) + MAJ optimiste. */
+  const changerForfait = async (org: PlatformOrganisation, forfait: Forfait) => {
+    if (!accessToken || forfait === org.forfait) return
+    const precedent = org.forfait
+    // MAJ optimiste : on reflète tout de suite, on annule en cas d'échec.
+    setOrganisations((prev) =>
+      prev ? prev.map((o) => (o.id === org.id ? { ...o, forfait } : o)) : prev,
+    )
+    setPendingId(org.id)
+    try {
+      await platformApi.changerForfait(org.id, forfait, accessToken)
+      toast.success(t('superAdmin.toast.forfaitMisAJour'), org.nom)
+    } catch (err) {
+      setOrganisations((prev) =>
+        prev ? prev.map((o) => (o.id === org.id ? { ...o, forfait: precedent } : o)) : prev,
+      )
+      toast.error(
+        t('superAdmin.toast.forfaitImpossible'),
+        err instanceof ApiError ? err.message : t('superAdmin.toast.reessayer'),
+      )
+    } finally {
+      setPendingId(null)
+    }
+  }
+
   const handleLogout = async () => {
     await logout()
     navigate('/login', { replace: true })
@@ -282,25 +326,52 @@ export function SuperAdminPage() {
       ),
     },
     {
+      key: 'forfait',
+      header: t('superAdmin.table.forfait'),
+      width: '9.5rem',
+      cell: (o) => (
+        <select
+          value={o.forfait}
+          disabled={pendingId === o.id}
+          onChange={(e) => changerForfait(o, e.target.value as Forfait)}
+          aria-label={t('superAdmin.table.forfaitLabel', { nom: o.nom })}
+          className="w-full rounded-lg border border-hairline-strong bg-surface-2/70 px-2 py-1.5 text-xs font-medium text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-brass/60 disabled:opacity-60"
+        >
+          {FORFAITS.map((f) => (
+            <option key={f} value={f}>
+              {t(cleForfait(f))}
+            </option>
+          ))}
+        </select>
+      ),
+    },
+    {
       key: 'membres',
       header: t('superAdmin.table.membres'),
       width: '11rem',
       numeric: true,
       sortable: true,
-      cell: (o) => (
-        <QuotaMembres
-          n={o.nbMembres}
-          max={LIMITE_FORFAIT_GRATUIT}
-          ariaLabel={t('superAdmin.table.quotaAria', { n: o.nbMembres, max: LIMITE_FORFAIT_GRATUIT })}
-          titre={
-            o.nbMembres >= LIMITE_FORFAIT_GRATUIT
-              ? t('superAdmin.table.quotaAtteint')
-              : o.nbMembres / LIMITE_FORFAIT_GRATUIT >= 0.8
-                ? t('superAdmin.table.quotaProche')
-                : undefined
-          }
-        />
-      ),
+      cell: (o) => {
+        const max = limiteMembresForfait(o.forfait)
+        return (
+          <QuotaMembres
+            n={o.nbMembres}
+            max={max}
+            illimiteLabel={t('superAdmin.table.illimite')}
+            ariaLabel={t('superAdmin.table.quotaAria', {
+              n: o.nbMembres,
+              max: max ?? t('superAdmin.table.illimite'),
+            })}
+            titre={
+              max !== null && o.nbMembres >= max
+                ? t('superAdmin.table.quotaAtteint')
+                : max !== null && o.nbMembres / max >= 0.8
+                  ? t('superAdmin.table.quotaProche')
+                  : undefined
+            }
+          />
+        )
+      },
     },
     {
       key: 'creee',

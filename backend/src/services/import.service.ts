@@ -68,7 +68,7 @@ export interface RapportImport {
   valides: number
   doublons: DoublonImport[]
   erreurs: ErreurLigneImport[]
-  quota: { actuel: number; plafond: number; aCreer: number; depasse: boolean }
+  quota: { actuel: number; plafond: number | null; aCreer: number; depasse: boolean }
 }
 
 /** Données scalaires prêtes pour `createMany` (organisationId injecté par l'extension). */
@@ -86,8 +86,8 @@ export interface OptionsImport {
   creerBranchesManquantes: boolean
   /** Année de référence (injectée pour testabilité sans horloge réelle). */
   anneeCourante: number
-  /** Plafond de membres du plan gratuit. */
-  plafond: number
+  /** Plafond de membres selon le forfait. `null` = illimité (Pro/Entreprise) → jamais dépassé. */
+  plafond: number | null
 }
 
 /** Surface Prisma minimale utilisée (mockable en test). */
@@ -174,7 +174,7 @@ export async function analyserImport(
 
   const actuel = await prisma.membre.count()
   const aCreerCount = aCreer.length
-  const depasse = actuel + aCreerCount > opts.plafond
+  const depasse = opts.plafond !== null && actuel + aCreerCount > opts.plafond
 
   return {
     rapport: {

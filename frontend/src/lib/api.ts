@@ -6,6 +6,8 @@
  * credentials sur l'origine du front).
  */
 
+import type { Forfait } from '@/lib/forfait'
+
 export const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
 
 export interface AuthUser {
@@ -237,6 +239,7 @@ export interface PlatformOrganisation {
   devise: 'FCFA' | 'EUR' | 'USD' | 'CAD'
   langueDefaut: 'FR' | 'EN'
   actif: boolean
+  forfait: Forfait
   createdAt: string
   nbMembres: number
 }
@@ -260,6 +263,13 @@ export const platformApi = {
       method: 'POST',
       accessToken,
     }),
+  /** Attribue un forfait à une organisation (SUPER_ADMIN, activation manuelle §3.1). */
+  changerForfait: (id: string, forfait: Forfait, accessToken: string) =>
+    request<{ organisation: OrganisationStatut }>(`/platform/organisations/${id}/forfait`, {
+      method: 'PATCH',
+      accessToken,
+      json: { forfait },
+    }),
 }
 
 /**
@@ -271,9 +281,11 @@ export interface OrganisationCourante {
   nom: string
   devise: 'FCFA' | 'EUR' | 'USD' | 'CAD'
   langueDefaut: 'FR' | 'EN'
+  forfait: Forfait
   createdAt: string
   nbMembres: number
-  limiteMembres: number
+  /** Plafond du forfait — `null` = illimité (Pro/Entreprise). */
+  limiteMembres: number | null
   /** Chef de l'organisation (Membre désigné) — null si non désigné. */
   chefMembreId: string | null
   chefSurnom: string | null

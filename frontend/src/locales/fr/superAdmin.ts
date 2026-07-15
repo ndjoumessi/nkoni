@@ -35,6 +35,9 @@ export default {
     table: {
       caption: 'Organisations clientes',
       organisation: 'Organisation',
+      forfait: 'Forfait',
+      forfaitLabel: 'Forfait de {{nom}}',
+      illimite: 'illimité',
       membres: 'Membres',
       creeeLe: 'Créée le',
       statut: 'Statut',
@@ -60,6 +63,8 @@ export default {
       reessayer: 'Réessayez plus tard.',
       reactivee: 'Organisation réactivée',
       reactivationImpossible: 'Réactivation impossible',
+      forfaitMisAJour: 'Forfait mis à jour',
+      forfaitImpossible: 'Changement de forfait impossible',
     },
     modal: {
       titre: "Suspendre l'organisation",

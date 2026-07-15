@@ -72,14 +72,14 @@ export default {
       overline: 'Plans',
       titre: 'Start for free, grow at your own pace',
       description:
-        'The Free plan is available today. The Pro and Enterprise plans are coming soon — no paid subscription is possible yet.',
+        'The Free plan is available today. The Pro and Enterprise plans are activated on request — write to us to lift the limits (no online payment for now).',
       disponible: 'Available',
-      bientot: 'Coming soon',
+      bientot: 'On request',
       gratuit: {
         nom: 'Free',
         tagline: 'To get started',
         prix: 'Free',
-        f1: 'Up to 100 members',
+        f1: 'Up to 50 members',
         f2: 'Members, contributions & payments',
         f3: 'Meetings, positions & resolutions',
         f4: 'Financial reports & exports',
@@ -108,7 +108,7 @@ export default {
         proSujet: 'NKONI Pro — get notified at launch',
         entrepriseSujet: 'NKONI Enterprise — information request',
       },
-      note: 'The Pro and Enterprise plans are not yet commercially available. The announced features are indicative and may change before their launch.',
+      note: 'The Pro and Enterprise plans are activated on request (contact us). The announced features are indicative and may change.',
     },
     etapes: {
       overline: 'Getting started',
@@ -183,7 +183,7 @@ export default {
       titre: 'What people often ask us',
       cout: {
         q: 'Is NKONI really free?',
-        r: 'Yes. The Free plan covers up to 100 members with all the essential features, no credit card required.',
+        r: 'Yes. The Free plan covers up to 50 members with all the essential features, no credit card required.',
       },
       modules: {
         q: 'Does NKONI handle more than contributions?',

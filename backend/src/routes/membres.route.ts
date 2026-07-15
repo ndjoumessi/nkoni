@@ -13,6 +13,7 @@ import {
   type CodeErreurImport,
 } from '../services/import.service'
 import { t, langueDeRequete } from '../lib/i18n'
+import { limiteMembresForfait, type Forfait } from '../lib/forfait'
 import type { CleMessage } from '../locales/fr'
 
 /**
@@ -47,8 +48,27 @@ interface MembreCreateBody {
 
 type MembreUpdateBody = Partial<MembreCreateBody>
 
-/** Plafond de membres par organisation sur le plan gratuit (§10.2). */
-export const PLAFOND_MEMBRES_PLAN_GRATUIT = 100
+/**
+ * Plafond du forfait GRATUIT (50) — exporté pour les tests. Le plafond RÉELLEMENT appliqué
+ * dépend du forfait de l'organisation (`lib/forfait`) : Pro & Entreprise sont illimités.
+ */
+export const PLAFOND_MEMBRES_PLAN_GRATUIT = limiteMembresForfait('GRATUIT') ?? 50
+
+/**
+ * Limite de membres de l'organisation COURANTE selon son forfait. `null` = illimité
+ * (Pro/Entreprise). Lit `Organisation.forfait` (modèle NON scopé → findUnique par id).
+ */
+async function limiteMembresOrganisation(
+  app: FastifyInstance,
+  organisationId: string | null | undefined,
+): Promise<number | null> {
+  if (!organisationId) return limiteMembresForfait('GRATUIT')
+  const org = await app.prisma.organisation.findUnique({
+    where: { id: organisationId },
+    select: { forfait: true },
+  })
+  return limiteMembresForfait((org?.forfait ?? 'GRATUIT') as Forfait)
+}
 
 const STATUT_ENUM = ['ACTIF', 'INACTIF', 'DECEDE'] as const
 // Statuts qui figent la fin de contribution (§4.1).
@@ -255,16 +275,18 @@ export const membresRoutes: FastifyPluginAsync = async (app: FastifyInstance) =>
         if (existant) return reply.code(200).send(existant)
       }
 
-      // Plafond du plan gratuit (§10.2) : 100 membres par organisation. `count()` est scopé
-      // par l'extension d'isolation → compte les membres de l'organisation courante.
-      const nbMembres = await app.prisma.membre.count()
-      if (nbMembres >= PLAFOND_MEMBRES_PLAN_GRATUIT) {
-        return reply.code(403).send({
-          error: 'Forbidden',
-          message: t(langueDeRequete(req), 'membres.plafondPlanGratuit', {
-            plafond: PLAFOND_MEMBRES_PLAN_GRATUIT,
-          }),
-        })
+      // Plafond selon le forfait de l'organisation (SaaS §3.1) : Gratuit = 50, Pro/Entreprise
+      // = illimité (`null` → aucun contrôle). `count()` est scopé par l'extension d'isolation
+      // → compte les membres de l'organisation courante.
+      const limite = await limiteMembresOrganisation(app, req.user.organisationId)
+      if (limite !== null) {
+        const nbMembres = await app.prisma.membre.count()
+        if (nbMembres >= limite) {
+          return reply.code(403).send({
+            error: 'Forbidden',
+            message: t(langueDeRequete(req), 'membres.plafondPlanGratuit', { plafond: limite }),
+          })
+        }
       }
 
       // organisationId injecté par l'extension d'isolation (cf. CreationScopee) → non fourni ici.
@@ -323,7 +345,8 @@ export const membresRoutes: FastifyPluginAsync = async (app: FastifyInstance) =>
       const analyse = await analyserImport(app.prisma, membres, {
         creerBranchesManquantes,
         anneeCourante: anneeCourante(),
-        plafond: PLAFOND_MEMBRES_PLAN_GRATUIT,
+        // Plafond selon le forfait (null = illimité → jamais « dépassé »).
+        plafond: await limiteMembresOrganisation(app, req.user.organisationId),
       })
       const rapport = traduireRapport(analyse.rapport, langue)
 
@@ -336,7 +359,9 @@ export const membresRoutes: FastifyPluginAsync = async (app: FastifyInstance) =>
           error: 'Forbidden',
           message: t(langue, 'import.quotaDepasse', {
             aCreer: analyse.rapport.quota.aCreer,
-            plafond: analyse.rapport.quota.plafond,
+            // `depasse` n'est vrai QUE si plafond !== null (import.service §quota) → jamais 0 ici ;
+            // le `?? 0` ne sert qu'à satisfaire le typage de l'interpolation (string | number).
+            plafond: analyse.rapport.quota.plafond ?? 0,
             actuel: analyse.rapport.quota.actuel,
           }),
           rapport,

@@ -87,9 +87,12 @@ export function ParametresPage() {
     ? `${org.chefNom ?? ''} ${org.chefPrenom ?? ''}`.trim() +
       (org.chefSurnom ? ` « ${org.chefSurnom} »` : '')
     : t('parametres.infos.chefNonDesigne')
-  const pct = org ? Math.min(100, Math.round((org.nbMembres / org.limiteMembres) * 100)) : 0
-  const restants = org ? Math.max(0, org.limiteMembres - org.nbMembres) : 0
-  const limiteAtteinte = org ? org.nbMembres >= org.limiteMembres : false
+  // Forfait illimité (Pro/Entreprise) : `limiteMembres` est `null` → pas de jauge ni de quota.
+  const illimite = org != null && org.limiteMembres == null
+  const limiteNum = org?.limiteMembres ?? 0
+  const pct = org && !illimite && limiteNum > 0 ? Math.min(100, Math.round((org.nbMembres / limiteNum) * 100)) : 0
+  const restants = org && !illimite ? Math.max(0, limiteNum - org.nbMembres) : 0
+  const limiteAtteinte = org != null && !illimite && org.nbMembres >= limiteNum
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -147,32 +150,42 @@ export function ParametresPage() {
 
             <div className="mt-4 flex items-baseline justify-between gap-3">
               <p className="text-sm font-medium text-foreground">
-                {t('parametres.membres.compteur', { count: org.nbMembres, limite: org.limiteMembres })}
+                {illimite
+                  ? t('parametres.membres.compteurIllimite', { count: org.nbMembres })
+                  : t('parametres.membres.compteur', { count: org.nbMembres, limite: limiteNum })}
               </p>
               <span className="text-xs uppercase tracking-wide text-faint">
-                {t('parametres.membres.forfait')}
+                {t(cleI18n(`commun.forfaits.${org.forfait}`))}
               </span>
             </div>
 
-            <div
-              className="mt-2 h-2 w-full overflow-hidden rounded-full bg-surface-2"
-              role="progressbar"
-              aria-valuenow={org.nbMembres}
-              aria-valuemin={0}
-              aria-valuemax={org.limiteMembres}
-              aria-label={t('parametres.membres.titre')}
-            >
-              <div
-                className={cn('h-full rounded-full transition-all', couleurJauge(pct))}
-                style={{ width: `${pct}%` }}
-              />
-            </div>
+            {illimite ? (
+              <p className="mt-2 text-xs text-muted-foreground">
+                {t('parametres.membres.illimite')}
+              </p>
+            ) : (
+              <>
+                <div
+                  className="mt-2 h-2 w-full overflow-hidden rounded-full bg-surface-2"
+                  role="progressbar"
+                  aria-valuenow={org.nbMembres}
+                  aria-valuemin={0}
+                  aria-valuemax={limiteNum}
+                  aria-label={t('parametres.membres.titre')}
+                >
+                  <div
+                    className={cn('h-full rounded-full transition-all', couleurJauge(pct))}
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
 
-            <p className={cn('mt-2 text-xs', limiteAtteinte ? 'text-terra' : 'text-muted-foreground')}>
-              {limiteAtteinte
-                ? t('parametres.membres.limiteAtteinte')
-                : t('parametres.membres.restants', { count: restants })}
-            </p>
+                <p className={cn('mt-2 text-xs', limiteAtteinte ? 'text-terra' : 'text-muted-foreground')}>
+                  {limiteAtteinte
+                    ? t('parametres.membres.limiteAtteinte')
+                    : t('parametres.membres.restants', { count: restants })}
+                </p>
+              </>
+            )}
           </Card>
         </div>
       ) : null}

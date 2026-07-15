@@ -180,9 +180,11 @@ export async function reinitialiserMotDePasse(
 ) {
   const passwordHash = await hashPassword(nouveauMotDePasse)
   try {
+    // Époque de session incrémentée (M5) : la réinitialisation ADMIN invalide TOUS les refresh
+    // tokens du compte cible → l'utilisateur (et un éventuel token volé) est déconnecté partout.
     return await prisma.utilisateur.update({
       where: { id },
-      data: { passwordHash },
+      data: { passwordHash, sessionEpoch: { increment: 1 } },
       select: PUBLIC_SELECT,
     })
   } catch (err) {

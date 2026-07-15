@@ -96,6 +96,8 @@ export async function inscrireOrganisation(
     organisationLangueDefaut: params.langue,
     devise: params.devise,
     nomOrganisation: params.nomOrganisation.trim(),
+    // Compte tout juste créé : époque de session initiale (M5).
+    sessionEpoch: 0,
   }
 }
 

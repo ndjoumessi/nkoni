@@ -138,6 +138,10 @@ model Utilisateur {
   passwordHash         String
   role                 Role
   actif                Boolean        @default(true)
+  // Époque de session (sécurité, audit M5) : incrémentée à tout changement/réinitialisation de mot
+  // de passe. Le refresh token porte l'époque à laquelle il a été émis ; au refresh, une époque
+  // périmée est refusée → TOUS les refresh tokens antérieurs (y compris volés) sont invalidés.
+  sessionEpoch         Int            @default(0)
   // §4 i18n — préférence de langue PERSONNELLE (indépendante de `Organisation.langueDefaut`).
   // NULLABLE : null = préférence non exprimée → le backend retombe sur l'en-tête Accept-Language
   // puis FR (voir lib/i18n.ts). Un utilisateur la fixe via PATCH /auth/me/langue.

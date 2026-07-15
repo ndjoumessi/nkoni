@@ -326,6 +326,92 @@ describe('POST /auth/changer-mot-de-passe (self-service)', () => {
   })
 })
 
+describe('Révocation par époque de session (audit M5)', () => {
+  const EMAIL = 'epoch@nkoni.local'
+  const OLD = 'ancien-secret-9'
+  const NEW = 'nouveau-secret-9'
+
+  // Mock où `sessionEpoch` s'incrémente RÉELLEMENT sur `{ increment }` (contrairement au mock
+  // simple qui ferait un Object.assign) — indispensable pour tester la révocation.
+  async function buildApp9(): Promise<FastifyInstance> {
+    const user: any = {
+      id: 'u-9',
+      email: EMAIL,
+      role: 'MEMBRE_SIMPLE',
+      actif: true,
+      organisationId: 'org-1',
+      passwordHash: await hashPassword(OLD),
+      membre: null,
+      sessionEpoch: 0,
+    }
+    const prisma: any = {
+      utilisateur: {
+        findUnique: async ({ where }: any) =>
+          where.email === EMAIL || where.id === 'u-9' ? user : null,
+        update: async ({ data }: any) => {
+          if (data.passwordHash) user.passwordHash = data.passwordHash
+          if (data.sessionEpoch?.increment) user.sessionEpoch += data.sessionEpoch.increment
+          return user
+        },
+      },
+      // Le refresh vérifie que l'org est active (§2.3).
+      organisation: { findUnique: async () => ({ actif: true }) },
+    }
+    const app = await buildApp({ prisma, logger: false })
+    await app.ready()
+    return app
+  }
+
+  it('un refresh émis AVANT un changement de mot de passe est refusé (401)', async () => {
+    const app = await buildApp9()
+    try {
+      const login = await app.inject({
+        method: 'POST',
+        url: '/auth/login',
+        payload: { email: EMAIL, password: OLD },
+      })
+      expect(login.statusCode).toBe(200)
+      const refresh = login.cookies.find((c) => c.name === 'nkoni_refresh')!
+      // Le refresh fonctionne tant que l'époque n'a pas bougé.
+      const ok = await app.inject({
+        method: 'POST',
+        url: '/auth/refresh',
+        cookies: { nkoni_refresh: refresh.value },
+      })
+      expect(ok.statusCode).toBe(200)
+
+      // Changement de mot de passe → époque incrémentée.
+      const bearer = { authorization: `Bearer ${app.jwt.sign({ sub: 'u-9', role: 'MEMBRE_SIMPLE' })}` }
+      const chg = await app.inject({
+        method: 'POST',
+        url: '/auth/changer-mot-de-passe',
+        headers: bearer,
+        payload: { ancienMotDePasse: OLD, nouveauMotDePasse: NEW },
+      })
+      expect(chg.statusCode).toBe(204)
+
+      // L'ANCIEN refresh (époque 0) est désormais périmé → 401.
+      const revoked = await app.inject({
+        method: 'POST',
+        url: '/auth/refresh',
+        cookies: { nkoni_refresh: refresh.value },
+      })
+      expect(revoked.statusCode).toBe(401)
+
+      // Le NOUVEAU cookie refresh réémis par le changement de mot de passe, lui, fonctionne.
+      const nouveau = chg.cookies.find((c) => c.name === 'nkoni_refresh')!
+      const ok2 = await app.inject({
+        method: 'POST',
+        url: '/auth/refresh',
+        cookies: { nkoni_refresh: nouveau.value },
+      })
+      expect(ok2.statusCode).toBe(200)
+    } finally {
+      await app.close()
+    }
+  })
+})
+
 describe('PATCH /auth/me/langue (préférence de langue perso, §4)', () => {
   let app: FastifyInstance
   const EMAIL = 'langue@nkoni.local'

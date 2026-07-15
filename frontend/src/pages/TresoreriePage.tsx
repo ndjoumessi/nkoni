@@ -25,6 +25,7 @@ import { Field, Input, Select } from '@/components/ui/Field'
 import { DatePicker } from '@/components/ui/DatePicker'
 import { Modal } from '@/components/ui/Modal'
 import { DataTable, type Column } from '@/components/ui/DataTable'
+import { Pagination } from '@/components/ui/Pagination'
 import { RowsSkeleton } from '@/components/ui/Skeleton'
 
 const CATEGORIES: CategorieDepense[] = ['AIDE_MEMBRE', 'FUNERAILLES', 'EVENEMENT', 'FONCTIONNEMENT', 'AUTRE']
@@ -41,8 +42,11 @@ export function TresoreriePage() {
   const { accessToken, user } = useAuth()
   const toast = useToast()
 
+  const PAGE_SIZE = 25
   const [solde, setSolde] = useState<SoldeTresorerie | null>(null)
   const [depenses, setDepenses] = useState<Depense[]>([])
+  const [page, setPage] = useState(1)
+  const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
   const [erreur, setErreur] = useState<string | null>(null)
   const [filtreStatut, setFiltreStatut] = useState<StatutDepense | ''>('')
@@ -63,9 +67,13 @@ export function TresoreriePage() {
   const recharger = async () => {
     if (!accessToken) return
     try {
-      const [s, d] = await Promise.all([depensesApi.solde({}, accessToken), depensesApi.list(filtre, accessToken)])
+      const [s, d] = await Promise.all([
+        depensesApi.solde({}, accessToken),
+        depensesApi.list(filtre, { page, pageSize: PAGE_SIZE }, accessToken),
+      ])
       setSolde(s)
-      setDepenses(d)
+      setDepenses(d.items)
+      setTotal(d.total)
     } catch (e) {
       toast.error(t('tresorerie.toast.erreur'), messageErreur(e))
     }
@@ -81,11 +89,12 @@ export function TresoreriePage() {
       try {
         const [s, d] = await Promise.all([
           depensesApi.solde({}, accessToken, controller.signal),
-          depensesApi.list(filtre, accessToken, controller.signal),
+          depensesApi.list(filtre, { page, pageSize: PAGE_SIZE }, accessToken, controller.signal),
         ])
         if (!actif) return
         setSolde(s)
-        setDepenses(d)
+        setDepenses(d.items)
+        setTotal(d.total)
       } catch (e) {
         if (e instanceof DOMException && e.name === 'AbortError') return
         if (actif) setErreur(messageErreur(e))
@@ -98,7 +107,7 @@ export function TresoreriePage() {
       controller.abort()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accessToken, filtreStatut, filtreCategorie])
+  }, [accessToken, filtreStatut, filtreCategorie, page])
 
   /* --- Actions workflow --- */
   const agir = async (action: () => Promise<unknown>, messageOk: string) => {
@@ -232,11 +241,11 @@ export function TresoreriePage() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Overline>{t('tresorerie.liste.titre')}</Overline>
           <div className="flex flex-wrap gap-2">
-            <Select aria-label={t('tresorerie.liste.filtreStatut')} className="w-auto" value={filtreStatut} onChange={(e) => setFiltreStatut(e.target.value as StatutDepense | '')}>
+            <Select aria-label={t('tresorerie.liste.filtreStatut')} className="w-auto" value={filtreStatut} onChange={(e) => { setFiltreStatut(e.target.value as StatutDepense | ''); setPage(1) }}>
               <option value="">{t('tresorerie.liste.tous')} — {t('tresorerie.liste.filtreStatut')}</option>
               {STATUTS.map((s) => <option key={s} value={s}>{t(`tresorerie.statuts.${s}`)}</option>)}
             </Select>
-            <Select aria-label={t('tresorerie.liste.filtreCategorie')} className="w-auto" value={filtreCategorie} onChange={(e) => setFiltreCategorie(e.target.value as CategorieDepense | '')}>
+            <Select aria-label={t('tresorerie.liste.filtreCategorie')} className="w-auto" value={filtreCategorie} onChange={(e) => { setFiltreCategorie(e.target.value as CategorieDepense | ''); setPage(1) }}>
               <option value="">{t('tresorerie.liste.toutes')} — {t('tresorerie.liste.filtreCategorie')}</option>
               {CATEGORIES.map((c) => <option key={c} value={c}>{cat(c)}</option>)}
             </Select>
@@ -253,6 +262,7 @@ export function TresoreriePage() {
             <DataTable columns={colonnes} rows={depenses} rowKey={(d) => d.id} />
           </div>
         )}
+        {!loading && <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPageChange={setPage} />}
       </Card>
 
       {(formOuvert || editDepense) && (

@@ -3,6 +3,12 @@ export default {
   commun: {
     langue: { fr: 'Français', en: 'English', selecteur: 'Choisir la langue' },
     forfaits: { GRATUIT: 'Gratuit', PRO: 'Pro', ENTREPRISE: 'Entreprise' },
+    pagination: {
+      label: 'Pagination',
+      intervalle: '{{debut}}–{{fin}} sur {{total}}',
+      precedent: 'Précédent',
+      suivant: 'Suivant',
+    },
     actions: {
       seConnecter: 'Se connecter',
       creerMonEspace: 'Créer mon espace',

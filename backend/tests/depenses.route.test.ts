@@ -18,8 +18,12 @@ function buildMock() {
   const prisma: any = {
     depense: {
       findUnique: async ({ where }: any) => store.get(where.id) ?? null,
-      findMany: async ({ where }: any) =>
-        [...store.values()].filter((d) => (where?.statut ? d.statut === where.statut : true)),
+      findMany: async ({ where, skip = 0, take }: any) => {
+        const filtres = [...store.values()].filter((d) => (where?.statut ? d.statut === where.statut : true))
+        return take != null ? filtres.slice(skip, skip + take) : filtres
+      },
+      count: async ({ where }: any = {}) =>
+        [...store.values()].filter((d) => (where?.statut ? d.statut === where.statut : true)).length,
       create: async ({ data }: any) => {
         const d = { id: `new-${++seq}`, statut: 'BROUILLON', ...data }
         store.set(d.id, d)
@@ -52,6 +56,17 @@ describe('Dépenses — permissions & workflow', () => {
     await app.ready()
   })
   afterEach(async () => app.close())
+
+  /* --- Pagination (audit m4) --- */
+  it('GET /depenses paginé → { items, total, page, pageSize } bornés', async () => {
+    const p1 = await app.inject({ method: 'GET', url: '/depenses?page=1&pageSize=2', headers: auth('ADMIN') })
+    expect(p1.statusCode).toBe(200)
+    expect(p1.json()).toMatchObject({ total: 3, page: 1, pageSize: 2 })
+    expect(p1.json().items).toHaveLength(2)
+
+    const p2 = await app.inject({ method: 'GET', url: '/depenses?page=2&pageSize=2', headers: auth('ADMIN') })
+    expect(p2.json().items).toHaveLength(1)
+  })
 
   /* --- Permissions --- */
   it('ADMIN crée une dépense → 201', async () => {

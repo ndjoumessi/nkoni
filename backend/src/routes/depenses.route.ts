@@ -4,6 +4,7 @@ import type { CreationScopee } from '../lib/tenant-extension'
 import { authenticate } from '../middlewares/authenticate'
 import { requirePermission, type Role } from '../middlewares/permissions'
 import { t, langueDeRequete } from '../lib/i18n'
+import { reconcilierVersements } from '../services/versement.service'
 import {
   calculerTresorerie,
   validerTransition,
@@ -144,6 +145,18 @@ export const depensesRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
       if (d1) filtre.dateDebut = d1
       if (d2) filtre.dateFin = d2
       return calculerTresorerie(app.prisma, filtre)
+    },
+  )
+
+  // GET /tresorerie/reconciliation — filet de sécurité des soldes (audit M2) : compare, par
+  // contribution, le compteur dénormalisé `montantVerse` à la somme réelle des versements.
+  // Tout écart signale une dérive. Lecture seule, même audience financière que /tresorerie.
+  app.get(
+    '/tresorerie/reconciliation',
+    { preHandler: [authenticate, perm('read')] },
+    async () => {
+      const ecarts = await reconcilierVersements(app.prisma)
+      return { coherent: ecarts.length === 0, nbEcarts: ecarts.length, ecarts }
     },
   )
 

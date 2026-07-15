@@ -6,14 +6,13 @@ import type { CreationScopee } from '../lib/tenant-extension'
 import { authenticate } from '../middlewares/authenticate'
 import { requirePermission } from '../middlewares/permissions'
 import { notifierVersement } from '../services/notification.service'
-
-/** Suppression refusée : un reçu (preuve de paiement, potentiellement déjà partagé) a été émis. */
-class VersementAvecRecuError extends Error {
-  constructor() {
-    super('Versement avec reçu émis : suppression interdite.')
-    this.name = 'VersementAvecRecuError'
-  }
-}
+import {
+  appliquerCreationVersement,
+  appliquerModificationVersement,
+  appliquerSuppressionVersement,
+  VersementAvecRecuError,
+  type PatchVersement,
+} from '../services/versement.service'
 
 /**
  * Versements (§5 point 4) — module financier sensible.
@@ -118,19 +117,9 @@ export const versementsRoutes: FastifyPluginAsync = async (
       if (cleIdempotence) data.idempotenceKey = cleIdempotence
 
       try {
-        const result = await app.prisma.$transaction(async (tx) => {
-          const versement = await tx.versement.create({
-            data: data as Prisma.VersementUncheckedCreateInput,
-          })
-          const contribution = await tx.contribution.update({
-            where: { id: contributionId },
-            data: {
-              montantVerse: { increment: montant },
-              montantValorise: { increment: montant },
-            },
-          })
-          return { versement, contribution }
-        })
+        const result = await app.prisma.$transaction((tx) =>
+          appliquerCreationVersement(tx, data as Prisma.VersementUncheckedCreateInput),
+        )
 
         // Déclencheur de notification « versement enregistré » (§5) — APRÈS la
         // transaction, best-effort : une notification n'est qu'un effet de bord et ne
@@ -208,44 +197,15 @@ export const versementsRoutes: FastifyPluginAsync = async (
     { schema: updateVersementSchema, preHandler: [authenticate, perm('update')] },
     async (req, reply) => {
       const body = req.body
+      const patch: PatchVersement = {}
+      if (body.montant !== undefined) patch.montant = body.montant
+      if (body.dateVersement !== undefined) patch.dateVersement = new Date(body.dateVersement)
+      if (body.mode !== undefined) patch.mode = body.mode
+      if (body.note !== undefined) patch.note = body.note
       try {
-        const versement = await app.prisma.$transaction(async (tx) => {
-          const existing = await tx.versement.findUnique({
-            where: { id: req.params.id },
-          })
-          if (!existing) {
-            throw new Prisma.PrismaClientKnownRequestError('Versement introuvable', {
-              code: 'P2025',
-              clientVersion: 'nkoni',
-            })
-          }
-
-          const data: Prisma.VersementUncheckedUpdateInput = {}
-          if (body.montant !== undefined) data.montant = body.montant
-          if (body.dateVersement !== undefined) data.dateVersement = new Date(body.dateVersement)
-          if (body.mode !== undefined) data.mode = body.mode
-          if (body.note !== undefined) data.note = body.note
-
-          const updated = await tx.versement.update({
-            where: { id: req.params.id },
-            data,
-          })
-
-          // Report du delta sur montantVerse ET montantValorise si le montant change.
-          if (body.montant !== undefined) {
-            const delta = body.montant - existing.montant
-            if (delta !== 0) {
-              await tx.contribution.update({
-                where: { id: existing.contributionId },
-                data: {
-                  montantVerse: { increment: delta },
-                  montantValorise: { increment: delta },
-                },
-              })
-            }
-          }
-          return updated
-        })
+        const versement = await app.prisma.$transaction((tx) =>
+          appliquerModificationVersement(tx, req.params.id, patch),
+        )
         return versement
       } catch (err) {
         if (isP2025(err)) {
@@ -265,32 +225,7 @@ export const versementsRoutes: FastifyPluginAsync = async (
     { preHandler: [authenticate, perm('delete')] },
     async (req, reply) => {
       try {
-        await app.prisma.$transaction(async (tx) => {
-          const existing = await tx.versement.findUnique({
-            where: { id: req.params.id },
-          })
-          if (!existing) {
-            throw new Prisma.PrismaClientKnownRequestError('Versement introuvable', {
-              code: 'P2025',
-              clientVersion: 'nkoni',
-            })
-          }
-          // Intégrité (audit M3) : ne pas supprimer un versement dont un reçu numéroté a été émis
-          // (preuve de paiement, éventuellement déjà partagée par lien public) → sinon reçu orphelin.
-          const recuEmis = await tx.recu.findFirst({
-            where: { versementId: req.params.id },
-            select: { id: true },
-          })
-          if (recuEmis) throw new VersementAvecRecuError()
-          await tx.versement.delete({ where: { id: req.params.id } })
-          await tx.contribution.update({
-            where: { id: existing.contributionId },
-            data: {
-              montantVerse: { decrement: existing.montant },
-              montantValorise: { decrement: existing.montant },
-            },
-          })
-        })
+        await app.prisma.$transaction((tx) => appliquerSuppressionVersement(tx, req.params.id))
         return reply.code(204).send()
       } catch (err) {
         if (err instanceof VersementAvecRecuError) {

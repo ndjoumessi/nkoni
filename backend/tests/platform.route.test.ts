@@ -17,6 +17,7 @@ function buildMock() {
       devise: 'FCFA',
       langueDefaut: 'FR',
       actif: true,
+      forfait: 'GRATUIT',
       createdAt: new Date('2026-01-01T00:00:00Z'),
     },
     {
@@ -25,10 +26,12 @@ function buildMock() {
       devise: 'EUR',
       langueDefaut: 'FR',
       actif: true,
+      forfait: 'GRATUIT',
       createdAt: new Date('2026-02-01T00:00:00Z'),
     },
   ]
-  const updates: { id: string; actif: boolean }[] = []
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const updates: { id: string; [k: string]: any }[] = []
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const prisma: any = {
     organisation: {
@@ -40,8 +43,8 @@ function buildMock() {
           // Simule l'erreur Prisma « enregistrement introuvable » (→ 404 dans la route).
           throw Object.assign(new Error('No record was found for an update.'), { code: 'P2025' })
         }
-        updates.push({ id: where.id, actif: data.actif })
-        return { ...org, actif: data.actif }
+        updates.push({ id: where.id, ...data })
+        return { ...org, ...data }
       },
     },
     membre: {
@@ -73,7 +76,8 @@ const adminTenant = (app: FastifyInstance) => ({
 
 describe('Routes plateforme — /platform/* (SUPER_ADMIN)', () => {
   let app: FastifyInstance
-  let updates: { id: string; actif: boolean }[]
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let updates: { id: string; [k: string]: any }[]
 
   beforeEach(async () => {
     const mock = buildMock()
@@ -155,6 +159,50 @@ describe('Routes plateforme — /platform/* (SUPER_ADMIN)', () => {
         method: 'POST',
         url: '/platform/organisations/inconnue/suspendre',
         headers: superAdmin(app),
+      })
+      expect(res.statusCode).toBe(404)
+    })
+  })
+
+  describe('Forfait — PATCH /platform/organisations/:id/forfait', () => {
+    it('SUPER_ADMIN attribue le forfait PRO → 200, forfait mis à jour', async () => {
+      const res = await app.inject({
+        method: 'PATCH',
+        url: '/platform/organisations/org-a/forfait',
+        headers: superAdmin(app),
+        payload: { forfait: 'PRO' },
+      })
+      expect(res.statusCode).toBe(200)
+      expect(res.json().organisation).toMatchObject({ id: 'org-a', forfait: 'PRO' })
+      expect(updates).toContainEqual({ id: 'org-a', forfait: 'PRO' })
+    })
+
+    it('forfait hors enum → 400 (validation de schéma)', async () => {
+      const res = await app.inject({
+        method: 'PATCH',
+        url: '/platform/organisations/org-a/forfait',
+        headers: superAdmin(app),
+        payload: { forfait: 'PLATINE' },
+      })
+      expect(res.statusCode).toBe(400)
+    })
+
+    it('rôle tenant (ADMIN) → 403 (action plateforme)', async () => {
+      const res = await app.inject({
+        method: 'PATCH',
+        url: '/platform/organisations/org-a/forfait',
+        headers: adminTenant(app),
+        payload: { forfait: 'PRO' },
+      })
+      expect(res.statusCode).toBe(403)
+    })
+
+    it('organisation inconnue → 404', async () => {
+      const res = await app.inject({
+        method: 'PATCH',
+        url: '/platform/organisations/inconnue/forfait',
+        headers: superAdmin(app),
+        payload: { forfait: 'ENTREPRISE' },
       })
       expect(res.statusCode).toBe(404)
     })

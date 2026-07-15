@@ -73,14 +73,14 @@ export default {
       overline: 'Forfaits',
       titre: 'Commencez gratuitement, évoluez à votre rythme',
       description:
-        'Le forfait Gratuit est disponible dès aujourd’hui. Les offres Pro et Entreprise arrivent bientôt — aucune souscription payante n’est encore possible.',
+        'Le forfait Gratuit est disponible dès aujourd’hui. Les offres Pro et Entreprise s’activent sur demande — écrivez-nous pour lever les limites (pas de paiement en ligne pour l’instant).',
       disponible: 'Disponible',
-      bientot: 'Bientôt disponible',
+      bientot: 'Sur demande',
       gratuit: {
         nom: 'Gratuit',
         tagline: 'Pour commencer',
         prix: 'Gratuit',
-        f1: 'Jusqu’à 100 membres',
+        f1: 'Jusqu’à 50 membres',
         f2: 'Membres, cotisations & versements',
         f3: 'Réunions, fonctions & résolutions',
         f4: 'Rapports financiers & exports',
@@ -109,7 +109,7 @@ export default {
         proSujet: 'NKONI Pro — être prévenu du lancement',
         entrepriseSujet: 'NKONI Entreprise — demande de renseignements',
       },
-      note: 'Les forfaits Pro et Entreprise ne sont pas encore commercialisés. Les fonctionnalités annoncées sont indicatives et pourront évoluer d’ici leur lancement.',
+      note: 'Les forfaits Pro et Entreprise s’activent sur demande (contactez-nous). Les fonctionnalités annoncées sont indicatives et pourront évoluer.',
     },
     etapes: {
       overline: 'Prise en main',
@@ -184,7 +184,7 @@ export default {
       titre: 'Ce qu’on nous demande souvent',
       cout: {
         q: 'NKONI est-il vraiment gratuit ?',
-        r: 'Oui. Le forfait Gratuit couvre jusqu’à 100 membres avec toutes les fonctions essentielles, sans carte bancaire.',
+        r: 'Oui. Le forfait Gratuit couvre jusqu’à 50 membres avec toutes les fonctions essentielles, sans carte bancaire.',
       },
       modules: {
         q: 'NKONI gère-t-il autre chose que les cotisations ?',

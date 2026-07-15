@@ -183,8 +183,8 @@ describe('Plafond de membres du plan gratuit (§10.2)', () => {
     authorization: `Bearer ${app.jwt.sign({ sub: 'u-admin', role: 'ADMIN' })}`,
   })
 
-  it('99 membres → création du 100e AUTORISÉE (201)', async () => {
-    const app = await appAvec(99)
+  it('49 membres → création du 50e AUTORISÉE (201)', async () => {
+    const app = await appAvec(49)
     const res = await app.inject({
       method: 'POST',
       url: '/membres',
@@ -195,8 +195,8 @@ describe('Plafond de membres du plan gratuit (§10.2)', () => {
     await app.close()
   })
 
-  it('100 membres → création du 101e BLOQUÉE (403, message plan gratuit)', async () => {
-    const app = await appAvec(100)
+  it('50 membres → création du 51e BLOQUÉE (403, message plan gratuit)', async () => {
+    const app = await appAvec(50)
     const res = await app.inject({
       method: 'POST',
       url: '/membres',

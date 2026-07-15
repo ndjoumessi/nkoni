@@ -1,5 +1,6 @@
 import { hashPassword } from './auth.service'
 import type { AuthenticatedUser } from './auth.service'
+import { limiteMembresForfait, type Forfait } from '../lib/forfait'
 
 /**
  * Auto-inscription (§3.1) — création d'une nouvelle organisation et de son premier
@@ -113,6 +114,8 @@ export interface OrganisationResume {
   langueDefaut: Langue
   actif: boolean
   createdAt: Date
+  /** Forfait courant (SaaS §3.1) — attribué par le SUPER_ADMIN. */
+  forfait: Forfait
   /** Nombre de membres — indicateur de volume, pas d'accès aux membres eux-mêmes. */
   nbMembres: number
 }
@@ -145,6 +148,7 @@ export async function listerOrganisations(
       devise: true,
       langueDefaut: true,
       actif: true,
+      forfait: true,
       createdAt: true,
     },
     orderBy: { createdAt: 'desc' },
@@ -165,6 +169,7 @@ export async function listerOrganisations(
     devise: o.devise,
     langueDefaut: o.langueDefaut,
     actif: o.actif,
+    forfait: o.forfait,
     createdAt: o.createdAt,
     nbMembres: compteur.get(o.id) ?? 0,
   }))
@@ -189,6 +194,35 @@ export async function definirStatutOrganisation(
       devise: true,
       langueDefaut: true,
       actif: true,
+      forfait: true,
+      createdAt: true,
+    },
+  })
+  return org
+}
+
+/**
+ * Change le FORFAIT d'une organisation (SaaS §3.1) — action PLATEFORME réservée au SUPER_ADMIN
+ * (activation manuelle, pas de paiement). Lève une erreur Prisma P2025 si l'id est inconnu
+ * (mappée en 404 par la route). Ne touche à aucune donnée métier ; les nouvelles limites
+ * s'appliquent dès le prochain contrôle de quota.
+ */
+export async function definirForfaitOrganisation(
+  prisma: PlateformePrisma,
+  id: string,
+  forfait: Forfait,
+): Promise<Omit<OrganisationResume, 'nbMembres'>> {
+  const org = await prisma.organisation.update({
+    where: { id },
+    // FK/scalaire directe (Organisation n'est pas un modèle scopé).
+    data: { forfait },
+    select: {
+      id: true,
+      nom: true,
+      devise: true,
+      langueDefaut: true,
+      actif: true,
+      forfait: true,
       createdAt: true,
     },
   })
@@ -202,9 +236,6 @@ export async function definirStatutOrganisation(
 // automatiquement par l'extension d'isolation (pas de `runUnscoped`, pas de filtre explicite).
 // ===========================================================================
 
-/** Limite de membres du forfait gratuit (§3.1) — rappelée dans l'écran Paramètres. */
-export const LIMITE_MEMBRES_FORFAIT_GRATUIT = 100
-
 /** Paramètres immuables de l'organisation + volume actuel de membres et sa limite de forfait. */
 export interface OrganisationCourante {
   id: string
@@ -212,10 +243,12 @@ export interface OrganisationCourante {
   devise: Devise
   langueDefaut: Langue
   createdAt: Date
+  /** Forfait courant (SaaS §3.1). */
+  forfait: Forfait
   /** Nombre de membres ACTIFS (les fiches décédées/inactives ne consomment pas le quota). */
   nbMembres: number
-  /** Plafond du forfait gratuit — pour situer `nbMembres` (ex. 42 / 100). */
-  limiteMembres: number
+  /** Plafond du forfait — pour situer `nbMembres` (ex. 42 / 50). `null` = illimité (Pro/Entreprise). */
+  limiteMembres: number | null
   /** Chef de l'organisation (Membre désigné) — null si non désigné. */
   chefMembreId: string | null
   /** Surnom / titre honorifique du chef, affiché à côté de son nom. Null si absent. */
@@ -249,6 +282,7 @@ export async function chargerOrganisationCourante(
       nom: true,
       devise: true,
       langueDefaut: true,
+      forfait: true,
       createdAt: true,
       chefMembreId: true,
       chefSurnom: true,
@@ -266,9 +300,10 @@ export async function chargerOrganisationCourante(
     nom: org.nom,
     devise: org.devise,
     langueDefaut: org.langueDefaut,
+    forfait: org.forfait,
     createdAt: org.createdAt,
     nbMembres,
-    limiteMembres: LIMITE_MEMBRES_FORFAIT_GRATUIT,
+    limiteMembres: limiteMembresForfait(org.forfait),
     chefMembreId: org.chefMembreId ?? null,
     chefSurnom: org.chefSurnom ?? null,
     chefNom: org.chef?.nom ?? null,

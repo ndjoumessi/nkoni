@@ -155,6 +155,7 @@ function buildMoiMock(membres: { statut: string }[] = MEMBRES_TEST) {
         nom: 'WAMBA TCHOUPA',
         devise: 'EUR',
         langueDefaut: 'FR',
+        forfait: 'GRATUIT',
         createdAt: new Date('2026-01-15T10:00:00.000Z'),
       }),
     },
@@ -175,7 +176,7 @@ const authMoi = (app: FastifyInstance, role: string, organisationId: string | un
 })
 
 describe('Paramètres organisation — GET /organisations/moi', () => {
-  it('ADMIN → 200, paramètres immuables + quota = membres ACTIFS uniquement / limite forfait (100)', async () => {
+  it('ADMIN → 200, paramètres immuables + quota = membres ACTIFS uniquement / limite forfait GRATUIT (50)', async () => {
     // 45 fiches au total (42 ACTIF + 3 DECEDE/INACTIF) → le quota ne compte que les 42 actifs.
     const app = await appAvec(buildMoiMock())
     const res = await app.inject({ method: 'GET', url: '/organisations/moi', headers: authMoi(app, 'ADMIN') })
@@ -185,8 +186,9 @@ describe('Paramètres organisation — GET /organisations/moi', () => {
       nom: 'WAMBA TCHOUPA',
       devise: 'EUR',
       langueDefaut: 'FR',
+      forfait: 'GRATUIT',
       nbMembres: 42, // et non 45 : les fiches décédées/inactives ne consomment pas le quota
-      limiteMembres: 100,
+      limiteMembres: 50,
     })
     await app.close()
   })

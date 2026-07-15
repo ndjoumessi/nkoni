@@ -68,12 +68,24 @@ enum Langue {
   EN
 }
 
+// Forfait commercial de l'organisation (SaaS §3.1) — palier déterminant la limite de membres.
+// GRATUIT est le défaut (rétro-compatible) ; PRO/ENTREPRISE lèvent le plafond. L'attribution
+// est une action PLATEFORME réservée au SUPER_ADMIN (activation manuelle, pas de paiement).
+enum Forfait {
+  GRATUIT
+  PRO
+  ENTREPRISE
+}
+
 model Organisation {
   id           String   @id @default(uuid())
   nom          String
   devise       Devise // fixée à la création, immuable (§5)
   langueDefaut Langue   @default(FR)
   actif        Boolean  @default(true)
+  // Forfait courant (SaaS §3.1). Défaut GRATUIT → les orgs existantes le deviennent au backfill.
+  // Attribué par le SUPER_ADMIN (console plateforme) ; borne la limite de membres (cf. lib/forfait).
+  forfait      Forfait  @default(GRATUIT)
   createdAt    DateTime @default(now())
 
   // Chef de l'organisation (dirigeant) — Membre désigné, ACTION MUTABLE réservée ADMIN/PRESIDENT

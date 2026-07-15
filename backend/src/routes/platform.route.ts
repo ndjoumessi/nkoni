@@ -6,7 +6,9 @@ import { t, langueDeRequete } from '../lib/i18n'
 import {
   listerOrganisations,
   definirStatutOrganisation,
+  definirForfaitOrganisation,
 } from '../services/organisation.service'
+import { FORFAITS, type Forfait } from '../lib/forfait'
 
 /**
  * Routes PLATEFORME (SaaS §2.3) — réservées au rôle transverse SUPER_ADMIN.
@@ -44,6 +46,40 @@ export const platformRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
     '/platform/organisations/:id/reactiver',
     garde,
     async (req, reply) => definirStatut(app, req.params.id, true, reply),
+  )
+
+  // PATCH /platform/organisations/:id/forfait — attribue un forfait (SaaS §3.1). Activation
+  // MANUELLE réservée au SUPER_ADMIN (pas de paiement). Le forfait borne la limite de membres
+  // (cf. lib/forfait) dès le prochain contrôle de quota. 404 si l'id est inconnu.
+  app.patch<{ Params: { id: string }; Body: { forfait: Forfait } }>(
+    '/platform/organisations/:id/forfait',
+    {
+      ...garde,
+      schema: {
+        body: {
+          type: 'object',
+          required: ['forfait'],
+          additionalProperties: false,
+          properties: { forfait: { type: 'string', enum: [...FORFAITS] } },
+        },
+      },
+    },
+    async (req, reply) => {
+      try {
+        const organisation = await orgContext.runUnscoped(async () =>
+          definirForfaitOrganisation(app.prisma, req.params.id, req.body.forfait),
+        )
+        return { organisation }
+      } catch (err) {
+        if (err && typeof err === 'object' && (err as { code?: string }).code === 'P2025') {
+          return reply.code(404).send({
+            error: 'Not Found',
+            message: t(langueDeRequete(reply.request), 'platform.organisationIntrouvable'),
+          })
+        }
+        throw err
+      }
+    },
   )
 }
 

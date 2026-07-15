@@ -2,6 +2,7 @@
 export default {
   commun: {
     langue: { fr: 'Français', en: 'English', selecteur: 'Choose language' },
+    forfaits: { GRATUIT: 'Free', PRO: 'Pro', ENTREPRISE: 'Enterprise' },
     actions: {
       seConnecter: 'Sign in',
       creerMonEspace: 'Create my space',

@@ -77,11 +77,14 @@
     color-scheme: dark;
     --radius: 0.75rem;
 
-    /* --- Socle sombre : encre quasi-noire NEUTRE/FROIDE (hue 255, chroma bas) --- */
-    --canvas: oklch(0.145 0.006 255);
-    --surface: oklch(0.185 0.007 255);
-    --surface-2: oklch(0.232 0.008 255);
-    --surface-3: oklch(0.285 0.010 255);
+    /* --- Socle sombre : encre bleutée FROIDE « bleu encre » (hue 262, chroma relevé) ---
+       Rampe d'élévation : canvas (page, le plus foncé) → surface-3 (le plus clair). La teinte
+       et le chroma sont tenus constants sur toute la rampe pour que les cartes restent dans la
+       même famille bleue que le fond (sinon elles paraîtraient gris-neutre sur du bleu). */
+    --canvas: oklch(0.155 0.060 262);
+    --surface: oklch(0.195 0.055 262);
+    --surface-2: oklch(0.242 0.050 262);
+    --surface-3: oklch(0.295 0.045 262);
 
     /* Bordures un peu plus marquées : elles DÉFINISSENT les cartes (fini le glow) */
     --hairline: oklch(1 0 0 / 10%);

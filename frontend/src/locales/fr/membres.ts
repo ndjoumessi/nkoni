@@ -20,6 +20,10 @@ export default {
       aide: 'JPEG ou PNG, 5 Mo max. Elle apparaît sur la carte de membre.',
       changer: 'Changer la photo',
       supprimer: 'Retirer',
+      supprConfirme: {
+        titre: 'Retirer la photo ?',
+        texte: 'La photo du membre sera définitivement retirée de sa fiche et de sa carte.',
+      },
       toast: { miseAJour: 'Photo mise à jour', supprimee: 'Photo retirée', erreur: 'Action impossible' },
       recadrer: {
         titre: 'Ajuster la photo',

@@ -109,6 +109,7 @@ export function MembreDetailPage() {
 
   const [photoRefresh, setPhotoRefresh] = useState(0)
   const [photoBusy, setPhotoBusy] = useState(false)
+  const [photoConfirmSuppr, setPhotoConfirmSuppr] = useState(false)
   const [fichierPhoto, setFichierPhoto] = useState<File | null>(null)
   const photoInputRef = useRef<HTMLInputElement>(null)
 
@@ -141,6 +142,7 @@ export function MembreDetailPage() {
       await membresApi.supprimerPhoto(membre.id, accessToken)
       setPhotoRefresh((k) => k + 1)
       toast.success(t('membres.photo.toast.supprimee'))
+      setPhotoConfirmSuppr(false)
     } catch (err) {
       toast.error(t('membres.photo.toast.erreur'), err instanceof ApiError ? err.message : '')
     } finally {
@@ -443,7 +445,7 @@ export function MembreDetailPage() {
               <Button variant="outline" icon={Camera} loading={photoBusy} onClick={() => photoInputRef.current?.click()}>
                 {t('membres.photo.changer')}
               </Button>
-              <Button variant="ghost" icon={Trash2} onClick={supprimerPhoto}>
+              <Button variant="ghost" icon={Trash2} onClick={() => setPhotoConfirmSuppr(true)}>
                 {t('membres.photo.supprimer')}
               </Button>
             </div>
@@ -646,6 +648,22 @@ export function MembreDetailPage() {
           </Button>
           <Button variant="danger" icon={UserMinus} loading={chefSubmitting} onClick={retirerChef}>
             {t('membres.chef.confirmerRetrait')}
+          </Button>
+        </div>
+      </Modal>
+
+      <Modal
+        open={photoConfirmSuppr}
+        onClose={() => (photoBusy ? undefined : setPhotoConfirmSuppr(false))}
+        title={t('membres.photo.supprConfirme.titre')}
+      >
+        <p className="text-sm text-muted-foreground">{t('membres.photo.supprConfirme.texte')}</p>
+        <div className="mt-6 flex justify-end gap-2">
+          <Button variant="ghost" disabled={photoBusy} onClick={() => setPhotoConfirmSuppr(false)}>
+            {t('membres.chef.annuler')}
+          </Button>
+          <Button variant="danger" icon={Trash2} loading={photoBusy} onClick={supprimerPhoto}>
+            {t('membres.photo.supprimer')}
           </Button>
         </div>
       </Modal>

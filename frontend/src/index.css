@@ -93,7 +93,7 @@
     /* --- Texte (blanc/gris froid) --- */
     --foreground: oklch(0.965 0.004 250);
     /* Relevé à 0.66 (était 0.60) pour tenir le contraste AA sur le petit texte (labels, kbd,
-       horodatages) sur canvas 0.145 — cf. audit UI/UX WCAG 1.4.3. */
+       horodatages) sur canvas 0.155 — cf. audit UI/UX WCAG 1.4.3. */
     --faint: oklch(0.66 0.008 255);
 
     /* --- Accents ---

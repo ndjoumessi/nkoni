@@ -24,7 +24,7 @@ export function NkoniMark({ className }: { className?: string }) {
           <stop offset="1" stopColor="#e0bd6f" />
         </linearGradient>
       </defs>
-      <rect x="2" y="2" width="60" height="60" rx="16" fill="#0f1512" />
+      <rect x="2" y="2" width="60" height="60" rx="16" fill="#010A25" />
       <rect x="2" y="2" width="60" height="60" rx="16" stroke="#5fe0ad" strokeOpacity="0.16" />
       <circle cx="32" cy="32" r="18" stroke="#5fe0ad" strokeOpacity="0.35" strokeWidth="2" />
       <circle cx="47.6" cy="23" r="3.6" fill="#5fe0ad" />

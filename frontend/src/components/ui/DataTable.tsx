@@ -74,7 +74,10 @@ export function DataTable<T>({
     })
 
   return (
-    <div className={cn('overflow-x-auto', className)}>
+    // `overflow-x-auto` (mobile) fait de ce bloc un conteneur de défilement qui neutralise le
+    // `sticky` de l'en-tête ; en desktop on repasse en `visible` → l'en-tête colle au viewport
+    // sur les longues listes (audit UI). Scroll horizontal conservé sous md.
+    <div className={cn('overflow-x-auto md:overflow-visible', className)}>
       <table className="w-full border-collapse text-sm">
         {caption && <caption className="sr-only">{caption}</caption>}
         <thead className="sticky top-0 z-10">

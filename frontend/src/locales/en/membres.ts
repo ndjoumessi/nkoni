@@ -20,6 +20,10 @@ export default {
       aide: 'JPEG or PNG, 5 MB max. It appears on the member card.',
       changer: 'Change photo',
       supprimer: 'Remove',
+      supprConfirme: {
+        titre: 'Remove the photo?',
+        texte: 'The member’s photo will be permanently removed from their profile and card.',
+      },
       toast: { miseAJour: 'Photo updated', supprimee: 'Photo removed', erreur: 'Action unavailable' },
       recadrer: {
         titre: 'Adjust photo',

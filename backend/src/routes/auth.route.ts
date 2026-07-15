@@ -142,7 +142,7 @@ export const authRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
   // POST /auth/refresh — lit le refresh depuis le cookie httpOnly, réémet un access token.
   app.post('/refresh', async (req, reply) => {
     try {
-      const payload = await req.refreshJwtVerify<{ sub?: string; typ?: string }>()
+      const payload = await req.refreshJwtVerify<{ sub?: string; typ?: string; epoch?: number }>()
       if (payload.typ !== 'refresh' || !payload.sub) {
         return reply
           .code(401)
@@ -153,6 +153,15 @@ export const authRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
       const sub = payload.sub
       const user = await orgContext.runUnscoped(async () => findUserById(app.prisma, sub))
       if (!user || !user.actif) {
+        return reply
+          .code(401)
+          .send({ error: 'Unauthorized', message: t(langueDeRequete(req), 'auth.sessionInvalide') })
+      }
+
+      // Révocation par époque (M5) : un refresh émis AVANT le dernier changement/reset de mot de
+      // passe porte une époque périmée → refusé. `?? 0` : rétrocompat des tokens émis avant cette
+      // feature (sans claim `epoch`) tant que l'utilisateur n'a pas changé de mot de passe.
+      if ((payload.epoch ?? 0) !== user.sessionEpoch) {
         return reply
           .code(401)
           .send({ error: 'Unauthorized', message: t(langueDeRequete(req), 'auth.sessionInvalide') })
@@ -268,6 +277,11 @@ export const authRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
         await orgContext.runUnscoped(async () =>
           changerMotDePasse(app.prisma, sub, ancienMotDePasse, nouveauMotDePasse),
         )
+        // L'époque vient d'être incrémentée → l'ANCIEN refresh (celui de ce périphérique) est
+        // désormais périmé. On réémet une session pour le compte courant afin qu'il reste connecté
+        // (nouveau cookie refresh à la nouvelle époque) ; les AUTRES appareils restent invalidés.
+        const user = await orgContext.runUnscoped(async () => findUserById(app.prisma, sub))
+        if (user) await emettreSession(reply, user)
         return reply.code(204).send()
       } catch (err) {
         if (err instanceof AncienMotDePasseIncorrectError) {

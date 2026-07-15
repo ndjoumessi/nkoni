@@ -23,6 +23,8 @@ export interface AuthenticatedUser {
   devise: Devise | null
   /** Nom de l'organisation d'appartenance — affiché en tête d'interface. Null pour le SUPER_ADMIN. */
   nomOrganisation: string | null
+  /** Époque de session (sécurité M5) : portée par le refresh token, comparée au refresh pour révoquer. */
+  sessionEpoch: number
 }
 
 /**
@@ -84,6 +86,7 @@ function toAuthUser(record: Record<string, unknown>): AuthenticatedUser {
     organisationLangueDefaut: organisation?.langueDefaut ?? null,
     devise: organisation?.devise ?? null,
     nomOrganisation: organisation?.nom ?? null,
+    sessionEpoch: (record['sessionEpoch'] as number | null | undefined) ?? 0,
   }
 }
 
@@ -110,6 +113,7 @@ export async function verifyCredentials(
       organisationId: true,
       langue: true,
       passwordHash: true,
+      sessionEpoch: true,
       membre: { select: { id: true } },
       // §4 : défaut de langue de l'org → langue effective si l'utilisateur n'a pas de préférence.
       // §5 : devise de l'org → formatage locale-aware des montants côté front (F6).
@@ -149,7 +153,13 @@ export async function changerMotDePasse(
   if (!valide) throw new AncienMotDePasseIncorrectError()
 
   const nouveauHash = await hashPassword(nouveauMotDePasse)
-  await prisma.utilisateur.update({ where: { id: userId }, data: { passwordHash: nouveauHash } })
+  // Incrémente l'époque de session (M5) → invalide TOUS les refresh tokens antérieurs de ce compte
+  // (y compris un token volé) dès leur prochaine utilisation. L'appelant réémet une session pour le
+  // périphérique courant afin qu'il reste connecté.
+  await prisma.utilisateur.update({
+    where: { id: userId },
+    data: { passwordHash: nouveauHash, sessionEpoch: { increment: 1 } },
+  })
 }
 
 /** Recharge un utilisateur par id (pour /auth/refresh et /auth/me). */
@@ -166,6 +176,7 @@ export async function findUserById(
       actif: true,
       organisationId: true,
       langue: true,
+      sessionEpoch: true,
       membre: { select: { id: true } },
       organisation: { select: { langueDefaut: true, devise: true, nom: true } },
     },

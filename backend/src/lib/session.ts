@@ -70,8 +70,10 @@ export async function emettreSession(
   const refreshTtlSeconds = rememberMe
     ? REFRESH_TTL_REMEMBER_SECONDS
     : REFRESH_TTL_STANDARD_SECONDS
+  // `epoch` : l'époque de session à l'émission (M5). Au refresh, une époque périmée (après un
+  // changement/reset de mot de passe) est refusée → le token, même volé, ne vaut plus rien.
   const refreshToken = await reply.refreshJwtSign(
-    { sub: user.id, typ: 'refresh' },
+    { sub: user.id, typ: 'refresh', epoch: user.sessionEpoch },
     { expiresIn: refreshTtlSeconds },
   )
   reply.setCookie(env.REFRESH_COOKIE_NAME, refreshToken, refreshCookieOptions(refreshTtlSeconds))

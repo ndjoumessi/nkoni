@@ -107,7 +107,14 @@ function EvolutionMensuelleCard({ annee, data }: { annee: number; data: Evolutio
     // La courbe collectée se fige naturellement après le mois courant (mois futurs = 0). On BORNE
     // donc la courbe N-1 au même mois pour comparer la MÊME période (sinon la N-1 monte jusqu'à
     // décembre et donne une fausse impression de retard). `?? 0` : jamais de NaN (réponse cache/skew).
-    const moisCourant = new Date().getMonth() + 1
+    // « Mois courant applicatif » = Africa/Douala (comme le scheduler/back), JAMAIS le fuseau
+    // navigateur : pour un trésorier de la diaspora, `getMonth()` peut afficher le mois précédent
+    // le 1er du mois et fausser la borne N-1.
+    const moisCourant = Number(
+      new Intl.DateTimeFormat('en-US', { timeZone: 'Africa/Douala', month: 'numeric' }).format(
+        new Date(),
+      ),
+    )
     let cumulCollecte = 0
     let cumulAttendu = 0
     let cumulN1 = 0

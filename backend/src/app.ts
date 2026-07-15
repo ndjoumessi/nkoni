@@ -1,8 +1,11 @@
-import Fastify, { type FastifyInstance } from 'fastify'
+import Fastify, { type FastifyInstance, type FastifyError } from 'fastify'
 import cookie from '@fastify/cookie'
 import cors from '@fastify/cors'
+import helmet from '@fastify/helmet'
+import rateLimit from '@fastify/rate-limit'
 import multipart from '@fastify/multipart'
 import { env, isProd } from './lib/env'
+import { t, langueDeRequete } from './lib/i18n'
 import { prisma as defaultPrisma, type PrismaClient } from './lib/prisma'
 import { vercelBlobClient } from './lib/blob'
 import type { BlobClient } from './services/document.service'
@@ -66,7 +69,24 @@ export interface BuildAppOptions {
  * Construit l'application Fastify (sans l'écouter) — testable via app.inject().
  */
 export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInstance> {
-  const app = Fastify({ logger: opts.logger ?? true })
+  // `trustProxy` : derrière Railway/Vercel, l'IP client réelle est dans X-Forwarded-For — sans
+  // ça, le rate-limiting keyerait sur l'IP du proxy (un seul seau pour tous → lockout global).
+  const app = Fastify({ logger: opts.logger ?? true, trustProxy: true })
+
+  // 5xx : journaliser en détail mais NE JAMAIS exposer le message interne au client (fuite de
+  // schéma/contraintes Prisma). Les erreurs 4xx déjà typées (validation, métier) passent telles quelles.
+  app.setErrorHandler((error: FastifyError, req, reply) => {
+    const statut = error.statusCode ?? 500
+    if (statut < 500) {
+      reply.send(error)
+      return
+    }
+    req.log.error(error)
+    reply.code(500).send({
+      error: 'Internal Server Error',
+      message: t(langueDeRequete(req), 'commun.erreurServeur'),
+    })
+  })
 
   app.decorate('prisma', opts.prisma ?? defaultPrisma)
   app.decorate('blob', opts.blob ?? vercelBlobClient)
@@ -96,6 +116,22 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
       .filter(Boolean),
     credentials: true,
   })
+
+  // En-têtes de sécurité (nosniff, X-Frame-Options, Referrer-Policy, HSTS en prod…). CSP désactivée
+  // par défaut : l'API sert du JSON + une page HTML de statut avec CSS inline ; une CSP trop stricte
+  // la casserait. `crossOriginResourcePolicy` assoupli pour le proxy same-origin Vercel.
+  await app.register(helmet, {
+    contentSecurityPolicy: false,
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+  })
+
+  // Rate limiting (anti brute-force / DoS argon2). Désactivé en test (les suites injectent en
+  // rafale). Plafond global généreux ; les routes sensibles (login, inscription) le resserrent
+  // via `config.rateLimit` dans leur définition.
+  if (!process.env['VITEST'] && process.env['NODE_ENV'] !== 'test') {
+    await app.register(rateLimit, { max: 300, timeWindow: '1 minute' })
+  }
+
   await registerJwt(app)
 
   app.get('/health', async () => ({ status: 'ok' }))

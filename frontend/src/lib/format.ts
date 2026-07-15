@@ -48,7 +48,12 @@ export function formatNombre(n: number): string {
   return new Intl.NumberFormat(locale()).format(n)
 }
 
-/** Pourcentage, ex. `50` → « 50 % », `33.33` → « 33,33 % » (grouping selon la langue). */
+/**
+ * Pourcentage locale-aware. `valeur` est déjà un pourcentage (ex. `50` = 50 %), donc on divise
+ * par 100 pour le style `percent` d'`Intl` (qui multiplie par 100) : FR → « 50 % », EN → « 50% ».
+ */
 export function formatPourcent(valeur: number): string {
-  return `${new Intl.NumberFormat(locale()).format(valeur)} %`
+  return new Intl.NumberFormat(locale(), { style: 'percent', maximumFractionDigits: 2 }).format(
+    valeur / 100,
+  )
 }

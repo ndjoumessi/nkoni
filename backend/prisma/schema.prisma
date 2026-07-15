@@ -263,9 +263,13 @@ model Versement {
   // même mutation (file de synchro) retrouve la ligne existante au lieu d'en créer une seconde.
   idempotenceKey   String?
   createdAt        DateTime      @default(now())
+  // Reçu(s) émis. FK `onDelete: Restrict` côté Recu → un versement avec reçu ne peut pas être
+  // supprimé (audit M3 : pas de reçu orphelin). Back-relation obligatoire côté Prisma.
+  recus            Recu[]
 
   @@unique([organisationId, idempotenceKey])
   @@index([organisationId])
+  @@index([contributionId])
 }
 
 model EquilibrageContribution {
@@ -301,6 +305,9 @@ model Recu {
   organisationId String
   organisation   Organisation @relation(fields: [organisationId], references: [id])
   versementId    String
+  // FK vers le Versement source. `onDelete: Restrict` : interdit de supprimer un versement dont
+  // un reçu a été émis (preuve de paiement) → pas de reçu orphelin (audit M3).
+  versement      Versement    @relation(fields: [versementId], references: [id], onDelete: Restrict)
   // Numérotation PROPRE À CHAQUE ORGANISATION (SaaS §2.2) : unicité (org, numero). La
   // génération séquentielle lit le dernier numéro via un findFirst scopé (recu.service).
   numero         String // ex. NKONI-2025-000123
@@ -310,6 +317,7 @@ model Recu {
 
   @@unique([organisationId, numero])
   @@index([organisationId])
+  @@index([versementId])
 }
 
 // ---------------------------------------------------------------------------

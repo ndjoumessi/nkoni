@@ -85,7 +85,8 @@ export const authRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
   // POST /auth/login
   app.post<{ Body: LoginBody }>(
     '/login',
-    { schema: loginBodySchema },
+    // Rate-limit resserré (anti brute-force / DoS argon2). Ignoré en test (plugin non enregistré).
+    { schema: loginBodySchema, config: { rateLimit: { max: 10, timeWindow: '1 minute' } } },
     async (req, reply) => {
       const { email, password, rememberMe } = req.body
       // Pré-auth : l'organisation n'est pas encore connue → lecture DÉLIBÉRÉMENT non scopée

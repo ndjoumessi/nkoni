@@ -27,6 +27,7 @@ import { SelecteurMembreUnique } from '@/components/membres/SelecteurMembreUniqu
 import { DatePicker } from '@/components/ui/DatePicker'
 import { Modal } from '@/components/ui/Modal'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { ErrorState } from '@/components/ui/ErrorState'
 import { RowsSkeleton } from '@/components/ui/Skeleton'
 import { useToast } from '@/components/ui/Toast'
 
@@ -293,7 +294,9 @@ export function AmendesPage() {
           </Card>
         )}
 
-        {!loading && error && <Card className="border-terra/30 bg-terra/[0.07] p-5 text-terra">{error}</Card>}
+        {!loading && error && (
+          <ErrorState title={t('commun.erreurs.chargementImpossible')} description={error} />
+        )}
 
         {!loading && !error && amendes.length === 0 && (fMembre || fStatut) && (
           <Card className="p-6 text-sm text-muted-foreground">{t('amendes.aucuneFiltre')}</Card>

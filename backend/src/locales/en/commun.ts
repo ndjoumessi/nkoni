@@ -4,4 +4,5 @@ export const messages = {
   'commun.tokenAbsent': 'Missing or invalid JWT token.',
   'commun.nonAutorise': 'Not authorized.',
   'commun.authRequise': 'Authentication required.',
+  'commun.erreurServeur': 'An unexpected error occurred. Please try again later.',
 }

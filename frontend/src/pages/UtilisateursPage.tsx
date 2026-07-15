@@ -26,6 +26,7 @@ import { FormSection } from '@/components/ui/FormSection'
 import { Badge } from '@/components/ui/Badge'
 import { DataTable, type Column } from '@/components/ui/DataTable'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { ErrorState } from '@/components/ui/ErrorState'
 import { RowsSkeleton } from '@/components/ui/Skeleton'
 
 /**
@@ -342,7 +343,7 @@ export function UtilisateursPage() {
         )}
 
         {!loading && error && (
-          <Card className="border-terra/30 bg-terra/[0.07] p-5 text-terra">{error}</Card>
+          <ErrorState title={t('commun.erreurs.chargementImpossible')} description={error} />
         )}
 
         {!loading && !error && utilisateurs && utilisateurs.length === 0 && (

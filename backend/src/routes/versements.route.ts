@@ -7,6 +7,14 @@ import { authenticate } from '../middlewares/authenticate'
 import { requirePermission } from '../middlewares/permissions'
 import { notifierVersement } from '../services/notification.service'
 
+/** Suppression refusée : un reçu (preuve de paiement, potentiellement déjà partagé) a été émis. */
+class VersementAvecRecuError extends Error {
+  constructor() {
+    super('Versement avec reçu émis : suppression interdite.')
+    this.name = 'VersementAvecRecuError'
+  }
+}
+
 /**
  * Versements (§5 point 4) — module financier sensible.
  *
@@ -267,6 +275,13 @@ export const versementsRoutes: FastifyPluginAsync = async (
               clientVersion: 'nkoni',
             })
           }
+          // Intégrité (audit M3) : ne pas supprimer un versement dont un reçu numéroté a été émis
+          // (preuve de paiement, éventuellement déjà partagée par lien public) → sinon reçu orphelin.
+          const recuEmis = await tx.recu.findFirst({
+            where: { versementId: req.params.id },
+            select: { id: true },
+          })
+          if (recuEmis) throw new VersementAvecRecuError()
           await tx.versement.delete({ where: { id: req.params.id } })
           await tx.contribution.update({
             where: { id: existing.contributionId },
@@ -278,6 +293,12 @@ export const versementsRoutes: FastifyPluginAsync = async (
         })
         return reply.code(204).send()
       } catch (err) {
+        if (err instanceof VersementAvecRecuError) {
+          return reply.code(409).send({
+            error: 'Conflict',
+            message: t(langueDeRequete(req), 'versements.suppressionRecuEmis'),
+          })
+        }
         if (isP2025(err)) {
           return reply.code(404).send({
             error: 'Not Found',

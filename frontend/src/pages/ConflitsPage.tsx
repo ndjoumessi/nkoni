@@ -11,6 +11,7 @@ import { Card } from '@/components/ui/Card'
 import { StatCard } from '@/components/ui/StatCard'
 import { ButtonLink } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { ErrorState } from '@/components/ui/ErrorState'
 import { RowsSkeleton } from '@/components/ui/Skeleton'
 import { NiveauBadge, StatutConflitBadge } from '@/components/conflits/ConflitBadges'
 
@@ -101,7 +102,7 @@ export function ConflitsPage() {
         )}
 
         {!loading && error && (
-          <Card className="border-terra/30 bg-terra/[0.07] p-5 text-terra">{error}</Card>
+          <ErrorState title={t('commun.erreurs.chargementImpossible')} description={error} />
         )}
 
         {!loading && !error && conflits && conflits.length === 0 && (

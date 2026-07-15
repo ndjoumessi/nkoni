@@ -207,7 +207,9 @@ describe('Aucune génération automatique de Recu (§4.6, non négociable)', () 
 
   it('versements.route.ts ne crée jamais de Recu', () => {
     const src = lire('src/routes/versements.route.ts')
-    expect(src).not.toMatch(/recu/i)
+    // L'invariant est l'absence de GÉNÉRATION de reçu (§4.6). La route peut en revanche LIRE un
+    // reçu (garde `recu.findFirst` avant suppression, audit M3) — on cible donc la création seule.
+    expect(src).not.toMatch(/recu\.(create|upsert)|genererRecu|creerRecu/i)
   })
 
   it('contribution.service.ts ne crée jamais de Recu', () => {

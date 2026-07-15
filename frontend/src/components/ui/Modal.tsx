@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -96,7 +97,11 @@ export function Modal({
 
   if (!open) return null
 
-  return (
+  // Rendu en PORTAIL dans <body> : un ancêtre animé `nk-reveal` laisse un `transform` résiduel
+  // qui deviendrait le containing block des `position: fixed` → la modale se positionnerait par
+  // rapport à lui et serait écrêtée (même piège que les popovers, cf. CLAUDE.md). Le portail
+  // l'immunise structurellement.
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       role="dialog"
@@ -130,7 +135,8 @@ export function Modal({
         </div>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 

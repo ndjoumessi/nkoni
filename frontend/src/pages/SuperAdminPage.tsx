@@ -30,6 +30,7 @@ import { Modal } from '@/components/ui/Modal'
 import { StatCard } from '@/components/ui/StatCard'
 import { DataTable, type Column, type SortDir } from '@/components/ui/DataTable'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { ErrorState } from '@/components/ui/ErrorState'
 import { RowsSkeleton } from '@/components/ui/Skeleton'
 import { NkoniMark } from '@/components/ui/NkoniMark'
 import { Input } from '@/components/ui/Field'
@@ -168,9 +169,14 @@ function SelecteurForfait({
   )
 }
 
-/** Échappe une cellule CSV (guillemets doublés, encadrée si elle contient , ; " ou saut de ligne). */
+/**
+ * Échappe une cellule CSV : (1) anti-injection de FORMULE (Excel/LibreOffice) — un texte
+ * commençant par `= + - @` ou une tabulation/CR est préfixé d'une apostrophe pour qu'il ne soit
+ * pas interprété comme une formule ; (2) guillemets doublés + encadrement si `, ; "` ou saut de ligne.
+ */
 function celluleCsv(valeur: string | number): string {
-  const s = String(valeur)
+  let s = String(valeur)
+  if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`
   return /[",;\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
 }
 
@@ -678,7 +684,7 @@ export function SuperAdminPage() {
           )}
 
           {!loading && error && (
-            <Card className="border-terra/30 bg-terra/[0.07] p-5 text-terra">{error}</Card>
+            <ErrorState title={t('commun.erreurs.chargementImpossible')} description={error} />
           )}
 
           {aucuneOrg && (

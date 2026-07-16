@@ -14,6 +14,7 @@ import {
 } from '../services/import.service'
 import { t, langueDeRequete } from '../lib/i18n'
 import { limiteMembresForfait, type Forfait } from '../lib/forfait'
+import { parserFichierImport } from '../services/import-parse.service'
 import type { CleMessage } from '../locales/fr'
 
 /**
@@ -375,6 +376,41 @@ export const membresRoutes: FastifyPluginAsync = async (app: FastifyInstance) =>
 
       const resultat = await executerImport(app.prisma, analyse)
       return reply.code(201).send(resultat)
+    },
+  )
+
+  // POST /membres/import/fichier — PARSING SERVEUR du fichier téléversé (.xlsx/.csv) → lignes
+  // brutes (audit m6 : le parseur xlsx quitte le navigateur). Le mapping + l'aperçu + le commit
+  // restent côté front (données JSON via /membres/import). ADMIN + SECRETAIRE (perm création).
+  app.post(
+    '/membres/import/fichier',
+    { preHandler: [authenticate, perm('create')] },
+    async (req, reply) => {
+      const langue = langueDeRequete(req)
+      let fichier: { buffer: Buffer; nom: string } | undefined
+      try {
+        for await (const part of req.parts()) {
+          if (part.type === 'file') fichier = { buffer: await part.toBuffer(), nom: part.filename }
+        }
+      } catch {
+        return reply.code(400).send({ error: 'Bad Request', message: t(langue, 'import.aucuneLigne') })
+      }
+      if (!fichier) {
+        return reply.code(400).send({ error: 'Bad Request', message: t(langue, 'import.aucuneLigne') })
+      }
+      try {
+        const { entetes, lignes } = await parserFichierImport(fichier.buffer, fichier.nom)
+        if (entetes.length === 0 || lignes.length === 0) {
+          return reply
+            .code(422)
+            .send({ error: 'Unprocessable Entity', message: t(langue, 'import.aucuneLigne') })
+        }
+        return { entetes, lignes }
+      } catch {
+        return reply
+          .code(422)
+          .send({ error: 'Unprocessable Entity', message: t(langue, 'import.fichierInvalide') })
+      }
     },
   )
 

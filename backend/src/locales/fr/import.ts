@@ -13,4 +13,5 @@ export const messages = {
   'import.quotaDepasse':
     'Import refusé : {aCreer} membre(s) à créer porterai(en)t le total au-delà de {plafond} (plan gratuit ; {actuel} actuellement).',
   'import.aucuneLigne': 'Aucune ligne à importer.',
+  'import.fichierInvalide': 'Fichier illisible. Vérifiez le format (.xlsx ou .csv).',
 } as const

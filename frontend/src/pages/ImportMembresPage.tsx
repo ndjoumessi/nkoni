@@ -1,7 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
-import * as XLSX from 'xlsx'
 import { Upload, FileDown, CheckCircle2, ArrowRight } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
 import {
@@ -82,19 +81,11 @@ export function ImportMembresPage() {
 
   /* --- Étape 1 : lecture du fichier ------------------------------------- */
   const choisirFichier = async (file: File) => {
+    if (!accessToken) return
     try {
-      const buf = await file.arrayBuffer()
-      const wb = XLSX.read(buf, { type: 'array' })
-      const nomFeuille = wb.SheetNames[0]
-      const ws = nomFeuille ? wb.Sheets[nomFeuille] : undefined
-      if (!ws) throw new Error('feuille absente')
-      const aoa = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, raw: false, defval: '' })
-      const entetesLues = (aoa[0] ?? []).map((h) => String(h ?? '').trim())
-      const rows = aoa
-        .slice(1)
-        .map((r) => r.map((c) => String(c ?? '').trim()))
-        .filter((r) => r.some((c) => c !== ''))
-
+      // Parsing SERVEUR (audit m6) : plus aucun parseur xlsx dans le navigateur — le fichier est
+      // envoyé au backend qui renvoie les lignes brutes ; mapping/aperçu/commit restent côté front.
+      const { entetes: entetesLues, lignes: rows } = await membresApi.parserFichier(file, accessToken)
       if (entetesLues.length === 0 || rows.length === 0) {
         toast.error(t('import.fichier.invalide'), t('import.fichier.aucuneLigne'))
         return
@@ -104,8 +95,8 @@ export function ImportMembresPage() {
       setLignesBrutes(rows)
       setMapping(autoMapping(entetesLues))
       setEtape('mapping')
-    } catch {
-      toast.error(t('import.fichier.invalide'), t('import.fichier.invalideDetail'))
+    } catch (e) {
+      toast.error(t('import.fichier.invalide'), messageErreur(e))
     }
   }
 
@@ -213,12 +204,6 @@ export function ImportMembresPage() {
     const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' })
     declencherTelechargement(blob, 'modele-import-membres.csv')
   }
-  const telechargerXlsx = () => {
-    const ws = XLSX.utils.aoa_to_sheet([MODELE_ENTETES, MODELE_EXEMPLE])
-    const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, 'Membres')
-    XLSX.writeFile(wb, 'modele-import-membres.xlsx')
-  }
 
   const previewColonnes: Column<LignePreview>[] = [
     { key: 'ligne', header: t('import.apercu.colonneLigne'), numeric: true, width: '4rem', cell: (r) => r.ligne },
@@ -275,7 +260,7 @@ export function ImportMembresPage() {
           <input
             ref={fileRef}
             type="file"
-            accept=".csv,.xlsx,.xls,text/csv"
+            accept=".csv,.xlsx,text/csv"
             className="hidden"
             onChange={(ev) => {
               const f = ev.target.files?.[0]
@@ -289,9 +274,6 @@ export function ImportMembresPage() {
             </Button>
             <Button type="button" variant="outline" icon={FileDown} onClick={telechargerCsv}>
               {t('import.fichier.modeleCsv')}
-            </Button>
-            <Button type="button" variant="outline" icon={FileDown} onClick={telechargerXlsx}>
-              {t('import.fichier.modeleXlsx')}
             </Button>
           </div>
         </Card>

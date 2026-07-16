@@ -12,4 +12,5 @@ export const messages = {
   'import.quotaDepasse':
     'Import refused: creating {aCreer} member(s) would push the total beyond {plafond} (free plan; {actuel} currently).',
   'import.aucuneLigne': 'No rows to import.',
+  'import.fichierInvalide': 'Unreadable file. Check the format (.xlsx or .csv).',
 } as const

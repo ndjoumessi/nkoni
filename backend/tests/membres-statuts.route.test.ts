@@ -35,6 +35,11 @@ function buildMock() {
         }
         return membres
       },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      count: async ({ where }: any = {}) =>
+        where?.compteUtilisateurId
+          ? membres.filter((m) => m.compteUtilisateurId === where.compteUtilisateurId).length
+          : membres.length,
     },
   }
   return prisma
@@ -62,9 +67,10 @@ describe('GET /membres/statuts', () => {
     const res = await get('ADMIN')
     expect(res.statusCode).toBe(200)
     const body = res.json()
-    expect(body).toHaveLength(2)
-    expect(body[0]).toMatchObject({ id: 'm1', statutCotisation: 'A_JOUR', branche: { nom: 'Nord' } })
-    expect(body[1]).toMatchObject({ id: 'm2', statutCotisation: 'NON_A_JOUR', branche: null })
+    expect(body).toMatchObject({ total: 2, tronque: false })
+    expect(body.items).toHaveLength(2)
+    expect(body.items[0]).toMatchObject({ id: 'm1', statutCotisation: 'A_JOUR', branche: { nom: 'Nord' } })
+    expect(body.items[1]).toMatchObject({ id: 'm2', statutCotisation: 'NON_A_JOUR', branche: null })
   })
 
   it('COMMISSAIRE_COMPTES : autorisé en lecture (200)', async () => {
@@ -75,7 +81,7 @@ describe('GET /membres/statuts', () => {
     const res = await get('MEMBRE_SIMPLE', 'u-simple')
     expect(res.statusCode).toBe(200)
     const body = res.json()
-    expect(body).toHaveLength(1)
-    expect(body[0].id).toBe('m1')
+    expect(body.items).toHaveLength(1)
+    expect(body.items[0].id).toBe('m1')
   })
 })

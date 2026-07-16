@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { Camera, ChevronDown, ChevronRight, CreditCard, Crown, FileText, MessageCircle, Pencil, Plus, Scale, Trash2, UserMinus } from 'lucide-react'
+import { Camera, ChevronDown, ChevronRight, CreditCard, Crown, FileText, MessageCircle, MoreHorizontal, Pencil, Plus, Scale, Trash2, UserMinus } from 'lucide-react'
 import { AvatarMembre } from '@/components/membres/AvatarMembre'
 import { CropperPhoto } from '@/components/membres/CropperPhoto'
 import { useAuth } from '@/contexts/auth-context'
@@ -37,6 +37,7 @@ import { Badge } from '@/components/ui/Badge'
 import { Button, ButtonLink } from '@/components/ui/Button'
 import { Field, Input } from '@/components/ui/Field'
 import { Modal } from '@/components/ui/Modal'
+import { usePopoverFlottant } from '@/components/ui/usePopoverFlottant'
 import { ErrorState } from '@/components/ui/ErrorState'
 import { useToast } from '@/components/ui/Toast'
 import { Skeleton } from '@/components/ui/Skeleton'
@@ -110,6 +111,14 @@ export function MembreDetailPage() {
   const [photoRefresh, setPhotoRefresh] = useState(0)
   const [photoBusy, setPhotoBusy] = useState(false)
   const [photoConfirmSuppr, setPhotoConfirmSuppr] = useState(false)
+  // Menu « ⋯ » regroupant les actions utilitaires (carte/relevé/relance) — évite le mur de boutons.
+  const [menuActions, setMenuActions] = useState(false)
+  const menuFlottant = usePopoverFlottant({
+    open: menuActions,
+    onFermer: () => setMenuActions(false),
+    largeurDefaut: 220,
+    hauteurDefaut: 160,
+  })
   const [fichierPhoto, setFichierPhoto] = useState<File | null>(null)
   const photoInputRef = useRef<HTMLInputElement>(null)
 
@@ -376,45 +385,77 @@ export function MembreDetailPage() {
                 </Button>
               ))}
             {peutGererMembres(user?.role) && (
-              <Button
-                variant="outline"
-                icon={CreditCard}
-                loading={carteEnCours}
-                onClick={telechargerCarte}
-              >
-                {t('membres.carte.telecharger')}
-              </Button>
+              <div ref={menuFlottant.containerRef} className="relative">
+                <Button
+                  ref={menuFlottant.triggerRef}
+                  variant="outline"
+                  icon={MoreHorizontal}
+                  loading={carteEnCours || releveEnCours}
+                  onClick={() => setMenuActions((o) => !o)}
+                  aria-haspopup="menu"
+                  aria-expanded={menuActions}
+                >
+                  {t('membres.detail.plus')}
+                </Button>
+                {menuActions &&
+                  menuFlottant.rendreFlottant(
+                    <div
+                      role="menu"
+                      className="min-w-[13rem] rounded-xl border border-hairline-strong bg-surface-2 p-1 shadow-2xl"
+                    >
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          setMenuActions(false)
+                          telechargerCarte()
+                        }}
+                        className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-surface hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-brass/60"
+                      >
+                        <CreditCard className="h-4 w-4 shrink-0 text-faint" aria-hidden="true" />
+                        {t('membres.carte.telecharger')}
+                      </button>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          setMenuActions(false)
+                          telechargerReleve()
+                        }}
+                        className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-surface hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-brass/60"
+                      >
+                        <FileText className="h-4 w-4 shrink-0 text-faint" aria-hidden="true" />
+                        {t('membres.releve.telecharger')}
+                      </button>
+                      {statut && statut.statut !== 'A_JOUR' && telephoneWaMe(membre.telephone) && (
+                        <button
+                          type="button"
+                          role="menuitem"
+                          onClick={() => {
+                            setMenuActions(false)
+                            const lien = lienRelanceWhatsApp(
+                              membre.telephone,
+                              t('dashboard.analyse.relanceMessage', {
+                                prenom: membre.prenom,
+                                montant: formatMontant(Math.max(0, statut.totalAttenduCumule - statut.totalValoriseCumule)),
+                              }),
+                            )
+                            if (lien) window.open(lien, '_blank', 'noopener,noreferrer')
+                          }}
+                          className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-surface hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-brass/60"
+                        >
+                          <MessageCircle className="h-4 w-4 shrink-0 text-faint" aria-hidden="true" />
+                          {t('membres.detail.relancerWhatsApp')}
+                        </button>
+                      )}
+                    </div>,
+                    { className: 'z-50', 'aria-label': t('membres.detail.plusActions') },
+                  )}
+              </div>
             )}
+            {/* « Modifier » = CTA primaire (dégradé menthe→or) → une action dominante, fini le mur. */}
             {peutGererMembres(user?.role) && (
-              <Button
-                variant="outline"
-                icon={FileText}
-                loading={releveEnCours}
-                onClick={telechargerReleve}
-              >
-                {t('membres.releve.telecharger')}
-              </Button>
-            )}
-            {peutGererMembres(user?.role) && statut && statut.statut !== 'A_JOUR' && telephoneWaMe(membre.telephone) && (
-              <Button
-                variant="outline"
-                icon={MessageCircle}
-                onClick={() => {
-                  const lien = lienRelanceWhatsApp(
-                    membre.telephone,
-                    t('dashboard.analyse.relanceMessage', {
-                      prenom: membre.prenom,
-                      montant: formatMontant(Math.max(0, statut.totalAttenduCumule - statut.totalValoriseCumule)),
-                    }),
-                  )
-                  if (lien) window.open(lien, '_blank', 'noopener,noreferrer')
-                }}
-              >
-                {t('membres.detail.relancerWhatsApp')}
-              </Button>
-            )}
-            {peutGererMembres(user?.role) && (
-              <ButtonLink to={`/membres/${membre.id}/editer`} variant="outline" icon={Pencil}>
+              <ButtonLink to={`/membres/${membre.id}/editer`} icon={Pencil}>
                 {t('membres.detail.modifier')}
               </ButtonLink>
             )}

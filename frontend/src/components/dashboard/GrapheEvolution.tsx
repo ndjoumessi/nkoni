@@ -105,21 +105,24 @@ function Legende({
  *  lisibles) et repasse en pleine largeur dès `sm`. Montée EN CASCADE (délai croissant par barre,
  *  plafonné) pour un rendu vivant — neutralisée si `prefers-reduced-motion` (via `monte`). */
 function CorpsBarres({ points, monte }: { points: PointEvolution[]; monte: boolean }) {
-  const max = useMemo(() => Math.max(1, ...points.map((p) => p.attendu)), [points])
+  // Échelle bornée sur le MAX des deux séries : un mois où le collecté dépasse l'attendu (arriérés
+  // rattrapés) ne fait plus déborder la barre hors du cadre — la plus haute valeur touche le haut.
+  const max = useMemo(() => Math.max(1, ...points.flatMap((p) => [p.attendu, p.collecte])), [points])
   const dense = points.length > 6
   return (
-    <div
-      className={cn(
-        'mt-6 flex items-end pb-1',
-        // Dense : défilement horizontal en mobile, pleine largeur en `sm`. Sinon : réparti d'emblée.
-        dense
-          ? 'gap-2 overflow-x-auto sm:gap-3 sm:overflow-x-visible'
-          : 'justify-around gap-3 sm:gap-5',
-      )}
-      style={{ height: '13rem' }}
-      aria-hidden="true"
-    >
-      {points.map((p, i) => {
+    <div className="relative mt-6">
+      <div
+        className={cn(
+          'flex items-end pb-1',
+          // Dense : défilement horizontal en mobile, pleine largeur en `sm`. Sinon : réparti d'emblée.
+          dense
+            ? 'gap-2 overflow-x-auto sm:gap-3 sm:overflow-x-visible'
+            : 'justify-around gap-3 sm:gap-5',
+        )}
+        style={{ height: '13rem' }}
+        aria-hidden="true"
+      >
+        {points.map((p, i) => {
         const hAttendu = (p.attendu / max) * 100
         const hCollecte = (p.collecte / max) * 100
         // Cascade gauche→droite (plafonnée à 500 ms pour que les dernières barres ne traînent pas).
@@ -158,7 +161,22 @@ function CorpsBarres({ points, monte }: { points: PointEvolution[]; monte: boole
             </span>
           </div>
         )
-      })}
+        })}
+      </div>
+      {/* Indices de défilement (mobile uniquement) : dégradés de bord suggérant que la bande continue.
+          `from-surface` = fond de la Card `base`. Masqués dès `sm` (plus de scroll). */}
+      {dense && (
+        <>
+          <div
+            className="pointer-events-none absolute inset-y-0 left-0 w-5 bg-gradient-to-r from-surface to-transparent sm:hidden"
+            aria-hidden="true"
+          />
+          <div
+            className="pointer-events-none absolute inset-y-0 right-0 w-5 bg-gradient-to-l from-surface to-transparent sm:hidden"
+            aria-hidden="true"
+          />
+        </>
+      )}
     </div>
   )
 }

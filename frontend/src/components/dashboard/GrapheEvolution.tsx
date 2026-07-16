@@ -99,24 +99,33 @@ function Legende({
   )
 }
 
-/** Barres verticales (attendu en piste, collecté en remplissage). */
+/** Barres verticales (attendu en piste, collecté en remplissage). Responsive au NOMBRE de points :
+ *  au-delà de 6 (ex. série mensuelle sur 12 mois), barres plus fines, écart resserré, libellés plus
+ *  petits et un mois sur deux masqué en mobile (anti-chevauchement, comme l'axe X de la variante aire). */
 function CorpsBarres({ points, monte }: { points: PointEvolution[]; monte: boolean }) {
   const max = useMemo(() => Math.max(1, ...points.map((p) => p.attendu)), [points])
+  const dense = points.length > 6
   return (
     <div
-      className="mt-6 flex items-end justify-around gap-3 sm:gap-5"
+      className={cn('mt-6 flex items-end justify-around', dense ? 'gap-1 sm:gap-3' : 'gap-3 sm:gap-5')}
       style={{ height: '13rem' }}
       aria-hidden="true"
     >
-      {points.map((p) => {
+      {points.map((p, i) => {
         const hAttendu = (p.attendu / max) * 100
         const hCollecte = (p.collecte / max) * 100
+        const labelMobile = dense && i % 2 === 1 ? 'hidden sm:block' : 'block'
         return (
           <div key={p.cle} className="flex h-full flex-1 flex-col items-center justify-end gap-2">
             {p.taux !== undefined && (
               <span className="num text-xs font-semibold text-jade">{formatPourcent(p.taux)}</span>
             )}
-            <div className="relative flex h-full w-full max-w-[3.5rem] items-end justify-center">
+            <div
+              className={cn(
+                'relative flex h-full w-full items-end justify-center',
+                dense ? 'max-w-[2.25rem]' : 'max-w-[3.5rem]',
+              )}
+            >
               <div
                 className="absolute bottom-0 w-full rounded-t-md bg-surface-3 transition-[height] duration-700 ease-out"
                 style={{ height: `${monte ? hAttendu : 0}%` }}
@@ -126,7 +135,15 @@ function CorpsBarres({ points, monte }: { points: PointEvolution[]; monte: boole
                 style={{ height: `${monte ? hCollecte : 0}%` }}
               />
             </div>
-            <span className="num text-sm font-medium text-foreground">{p.label}</span>
+            <span
+              className={cn(
+                'num font-medium text-foreground',
+                dense ? 'text-2xs sm:text-xs' : 'text-sm',
+                labelMobile,
+              )}
+            >
+              {p.label}
+            </span>
           </div>
         )
       })}

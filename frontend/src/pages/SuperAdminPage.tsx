@@ -31,7 +31,7 @@ import { StatCard } from '@/components/ui/StatCard'
 import { DataTable, type Column, type SortDir } from '@/components/ui/DataTable'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ErrorState } from '@/components/ui/ErrorState'
-import { RowsSkeleton } from '@/components/ui/Skeleton'
+import { RowsSkeleton, StatCardSkeleton } from '@/components/ui/Skeleton'
 import { NkoniMark } from '@/components/ui/NkoniMark'
 import { Input } from '@/components/ui/Field'
 import { cn, formatDate } from '@/lib/utils'
@@ -567,33 +567,40 @@ export function SuperAdminPage() {
       <div className="mx-auto max-w-6xl px-6 py-10">
         <PageHeader overline={t('superAdmin.header.overline')} title={t('superAdmin.header.titre')} />
 
-        {/* Bandeau de KPIs. */}
+        {/* Bandeau de KPIs — skeletons pendant le chargement (cohérent avec le dashboard). */}
         <div className="nk-reveal nk-d1 mt-7 grid grid-cols-2 gap-4 lg:grid-cols-4">
-          <StatCard
-            icon={Building2}
-            label={t('superAdmin.kpi.organisations')}
-            value={loading ? '—' : String(kpis.total)}
-          />
-          <StatCard
-            icon={CheckCircle2}
-            tone="jade"
-            label={t('superAdmin.kpi.actives')}
-            value={loading ? '—' : String(kpis.actives)}
-            hint={loading ? undefined : t('superAdmin.kpi.activesHint')}
-          />
-          <StatCard
-            icon={PauseCircle}
-            label={t('superAdmin.kpi.suspendues')}
-            value={loading ? '—' : String(kpis.suspendues)}
-            hint={loading ? undefined : t('superAdmin.kpi.suspenduesHint')}
-          />
-          <StatCard
-            icon={Users}
-            tone="brass"
-            label={t('superAdmin.kpi.membres')}
-            value={loading ? '—' : String(kpis.membres)}
-            hint={loading ? undefined : t('superAdmin.kpi.membresHint')}
-          />
+          {loading ? (
+            <>
+              <StatCardSkeleton />
+              <StatCardSkeleton />
+              <StatCardSkeleton />
+              <StatCardSkeleton />
+            </>
+          ) : (
+            <>
+              <StatCard icon={Building2} label={t('superAdmin.kpi.organisations')} value={String(kpis.total)} />
+              <StatCard
+                icon={CheckCircle2}
+                tone="jade"
+                label={t('superAdmin.kpi.actives')}
+                value={String(kpis.actives)}
+                hint={t('superAdmin.kpi.activesHint')}
+              />
+              <StatCard
+                icon={PauseCircle}
+                label={t('superAdmin.kpi.suspendues')}
+                value={String(kpis.suspendues)}
+                hint={t('superAdmin.kpi.suspenduesHint')}
+              />
+              <StatCard
+                icon={Users}
+                tone="brass"
+                label={t('superAdmin.kpi.membres')}
+                value={String(kpis.membres)}
+                hint={t('superAdmin.kpi.membresHint')}
+              />
+            </>
+          )}
         </div>
 
         {/* Répartition des forfaits — barre empilée + légende chiffrée. */}

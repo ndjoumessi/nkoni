@@ -60,6 +60,8 @@ function buildMock(opts: { versementCreateError?: unknown; membreCreateError?: u
         return m
       },
     },
+    // Verrou consultatif no-op (quota sérialisé) + transaction interactive (le mock EST le tx).
+    $executeRaw: async () => 0,
     $transaction: async (fn: any) => fn(prisma),
   }
   return { prisma, compteur }

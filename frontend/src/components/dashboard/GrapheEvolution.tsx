@@ -2,7 +2,7 @@ import { useEffect, useId, useMemo, useState } from 'react'
 import { Activity, BarChart3 } from 'lucide-react'
 import { Card, Overline } from '@/components/ui/Card'
 import { formatMontant, formatNombre, formatPourcent } from '@/lib/format'
-import { prefersReducedMotion } from '@/lib/utils'
+import { cn, prefersReducedMotion } from '@/lib/utils'
 
 /**
  * Graphe d'évolution « collecté vs attendu » PARTAGÉ (§10) — extrait de RapportsPage pour
@@ -241,17 +241,23 @@ function CorpsAire({ points, monte, montreN1 }: { points: PointEvolution[]; mont
         </svg>
       </div>
 
-      {/* Libellés de l'axe X (mois) en HTML, alignés sur les points → jamais déformés. */}
+      {/* Libellés de l'axe X (mois) en HTML, alignés sur les points → jamais déformés. Les
+          extrêmes sont ANCRÉS (1er à gauche, dernier à droite) pour ne pas être écrêtés hors du
+          cadre ; au-delà de 6 points, un mois sur deux est masqué en mobile (anti-chevauchement). */}
       <div className="relative mt-1.5 h-4">
-        {points.map((p, i) => (
-          <span
-            key={p.cle}
-            className="absolute -translate-x-1/2 text-3xs text-faint"
-            style={{ left: `${(x(i) / W) * 100}%` }}
-          >
-            {p.label}
-          </span>
-        ))}
+        {points.map((p, i) => {
+          const ancrage = i === 0 ? 'translate-x-0' : i === n - 1 ? '-translate-x-full' : '-translate-x-1/2'
+          const mobile = n > 6 && i % 2 === 1 ? 'hidden sm:inline-block' : 'inline-block'
+          return (
+            <span
+              key={p.cle}
+              className={cn('absolute text-3xs text-faint', ancrage, mobile)}
+              style={{ left: `${(x(i) / W) * 100}%` }}
+            >
+              {p.label}
+            </span>
+          )
+        })}
       </div>
     </div>
   )

@@ -96,35 +96,53 @@ function OnboardingVide({ canManage }: { canManage: boolean }) {
 }
 
 /**
- * Recouvrement MENSUEL (année courante) — attendu vs collecté encaissé CHAQUE mois (non cumulé),
- * en barres. Montre l'activité réelle mois par mois (quand l'argent rentre), là où la courbe
- * cumulée écrasait tout au ras de l'axe quand la collecte est faible. Le taux de recouvrement
- * global vit déjà dans l'anneau du RecouvrementHero (pas de doublon). Mois locale-aware (Intl).
+ * Recouvrement CUMULÉ (année courante) — collecté cumulé vs objectif cumulé, BORNÉ au mois courant
+ * (« burn-up à date »). On ne projette PAS les mois à venir : sinon l'objectif grimperait jusqu'au
+ * total annuel (déc.) et écraserait la courbe collectée au ras de l'axe (échelle corrigée). La cible
+ * affichée est donc « où l'on devrait être aujourd'hui » vs « où l'on est ». Courbe N-1 sur la même
+ * période. « Mois courant applicatif » = Africa/Douala (comme le scheduler/back), jamais le fuseau
+ * navigateur (sinon glissement d'un mois pour la diaspora). Mois locale-aware (Intl).
  */
 function EvolutionMensuelleCard({ annee, data }: { annee: number; data: EvolutionMois[] }) {
   const { t, i18n } = useTranslation()
   const points = useMemo<PointEvolution[]>(() => {
     const fmt = new Intl.DateTimeFormat(i18n.language, { month: 'short', timeZone: 'UTC' })
-    // Valeurs MENSUELLES brutes (non cumulées) : chaque barre = ce mois-là. Pas de `taux` par barre
-    // (12 % seraient illisibles) ni de comparaison N-1 (réservée à la courbe cumulée) — l'équivalent
-    // chiffré complet reste dans la table sr-only du composant.
-    return data.map((e) => ({
-      cle: String(e.mois),
-      label: fmt.format(new Date(Date.UTC(2000, e.mois - 1, 1))),
-      attendu: e.attendu,
-      collecte: e.collecte,
-    }))
+    const moisCourant = Number(
+      new Intl.DateTimeFormat('en-US', { timeZone: 'Africa/Douala', month: 'numeric' }).format(
+        new Date(),
+      ),
+    )
+    let cumulCollecte = 0
+    let cumulAttendu = 0
+    let cumulN1 = 0
+    // Borné au mois courant : la cible cumulée s'arrête à l'objectif « à date » (pas à l'annuel
+    // plein) → l'échelle n'écrase plus la courbe collectée. N-1 cumulé sur la MÊME période.
+    return data
+      .filter((e) => e.mois <= moisCourant)
+      .map((e) => {
+        cumulCollecte += e.collecte
+        cumulAttendu += e.attendu
+        cumulN1 += e.collecteN1 ?? 0
+        return {
+          cle: String(e.mois),
+          label: fmt.format(new Date(Date.UTC(2000, e.mois - 1, 1))),
+          attendu: cumulAttendu,
+          collecte: cumulCollecte,
+          collecteN1: cumulN1,
+        }
+      })
   }, [data, i18n.language])
 
   return (
     <GrapheEvolution
       points={points}
-      variant="barres"
-      titre={t('dashboard.evolution.titreMensuel', { annee })}
-      legendeAttendu={t('dashboard.evolution.attenduMois')}
-      legendeCollecte={t('dashboard.evolution.collecteMois')}
+      variant="aire"
+      titre={t('dashboard.evolution.titre', { annee })}
+      legendeAttendu={t('dashboard.evolution.attendu')}
+      legendeCollecte={t('dashboard.evolution.collecte')}
+      legendeN1={t('dashboard.evolution.n1', { annee: annee - 1 })}
       labelColonne={t('dashboard.evolution.colonneMois')}
-      resumeAria={t('dashboard.evolution.resumeAriaMensuel', { annee })}
+      resumeAria={t('dashboard.evolution.resumeAria', { annee })}
       aucuneDonnee={t('dashboard.evolution.aucuneDonnee')}
     />
   )

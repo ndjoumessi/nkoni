@@ -109,6 +109,7 @@ function CorpsBarres({ points, monte }: { points: PointEvolution[]; monte: boole
   // rattrapés) ne fait plus déborder la barre hors du cadre — la plus haute valeur touche le haut.
   const max = useMemo(() => Math.max(1, ...points.flatMap((p) => [p.attendu, p.collecte])), [points])
   const dense = points.length > 6
+  const [survol, setSurvol] = useState<number | null>(null)
   return (
     <div className="relative mt-6">
       <div
@@ -127,13 +128,21 @@ function CorpsBarres({ points, monte }: { points: PointEvolution[]; monte: boole
         const hCollecte = (p.collecte / max) * 100
         // Cascade gauche→droite (plafonnée à 500 ms pour que les dernières barres ne traînent pas).
         const delai = monte ? `${Math.min(i * 45, 500)}ms` : '0ms'
+        const actif = survol === i
+        // Infobulle ancrée aux bords pour les extrêmes (jamais tronquée hors du cadre).
+        const ancrage =
+          i === 0 ? 'left-0' : i === points.length - 1 ? 'right-0' : 'left-1/2 -translate-x-1/2'
         return (
           <div
             key={p.cle}
+            onMouseEnter={() => setSurvol(i)}
+            onMouseLeave={() => setSurvol((v) => (v === i ? null : v))}
             className={cn(
-              'flex h-full flex-col items-center justify-end gap-2',
+              'flex h-full cursor-default flex-col items-center justify-end gap-2 transition-opacity duration-200',
               // Mobile dense : largeur fixe confortable (la bande défile) ; `sm` : flex pour remplir.
               dense ? 'shrink-0 basis-11 sm:basis-0 sm:flex-1' : 'flex-1',
+              // Survol : la barre visée reste nette, les autres s'estompent (mise en avant).
+              survol !== null && !actif ? 'opacity-45' : 'opacity-100',
             )}
           >
             {p.taux !== undefined && (
@@ -145,17 +154,50 @@ function CorpsBarres({ points, monte }: { points: PointEvolution[]; monte: boole
                 dense ? 'max-w-[2.75rem]' : 'max-w-[3.5rem]',
               )}
             >
+              {/* Infobulle au survol — collée au sommet de la barre la plus haute. L'équivalent
+                  chiffré accessible reste la table sr-only. */}
+              {actif && (
+                <div
+                  className={cn(
+                    'pointer-events-none absolute z-20 mb-1.5 whitespace-nowrap rounded-lg border border-hairline-strong bg-surface-2 px-2.5 py-1.5 shadow-xl',
+                    ancrage,
+                  )}
+                  style={{ bottom: `${Math.max(hAttendu, hCollecte)}%` }}
+                >
+                  <p className="text-2xs font-medium text-foreground">{p.label}</p>
+                  <div className="mt-1 space-y-0.5">
+                    <span className="flex items-center gap-1.5 text-2xs text-muted-foreground">
+                      <span
+                        className="h-2 w-2 shrink-0 rounded-full bg-gradient-to-b from-jade to-brass"
+                        aria-hidden="true"
+                      />
+                      <span className="num">{formatMontant(p.collecte)}</span>
+                    </span>
+                    <span className="flex items-center gap-1.5 text-2xs text-muted-foreground">
+                      <span className="h-2 w-2 shrink-0 rounded-sm bg-surface-3" aria-hidden="true" />
+                      <span className="num">{formatMontant(p.attendu)}</span>
+                    </span>
+                  </div>
+                </div>
+              )}
               <div
                 className="absolute bottom-0 w-full rounded-t-md bg-surface-3 transition-[height] duration-700 ease-out"
                 style={{ height: `${monte ? hAttendu : 0}%`, transitionDelay: delai }}
               />
               <div
-                className="absolute bottom-0 w-full rounded-t-md bg-gradient-to-b from-jade to-brass transition-[height] duration-700 ease-out"
+                className={cn(
+                  'absolute bottom-0 w-full rounded-t-md bg-gradient-to-b from-jade to-brass transition-[height,filter] duration-700 ease-out',
+                  actif && 'brightness-110',
+                )}
                 style={{ height: `${monte ? hCollecte : 0}%`, transitionDelay: delai }}
               />
             </div>
             <span
-              className={cn('num font-medium text-foreground', dense ? 'text-2xs sm:text-xs' : 'text-sm')}
+              className={cn(
+                'num font-medium transition-colors',
+                actif ? 'text-brass' : 'text-foreground',
+                dense ? 'text-2xs sm:text-xs' : 'text-sm',
+              )}
             >
               {p.label}
             </span>

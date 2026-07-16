@@ -33,7 +33,7 @@ Toujours vérifier **build + test** (backend) ou **build + lint (+ test si le cl
 ## Architecture — points essentiels
 
 **Isolation multi-tenant (SaaS §2.2)** — défense en profondeur, `backend/src/lib/` :
-- `org-context.ts` : `AsyncLocalStorage` portant l'`organisationId` de la requête. `runUnscoped()` = bypass DÉLIBÉRÉ pour les flux sans org (login/refresh/système/seed/super-admin).
+- `org-context.ts` : `AsyncLocalStorage` portant l'`organisationId` de la requête. `runUnscoped()` = bypass DÉLIBÉRÉ pour les flux sans org (login/refresh/système/seed/super-admin). **Allowlist source (audit archi)** : `tests/runUnscoped-allowlist.test.ts` énumère TOUS les appels `runUnscoped` du `src/` (hors `generated/`) et exige une parité stricte avec une liste justifiée (par fichier + compte) — tout nouvel appel casse le build tant qu'un relecteur ne l'a pas inscrit et justifié (les commentaires ne sont pas un garde-fou exécutable). Pendant côté APPELANTS du test de parité `SCOPED_MODELS ↔ schéma`.
 - `tenant-extension.ts` : extension Prisma `$extends` qui injecte `organisationId` sur les 26 `SCOPED_MODELS` (dont `Depense`, `CagnotteEvenement`, `DonCagnotte`, `Amende`). **Fail-closed** : sur un modèle scopé sans contexte org valide → lève `TenantContextError` ; une opération scopée NON couverte par l'extension (ex. `createManyAndReturn`) → lève `OperationNonIsoleeError` (jamais de passe-plat silencieux). Mutation cross-org → `P2025` (→ 404, pas de fuite d'existence).
 - `Organisation` n'est **PAS** un modèle scopé (les routes plateforme la lisent sans contexte).
 - Ordre des extensions (`lib/prisma.ts`) : audit puis tenant (tenant outermost → scope/fail-close AVANT l'audit).

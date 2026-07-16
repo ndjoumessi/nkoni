@@ -411,6 +411,23 @@ export function RapportsPage() {
   const [mode, setMode] = useState<Mode>('evolution')
   const [exportEnCours, setExportEnCours] = useState<'xlsx' | 'pdf' | null>(null)
 
+  // Onglets de mode = motif ARIA Tabs (APG). Roving tabindex (seul l'onglet actif est tabbable)
+  // + navigation ←/→/Home/End qui déplace la sélection ET le focus (a11y clavier).
+  const MODES: Mode[] = ['evolution', 'comparaison', 'detail']
+  const ongletsRef = useRef<(HTMLButtonElement | null)[]>([])
+  const onOngletsKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const i = MODES.indexOf(mode)
+    let cible = i
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') cible = (i + 1) % MODES.length
+    else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') cible = (i - 1 + MODES.length) % MODES.length
+    else if (e.key === 'Home') cible = 0
+    else if (e.key === 'End') cible = MODES.length - 1
+    else return
+    e.preventDefault()
+    setMode(MODES[cible])
+    ongletsRef.current[cible]?.focus()
+  }
+
   const [debut, setDebut] = useState<number | null>(null)
   const [fin, setFin] = useState<number | null>(null)
   // Années comparées (mode Comparaison) — triées, minimum 2, pas de maximum.
@@ -607,10 +624,13 @@ export function RapportsPage() {
                 className="inline-flex rounded-xl border border-hairline bg-surface/60 p-1"
                 role="tablist"
                 aria-label={t('rapports.mode.aria')}
+                onKeyDown={onOngletsKeyDown}
               >
                 <button
                   type="button"
                   role="tab"
+                  ref={(el) => { ongletsRef.current[0] = el }}
+                  tabIndex={mode === 'evolution' ? 0 : -1}
                   aria-selected={mode === 'evolution'}
                   onClick={() => setMode('evolution')}
                   className={cn(
@@ -626,6 +646,8 @@ export function RapportsPage() {
                 <button
                   type="button"
                   role="tab"
+                  ref={(el) => { ongletsRef.current[1] = el }}
+                  tabIndex={mode === 'comparaison' ? 0 : -1}
                   aria-selected={mode === 'comparaison'}
                   onClick={() => setMode('comparaison')}
                   className={cn(
@@ -641,6 +663,8 @@ export function RapportsPage() {
                 <button
                   type="button"
                   role="tab"
+                  ref={(el) => { ongletsRef.current[2] = el }}
+                  tabIndex={mode === 'detail' ? 0 : -1}
                   aria-selected={mode === 'detail'}
                   onClick={() => setMode('detail')}
                   className={cn(

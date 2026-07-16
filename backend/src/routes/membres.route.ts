@@ -197,6 +197,16 @@ function finContributionAuto(body: {
   return undefined
 }
 
+/** Quota du forfait dépassé (levée DANS la transaction de création → mappée en 403 par la route). */
+class QuotaMembresDepasseError extends Error {
+  readonly plafond: number
+  constructor(plafond: number) {
+    super(`Plafond de membres du forfait atteint (${plafond}).`)
+    this.name = 'QuotaMembresDepasseError'
+    this.plafond = plafond
+  }
+}
+
 export const membresRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
   const perm = (action: 'create' | 'read' | 'update' | 'delete') =>
     requirePermission('Membre', action)
@@ -276,19 +286,9 @@ export const membresRoutes: FastifyPluginAsync = async (app: FastifyInstance) =>
         if (existant) return reply.code(200).send(existant)
       }
 
-      // Plafond selon le forfait de l'organisation (SaaS §3.1) : Gratuit = 50, Pro/Entreprise
-      // = illimité (`null` → aucun contrôle). `count()` est scopé par l'extension d'isolation
-      // → compte les membres de l'organisation courante.
+      // Plafond selon le forfait (SaaS §3.1) : Gratuit = 50, Pro/Entreprise = illimité (`null`).
       const limite = await limiteMembresOrganisation(app, req.user.organisationId)
-      if (limite !== null) {
-        const nbMembres = await app.prisma.membre.count()
-        if (nbMembres >= limite) {
-          return reply.code(403).send({
-            error: 'Forbidden',
-            message: t(langueDeRequete(req), 'membres.plafondPlanGratuit', { plafond: limite }),
-          })
-        }
-      }
+      const orgId = req.user.organisationId ?? ''
 
       // organisationId injecté par l'extension d'isolation (cf. CreationScopee) → non fourni ici.
       const data: CreationScopee<Prisma.MembreUncheckedCreateInput> = {
@@ -310,11 +310,27 @@ export const membresRoutes: FastifyPluginAsync = async (app: FastifyInstance) =>
       if (cleIdempotence) data.idempotenceKey = cleIdempotence
 
       try {
-        const membre = await app.prisma.membre.create({
-          data: data as Prisma.MembreUncheckedCreateInput,
+        // TOCTOU du quota (audit) : sous un plafond FINI, le comptage ET la création se font dans
+        // UNE transaction protégée par un verrou consultatif PAR ORGANISATION (`pg_advisory_xact_lock`,
+        // clé = hash de l'orgId, libéré au commit). Deux créations concurrentes de la même org sont
+        // donc SÉRIALISÉES → elles ne peuvent plus franchir le plafond ensemble, sans introduire
+        // d'échec de sérialisation. Forfait illimité (`limite === null`) → pas de verrou ni de comptage.
+        const membre = await app.prisma.$transaction(async (tx) => {
+          if (limite !== null) {
+            await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${orgId}))`
+            const nbMembres = await tx.membre.count()
+            if (nbMembres >= limite) throw new QuotaMembresDepasseError(limite)
+          }
+          return tx.membre.create({ data: data as Prisma.MembreUncheckedCreateInput })
         })
         return reply.code(201).send(membre)
       } catch (err) {
+        if (err instanceof QuotaMembresDepasseError) {
+          return reply.code(403).send({
+            error: 'Forbidden',
+            message: t(langueDeRequete(req), 'membres.plafondPlanGratuit', { plafond: err.plafond }),
+          })
+        }
         // Course concurrente sur la MÊME clé (2 rejeus simultanés) → renvoyer l'existant. On
         // vérifie que le P2002 vient bien de l'unique (organisationId, idempotenceKey) : un
         // P2002 sur une AUTRE contrainte doit être relevé, pas avalé (sinon on re-fetch la

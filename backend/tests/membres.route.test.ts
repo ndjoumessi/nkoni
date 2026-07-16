@@ -27,7 +27,8 @@ function buildPrismaMock(opts: { nbMembres?: number } = {}) {
       compteUtilisateurId: 'u-autre',
     },
   ]
-  return {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const mock: any = {
     membre: {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       findMany: async (args: any) =>
@@ -50,7 +51,12 @@ function buildPrismaMock(opts: { nbMembres?: number } = {}) {
       update: async () => ({}),
       delete: async () => ({}),
     },
+    // Verrou consultatif no-op + transaction interactive (passe le mock lui-même comme tx).
+    $executeRaw: async () => 0,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    $transaction: async (fn: any) => fn(mock),
   }
+  return mock
 }
 
 describe('CRUD Membre', () => {

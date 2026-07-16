@@ -57,6 +57,28 @@ export const env = {
 
 export const isProd = env.NODE_ENV === 'production'
 
+// Avertissements de configuration en PRODUCTION (NON bloquants — le fail-fast reste réservé aux
+// secrets obligatoires). Surfacent les DÉFAUTS risqués quand une variable n'a pas été posée sur
+// Railway, plutôt que de les laisser s'appliquer en silence (audit W1). Muet hors production.
+if (isProd) {
+  const avertir = (msg: string): void => console.warn(`[env] ⚠️  ${msg}`)
+  if (!process.env['CORS_ORIGIN']) {
+    avertir(
+      "CORS_ORIGIN non défini → défaut 'http://localhost:5173' : le front de production sera refusé en cross-origin. Posez CORS_ORIGIN sur Railway.",
+    )
+  }
+  if (!process.env['RECU_LINK_SECRET']) {
+    avertir(
+      'RECU_LINK_SECRET non défini → repli sur JWT_ACCESS_SECRET : impossible de révoquer les liens publics de reçus sans invalider toutes les sessions. Posez un secret dédié sur Railway.',
+    )
+  }
+  if (!process.env['BLOB_READ_WRITE_TOKEN']) {
+    avertir(
+      "BLOB_READ_WRITE_TOKEN non défini → l'upload/téléchargement de documents, photos et reçus échouera. Posez-le sur Railway.",
+    )
+  }
+}
+
 const DAY_SECONDS = 60 * 60 * 24
 
 /**

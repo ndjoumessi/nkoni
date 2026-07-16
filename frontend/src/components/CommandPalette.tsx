@@ -220,6 +220,12 @@ export function CommandPalette() {
 
   useEffect(() => setActif(0), [q])
 
+  // Invalide le cache à la FERMETURE : les données (membres, etc.) sont re-chargées à la
+  // prochaine ouverture → un membre créé pendant la session apparaît (audit UI). Coût négligeable.
+  useEffect(() => {
+    if (!open) setItems(null)
+  }, [open])
+
   const choisir = (it: Item | undefined) => {
     if (!it) return
     setOpen(false)

@@ -19,6 +19,7 @@ import {
   enteteDocument,
   dessinerCorpsPremium,
   montantExport,
+  neutraliserFormuleCellule,
   styliserEnTeteExcel,
   zebrerLigne,
   styliserTotalExcel,
@@ -180,8 +181,9 @@ export async function genererExcel(donnees: DonneesExport): Promise<Buffer> {
 
   donnees.lignes.forEach((l, i) => {
     const row = ws.addRow({
-      nom: l.nom,
-      prenom: l.prenom,
+      // Noms saisis par les utilisateurs → neutraliser toute injection de formule (audit Sécu E2).
+      nom: neutraliserFormuleCellule(l.nom),
+      prenom: neutraliserFormuleCellule(l.prenom),
       annee: l.annee,
       montantAttendu: l.montantAttendu,
       montantVerse: l.montantVerse,

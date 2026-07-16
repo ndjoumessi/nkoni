@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Check, ChevronDown, Search, Users } from 'lucide-react'
 import { cn, normaliserTexte } from '@/lib/utils'
@@ -41,7 +41,10 @@ export function SelecteurMembreUnique({
   const [open, setOpen] = useState(false)
   const [q, setQ] = useState('')
   const [largeur, setLargeur] = useState<number | undefined>(undefined)
+  const [surbrillance, setSurbrillance] = useState(0)
   const rechercheRef = useRef<HTMLInputElement>(null)
+  const listeRef = useRef<HTMLUListElement>(null)
+  const uid = useId()
 
   const { containerRef, triggerRef, rendreFlottant } = usePopoverFlottant({
     open,
@@ -58,6 +61,26 @@ export function SelecteurMembreUnique({
     if (!nq) return membres
     return membres.filter((m) => normaliserTexte(`${m.prenom} ${m.nom}`).includes(nq))
   }, [membres, q])
+
+  // Liste PLATE des options navigables (entrée « tous » optionnelle en tête + membres filtrés) —
+  // sert d'index unique pour la surbrillance clavier et `aria-activedescendant`.
+  const options = useMemo(() => {
+    const base: { id: string; label: string }[] = []
+    if (optionTous !== undefined) base.push({ id: '', label: optionTous })
+    for (const m of filtres) base.push({ id: m.id, label: `${m.prenom} ${m.nom}`.trim() })
+    return base
+  }, [optionTous, filtres])
+
+  const surIndex = options.length ? Math.max(0, Math.min(surbrillance, options.length - 1)) : 0
+
+  // Remet la surbrillance en tête à l'ouverture et à chaque changement de recherche.
+  useEffect(() => setSurbrillance(0), [q, open])
+
+  // Fait défiler l'option surlignée dans la vue (navigation clavier sur une longue liste).
+  useEffect(() => {
+    if (!open) return
+    listeRef.current?.querySelector<HTMLElement>(`[data-idx="${surIndex}"]`)?.scrollIntoView({ block: 'nearest' })
+  }, [surIndex, open])
 
   // Le popover épouse la largeur du déclencheur (mesurée à l'ouverture).
   useLayoutEffect(() => {
@@ -116,14 +139,25 @@ export function SelecteurMembreUnique({
               <Search className="h-4 w-4 shrink-0 text-faint" aria-hidden="true" />
               <input
                 ref={rechercheRef}
-                type="search"
+                type="text"
+                role="combobox"
+                aria-expanded={open}
+                aria-controls={`${uid}-liste`}
+                aria-autocomplete="list"
+                aria-activedescendant={options.length ? `${uid}-opt-${surIndex}` : undefined}
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
+                  if (e.key === 'ArrowDown') {
                     e.preventDefault()
-                    const premier = filtres[0]
-                    if (premier) choisir(premier.id)
+                    if (options.length) setSurbrillance((i) => (i + 1) % options.length)
+                  } else if (e.key === 'ArrowUp') {
+                    e.preventDefault()
+                    if (options.length) setSurbrillance((i) => (i - 1 + options.length) % options.length)
+                  } else if (e.key === 'Enter') {
+                    e.preventDefault()
+                    const opt = options[surIndex]
+                    if (opt) choisir(opt.id)
                   }
                 }}
                 placeholder={t('ui.selecteurMembres.recherchePlaceholder')}
@@ -131,37 +165,37 @@ export function SelecteurMembreUnique({
                 className="w-full bg-transparent text-sm text-foreground placeholder:text-faint focus:outline-none"
               />
             </div>
-            <ul role="listbox" className="max-h-64 overflow-y-auto py-1">
-              {optionTous !== undefined && (
-                <li role="option" aria-selected={valeur === ''}>
-                  <button type="button" onClick={() => choisir('')} className={ligneClasses(valeur === '')}>
-                    <span className="w-4 shrink-0">
-                      {valeur === '' && <Check className="h-4 w-4 text-brass" aria-hidden="true" />}
-                    </span>
-                    <span className="truncate">{optionTous}</span>
-                  </button>
-                </li>
-              )}
-              {filtres.length === 0 ? (
+            <ul id={`${uid}-liste`} ref={listeRef} role="listbox" className="max-h-64 overflow-y-auto py-1">
+              {options.map((opt, index) => {
+                const selectionnee = opt.id === valeur
+                const surligne = index === surIndex
+                return (
+                  <li
+                    key={opt.id || '__tous'}
+                    id={`${uid}-opt-${index}`}
+                    data-idx={index}
+                    role="option"
+                    aria-selected={selectionnee}
+                  >
+                    <button
+                      type="button"
+                      tabIndex={-1}
+                      onMouseMove={() => setSurbrillance(index)}
+                      onClick={() => choisir(opt.id)}
+                      className={ligneClasses(selectionnee || surligne)}
+                    >
+                      <span className="w-4 shrink-0">
+                        {selectionnee && <Check className="h-4 w-4 text-brass" aria-hidden="true" />}
+                      </span>
+                      <span className="truncate">{opt.label}</span>
+                    </button>
+                  </li>
+                )
+              })}
+              {filtres.length === 0 && (
                 <li className="px-3 py-3 text-center text-sm text-faint">
                   {t('ui.selecteurMembres.aucunResultat')}
                 </li>
-              ) : (
-                filtres.map((m) => {
-                  const actif = m.id === valeur
-                  return (
-                    <li key={m.id} role="option" aria-selected={actif}>
-                      <button type="button" onClick={() => choisir(m.id)} className={ligneClasses(actif)}>
-                        <span className="w-4 shrink-0">
-                          {actif && <Check className="h-4 w-4 text-brass" aria-hidden="true" />}
-                        </span>
-                        <span className="truncate">
-                          {m.prenom} {m.nom}
-                        </span>
-                      </button>
-                    </li>
-                  )
-                })
               )}
             </ul>
           </div>,

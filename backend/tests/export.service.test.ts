@@ -7,6 +7,7 @@ import {
   type ExportPrisma,
   type DonneesExport,
 } from '../src/services/export.service'
+import { neutraliserFormuleCellule } from '../src/services/export-style'
 
 /**
  * Tests unitaires de l'export (§5.9) : assemblage (Prisma mocké) + formatage réel
@@ -151,5 +152,48 @@ describe('genererPdf (§5.9)', () => {
     // Défauts rétrocompatibles : appel sans langue/devise (FR/FCFA) toujours valide.
     const parDefaut = await genererPdf(donneesFixture)
     expect(parDefaut.subarray(0, 4).toString('latin1')).toBe('%PDF')
+  })
+})
+
+describe('neutraliserFormuleCellule (audit Sécu E2)', () => {
+  it('préfixe d\'une apostrophe toute valeur commençant par un caractère de formule', () => {
+    expect(neutraliserFormuleCellule('=HYPERLINK("http://x")')).toBe('\'=HYPERLINK("http://x")')
+    expect(neutraliserFormuleCellule('+1+1')).toBe('\'+1+1')
+    expect(neutraliserFormuleCellule('-2')).toBe('\'-2')
+    expect(neutraliserFormuleCellule('@SUM(A1)')).toBe('\'@SUM(A1)')
+    expect(neutraliserFormuleCellule('\tTab')).toBe('\'\tTab')
+    expect(neutraliserFormuleCellule('\rCR')).toBe('\'\rCR')
+  })
+
+  it('laisse les valeurs légitimes INCHANGÉES', () => {
+    expect(neutraliserFormuleCellule('Tchoupa')).toBe('Tchoupa')
+    expect(neutraliserFormuleCellule('Jean-Pierre')).toBe('Jean-Pierre') // le tiret n'est pas EN TÊTE
+    expect(neutraliserFormuleCellule('')).toBe('')
+    expect(neutraliserFormuleCellule('N°42')).toBe('N°42')
+  })
+})
+
+describe('genererExcel — injection de formule neutralisée (audit Sécu E2)', () => {
+  it('préfixe d\'une apostrophe un nom de membre malveillant dans le .xlsx', async () => {
+    const donneesMalveillantes: DonneesExport = {
+      genereLe: now,
+      filtres: {},
+      lignes: [
+        {
+          membreId: 'm1', nom: '=cmd|\'/c calc\'!A1', prenom: '@evil', annee: 2025,
+          montantAttendu: 1_000, montantVerse: 1_000, montantValorise: 1_000,
+        },
+      ],
+      totaux: { montantAttendu: 1_000, montantVerse: 1_000, montantValorise: 1_000 },
+    }
+    const buf = await genererExcel(donneesMalveillantes)
+    const wb = new ExcelJS.Workbook()
+    await wb.xlsx.load(buf as unknown as ArrayBuffer)
+    const ws = wb.getWorksheet('Contributions')!
+    // Cellules stockées en TEXTE préfixé — jamais évaluées à l'ouverture.
+    expect(ws.getRow(2).getCell(1).value).toBe('\'=cmd|\'/c calc\'!A1')
+    expect(ws.getRow(2).getCell(2).value).toBe('\'@evil')
+    // Aucune cellule n'est une formule ExcelJS ({ formula: … }).
+    expect(typeof ws.getRow(2).getCell(1).value).toBe('string')
   })
 })

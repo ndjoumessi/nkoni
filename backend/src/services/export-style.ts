@@ -67,6 +67,21 @@ export function pourcentExport(n: number, langue: Langue): string {
   return `${n > 0 ? '+' : ''}${texte} %`
 }
 
+/**
+ * Neutralise l'injection de FORMULE dans une cellule TEXTE de tableur (audit Sécu E2 / P4).
+ *
+ * Une valeur saisie par un utilisateur (nom de membre, d'organisation…) commençant par `=`, `+`,
+ * `-`, `@`, une tabulation ou un retour chariot est réinterprétée comme FORMULE à l'ouverture par
+ * Excel / LibreOffice / Google Sheets (ex. `=HYPERLINK(...)`, `=cmd|'/c ...'!A1`) → exfiltration ou
+ * exécution. On préfixe alors d'une apostrophe `'` (marqueur « texte littéral » universel des
+ * tableurs) : la valeur s'affiche telle quelle, jamais évaluée. Les valeurs légitimes (qui ne
+ * commencent pas par ces caractères) sont renvoyées INCHANGÉES. À n'appliquer qu'au TEXTE d'origine
+ * utilisateur (les NOMBRES et les libellés constants ne sont pas concernés). Sans effet en PDF.
+ */
+export function neutraliserFormuleCellule(valeur: string): string {
+  return /^[=+\-@\t\r]/.test(valeur) ? `'${valeur}` : valeur
+}
+
 /* -------------------------------------------------------------------------- */
 /* PDF (PDFKit) — en-tête de document + tableau premium générique             */
 /* -------------------------------------------------------------------------- */

@@ -36,6 +36,7 @@ export default {
     liste: {
       overline: 'Communauté',
       titre: 'Membres',
+      tronque: 'Affichage limité aux {{plafond}} premiers membres sur {{total}}.',
       compteur_one: '{{filtres}} / {{total}} membre',
       compteur_other: '{{filtres}} / {{total}} membres',
       nouveau: 'Nouveau membre',

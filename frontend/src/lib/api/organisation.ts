@@ -1,0 +1,47 @@
+import type { Forfait } from '@/lib/forfait'
+import { request } from './core'
+
+/**
+ * Paramètres de l'organisation COURANTE (§5) — vue lecture seule (nom/devise/langue immuables)
+ * + volume de membres face à la limite du forfait gratuit. Accessible au bureau (pas MEMBRE_SIMPLE).
+ */
+export interface OrganisationCourante {
+  id: string
+  nom: string
+  devise: 'FCFA' | 'EUR' | 'USD' | 'CAD'
+  langueDefaut: 'FR' | 'EN'
+  forfait: Forfait
+  createdAt: string
+  nbMembres: number
+  /** Plafond du forfait — `null` = illimité (Pro/Entreprise). */
+  limiteMembres: number | null
+  /** Chef de l'organisation (Membre désigné) — null si non désigné. */
+  chefMembreId: string | null
+  chefSurnom: string | null
+  chefNom: string | null
+  chefPrenom: string | null
+}
+
+/** Réponse de PATCH /organisations/moi/chef : le chef courant après désignation/retrait. */
+export interface ChefOrganisation {
+  chefMembreId: string | null
+  chefSurnom: string | null
+  chefNom: string | null
+  chefPrenom: string | null
+}
+
+export const organisationApi = {
+  moi: (accessToken: string, signal?: AbortSignal) =>
+    request<OrganisationCourante>('/organisations/moi', { accessToken, signal }),
+  /** Désigne (`membreId`) ou retire (`membreId: null`) le chef de l'organisation. ADMIN/PRESIDENT. */
+  definirChef: (
+    membreId: string | null,
+    surnom: string | null,
+    accessToken: string,
+  ) =>
+    request<ChefOrganisation>('/organisations/moi/chef', {
+      method: 'PATCH',
+      json: { membreId, surnom },
+      accessToken,
+    }),
+}

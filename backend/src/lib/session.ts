@@ -1,4 +1,5 @@
 import '@fastify/jwt' // augmentations reply.jwtSign / reply.refreshJwtSign
+import { randomUUID } from 'node:crypto'
 import type { FastifyReply } from 'fastify'
 import {
   env,
@@ -57,23 +58,48 @@ export async function signAccessToken(
   return reply.jwtSign(payload)
 }
 
+/** Options de rotation (M5) : `prisma` pour persister le refresh token stateful, `familleId` pour
+ *  RESTER dans la même famille lors d'une rotation (au login/inscription, on en génère une neuve). */
+export interface EmettreRefreshOptions {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  prisma?: { refreshToken: { create(args: any): Promise<any> } }
+  familleId?: string
+}
+
 /**
  * Émet une session complète : renvoie l'access token ET pose le cookie refresh httpOnly.
  * `rememberMe` n'agit QUE sur la longévité du refresh (30 j si true, 7 j sinon).
+ *
+ * ROTATION (M5) : le refresh porte un `jti` unique + un `familleId`. Si `opts.prisma` est fourni,
+ * le token est ENREGISTRÉ (stateful) → la route de refresh peut le révoquer à la rotation et
+ * détecter un replay (token déjà révoqué représenté → révocation de toute la famille).
  */
 export async function emettreSession(
   reply: FastifyReply,
   user: AuthenticatedUser,
   rememberMe = false,
+  opts: EmettreRefreshOptions = {},
 ): Promise<string> {
   const accessToken = await signAccessToken(reply, user)
   const refreshTtlSeconds = rememberMe
     ? REFRESH_TTL_REMEMBER_SECONDS
     : REFRESH_TTL_STANDARD_SECONDS
-  // `epoch` : l'époque de session à l'émission (M5). Au refresh, une époque périmée (après un
-  // changement/reset de mot de passe) est refusée → le token, même volé, ne vaut plus rien.
+
+  const jti = randomUUID()
+  const familleId = opts.familleId ?? randomUUID()
+  const expiresAt = new Date(Date.now() + refreshTtlSeconds * 1000)
+  // Persistance stateful (RefreshToken n'est PAS un modèle scopé → aucun contexte org requis).
+  if (opts.prisma) {
+    await opts.prisma.refreshToken.create({
+      data: { jti, utilisateurId: user.id, familleId, expiresAt, revoke: false },
+    })
+  }
+
+  // `epoch` : l'époque de session à l'émission (M5) — révocation au changement de mot de passe.
+  // `jti`/`fam` : identité du token + sa famille (rotation/replay). `rem` : conserve le rememberMe
+  // à travers les rotations (sinon un « se souvenir de moi » retomberait à 7 j au 1er refresh).
   const refreshToken = await reply.refreshJwtSign(
-    { sub: user.id, typ: 'refresh', epoch: user.sessionEpoch },
+    { sub: user.id, typ: 'refresh', epoch: user.sessionEpoch, jti, fam: familleId, rem: rememberMe },
     { expiresIn: refreshTtlSeconds },
   )
   reply.setCookie(env.REFRESH_COOKIE_NAME, refreshToken, refreshCookieOptions(refreshTtlSeconds))

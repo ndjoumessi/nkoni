@@ -121,7 +121,7 @@ export const authRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
       }
 
       // « Se souvenir de moi » n'agit QUE sur la longévité du refresh (30 j si coché, 7 j sinon).
-      const accessToken = await emettreSession(reply, user, rememberMe)
+      const accessToken = await emettreSession(reply, user, rememberMe, { prisma: app.prisma })
 
       return reply.code(200).send({
         accessToken,
@@ -142,7 +142,14 @@ export const authRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
   // POST /auth/refresh — lit le refresh depuis le cookie httpOnly, réémet un access token.
   app.post('/refresh', async (req, reply) => {
     try {
-      const payload = await req.refreshJwtVerify<{ sub?: string; typ?: string; epoch?: number }>()
+      const payload = await req.refreshJwtVerify<{
+        sub?: string
+        typ?: string
+        epoch?: number
+        jti?: string
+        fam?: string
+        rem?: boolean
+      }>()
       if (payload.typ !== 'refresh' || !payload.sub) {
         return reply
           .code(401)
@@ -181,7 +188,35 @@ export const authRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
         }
       }
 
-      const accessToken = await signAccessToken(reply, user)
+      // Rotation + détection de réutilisation (M5). RefreshToken n'est PAS scopé → accès direct.
+      const jti = payload.jti
+      if (jti) {
+        const rec = await app.prisma.refreshToken.findUnique({ where: { jti } })
+        if (!rec || rec.expiresAt.getTime() < Date.now()) {
+          return reply
+            .code(401)
+            .send({ error: 'Unauthorized', message: t(langueDeRequete(req), 'auth.sessionInvalide') })
+        }
+        if (rec.revoke) {
+          // Token DÉJÀ utilisé re-présenté = replay (token volé) → on révoque TOUTE la famille.
+          await app.prisma.refreshToken.updateMany({
+            where: { familleId: rec.familleId },
+            data: { revoke: true },
+          })
+          return reply
+            .code(401)
+            .send({ error: 'Unauthorized', message: t(langueDeRequete(req), 'auth.sessionInvalide') })
+        }
+        // Valide : on révoque ce jti et on émet un nouveau token DANS LA MÊME FAMILLE.
+        await app.prisma.refreshToken.update({ where: { jti }, data: { revoke: true } })
+        const accessToken = await emettreSession(reply, user, payload.rem ?? false, {
+          prisma: app.prisma,
+          familleId: rec.familleId,
+        })
+        return reply.code(200).send({ accessToken })
+      }
+      // Token LEGACY (émis avant la rotation, sans jti) : on migre en émettant une session stateful.
+      const accessToken = await emettreSession(reply, user, payload.rem ?? false, { prisma: app.prisma })
       return reply.code(200).send({ accessToken })
     } catch {
       return reply
@@ -190,8 +225,15 @@ export const authRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
     }
   })
 
-  // POST /auth/logout — efface le cookie refresh (côté client, tokens à jeter).
-  app.post('/logout', async (_req, reply) => {
+  // POST /auth/logout — révoque la famille du refresh présenté (déconnexion SERVEUR, pas juste le
+  // cookie) puis efface le cookie. Best-effort : si le cookie est absent/illisible, on efface quand même.
+  app.post('/logout', async (req, reply) => {
+    const payload = await req.refreshJwtVerify<{ fam?: string }>().catch(() => null)
+    if (payload?.fam) {
+      await app.prisma.refreshToken
+        .updateMany({ where: { familleId: payload.fam }, data: { revoke: true } })
+        .catch(() => undefined)
+    }
     reply.clearCookie(env.REFRESH_COOKIE_NAME, { path: env.REFRESH_COOKIE_PATH })
     return reply.code(204).send()
   })
@@ -281,7 +323,7 @@ export const authRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
         // désormais périmé. On réémet une session pour le compte courant afin qu'il reste connecté
         // (nouveau cookie refresh à la nouvelle époque) ; les AUTRES appareils restent invalidés.
         const user = await orgContext.runUnscoped(async () => findUserById(app.prisma, sub))
-        if (user) await emettreSession(reply, user)
+        if (user) await emettreSession(reply, user, false, { prisma: app.prisma })
         return reply.code(204).send()
       } catch (err) {
         if (err instanceof AncienMotDePasseIncorrectError) {

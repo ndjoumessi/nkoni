@@ -69,7 +69,7 @@ export const organisationsRoutes: FastifyPluginAsync = async (app: FastifyInstan
           inscrireOrganisation(app.prisma, req.body),
         )
         // Connexion directe : émet le même couple access token + cookie refresh qu'un login.
-        const accessToken = await emettreSession(reply, admin)
+        const accessToken = await emettreSession(reply, admin, false, { prisma: app.prisma })
         return reply.code(201).send({
           accessToken,
           user: {

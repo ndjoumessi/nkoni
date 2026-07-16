@@ -818,6 +818,23 @@ export const membresApi = {
   /** Supprime la photo du membre. */
   supprimerPhoto: (id: string, accessToken: string) =>
     request<void>(`/membres/${rid(id)}/photo`, { method: 'DELETE', accessToken }),
+  /** Parsing SERVEUR du fichier d'import (.xlsx/.csv) → lignes brutes (le parseur quitte le
+   *  navigateur, audit m6). NE PAS fixer Content-Type (le navigateur pose le boundary multipart). */
+  parserFichier: async (
+    fichier: File,
+    accessToken: string,
+  ): Promise<{ entetes: string[]; lignes: string[][] }> => {
+    const form = new FormData()
+    form.append('fichier', fichier)
+    const res = await fetch(`${API_URL}/membres/import/fichier`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { Authorization: `Bearer ${accessToken}` },
+      body: form,
+    })
+    await leverSiErreur(res)
+    return res.json()
+  },
   /** Aperçu d'import (valider=true) → rapport, aucune écriture. */
   importerApercu: (membres: LigneImport[], creerBranchesManquantes: boolean, accessToken: string) =>
     request<RapportImport>('/membres/import', {

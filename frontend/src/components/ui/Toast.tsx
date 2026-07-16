@@ -132,7 +132,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               <button
                 type="button"
                 onClick={() => remove(item.id)}
-                className="rounded-md p-0.5 text-faint transition-colors hover:text-foreground"
+                className="tap-target flex shrink-0 items-center justify-center rounded-md text-faint transition-colors hover:text-foreground"
                 aria-label={t('ui.toast.fermer')}
               >
                 <X className="h-4 w-4" aria-hidden="true" />

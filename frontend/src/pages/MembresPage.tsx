@@ -201,7 +201,9 @@ export function MembresPage() {
               <Badge tone="brass" size="sm">
                 {t('membres.chef.badge')}
               </Badge>
-              {chef.surnom && <span className="text-xs text-faint">« {chef.surnom} »</span>}
+              {chef.surnom && (
+                <span className="text-xs text-faint">{t('commun.surnom', { surnom: chef.surnom })}</span>
+              )}
             </>
           )}
         </span>

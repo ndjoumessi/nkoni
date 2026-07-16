@@ -259,6 +259,11 @@ export function CommandPalette() {
           <Search className="h-4 w-4 shrink-0 text-faint" aria-hidden="true" />
           <input
             ref={inputRef}
+            role="combobox"
+            aria-expanded={open}
+            aria-controls="cmdk-liste"
+            aria-autocomplete="list"
+            aria-activedescendant={resultats[actif] ? `cmdk-opt-${actif}` : undefined}
             value={q}
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={onKeyDown}
@@ -282,13 +287,14 @@ export function CommandPalette() {
               {t('shell.recherche.aucunResultat')}
             </p>
           )}
-          <ul>
+          <ul id="cmdk-liste" role="listbox">
             {resultats.map((it, i) => {
               const Icon = it.icon
               return (
-                <li key={it.id}>
+                <li key={it.id} id={`cmdk-opt-${i}`} role="option" aria-selected={i === actif}>
                   <button
                     type="button"
+                    tabIndex={-1}
                     onMouseEnter={() => setActif(i)}
                     onClick={() => choisir(it)}
                     className={cn(

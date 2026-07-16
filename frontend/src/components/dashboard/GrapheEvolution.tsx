@@ -100,47 +100,59 @@ function Legende({
 }
 
 /** Barres verticales (attendu en piste, collecté en remplissage). Responsive au NOMBRE de points :
- *  au-delà de 6 (ex. série mensuelle sur 12 mois), barres plus fines, écart resserré, libellés plus
- *  petits et un mois sur deux masqué en mobile (anti-chevauchement, comme l'axe X de la variante aire). */
+ *  jusqu'à 6, les barres remplissent la largeur ; au-delà (ex. série mensuelle sur 12 mois), la bande
+ *  devient DÉFILABLE horizontalement en mobile (barres à largeur confortable, tous les libellés
+ *  lisibles) et repasse en pleine largeur dès `sm`. Montée EN CASCADE (délai croissant par barre,
+ *  plafonné) pour un rendu vivant — neutralisée si `prefers-reduced-motion` (via `monte`). */
 function CorpsBarres({ points, monte }: { points: PointEvolution[]; monte: boolean }) {
   const max = useMemo(() => Math.max(1, ...points.map((p) => p.attendu)), [points])
   const dense = points.length > 6
   return (
     <div
-      className={cn('mt-6 flex items-end justify-around', dense ? 'gap-1 sm:gap-3' : 'gap-3 sm:gap-5')}
+      className={cn(
+        'mt-6 flex items-end pb-1',
+        // Dense : défilement horizontal en mobile, pleine largeur en `sm`. Sinon : réparti d'emblée.
+        dense
+          ? 'gap-2 overflow-x-auto sm:gap-3 sm:overflow-x-visible'
+          : 'justify-around gap-3 sm:gap-5',
+      )}
       style={{ height: '13rem' }}
       aria-hidden="true"
     >
       {points.map((p, i) => {
         const hAttendu = (p.attendu / max) * 100
         const hCollecte = (p.collecte / max) * 100
-        const labelMobile = dense && i % 2 === 1 ? 'hidden sm:block' : 'block'
+        // Cascade gauche→droite (plafonnée à 500 ms pour que les dernières barres ne traînent pas).
+        const delai = monte ? `${Math.min(i * 45, 500)}ms` : '0ms'
         return (
-          <div key={p.cle} className="flex h-full flex-1 flex-col items-center justify-end gap-2">
+          <div
+            key={p.cle}
+            className={cn(
+              'flex h-full flex-col items-center justify-end gap-2',
+              // Mobile dense : largeur fixe confortable (la bande défile) ; `sm` : flex pour remplir.
+              dense ? 'shrink-0 basis-11 sm:basis-0 sm:flex-1' : 'flex-1',
+            )}
+          >
             {p.taux !== undefined && (
               <span className="num text-xs font-semibold text-jade">{formatPourcent(p.taux)}</span>
             )}
             <div
               className={cn(
                 'relative flex h-full w-full items-end justify-center',
-                dense ? 'max-w-[2.25rem]' : 'max-w-[3.5rem]',
+                dense ? 'max-w-[2.75rem]' : 'max-w-[3.5rem]',
               )}
             >
               <div
                 className="absolute bottom-0 w-full rounded-t-md bg-surface-3 transition-[height] duration-700 ease-out"
-                style={{ height: `${monte ? hAttendu : 0}%` }}
+                style={{ height: `${monte ? hAttendu : 0}%`, transitionDelay: delai }}
               />
               <div
                 className="absolute bottom-0 w-full rounded-t-md bg-gradient-to-b from-jade to-brass transition-[height] duration-700 ease-out"
-                style={{ height: `${monte ? hCollecte : 0}%` }}
+                style={{ height: `${monte ? hCollecte : 0}%`, transitionDelay: delai }}
               />
             </div>
             <span
-              className={cn(
-                'num font-medium text-foreground',
-                dense ? 'text-2xs sm:text-xs' : 'text-sm',
-                labelMobile,
-              )}
+              className={cn('num font-medium text-foreground', dense ? 'text-2xs sm:text-xs' : 'text-sm')}
             >
               {p.label}
             </span>

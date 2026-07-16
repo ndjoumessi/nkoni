@@ -1,9 +1,8 @@
-import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Coins, TrendingDown, Wallet } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { formatMontant, formatPourcent } from '@/lib/format'
-import { prefersReducedMotion } from '@/lib/utils'
+import { useCountUp } from '@/hooks/useCountUp'
 
 /** Jauge circulaire menthe pour le taux de recouvrement. */
 function Gauge({ value }: { value: number }) {
@@ -14,18 +13,11 @@ function Gauge({ value }: { value: number }) {
   const r = (size - stroke) / 2
   const c = 2 * Math.PI * r
 
-  // Animation d'entrée (§10) : l'anneau se remplit de 0 vers `pct`. Livré direct si
-  // l'utilisateur préfère moins d'animations.
-  const [affiche, setAffiche] = useState(() => (prefersReducedMotion() ? pct : 0))
-  useEffect(() => {
-    if (prefersReducedMotion()) {
-      setAffiche(pct)
-      return
-    }
-    const id = requestAnimationFrame(() => setAffiche(pct))
-    return () => cancelAnimationFrame(id)
-  }, [pct])
-  const offset = c * (1 - affiche / 100)
+  // Animation d'entrée (§10) : le NOMBRE et le remplissage de l'anneau montent de 0 → `pct` à la
+  // même cadence (une seule valeur rAF les pilote) — parfaitement synchrones. `useCountUp` respecte
+  // `prefers-reduced-motion` (rendu direct, sans animation).
+  const anime = useCountUp(pct)
+  const offset = c * (1 - anime / 100)
 
   return (
     <div className="relative shrink-0" style={{ width: size, height: size }}>
@@ -54,12 +46,11 @@ function Gauge({ value }: { value: number }) {
           strokeLinecap="round"
           strokeDasharray={c}
           strokeDashoffset={offset}
-          style={{ transition: 'stroke-dashoffset 0.9s cubic-bezier(0.22,1,0.36,1)' }}
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <span className="num text-3xl font-semibold tracking-tight text-foreground">
-          {formatPourcent(Math.round(pct))}
+          {formatPourcent(Math.round(anime))}
         </span>
         <span className="mt-0.5 text-3xs uppercase tracking-[0.12em] text-faint">
           {t('dashboard.hero.recouvre')}

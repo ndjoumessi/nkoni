@@ -9,6 +9,7 @@ import type {
 import { formatNombre } from '@/lib/format'
 import { Card, Overline } from '@/components/ui/Card'
 import { Donut } from '@/components/ui/Donut'
+import { useCountUp } from '@/hooks/useCountUp'
 import { cn, prefersReducedMotion } from '@/lib/utils'
 
 interface Item {
@@ -27,13 +28,16 @@ function Repartition({ titre, items }: { titre: string; items: Item[] }) {
   const { t } = useTranslation()
   const total = items.reduce((s, it) => s + it.count, 0)
 
-  // Animation d'entrée (§10) : les arcs du donut poussent de 0 vers leur part.
+  // Animation d'entrée (§10) : les arcs du donut poussent de 0 vers leur part, et le total central
+  // monte en synchronisation (compteur). `total` réel reste la base du calcul des parts du Donut —
+  // seul le NOMBRE affiché est animé.
   const [monte, setMonte] = useState(() => prefersReducedMotion())
   useEffect(() => {
     if (monte) return
     const id = requestAnimationFrame(() => setMonte(true))
     return () => cancelAnimationFrame(id)
   }, [monte])
+  const totalAnime = Math.round(useCountUp(total))
 
   return (
     <Card className="p-5">
@@ -50,7 +54,7 @@ function Repartition({ titre, items }: { titre: string; items: Item[] }) {
             centre={
               <>
                 <span className="num text-2xl font-semibold text-foreground">
-                  {formatNombre(total)}
+                  {formatNombre(totalAnime)}
                 </span>
                 <span className="mt-1 text-3xs uppercase tracking-[0.12em] text-faint">
                   {t('dashboard.repartition.total')}

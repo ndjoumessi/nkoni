@@ -45,6 +45,9 @@ export function MembresPage() {
   const navigate = useNavigate()
 
   const [membres, setMembres] = useState<MembreStatut[] | null>(null)
+  // Réponse bornée (audit m4) : total réel + drapeau de troncature (bandeau si dépassement).
+  const [total, setTotal] = useState(0)
+  const [tronque, setTronque] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   // Incrémenté par le bouton « Réessayer » de l'ErrorState : relance l'effet de chargement.
@@ -85,8 +88,12 @@ export function MembresPage() {
     setError(null)
     void (async () => {
       try {
-        const data = await membresApi.listStatuts(accessToken, controller.signal)
-        if (active) setMembres(data)
+        const data = await membresApi.listStatutsPage(accessToken, controller.signal)
+        if (active) {
+          setMembres(data.items)
+          setTotal(data.total)
+          setTronque(data.tronque)
+        }
       } catch (e) {
         if (e instanceof DOMException && e.name === 'AbortError') return
         if (active) setError(messageErreur(e))
@@ -354,6 +361,16 @@ export function MembresPage() {
           ))}
         </Select>
       </div>
+
+      {tronque && (
+        <Card
+          role="status"
+          className="nk-reveal mt-4 flex items-start gap-2.5 border-amber/30 bg-amber/[0.07] p-3.5 text-sm text-muted-foreground"
+        >
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber" aria-hidden="true" />
+          <span>{t('membres.liste.tronque', { plafond: membres?.length ?? 0, total })}</span>
+        </Card>
+      )}
 
       {/* Contenu */}
       <div className="nk-reveal nk-d3 mt-6">

@@ -39,6 +39,10 @@ interface GrapheEvolutionProps {
   legendeCollecte: string
   /** Libellé de la courbe année précédente (comparaison N-1) ; absent → pas de courbe N-1. */
   legendeN1?: string
+  /** Suffixe de l'annotation du DERNIER point (variante `aire`), ex. « de l'objectif ». Fourni →
+   *  un marqueur montant + % d'atteinte s'affiche sur la fin de la courbe collectée (le chiffre ne
+   *  dépend plus de la hauteur, illisible quand la collecte est faible). Absent → pas d'annotation. */
+  legendeAtteinte?: string
   /** En-têtes de la table accessible (équivalent chiffré). */
   labelColonne: string
   /** Résumé lu par les lecteurs d'écran (role="img"). */
@@ -236,7 +240,17 @@ const PAD_X = 12
  * AUCUN texte n'est placé dans le SVG (il serait déformé) — l'échelle max et les libellés
  * de mois sont rendus en HTML, alignés sur les points via des pourcentages de largeur.
  */
-function CorpsAire({ points, monte, montreN1 }: { points: PointEvolution[]; monte: boolean; montreN1: boolean }) {
+function CorpsAire({
+  points,
+  monte,
+  montreN1,
+  legendeAtteinte,
+}: {
+  points: PointEvolution[]
+  monte: boolean
+  montreN1: boolean
+  legendeAtteinte?: string
+}) {
   const clipId = useId()
   const gradId = useId()
   const innerW = W - PAD_X * 2
@@ -393,6 +407,31 @@ function CorpsAire({ points, monte, montreN1 }: { points: PointEvolution[]; mont
             </div>
           </div>
         )}
+
+        {/* Marqueur du DERNIER point : montant collecté cumulé + % d'atteinte de l'objectif « à
+            date ». Le chiffre est ainsi lisible même quand la courbe hugge l'axe (collecte faible).
+            Ancré à droite (fin de courbe), apparaît en fondu une fois le tracé révélé. */}
+        {legendeAtteinte && dernier && (
+          <div
+            className="pointer-events-none absolute z-10 -translate-x-full whitespace-nowrap rounded-md border border-hairline-strong bg-surface-2/95 px-2 py-1 text-right shadow-lg transition-opacity duration-500"
+            style={{
+              left: `${(x(n - 1) / W) * 100}%`,
+              bottom: `${(dernier.collecte / max) * 100}%`,
+              marginBottom: '0.55rem',
+              marginLeft: '-0.4rem',
+              opacity: monte ? 1 : 0,
+              transitionDelay: '800ms',
+            }}
+          >
+            <span className="num block text-2xs font-semibold text-foreground">
+              {formatMontant(dernier.collecte)}
+            </span>
+            <span className="num block text-3xs text-jade">
+              {formatPourcent(dernier.attendu > 0 ? Math.round((dernier.collecte / dernier.attendu) * 100) : 0)}{' '}
+              {legendeAtteinte}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Libellés de l'axe X (mois) en HTML, alignés sur les points → jamais déformés. Les
@@ -424,6 +463,7 @@ export function GrapheEvolution({
   legendeAttendu,
   legendeCollecte,
   legendeN1,
+  legendeAtteinte,
   labelColonne,
   resumeAria,
   aucuneDonnee,
@@ -454,7 +494,7 @@ export function GrapheEvolution({
       ) : (
         <div role="img" aria-label={resumeAria}>
           {variant === 'aire' ? (
-            <CorpsAire points={points} monte={monte} montreN1={montreN1} />
+            <CorpsAire points={points} monte={monte} montreN1={montreN1} legendeAtteinte={legendeAtteinte} />
           ) : (
             <CorpsBarres points={points} monte={monte} />
           )}

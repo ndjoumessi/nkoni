@@ -83,6 +83,7 @@ export default {
       collecte: 'Collected (cumulative)',
       attendu: 'Target (cumulative)',
       n1: 'Year {{annee}}',
+      atteinte: 'of target',
       colonneMois: 'Month',
       resumeAria:
         'Cumulative collection progress for {{annee}}, capped at the current month: amount collected cumulatively against the cumulative target to date. Full figures in the companion table.',

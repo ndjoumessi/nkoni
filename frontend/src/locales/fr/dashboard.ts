@@ -83,6 +83,7 @@ export default {
       collecte: 'Collecté (cumulé)',
       attendu: 'Objectif (cumulé)',
       n1: 'Année {{annee}}',
+      atteinte: 'de l’objectif',
       colonneMois: 'Mois',
       resumeAria:
         'Progression cumulée du recouvrement pour {{annee}}, bornée au mois courant : montant collecté cumulé face à l’objectif cumulé « à date ». Détail chiffré dans la table associée.',

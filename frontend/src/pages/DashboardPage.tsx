@@ -141,6 +141,7 @@ function EvolutionMensuelleCard({ annee, data }: { annee: number; data: Evolutio
       legendeAttendu={t('dashboard.evolution.attendu')}
       legendeCollecte={t('dashboard.evolution.collecte')}
       legendeN1={t('dashboard.evolution.n1', { annee: annee - 1 })}
+      legendeAtteinte={t('dashboard.evolution.atteinte')}
       labelColonne={t('dashboard.evolution.colonneMois')}
       resumeAria={t('dashboard.evolution.resumeAria', { annee })}
       aucuneDonnee={t('dashboard.evolution.aucuneDonnee')}

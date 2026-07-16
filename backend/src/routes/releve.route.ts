@@ -26,7 +26,7 @@ export const releveRoutes: FastifyPluginAsync = async (app: FastifyInstance) => 
       const annee = new Date().getFullYear()
 
       // Statut + totaux CUMULÉS : même source de vérité que la fiche membre et la carte.
-      const [avecStatut] = await calculerStatutsMembres(app.prisma, annee, { id })
+      const [avecStatut] = (await calculerStatutsMembres(app.prisma, annee, { id })).items
       if (!avecStatut) return reply.code(404).send({ error: 'Not Found' })
 
       // Fiche + contributions + versements (scopé tenant).

@@ -162,7 +162,7 @@ export const cartesRoutes: FastifyPluginAsync = async (app: FastifyInstance) => 
   // GET /membres/cartes — PDF EN LOT (grille A4 découpable) de tous les membres non décédés.
   app.get('/membres/cartes', { preHandler: [authenticate, bureau] }, async (req, reply) => {
     const annee = new Date().getFullYear()
-    const membres = await calculerStatutsMembres(app.prisma, annee)
+    const { items: membres } = await calculerStatutsMembres(app.prisma, annee)
     const actifs = membres.filter((m) => m.statut !== 'DECEDE')
     const photos = await chargerPhotos(actifs.map((m) => m.id))
     const org = await app.prisma.organisation.findUnique({
@@ -182,7 +182,7 @@ export const cartesRoutes: FastifyPluginAsync = async (app: FastifyInstance) => 
     { preHandler: [authenticate, bureau] },
     async (req, reply) => {
       const annee = new Date().getFullYear()
-      const membres = await calculerStatutsMembres(app.prisma, annee, { id: req.params.id })
+      const { items: membres } = await calculerStatutsMembres(app.prisma, annee, { id: req.params.id })
       const m = membres[0]
       if (!m) return reply.code(404).send({ error: 'Not Found' })
       const photos = await chargerPhotos([m.id])
@@ -225,7 +225,7 @@ export const cartesRoutes: FastifyPluginAsync = async (app: FastifyInstance) => 
 
       const html = await orgContext.run({ organisationId: meta.organisationId }, async () => {
         const annee = new Date().getFullYear()
-        const membres = await calculerStatutsMembres(app.prisma, annee, { id })
+        const { items: membres } = await calculerStatutsMembres(app.prisma, annee, { id })
         const m = membres[0]
         if (!m) return null
         const org = await app.prisma.organisation.findUnique({

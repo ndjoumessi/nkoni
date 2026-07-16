@@ -4,7 +4,7 @@ import { estConflitIdempotence } from '../lib/idempotence'
 import type { CreationScopee } from '../lib/tenant-extension'
 import { authenticate } from '../middlewares/authenticate'
 import { requirePermission } from '../middlewares/permissions'
-import { calculerStatutsMembres } from '../services/membreStatut.service'
+import { calculerStatutsMembres, PLAFOND_STATUTS_MEMBRES } from '../services/membreStatut.service'
 import {
   analyserImport,
   executerImport,
@@ -239,7 +239,9 @@ export const membresRoutes: FastifyPluginAsync = async (app: FastifyInstance) =>
         req.user.role === 'MEMBRE_SIMPLE'
           ? { compteUtilisateurId: req.user.sub ?? '' }
           : undefined
-      return calculerStatutsMembres(app.prisma, anneeCourante(), where)
+      // Réponse BORNÉE (audit m4) : { items, total, tronque }. `tronque` = plus de membres que le
+      // plafond → le front affiche un bandeau. Aucune org réelle ne l'atteint aujourd'hui.
+      return calculerStatutsMembres(app.prisma, anneeCourante(), where, PLAFOND_STATUTS_MEMBRES)
     },
   )
 

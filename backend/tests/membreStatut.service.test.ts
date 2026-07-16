@@ -52,6 +52,8 @@ function buildMock(capture?: { where?: unknown }) {
         }
         return res
       },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      count: async ({ where }: any = {}) => (where?.compteUtilisateurId ? 1 : membres.length),
     },
   }
   return prisma
@@ -60,19 +62,21 @@ function buildMock(capture?: { where?: unknown }) {
 describe('calculerStatutsMembres (bulk, §4.1)', () => {
   it('associe à chaque membre son statut de cotisation + les totaux', async () => {
     const res = await calculerStatutsMembres(buildMock(), 2025)
-    expect(res.map((m) => [m.id, m.statutCotisation])).toEqual([
+    expect(res.total).toBe(3)
+    expect(res.tronque).toBe(false)
+    expect(res.items.map((m) => [m.id, m.statutCotisation])).toEqual([
       ['m1', 'A_JOUR'],
       ['m2', 'PARTIEL'],
       ['m3', 'NON_A_JOUR'],
     ])
-    expect(res[0]).toMatchObject({
+    expect(res.items[0]).toMatchObject({
       nom: 'Tchoupa',
       branche: { id: 'b1', nom: 'Branche Nord' },
       totalAttenduCumule: 20_000,
       totalValoriseCumule: 20_000,
     })
     // Membre sans branche → branche null.
-    expect(res[1].branche).toBeNull()
+    expect(res.items[1].branche).toBeNull()
   })
 
   it('propage le filtre `where` (restriction MEMBRE_SIMPLE)', async () => {
@@ -81,7 +85,14 @@ describe('calculerStatutsMembres (bulk, §4.1)', () => {
       compteUtilisateurId: 'u-simple',
     })
     expect(capture.where).toEqual({ compteUtilisateurId: 'u-simple' })
-    expect(res).toHaveLength(1)
-    expect(res[0].id).toBe('m1')
+    expect(res.items).toHaveLength(1)
+    expect(res.items[0].id).toBe('m1')
+  })
+
+  it('borne la liste à `limite` et signale la troncature', async () => {
+    const res = await calculerStatutsMembres(buildMock(), 2025, undefined, 2)
+    // Le mock findMany ne coupe pas, mais total (3) > limite (2) → tronque = true.
+    expect(res.total).toBe(3)
+    expect(res.tronque).toBe(true)
   })
 })

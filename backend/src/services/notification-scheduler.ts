@@ -17,11 +17,11 @@
  * Contexte Railway : un seul process Node long-vivant (app.listen) → les timers node-cron
  * vivent tant que le process vit ; ré-enregistrés au boot après un redéploiement/redémarrage.
  *
- * ⚠️ HYPOTHÈSE SINGLE-INSTANCE (audit M4). L'anti-spam 7 jours est un `findFirst` PUIS `create`
- * NON atomique : il N'EST PAS un verrou. À 2+ instances déclenchées au même cron (03:00), les deux
- * passent le check avant qu'aucune n'ait créé → notifications DOUBLÉES. Aujourd'hui sûr car une
- * seule instance. AVANT tout scale-out, ajouter un `pg_advisory_lock` autour de la boucle (ou un
- * index unique partiel `(destinataireId, type, jour)` sur Notification). Ne PAS supposer l'idempotence.
+ * MULTI-INSTANCE (audit M4) — SÛR. `demarrerScheduler` enveloppe toute l'exécution dans une
+ * transaction protégée par un `pg_try_advisory_xact_lock` (verrou consultatif transaction-scopé) :
+ * à 2+ instances déclenchées au même cron (03:00), une seule obtient le verrou et exécute, les
+ * autres passent leur tour → plus de notifications doublées. (L'anti-spam 7 jours reste un
+ * `findFirst` PUIS `create` non atomique — il complète le verrou mais ne le remplace pas.)
  */
 
 import cron from 'node-cron'
@@ -180,16 +180,38 @@ export async function executerVerificationRetardsToutesOrgs(
  * Enregistre le cron quotidien (03:00, Africa/Douala). À appeler UNE FOIS depuis le
  * bootstrap serveur, après app.listen. N'est jamais appelé par buildApp (donc pas en test).
  */
+/** Clé du verrou consultatif Postgres protégeant la tâche de nuit (arbitraire, stable). */
+const VERROU_SCHEDULER_RETARDS = 815_293_147
+
 export function demarrerScheduler(app: FastifyInstance): void {
   cron.schedule(
     '0 3 * * *',
     () => {
       const anneeCourante = new Date().getFullYear()
-      void executerVerificationRetardsToutesOrgs(
-        app.prisma as unknown as SchedulerPrisma,
-        anneeCourante,
-      )
+      // MULTI-INSTANCE (audit M4) : toute l'exécution tourne dans UNE transaction protégée par un
+      // verrou consultatif TRANSACTION-SCOPÉ (`pg_try_advisory_xact_lock`, libéré au commit, fiable
+      // avec le pool contrairement à un verrou de session). Si une autre instance le détient déjà
+      // (même cron à 03:00), `pg_try_advisory_xact_lock` renvoie false → cette instance PASSE son
+      // tour. Timeout large (tâche de nuit, trafic quasi nul). Le cœur (`executerVerificationRetards*`)
+      // reste inchangé et testable ; le verrou vit uniquement ici, au bootstrap serveur (hors tests).
+      void app.prisma
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .$transaction(
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          async (tx: any) => {
+            const [{ obtenu }] = (await tx.$queryRaw`
+              SELECT pg_try_advisory_xact_lock(${VERROU_SCHEDULER_RETARDS}) AS obtenu
+            `) as [{ obtenu: boolean }]
+            if (!obtenu) {
+              app.log.info('Scheduler : verrou non obtenu (autre instance) → passage ignoré')
+              return null
+            }
+            return executerVerificationRetardsToutesOrgs(tx as SchedulerPrisma, anneeCourante)
+          },
+          { timeout: 10 * 60 * 1000 },
+        )
         .then((resultats) => {
+          if (!resultats) return
           const verifies = resultats.reduce((s, r) => s + r.verifies, 0)
           const notifies = resultats.reduce((s, r) => s + r.notifies, 0)
           app.log.info(

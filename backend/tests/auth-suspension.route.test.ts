@@ -44,6 +44,34 @@ function buildMock(passwordHash: string) {
         return id in orgActif ? { actif: orgActif[id] } : null
       },
     },
+    // RefreshToken stateful (rotation M5) : login crée, refresh lit puis rote.
+    /* eslint-disable @typescript-eslint/no-explicit-any */
+    refreshToken: (() => {
+      const store = new Map<string, any>()
+      return {
+        create: async ({ data }: any) => {
+          store.set(data.jti, { ...data })
+          return { ...data }
+        },
+        findUnique: async ({ where }: any) => store.get(where.jti) ?? null,
+        update: async ({ where, data }: any) => {
+          const r = store.get(where.jti)
+          if (r) Object.assign(r, data)
+          return r
+        },
+        updateMany: async ({ where, data }: any) => {
+          let count = 0
+          for (const r of store.values()) {
+            if (r.familleId === where.familleId) {
+              Object.assign(r, data)
+              count++
+            }
+          }
+          return { count }
+        },
+      }
+    })(),
+    /* eslint-enable @typescript-eslint/no-explicit-any */
   }
   return { prisma, orgActif }
 }

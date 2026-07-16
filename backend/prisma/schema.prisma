@@ -77,6 +77,25 @@ enum Forfait {
   ENTREPRISE
 }
 
+// Refresh tokens STATEFUL (sécurité M5) — rotation à chaque refresh + détection de réutilisation.
+// Chaque token porte un `jti` unique et un `familleId` (constant sur toute une chaîne de rotations
+// issue d'un même login). Au refresh : le token courant est révoqué et un nouveau est émis dans la
+// MÊME famille ; si un token DÉJÀ révoqué est représenté (replay d'un token volé), TOUTE la famille
+// est révoquée. NON scopé par organisation (accès en `runUnscoped`, comme le flux de refresh) →
+// pas d'`organisationId`, donc hors `SCOPED_MODELS` (parité préservée).
+model RefreshToken {
+  id            String   @id @default(uuid())
+  jti           String   @unique
+  utilisateurId String
+  familleId     String
+  revoke        Boolean  @default(false)
+  expiresAt     DateTime
+  createdAt     DateTime @default(now())
+
+  @@index([utilisateurId])
+  @@index([familleId])
+}
+
 model Organisation {
   id           String   @id @default(uuid())
   nom          String

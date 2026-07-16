@@ -12,6 +12,35 @@ const ACTIVE_EMAIL = 'admin@nkoni.local'
 const INACTIVE_EMAIL = 'inactive@nkoni.local'
 const PASSWORD = 'secret-123'
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/** Mock stateful de RefreshToken (rotation M5) — Map par jti (create/findUnique/update/updateMany). */
+function refreshTokenMock() {
+  const store = new Map<string, any>()
+  return {
+    create: async ({ data }: any) => {
+      store.set(data.jti, { ...data })
+      return { ...data }
+    },
+    findUnique: async ({ where }: any) => store.get(where.jti) ?? null,
+    update: async ({ where, data }: any) => {
+      const r = store.get(where.jti)
+      if (r) Object.assign(r, data)
+      return r
+    },
+    updateMany: async ({ where, data }: any) => {
+      let count = 0
+      for (const r of store.values()) {
+        if (r.familleId === where.familleId) {
+          Object.assign(r, data)
+          count++
+        }
+      }
+      return { count }
+    },
+  }
+}
+/* eslint-enable @typescript-eslint/no-explicit-any */
+
 function buildPrismaMock(passwordHash: string) {
   const active = {
     id: 'u-active',
@@ -58,6 +87,7 @@ describe('Module auth — /auth/*', () => {
     const passwordHash = await hashPassword(PASSWORD)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const prismaMock = buildPrismaMock(passwordHash) as any
+    prismaMock.refreshToken = refreshTokenMock()
     app = await buildApp({ prisma: prismaMock, logger: false })
     await app.ready()
   })
@@ -180,6 +210,41 @@ describe('Module auth — /auth/*', () => {
     expect(res.statusCode).toBe(401)
   })
 
+  it('POST /auth/refresh : rotation + détection de réutilisation (replay → 401, famille révoquée)', async () => {
+    const login = await app.inject({
+      method: 'POST',
+      url: '/auth/login',
+      payload: { email: ACTIVE_EMAIL, password: PASSWORD },
+    })
+    const cookie1 = login.cookies.find((c) => c.name === 'nkoni_refresh')!
+
+    // 1er refresh : OK + NOUVEAU cookie (rotation) → l'ancien jti est révoqué.
+    const r1 = await app.inject({
+      method: 'POST',
+      url: '/auth/refresh',
+      cookies: { nkoni_refresh: cookie1.value },
+    })
+    expect(r1.statusCode).toBe(200)
+    const cookie2 = r1.cookies.find((c) => c.name === 'nkoni_refresh')!
+    expect(cookie2.value).not.toBe(cookie1.value)
+
+    // REPLAY d'un token déjà roté (cookie1) → 401 ET révocation de TOUTE la famille.
+    const replay = await app.inject({
+      method: 'POST',
+      url: '/auth/refresh',
+      cookies: { nkoni_refresh: cookie1.value },
+    })
+    expect(replay.statusCode).toBe(401)
+
+    // Conséquence : le dernier cookie valide (cookie2) est mort aussi (famille révoquée).
+    const apres = await app.inject({
+      method: 'POST',
+      url: '/auth/refresh',
+      cookies: { nkoni_refresh: cookie2.value },
+    })
+    expect(apres.statusCode).toBe(401)
+  })
+
   it('POST /auth/logout → 204 + efface le cookie refresh', async () => {
     const res = await app.inject({ method: 'POST', url: '/auth/logout' })
     expect(res.statusCode).toBe(204)
@@ -253,7 +318,9 @@ describe('POST /auth/changer-mot-de-passe (self-service)', () => {
   beforeEach(async () => {
     const passwordHash = await (await import('../src/services/auth.service')).hashPassword(OLD)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    app = await buildApp({ prisma: buildMock(passwordHash) as any, logger: false })
+    const prismaChg = buildMock(passwordHash) as any
+    prismaChg.refreshToken = refreshTokenMock()
+    app = await buildApp({ prisma: prismaChg, logger: false })
     await app.ready()
   })
   afterEach(async () => {
@@ -357,6 +424,7 @@ describe('Révocation par époque de session (audit M5)', () => {
       // Le refresh vérifie que l'org est active (§2.3).
       organisation: { findUnique: async () => ({ actif: true }) },
     }
+    prisma.refreshToken = refreshTokenMock()
     const app = await buildApp({ prisma, logger: false })
     await app.ready()
     return app
@@ -453,7 +521,9 @@ describe('PATCH /auth/me/langue (préférence de langue perso, §4)', () => {
   beforeEach(async () => {
     const passwordHash = await hashPassword(PASSWORD)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    app = await buildApp({ prisma: buildMock(passwordHash) as any, logger: false })
+    const prismaChg = buildMock(passwordHash) as any
+    prismaChg.refreshToken = refreshTokenMock()
+    app = await buildApp({ prisma: prismaChg, logger: false })
     await app.ready()
   })
   afterEach(async () => {

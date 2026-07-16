@@ -43,6 +43,9 @@ function buildMock(opts: { emailExists?: boolean } = {}) {
         return org
       },
     },
+    // RefreshToken (rotation M5) : l'auto-inscription émet une session stateful → create appelé.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    refreshToken: { create: async ({ data }: any) => ({ ...data }) },
     // $transaction interactif : passe le mock lui-même comme tx.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     $transaction: async (fn: any) => fn(prisma),

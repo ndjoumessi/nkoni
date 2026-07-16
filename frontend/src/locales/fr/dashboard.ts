@@ -80,17 +80,12 @@ export default {
     },
     evolution: {
       titre: 'Recouvrement cumulé · {{annee}}',
-      titreMensuel: 'Collecté par mois · {{annee}}',
       collecte: 'Collecté (cumulé)',
       attendu: 'Objectif (cumulé)',
-      collecteMois: 'Collecté',
-      attenduMois: 'Attendu',
       n1: 'Année {{annee}}',
       colonneMois: 'Mois',
       resumeAria:
-        'Progression cumulée du recouvrement pour {{annee}} : montant collecté cumulé mois après mois face à l’objectif cumulé. Détail chiffré dans la table associée.',
-      resumeAriaMensuel:
-        'Recouvrement mensuel {{annee}} : montant attendu et montant collecté pour chaque mois (non cumulé). Détail chiffré dans la table associée.',
+        'Progression cumulée du recouvrement pour {{annee}}, bornée au mois courant : montant collecté cumulé face à l’objectif cumulé « à date ». Détail chiffré dans la table associée.',
       aucuneDonnee: 'Aucun versement enregistré cette année pour le moment.',
     },
     analyse: {

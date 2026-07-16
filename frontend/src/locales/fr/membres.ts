@@ -123,6 +123,8 @@ export default {
       erreurChargement: 'Erreur de chargement de la fiche.',
       equilibrer: 'Équilibrer les cotisations',
       modifier: 'Modifier',
+      plus: 'Plus',
+      plusActions: 'Plus d’actions',
       relancerWhatsApp: 'Relancer (WhatsApp)',
       totalAttendu: 'Total attendu (cumulé)',
       totalValorise: 'Total valorisé (cumulé)',

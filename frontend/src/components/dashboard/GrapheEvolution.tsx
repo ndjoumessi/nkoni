@@ -166,10 +166,21 @@ function CorpsAire({ points, monte, montreN1 }: { points: PointEvolution[]; mont
     .map((p, i) => `L ${x(i)},${y(p.collecte)}`)
     .join(' ')} L ${x(n - 1)},${H} Z`
   const dernier = points[n - 1]
+  const [hover, setHover] = useState<number | null>(null)
+  const pointeur = hover !== null ? points[hover] : null
 
   return (
     <div className="mt-5">
-      <div className="relative">
+      <div
+        className="relative"
+        onMouseMove={(e) => {
+          const rect = e.currentTarget.getBoundingClientRect()
+          if (rect.width === 0) return
+          const ratio = (e.clientX - rect.left) / rect.width
+          setHover(Math.max(0, Math.min(n - 1, Math.round(ratio * (n - 1)))))
+        }}
+        onMouseLeave={() => setHover(null)}
+      >
         {/* Échelle haute (valeur max), lisible et non déformée. */}
         <span className="num absolute -top-1 left-0 z-10 text-3xs text-faint">
           {formatNombre(max)}
@@ -238,7 +249,61 @@ function CorpsAire({ points, monte, montreN1 }: { points: PointEvolution[]; mont
               <circle cx={x(n - 1)} cy={y(dernier.collecte)} r="4" fill="var(--brass)" vectorEffect="non-scaling-stroke" />
             )}
           </g>
+
+          {/* Survol : guide vertical + point mis en avant sur la valeur collectée. */}
+          {pointeur && (
+            <g>
+              <line
+                x1={x(hover as number)}
+                y1={0}
+                x2={x(hover as number)}
+                y2={H}
+                stroke="var(--hairline-strong)"
+                strokeWidth="1"
+                vectorEffect="non-scaling-stroke"
+              />
+              <circle
+                cx={x(hover as number)}
+                cy={y(pointeur.collecte)}
+                r="4.5"
+                fill="var(--brass)"
+                stroke="var(--canvas)"
+                strokeWidth="1.5"
+                vectorEffect="non-scaling-stroke"
+              />
+            </g>
+          )}
         </svg>
+
+        {/* Infobulle au survol (visuelle ; l'équivalent chiffré accessible reste la table sr-only). */}
+        {pointeur && (
+          <div
+            className={cn(
+              'pointer-events-none absolute top-0 z-20 whitespace-nowrap rounded-lg border border-hairline-strong bg-surface-2 px-2.5 py-1.5 shadow-xl',
+              hover === 0 ? 'translate-x-0' : hover === n - 1 ? '-translate-x-full' : '-translate-x-1/2',
+            )}
+            style={{ left: `${(x(hover as number) / W) * 100}%` }}
+            aria-hidden="true"
+          >
+            <p className="text-2xs font-medium text-foreground">{pointeur.label}</p>
+            <div className="mt-1 space-y-0.5 text-2xs text-muted-foreground">
+              <span className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-sm bg-gradient-to-b from-jade to-brass" aria-hidden="true" />
+                <span className="num">{formatMontant(pointeur.collecte)}</span>
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="h-0 w-3 border-t border-dashed border-muted-foreground" aria-hidden="true" />
+                <span className="num">{formatMontant(pointeur.attendu)}</span>
+              </span>
+              {montreN1 && (
+                <span className="flex items-center gap-1.5">
+                  <span className="h-0 w-3 border-t border-jade/70" aria-hidden="true" />
+                  <span className="num">{formatMontant(pointeur.collecteN1 ?? 0)}</span>
+                </span>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Libellés de l'axe X (mois) en HTML, alignés sur les points → jamais déformés. Les

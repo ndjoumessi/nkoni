@@ -3,6 +3,7 @@ export default {
   commun: {
     langue: { fr: 'Français', en: 'English', selecteur: 'Choose language' },
     forfaits: { GRATUIT: 'Free', PRO: 'Pro', ENTREPRISE: 'Enterprise' },
+    surnom: '“{{surnom}}”',
     pagination: {
       label: 'Pagination',
       intervalle: '{{debut}}–{{fin}} of {{total}}',

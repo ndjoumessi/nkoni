@@ -95,14 +95,13 @@ function QuotaMembres({
   titre?: string
 }) {
   if (max === null) {
+    // Forfait illimité : pas de barre de progression (une barre pleine se lirait « plafond
+    // atteint ») — juste le compteur et la mention « illimité ».
     return (
       <div className="w-full" title={titre}>
         <div className="flex items-baseline justify-end gap-1">
           <span className="num text-sm font-medium text-foreground">{n}</span>
-          <span className="text-xs text-faint">/ {illimiteLabel}</span>
-        </div>
-        <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-surface-2">
-          <div className="h-full rounded-full bg-jade/40" style={{ width: '100%' }} />
+          <span className="text-xs text-faint">· {illimiteLabel}</span>
         </div>
       </div>
     )

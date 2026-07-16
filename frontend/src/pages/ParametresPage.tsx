@@ -86,7 +86,7 @@ export function ParametresPage() {
   const langueLabel = org ? t(org.langueDefaut === 'EN' ? 'commun.langue.en' : 'commun.langue.fr') : ''
   const chefLabel = org?.chefMembreId
     ? `${org.chefNom ?? ''} ${org.chefPrenom ?? ''}`.trim() +
-      (org.chefSurnom ? ` « ${org.chefSurnom} »` : '')
+      (org.chefSurnom ? ` ${t('commun.surnom', { surnom: org.chefSurnom })}` : '')
     : t('parametres.infos.chefNonDesigne')
   // Forfait illimité (Pro/Entreprise) : `limiteMembres` est `null` → pas de jauge ni de quota.
   const illimite = org != null && org.limiteMembres == null

@@ -41,7 +41,7 @@ import {
   peutVoirAudit,
   peutVoirParametres,
 } from '@/lib/roles'
-import { cn } from '@/lib/utils'
+import { cn, estMac } from '@/lib/utils'
 import { NkoniMark } from '@/components/ui/NkoniMark'
 import { useFocusTrap } from '@/hooks/useFocusTrap'
 
@@ -262,7 +262,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         <Search className="h-4 w-4 text-faint" aria-hidden="true" />
         <span className="flex-1 text-left">{t('shell.rechercher')}</span>
         <kbd className="rounded border border-hairline-strong px-1.5 py-0.5 text-3xs text-faint">
-          ⌘K
+          {estMac() ? '⌘K' : 'Ctrl K'}
         </kbd>
       </button>
 

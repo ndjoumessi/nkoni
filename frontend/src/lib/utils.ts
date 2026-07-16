@@ -117,6 +117,12 @@ export function focusPremierChampInvalide(form: HTMLElement | null): void {
  * À interroger avant toute animation d'entrée pilotée en JS (jauges, barres §10)
  * pour livrer directement l'état final au lieu d'animer.
  */
+/** Vrai sur macOS/iOS → afficher le raccourci « ⌘K » ; ailleurs « Ctrl K ». Défaut false. */
+export function estMac(): boolean {
+  if (typeof navigator === 'undefined') return false
+  return /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent)
+}
+
 export function prefersReducedMotion(): boolean {
   return (
     typeof window !== 'undefined' &&

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { FileText, Loader2, Download, Send, Pencil, Trash2 } from 'lucide-react'
+import { FileText, Loader2, Download, Send, Pencil, Trash2, Ban } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
 import {
   versementsApi,
@@ -60,6 +60,8 @@ export function VersementsList({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [generating, setGenerating] = useState<string | null>(null)
+  const [annulantRecu, setAnnulantRecu] = useState<string | null>(null)
+  const [recuAAnnuler, setRecuAAnnuler] = useState<Recu | null>(null)
   const peutGerer = peutSaisirVersement(user?.role)
 
   // Édition (modale) — versement en cours + champs contrôlés.
@@ -86,7 +88,17 @@ export function VersementsList({
           recusApi.listByMembre(membreId, accessToken, signal),
         ])
         setVersements(vs)
-        setRecus(new Map(rs.map((r) => [r.versementId, r])))
+        // Un versement peut porter PLUSIEURS reçus après une annulation suivie d'une réémission
+        // (chaque émission consomme un numéro). On retient le reçu ACTIF s'il existe, sinon le
+        // dernier annulé — pour afficher l'état courant, pas un document périmé.
+        const parVersement = new Map<string, Recu>()
+        for (const r of rs) {
+          const courant = parVersement.get(r.versementId)
+          if (!courant || (courant.annuleLe !== null && r.annuleLe === null)) {
+            parVersement.set(r.versementId, r)
+          }
+        }
+        setRecus(parVersement)
       } catch (e) {
         if (e instanceof DOMException && e.name === 'AbortError') return
         setError(e instanceof ApiError ? e.message : t('versements.liste.erreurChargement'))
@@ -117,6 +129,31 @@ export function VersementsList({
       )
     } finally {
       setGenerating(null)
+    }
+  }
+
+  /**
+   * Annule le reçu (annulation COMPTABLE : numéro et trace conservés). C'est ce qui libère la
+   * modification et la suppression du versement, refusées tant qu'un reçu ACTIF existe.
+   */
+  const annulerLeRecu = async (recu: Recu) => {
+    if (!accessToken) return
+    setAnnulantRecu(recu.id)
+    try {
+      const maj = await recusApi.annuler(recu.id, accessToken)
+      setRecus((prev) => new Map(prev).set(recu.versementId, { ...recu, annuleLe: maj.annuleLe }))
+      setRecuAAnnuler(null)
+      toast.success(
+        t('versements.toast.recuAnnule'),
+        t('versements.toast.recuAnnuleDetail', { numero: recu.numero }),
+      )
+    } catch (e) {
+      toast.error(
+        t('versements.toast.annulationImpossible'),
+        e instanceof ApiError ? e.message : '',
+      )
+    } finally {
+      setAnnulantRecu(null)
     }
   }
 
@@ -255,7 +292,7 @@ export function VersementsList({
               {v.note && <p className="mt-0.5 truncate text-xs text-faint">{v.note}</p>}
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              {recu ? (
+              {recu && recu.annuleLe === null ? (
                 <>
                   <Badge tone="jade" size="sm">
                     <FileText className="h-3.5 w-3.5" aria-hidden="true" />
@@ -265,17 +302,39 @@ export function VersementsList({
                     {t('versements.liste.telecharger')}
                   </Button>
                   {peutGerer && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      icon={Send}
-                      onClick={() => partagerWhatsApp(recu, v.montant)}
-                    >
-                      {t('versements.liste.whatsapp')}
-                    </Button>
+                    <>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        icon={Send}
+                        onClick={() => partagerWhatsApp(recu, v.montant)}
+                      >
+                        {t('versements.liste.whatsapp')}
+                      </Button>
+                      {/* Seule porte de sortie quand ce versement doit être corrigé : tant qu'un reçu
+                          ACTIF existe, sa modification et sa suppression sont refusées. */}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        icon={Ban}
+                        loading={annulantRecu === recu.id}
+                        onClick={() => setRecuAAnnuler(recu)}
+                      >
+                        {t('versements.liste.annulerRecu')}
+                      </Button>
+                    </>
                   )}
                 </>
               ) : (
+                <>
+                  {/* Reçu ANNULÉ : la trace reste visible (numéro conservé), mais il n'est plus
+                      téléchargeable ni partageable — et un reçu corrigé peut être réémis. */}
+                  {recu && (
+                    <Badge tone="neutral" size="sm">
+                      <Ban className="h-3.5 w-3.5" aria-hidden="true" />
+                      {t('versements.liste.recuAnnule', { numero: recu.numero })}
+                    </Badge>
+                  )}
                 <Button
                   variant="outline"
                   size="sm"
@@ -285,6 +344,7 @@ export function VersementsList({
                 >
                   {t('versements.liste.generer')}
                 </Button>
+                </>
               )}
               {peutGerer && (
                 <>
@@ -372,6 +432,31 @@ export function VersementsList({
           </Button>
           <Button variant="danger" icon={Trash2} loading={deleting} onClick={supprimer}>
             {t('versements.suppression.confirmer')}
+          </Button>
+        </div>
+      </Modal>
+
+      {/* Confirmation d'ANNULATION du reçu — irréversible : le numéro reste consommé, un reçu
+          corrigé devra être réémis sous un nouveau numéro. */}
+      <Modal
+        open={recuAAnnuler !== null}
+        onClose={() => setRecuAAnnuler(null)}
+        title={t('versements.annulationRecu.titre')}
+      >
+        <p className="text-sm text-muted-foreground">
+          {t('versements.annulationRecu.confirmation', { numero: recuAAnnuler?.numero ?? '' })}
+        </p>
+        <div className="mt-6 flex justify-end gap-2">
+          <Button variant="ghost" onClick={() => setRecuAAnnuler(null)}>
+            {t('versements.annulationRecu.annuler')}
+          </Button>
+          <Button
+            variant="danger"
+            icon={Ban}
+            loading={annulantRecu !== null}
+            onClick={() => recuAAnnuler && annulerLeRecu(recuAAnnuler)}
+          >
+            {t('versements.annulationRecu.confirmer')}
           </Button>
         </div>
       </Modal>

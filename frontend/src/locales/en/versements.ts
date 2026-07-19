@@ -40,6 +40,9 @@ export default {
       chargementImpossible: 'Loading failed',
       ouvertureImpossible: 'Opening failed',
       ouvertureEchec: 'Failed to open the year.',
+      recuAnnule: 'Receipt cancelled',
+      recuAnnuleDetail: 'Receipt {{numero}} is cancelled; its accounting trace is kept.',
+      annulationImpossible: 'Cancellation failed',
       enregistre: 'Payment recorded',
       enregistrementImpossible: 'Save failed',
       enregistrementEchec: 'Failed to record the payment.',
@@ -69,6 +72,8 @@ export default {
       aucun: 'No payment for this year.',
       recu: 'Receipt {{numero}}',
       generer: 'Generate the receipt',
+      annulerRecu: 'Cancel receipt',
+      recuAnnule: 'Receipt {{numero}} — cancelled',
       telecharger: 'Download',
       whatsapp: 'WhatsApp',
       modifier: 'Edit',
@@ -84,6 +89,13 @@ export default {
       enregistrer: 'Save',
       montantRequis: 'The amount is required.',
       montantPositif: 'The amount must be greater than 0.',
+    },
+    annulationRecu: {
+      titre: 'Cancel the receipt',
+      confirmation:
+        'Receipt {{numero}} will be cancelled. It keeps its number and trace, but can no longer be downloaded or shared. The payment becomes editable and deletable again, and a corrected receipt can be reissued under a new number. Continue?',
+      annuler: 'Back',
+      confirmer: 'Cancel receipt',
     },
     suppression: {
       titre: 'Delete payment',

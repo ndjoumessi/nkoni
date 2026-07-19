@@ -337,6 +337,14 @@ model Recu {
   genereParId    String // FK Utilisateur
   dateGeneration DateTime     @default(now())
   urlPdf         String?
+  // ANNULATION COMPTABLE (jamais de suppression) : un reçu numéroté, potentiellement déjà remis au
+  // membre, ne disparaît pas — il est marqué annulé et garde son numéro. Sans cela, corriger une
+  // saisie erronée était IMPOSSIBLE : la suppression du versement est refusée tant qu'un reçu
+  // ACTIF existe (onDelete: Restrict + garde applicative), et aucune route ne permettait d'annuler.
+  // `annuleLe = null` ⇒ reçu actif. FK auteur en SCALAIRE, comme `genereParId`.
+  annuleLe       DateTime?
+  annuleParId    String? // FK Utilisateur
+  motifAnnulation String?
 
   @@unique([organisationId, numero])
   @@index([organisationId])

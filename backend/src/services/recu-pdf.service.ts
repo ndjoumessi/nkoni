@@ -115,6 +115,15 @@ export interface ContexteRecuPdf {
   membreCompteId: string | null
   /** Téléphone du membre (pour l'envoi WhatsApp) — null si absent. */
   membreTelephone: string | null
+  /**
+   * `null` = reçu ACTIF. Renseigné ⇒ ANNULÉ : les routes de téléchargement et d'envoi WhatsApp
+   * DOIVENT refuser. Sans ce champ, un reçu annulé restait servi tel quel — en particulier via le
+   * lien public signé (`/recus/:id/pdf-public`), dont la signature HMAC n'expire pas et a déjà été
+   * partagée sur WhatsApp : le membre aurait continué à télécharger indéfiniment un document
+   * corrigé, ce qui vide l'annulation de son sens. Le PDF étant mis en cache sur Blob (production
+   * idempotente), on ne peut pas non plus « tamponner ANNULÉ » a posteriori : on refuse.
+   */
+  annuleLe: Date | null
   urlPdf: string | null
 }
 
@@ -125,7 +134,14 @@ export async function chargerDonneesRecuPdf(
 ): Promise<ContexteRecuPdf | null> {
   const recu = await prisma.recu.findUnique({
     where: { id: recuId },
-    select: { id: true, numero: true, dateGeneration: true, versementId: true, urlPdf: true },
+    select: {
+      id: true,
+      numero: true,
+      dateGeneration: true,
+      versementId: true,
+      urlPdf: true,
+      annuleLe: true,
+    },
   })
   if (!recu) return null
   const versement = await prisma.versement.findUnique({
@@ -158,6 +174,7 @@ export async function chargerDonneesRecuPdf(
     },
     membreCompteId: membre?.compteUtilisateurId ?? null,
     membreTelephone: membre?.telephone ?? null,
+    annuleLe: recu.annuleLe ?? null,
     urlPdf: recu.urlPdf,
   }
 }

@@ -40,6 +40,9 @@ export default {
       chargementImpossible: 'Chargement impossible',
       ouvertureImpossible: 'Ouverture impossible',
       ouvertureEchec: "Échec de l'ouverture de l'année.",
+      recuAnnule: 'Reçu annulé',
+      recuAnnuleDetail: 'Le reçu {{numero}} est annulé ; il conserve sa trace comptable.',
+      annulationImpossible: 'Annulation impossible',
       enregistre: 'Versement enregistré',
       enregistrementImpossible: 'Enregistrement impossible',
       enregistrementEchec: 'Échec de l’enregistrement du versement.',
@@ -69,6 +72,8 @@ export default {
       aucun: 'Aucun versement pour cette année.',
       recu: 'Reçu {{numero}}',
       generer: 'Générer le reçu',
+      annulerRecu: 'Annuler le reçu',
+      recuAnnule: 'Reçu {{numero}} — annulé',
       telecharger: 'Télécharger',
       whatsapp: 'WhatsApp',
       modifier: 'Modifier',
@@ -84,6 +89,13 @@ export default {
       enregistrer: 'Enregistrer',
       montantRequis: 'Le montant est requis.',
       montantPositif: 'Le montant doit être supérieur à 0.',
+    },
+    annulationRecu: {
+      titre: 'Annuler le reçu',
+      confirmation:
+        'Le reçu {{numero}} sera annulé. Il gardera son numéro et sa trace, mais ne sera plus téléchargeable ni partageable. Le versement redeviendra modifiable et supprimable, et un reçu corrigé pourra être réémis sous un nouveau numéro. Continuer ?',
+      annuler: 'Retour',
+      confirmer: 'Annuler le reçu',
     },
     suppression: {
       titre: 'Supprimer le versement',

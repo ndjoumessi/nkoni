@@ -2,8 +2,14 @@ import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
 import { Prisma } from '../generated/prisma/client'
 import { t, langueDeRequete } from '../lib/i18n'
 import { authenticate } from '../middlewares/authenticate'
-import { requirePermission } from '../middlewares/permissions'
-import { genererRecu, VersementIntrouvableError } from '../services/recu.service'
+import { requirePermission, requireRoles } from '../middlewares/permissions'
+import {
+  genererRecu,
+  annulerRecu,
+  VersementIntrouvableError,
+  RecuIntrouvableError,
+  RecuDejaAnnuleError,
+} from '../services/recu.service'
 import { chargerDonneesRecuPdf, produireRecuPdf } from '../services/recu-pdf.service'
 import { envoyerRecuWhatsApp } from '../services/whatsapp.service'
 import {
@@ -149,6 +155,14 @@ export const recusRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
           .code(404)
           .send({ error: 'Not Found', message: t(langueDeRequete(req), 'recus.introuvable') })
       }
+      // Reçu ANNULÉ : plus de téléchargement. 409 (et non 404) car l'appelant est authentifié et
+      // légitime à savoir que le document existe mais a été annulé — la trace reste lisible via
+      // `GET /recus`. Le lien PUBLIC, lui, répond 404 uniforme (cf. plus bas).
+      if (ctx.annuleLe) {
+        return reply
+          .code(409)
+          .send({ error: 'Conflict', message: t(langueDeRequete(req), 'recus.annuleNonTelechargeable') })
+      }
 
       // Locale + devise du DESTINATAIRE (le membre) ; repli FR/FCFA si membre sans compte lié.
       const langue = ctx.membreCompteId
@@ -205,6 +219,11 @@ export const recusRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
       return orgContext.run({ organisationId: meta.organisationId }, async () => {
         const ctx = await chargerDonneesRecuPdf(app.prisma, id)
         if (!ctx) return reply.code(404).send({ error: 'Not Found' })
+        // Reçu ANNULÉ : le lien public cesse de servir le document. C'est LE cas qui compte —
+        // la signature HMAC n'expire pas et le lien a déjà été envoyé sur WhatsApp, donc sans
+        // cette garde un reçu corrigé resterait téléchargeable indéfiniment par le membre.
+        // 404 UNIFORME, comme pour une signature invalide (aucune fuite d'existence ni d'état).
+        if (ctx.annuleLe) return reply.code(404).send({ error: 'Not Found' })
         const langue = ctx.membreCompteId
           ? await resoudreLangueDestinataire(app.prisma, ctx.membreCompteId)
           : 'FR'
@@ -236,6 +255,13 @@ export const recusRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
           .code(404)
           .send({ error: 'Not Found', message: t(langueDeRequete(req), 'recus.introuvable') })
       }
+      // Reçu ANNULÉ : ne pas (re)pousser un document corrigé au membre. Refus EXPLICITE (409) et
+      // non un `{ envoye: false }` best-effort : ici l'envoi n'échoue pas, il est interdit.
+      if (ctx.annuleLe) {
+        return reply
+          .code(409)
+          .send({ error: 'Conflict', message: t(langueDeRequete(req), 'recus.annuleNonTelechargeable') })
+      }
 
       const langue = ctx.membreCompteId
         ? await resoudreLangueDestinataire(app.prisma, ctx.membreCompteId)
@@ -255,6 +281,45 @@ export const recusRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
         },
       })
       return reply.code(200).send(resultat)
+    },
+  )
+
+  // POST /recus/:id/annuler — ANNULATION COMPTABLE (le reçu garde son numéro et sa trace).
+  // Garde alignée sur les FLUX D'ARGENT (ADMIN/PRESIDENT/TRESORIERE), comme les dons/reversements
+  // et les encaissements : annuler un reçu libère la modification et la suppression du versement.
+  app.post<{ Params: { id: string }; Body: { motif?: string } }>(
+    '/recus/:id/annuler',
+    {
+      schema: {
+        body: {
+          type: 'object',
+          additionalProperties: false,
+          properties: { motif: { type: 'string', maxLength: 500 } },
+        },
+      },
+      preHandler: [authenticate, requireRoles(['ADMIN', 'PRESIDENT', 'TRESORIERE'])],
+    },
+    async (req, reply) => {
+      try {
+        const recu = await annulerRecu(
+          app.prisma,
+          req.params.id,
+          req.user.sub ?? '',
+          req.body?.motif,
+        )
+        return reply.code(200).send(recu)
+      } catch (err) {
+        if (err instanceof RecuIntrouvableError) {
+          return reply.code(404).send({ error: 'Not Found' })
+        }
+        if (err instanceof RecuDejaAnnuleError) {
+          return reply.code(409).send({
+            error: 'Conflict',
+            message: t(langueDeRequete(req), 'recus.dejaAnnule'),
+          })
+        }
+        throw err
+      }
     },
   )
 }

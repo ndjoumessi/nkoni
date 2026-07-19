@@ -3,7 +3,10 @@ import {
   genererRecu,
   genererNumeroSequentiel,
   formaterNumero,
+  annulerRecu,
   VersementIntrouvableError,
+  RecuDejaAnnuleError,
+  RecuIntrouvableError,
   type RecuPrisma,
 } from '../src/services/recu.service'
 
@@ -181,5 +184,61 @@ describe('genererRecu (§4.6)', () => {
     const recu = await genererRecu(prisma as RecuPrisma, 'v1', 'u', now)
     // 1re tentative visait 000001 → collision (fantôme) ; retry → 000002.
     expect(recu.numero).toBe('NKONI-2026-000002')
+  })
+})
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
+/**
+ * ANNULATION COMPTABLE d'un reçu : jamais de suppression physique — le numéro et la trace restent.
+ * C'est la seule porte de sortie quand un versement doit être corrigé après émission du reçu.
+ */
+describe('annulerRecu (annulation comptable)', () => {
+  function buildPrisma(recu: { id: string; numero: string; annuleLe: Date | null } | null) {
+    const ecritures: any[] = []
+    const prisma: any = {
+      recu: {
+        findUnique: async () => recu,
+        update: async ({ data }: any) => {
+          ecritures.push(data)
+          return { id: recu?.id, numero: recu?.numero, annuleLe: data.annuleLe }
+        },
+      },
+    }
+    return { prisma, ecritures }
+  }
+
+  const actif = { id: 'r1', numero: 'NKONI-2026-000006', annuleLe: null }
+
+  it('marque le reçu annulé en conservant son numéro, avec auteur et horodatage', async () => {
+    const { prisma, ecritures } = buildPrisma(actif)
+    const le = new Date('2026-07-19T10:00:00Z')
+    const res = await annulerRecu(prisma, 'r1', 'u-tresoriere', 'saisie erronée', le)
+
+    expect(res).toMatchObject({ numero: 'NKONI-2026-000006', annuleLe: le })
+    expect(ecritures[0]).toMatchObject({
+      annuleLe: le,
+      annuleParId: 'u-tresoriere',
+      motifAnnulation: 'saisie erronée',
+    })
+  })
+
+  it('le motif est optionnel (non écrit si absent)', async () => {
+    const { prisma, ecritures } = buildPrisma(actif)
+    await annulerRecu(prisma, 'r1', 'u-admin')
+    expect(ecritures[0]).not.toHaveProperty('motifAnnulation')
+  })
+
+  it('refuse une seconde annulation (non rejouable)', async () => {
+    const { prisma, ecritures } = buildPrisma({ ...actif, annuleLe: new Date('2026-01-01') })
+    await expect(annulerRecu(prisma, 'r1', 'u-admin')).rejects.toBeInstanceOf(RecuDejaAnnuleError)
+    expect(ecritures).toHaveLength(0)
+  })
+
+  it('lève RecuIntrouvableError si le reçu n’existe pas (ou est hors organisation)', async () => {
+    const { prisma } = buildPrisma(null)
+    await expect(annulerRecu(prisma, 'inconnu', 'u-admin')).rejects.toBeInstanceOf(
+      RecuIntrouvableError,
+    )
   })
 })

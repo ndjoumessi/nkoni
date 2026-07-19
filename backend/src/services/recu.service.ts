@@ -27,6 +27,59 @@
 import { anneeCouranteApp } from '../lib/date-app'
 
 /** Levée quand le Versement ciblé n'existe pas (→ 404 côté route). */
+/** Levée quand on tente d'annuler un reçu déjà annulé (l'annulation n'est pas rejouable). */
+export class RecuDejaAnnuleError extends Error {
+  constructor() {
+    super('Ce reçu est déjà annulé.')
+    this.name = 'RecuDejaAnnuleError'
+  }
+}
+
+/** Levée quand le reçu visé n'existe pas (ou appartient à une autre organisation). */
+export class RecuIntrouvableError extends Error {
+  constructor() {
+    super('Reçu introuvable.')
+    this.name = 'RecuIntrouvableError'
+  }
+}
+
+/**
+ * ANNULE un reçu — annulation COMPTABLE, jamais une suppression : le reçu garde son numéro et sa
+ * trace (`annuleLe`, `annuleParId`, `motifAnnulation`). C'est la seule façon de libérer un versement
+ * dont un reçu a été émis : les gardes de modification et de suppression ne bloquent que sur un reçu
+ * ACTIF (`annuleLe = null`). Supprimer physiquement le document contredirait le garde-fou « pas de
+ * reçu orphelin » (FK `onDelete: Restrict`) et laisserait le membre avec un PDF numéroté sans
+ * contrepartie en base.
+ *
+ * `prisma` est volontairement souple (mockable en test, comme les autres services de ce dossier).
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function annulerRecu(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  prisma: any,
+  recuId: string,
+  annuleParId: string,
+  motif?: string,
+  maintenant: Date = new Date(),
+): Promise<{ id: string; numero: string; annuleLe: Date }> {
+  const recu = await prisma.recu.findUnique({
+    where: { id: recuId },
+    select: { id: true, numero: true, annuleLe: true },
+  })
+  if (!recu) throw new RecuIntrouvableError()
+  if (recu.annuleLe) throw new RecuDejaAnnuleError()
+
+  return prisma.recu.update({
+    where: { id: recuId },
+    data: {
+      annuleLe: maintenant,
+      annuleParId,
+      ...(motif !== undefined ? { motifAnnulation: motif } : {}),
+    },
+    select: { id: true, numero: true, annuleLe: true },
+  })
+}
+
 export class VersementIntrouvableError extends Error {
   readonly versementId: string
   constructor(versementId: string) {

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { CalendarPlus, Check, FileText } from 'lucide-react'
@@ -48,7 +48,11 @@ export function VersementFormPage() {
   const presetContrib = searchParams.get('contributionId') ?? ''
   const [membreNom, setMembreNom] = useState('')
   const [contributions, setContributions] = useState<Contribution[]>([])
-  const [contribId, setContribId] = useState(presetContrib)
+  // Fenêtre de contribution du membre (§4.1) : [anneeAdhesion .. min(anneeCourante, anneeFin)].
+  // Le sélecteur couvre TOUTE la fenêtre — pas seulement les années déjà « ouvertes » — car le
+  // montant attendu cumulé les compte déjà. Une année non ouverte l'est à la volée à la saisie.
+  const [fenetre, setFenetre] = useState<{ debut: number; fin: number } | null>(null)
+  const [anneeChoisie, setAnneeChoisie] = useState<number | null>(null)
   const [montant, setMontant] = useState('')
   const [dateVersement, setDateVersement] = useState(aujourdHui())
   const [mode, setMode] = useState<ModeVersement>('ESPECES')
@@ -66,6 +70,13 @@ export function VersementFormPage() {
   const [anneeAOuvrir, setAnneeAOuvrir] = useState(String(new Date().getFullYear()))
   const [ouvrant, setOuvrant] = useState(false)
   const [baremeManquant, setBaremeManquant] = useState(false)
+
+  // Années sélectionnables = TOUTE la fenêtre de contribution, de la plus récente à l'adhésion
+  // (et non les seules années déjà ouvertes). Vide si la fenêtre est incohérente.
+  const anneesFenetre = useMemo<number[]>(() => {
+    if (!fenetre || fenetre.fin < fenetre.debut) return []
+    return Array.from({ length: fenetre.fin - fenetre.debut + 1 }, (_, i) => fenetre.fin - i)
+  }, [fenetre])
 
   const chargerContributions = useCallback(
     async (signal?: AbortSignal): Promise<Contribution[]> => {
@@ -92,7 +103,13 @@ export function VersementFormPage() {
         ])
         if (!active) return
         setMembreNom(`${membre.nom} ${membre.prenom}`)
-        if (!presetContrib && list.length > 0) setContribId(list[0].id)
+        // Borne haute : année courante, ramenée à `anneeFinContribution` si le membre a cessé.
+        const courante = new Date().getFullYear()
+        const fin = Math.min(courante, membre.anneeFinContribution ?? courante)
+        setFenetre({ debut: membre.anneeAdhesion, fin })
+        // Présélection : la contribution passée en paramètre, sinon l'année la plus récente.
+        const preset = presetContrib ? list.find((c) => c.id === presetContrib) : undefined
+        setAnneeChoisie(preset?.annee ?? Math.max(membre.anneeAdhesion, fin))
       } catch (e) {
         if (e instanceof DOMException && e.name === 'AbortError') return
         if (active) toast.error(t('versements.toast.chargementImpossible'), e instanceof ApiError ? e.message : undefined)
@@ -118,7 +135,7 @@ export function VersementFormPage() {
       const res = await contributionsApi.ouvrirAnnee(Number(anneeAOuvrir), accessToken)
       const list = await chargerContributions()
       const nouvelle = list.find((c) => c.annee === res.annee)
-      if (nouvelle) setContribId(nouvelle.id)
+      if (nouvelle) setAnneeChoisie(nouvelle.annee)
       toast.success(
         t('versements.toast.anneeOuverte', { annee: res.annee }),
         t(nouvelle ? 'versements.toast.anneeOuverteEligible' : 'versements.toast.anneeOuverteNonEligible', {
@@ -139,7 +156,7 @@ export function VersementFormPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!accessToken || !contribId) return
+    if (!accessToken || anneeChoisie === null) return
 
     // Validation inline du montant + focus (§8).
     const m = Number(montant)
@@ -155,8 +172,27 @@ export function VersementFormPage() {
       return
     }
     setSaving(true)
+
+    // L'année choisie peut ne pas avoir de ligne Contribution (jamais ouverte globalement) : on
+    // l'ouvre alors à la volée POUR CE MEMBRE (idempotent côté serveur) avant d'encaisser.
+    let cible = contributions.find((c) => c.annee === anneeChoisie)?.id ?? ''
+    if (!cible) {
+      try {
+        const creee = await contributionsApi.ouvrirMembre(id ?? '', anneeChoisie, accessToken)
+        cible = creee.id
+        await chargerContributions()
+      } catch (err) {
+        setSaving(false)
+        toast.error(
+          t('versements.toast.ouvertureImpossible'),
+          err instanceof ApiError ? err.message : t('versements.toast.ouvertureEchec'),
+        )
+        return
+      }
+    }
+
     const payload = {
-      contributionId: contribId,
+      contributionId: cible,
       montant: Number(montant),
       dateVersement,
       mode,
@@ -289,27 +325,36 @@ export function VersementFormPage() {
         /* --- Formulaire --- */
         <Card className="nk-reveal nk-d2 mt-7 p-6">
           <form ref={formRef} onSubmit={handleSubmit} noValidate className="space-y-5">
-            {contributions.length === 0 ? (
+            {anneesFenetre.length === 0 ? (
               <p className="rounded-xl border border-amber/30 bg-amber/10 px-4 py-3 text-sm text-amber">
                 {t('versements.form.aucuneContribution')}
               </p>
             ) : (
               <Field label={t('versements.form.anneeLabel')} required>
-                <Select required value={contribId} onChange={(e) => setContribId(e.target.value)}>
-                  {contributions.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {t('versements.form.option', {
-                        annee: c.annee,
-                        verse: formatMontant(c.montantVerse),
-                        attendu: formatMontant(c.montantAttendu),
-                      })}
-                    </option>
-                  ))}
+                <Select
+                  required
+                  value={anneeChoisie ?? ''}
+                  onChange={(e) => setAnneeChoisie(Number(e.target.value))}
+                >
+                  {anneesFenetre.map((an) => {
+                    const c = contributions.find((x) => x.annee === an)
+                    return (
+                      <option key={an} value={an}>
+                        {c
+                          ? t('versements.form.option', {
+                              annee: an,
+                              verse: formatMontant(c.montantVerse),
+                              attendu: formatMontant(c.montantAttendu),
+                            })
+                          : t('versements.form.optionNonOuverte', { annee: an })}
+                      </option>
+                    )
+                  })}
                 </Select>
               </Field>
             )}
 
-            {contributions.length > 0 && (
+            {anneesFenetre.length > 0 && (
               <>
                 <div className="grid gap-5 sm:grid-cols-2">
                   <Field label={t('versements.form.montant')} required error={errMontant}>
@@ -341,7 +386,7 @@ export function VersementFormPage() {
                 </Field>
 
                 <div className="flex justify-end">
-                  <Button type="submit" loading={saving} disabled={!contribId}>
+                  <Button type="submit" loading={saving} disabled={anneeChoisie === null}>
                     {t('versements.form.enregistrer')}
                   </Button>
                 </div>

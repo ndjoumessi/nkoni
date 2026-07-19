@@ -5,7 +5,9 @@ import { authenticate } from '../middlewares/authenticate'
 import { requirePermission } from '../middlewares/permissions'
 import {
   ouvrirAnnee,
+  ouvrirAnneeMembre,
   BaremeIntrouvableError,
+  MembreNonEligibleError,
 } from '../services/contribution.service'
 import { calculerStatutContribution } from '../services/statutContribution'
 
@@ -20,6 +22,18 @@ const ouvrirAnneeSchema = {
     required: ['annee'],
     additionalProperties: false,
     properties: { annee: { type: 'integer', minimum: 1900, maximum: 2200 } },
+  },
+} as const
+
+const ouvrirMembreSchema = {
+  body: {
+    type: 'object',
+    required: ['membreId', 'annee'],
+    additionalProperties: false,
+    properties: {
+      membreId: { type: 'string' },
+      annee: { type: 'integer', minimum: 1900, maximum: 2200 },
+    },
   },
 } as const
 
@@ -55,6 +69,44 @@ export const contributionsRoutes: FastifyPluginAsync = async (
           return reply.code(400).send({
             error: 'Bad Request',
             message: t(langueDeRequete(req), 'contributions.baremeIntrouvable', {
+              annee: err.annee,
+            }),
+          })
+        }
+        throw err
+      }
+    },
+  )
+
+  // POST /contributions/ouvrir-membre — ouverture CIBLÉE (un seul membre), ADMIN + TRESORIERE.
+  // Permet d'encaisser une année de la fenêtre d'adhésion jamais ouverte globalement (le montant
+  // attendu cumulé la compte déjà). Idempotent : renvoie la contribution existante le cas échéant.
+  app.post<{ Body: { membreId: string; annee: number } }>(
+    '/contributions/ouvrir-membre',
+    {
+      schema: ouvrirMembreSchema,
+      preHandler: [authenticate, requirePermission('Contribution', 'create')],
+    },
+    async (req, reply) => {
+      try {
+        const contribution = await ouvrirAnneeMembre(app.prisma, req.body.membreId, req.body.annee)
+        if (!contribution) {
+          return reply.code(404).send({ error: 'Not Found' })
+        }
+        return reply.code(201).send(contribution)
+      } catch (err) {
+        if (err instanceof BaremeIntrouvableError) {
+          return reply.code(400).send({
+            error: 'Bad Request',
+            message: t(langueDeRequete(req), 'contributions.baremeIntrouvable', {
+              annee: err.annee,
+            }),
+          })
+        }
+        if (err instanceof MembreNonEligibleError) {
+          return reply.code(400).send({
+            error: 'Bad Request',
+            message: t(langueDeRequete(req), 'contributions.membreNonEligible', {
               annee: err.annee,
             }),
           })

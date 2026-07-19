@@ -24,6 +24,7 @@ export default {
         'No contribution exists for this member. First open a year below to be able to record a payment.',
       anneeLabel: 'Year (contribution)',
       option: '{{annee}} — paid {{verse}} / expected {{attendu}}',
+      optionNonOuverte: '{{annee}} — no payment yet (year to open)',
       montant: 'Amount (FCFA)',
       date: 'Date',
       mode: 'Mode',

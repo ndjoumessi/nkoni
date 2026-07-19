@@ -54,6 +54,8 @@ export function VersementFormPage() {
   // montant attendu cumulé les compte déjà. Une année non ouverte l'est à la volée à la saisie.
   const [fenetre, setFenetre] = useState<{ debut: number; fin: number } | null>(null)
   const [anneeChoisie, setAnneeChoisie] = useState<number | null>(null)
+  /** Arrivée depuis la ligne d'une année précise → l'année est fixée (déverrouillable au besoin). */
+  const [anneeVerrouillee, setAnneeVerrouillee] = useState(false)
   const [montant, setMontant] = useState('')
   const [dateVersement, setDateVersement] = useState(aujourdHui())
   const [mode, setMode] = useState<ModeVersement>('ESPECES')
@@ -107,6 +109,7 @@ export function VersementFormPage() {
         // Présélection : la contribution passée en paramètre, sinon l'année la plus récente.
         const preset = presetContrib ? list.find((c) => c.id === presetContrib) : undefined
         setAnneeChoisie(preset?.annee ?? Math.max(membre.anneeAdhesion, fin))
+        setAnneeVerrouillee(preset !== undefined)
       } catch (e) {
         if (e instanceof DOMException && e.name === 'AbortError') return
         if (active) toast.error(t('versements.toast.chargementImpossible'), e instanceof ApiError ? e.message : undefined)
@@ -299,6 +302,34 @@ export function VersementFormPage() {
               <p className="rounded-xl border border-amber/30 bg-amber/10 px-4 py-3 text-sm text-amber">
                 {t('versements.form.aucuneContribution')}
               </p>
+            ) : anneeVerrouillee && anneeChoisie !== null ? (
+              /* Entrée CONTEXTUELLE (« + Versement » depuis la ligne d'une année) : l'année est une
+                 donnée du contexte, pas un choix — l'afficher en lecture seule évite d'encaisser par
+                 erreur sur une autre année. Sortie explicite si l'utilisateur veut vraiment changer. */
+              <Field label={t('versements.form.anneeLabel')}>
+                <div className="flex flex-wrap items-center gap-3">
+                  <p className="num rounded-xl border border-hairline bg-surface-2 px-4 py-2.5 text-sm text-foreground">
+                    {(() => {
+                      const c = contributions.find((x) => x.annee === anneeChoisie)
+                      return c
+                        ? t('versements.form.option', {
+                            annee: anneeChoisie,
+                            verse: formatMontant(c.montantVerse),
+                            attendu: formatMontant(c.montantAttendu),
+                          })
+                        : t('versements.form.optionNonOuverte', { annee: anneeChoisie })
+                    })()}
+                  </p>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setAnneeVerrouillee(false)}
+                  >
+                    {t('versements.form.changerAnnee')}
+                  </Button>
+                </div>
+              </Field>
             ) : (
               <Field label={t('versements.form.anneeLabel')} required>
                 <Select

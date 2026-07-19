@@ -19,9 +19,18 @@ export interface ButtonProps
     ButtonBaseProps {}
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, icon: Icon, loading, children, disabled, ...props }, ref) => (
+  (
+    { className, variant, size, icon: Icon, loading, children, disabled, type = 'button', ...props },
+    ref,
+  ) => (
     <button
       ref={ref}
+      // Défaut `button` DÉLIBÉRÉ : un <button> natif sans `type` vaut `submit`, donc tout bouton
+      // d'action placé dans un <form> soumettait le formulaire au lieu d'agir (bug vécu sur
+      // « Changer d'année »). Soumettre exige désormais un `type="submit"` EXPLICITE — ce que font
+      // déjà les 25 boutons de soumission de l'app. Audit préalable : aucun <Button> sans `type`
+      // ne se trouvait dans un <form>, donc ce défaut ne casse aucune soumission existante.
+      type={type}
       disabled={disabled || loading}
       aria-busy={loading || undefined}
       className={cn(buttonVariants({ variant, size }), className)}

@@ -127,8 +127,15 @@ export function BaremePage() {
     setAdding(true)
     try {
       const cree = await baremeApi.create(Number(annee), Number(montant), accessToken)
-      setBaremes((prev) => [cree, ...prev].sort((a, b) => b.annee - a.annee))
+      const suivants = [cree, ...baremes].sort((a, b) => b.annee - a.annee)
+      setBaremes(suivants)
       setMontant('')
+      // Réarme le champ sur la prochaine année LIBRE : sinon il resterait sur l'année qui vient
+      // d'être créée, affichant aussitôt « un barème existe déjà » avec le bouton désactivé.
+      const prises = new Set(suivants.map((b) => b.annee))
+      let libre = new Date().getFullYear()
+      while (prises.has(libre)) libre += 1
+      setAnnee(String(libre))
       toast.success(
         t('bareme.toast.ajoute'),
         t('bareme.toast.detail', { annee: cree.annee, montant: formatMontant(cree.montantAttendu) }),
@@ -227,12 +234,7 @@ export function BaremePage() {
           <form ref={ajoutRef} onSubmit={handleAdd} noValidate>
             <Overline>{t('bareme.ajouterAnnee')}</Overline>
             <div className="mt-3 flex flex-wrap items-start gap-3">
-              <Field
-                label={t('bareme.anneeLabel')}
-                required
-                className="w-32"
-                error={errAnnee ?? (anneeAjoutDejaPrise ? t('bareme.erreurs.anneeDejaConfiguree') : undefined)}
-              >
+              <Field label={t('bareme.anneeLabel')} required className="w-32" error={errAnnee}>
                 <SelecteurAnnee
                   value={Number(annee) || new Date().getFullYear()}
                   min={1900}
@@ -269,6 +271,12 @@ export function BaremePage() {
                 </Button>
               </div>
             </div>
+            {/* Message PLEINE LARGEUR (et non dans le champ `w-32`, où il se tasserait sur 4 lignes). */}
+            {anneeAjoutDejaPrise && (
+              <p className="mt-3 text-sm text-terra" role="status">
+                {t('bareme.erreurs.anneeDejaConfiguree')}
+              </p>
+            )}
           </form>
         </Card>
       )}

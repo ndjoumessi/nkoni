@@ -8,6 +8,7 @@ import {
   ouvrirAnneeMembre,
   BaremeIntrouvableError,
   MembreNonEligibleError,
+  AnneeFutureError,
 } from '../services/contribution.service'
 import { calculerStatutContribution } from '../services/statutContribution'
 
@@ -65,6 +66,12 @@ export const contributionsRoutes: FastifyPluginAsync = async (
         const result = await ouvrirAnnee(app.prisma, req.body.annee)
         return reply.code(201).send(result)
       } catch (err) {
+        if (err instanceof AnneeFutureError) {
+          return reply.code(400).send({
+            error: 'Bad Request',
+            message: t(langueDeRequete(req), 'contributions.anneeFuture', { annee: err.annee }),
+          })
+        }
         if (err instanceof BaremeIntrouvableError) {
           return reply.code(400).send({
             error: 'Bad Request',
@@ -95,6 +102,12 @@ export const contributionsRoutes: FastifyPluginAsync = async (
         }
         return reply.code(201).send(contribution)
       } catch (err) {
+        if (err instanceof AnneeFutureError) {
+          return reply.code(400).send({
+            error: 'Bad Request',
+            message: t(langueDeRequete(req), 'contributions.anneeFuture', { annee: err.annee }),
+          })
+        }
         if (err instanceof BaremeIntrouvableError) {
           return reply.code(400).send({
             error: 'Bad Request',

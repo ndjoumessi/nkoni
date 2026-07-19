@@ -4,6 +4,7 @@ import {
   ouvrirAnneeMembre,
   BaremeIntrouvableError,
   MembreNonEligibleError,
+  AnneeFutureError,
   type OuvrirAnneePrisma,
   type OuvrirAnneeMembrePrisma,
 } from '../src/services/contribution.service'
@@ -64,7 +65,8 @@ describe('ouvrirAnnee (§5 point 4)', () => {
 
   it('lève BaremeIntrouvableError si aucun barème pour l’année (pas de création à 0)', async () => {
     const prisma = buildMock({ bareme: null, membres: [{ id: 'm1' }] })
-    await expect(ouvrirAnnee(prisma, 2030)).rejects.toBeInstanceOf(BaremeIntrouvableError)
+    // Année PASSÉE : la borne « pas d'année future » est franchie, on éprouve bien le barème.
+    await expect(ouvrirAnnee(prisma, 2019, 2026)).rejects.toBeInstanceOf(BaremeIntrouvableError)
   })
 
   it('est idempotent : un second appel ne recrée aucune contribution', async () => {
@@ -171,5 +173,49 @@ describe('ouvrirAnneeMembre (ouverture ciblée)', () => {
       membre: null,
     })
     expect(await ouvrirAnneeMembre(prisma, 'inconnu', 2023)).toBeNull()
+  })
+})
+
+/**
+ * Borne haute : une année FUTURE ne s'ouvre pas. Sinon la ligne serait affichée et encaissable
+ * alors que le montant attendu cumulé (borné à l'année courante) l'ignore → argent reçu invisible.
+ * Horloge injectée : aucun test ne dépend de la date réelle.
+ */
+describe('ouverture d’une année future refusée', () => {
+  it('ouvrirAnnee refuse une année postérieure à l’année courante', async () => {
+    const prisma = buildMock({
+      bareme: { annee: 2027, montantAttendu: 12_000 },
+      membres: [{ id: 'm1' }],
+    })
+    await expect(ouvrirAnnee(prisma, 2027, 2026)).rejects.toBeInstanceOf(AnneeFutureError)
+  })
+
+  it('ouvrirAnnee accepte l’année courante elle-même (borne inclusive)', async () => {
+    const prisma = buildMock({
+      bareme: { annee: 2026, montantAttendu: 12_000 },
+      membres: [{ id: 'm1' }],
+    })
+    const res = await ouvrirAnnee(prisma, 2026, 2026)
+    expect(res.contributionsCreees).toBe(1)
+  })
+
+  it('ouvrirAnneeMembre refuse aussi une année future', async () => {
+    const { prisma, creations } = buildMockMembre({
+      bareme: { annee: 2027, montantAttendu: 12_000 },
+      membre: membreActif,
+    })
+    await expect(ouvrirAnneeMembre(prisma, 'm1', 2027, 2026)).rejects.toBeInstanceOf(
+      AnneeFutureError,
+    )
+    expect(creations).toHaveLength(0)
+  })
+
+  it('une contribution future DÉJÀ créée reste consultable (idempotence avant la borne)', async () => {
+    const { prisma } = buildMockMembre({
+      bareme: { annee: 2027, montantAttendu: 12_000 },
+      membre: membreActif,
+      contributionExistante: { id: 'c-2027', annee: 2027, montantAttendu: 12_000 },
+    })
+    expect(await ouvrirAnneeMembre(prisma, 'm1', 2027, 2026)).toMatchObject({ id: 'c-2027' })
   })
 })

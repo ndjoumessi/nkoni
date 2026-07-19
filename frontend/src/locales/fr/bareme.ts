@@ -18,6 +18,8 @@ export default {
         'L’année {{annee}} était déjà ouverte pour les {{eligibles}} membre(s) éligible(s).',
       toastErreur: 'Ouverture impossible',
       sansBareme: 'Configurez d’abord le barème de cette année pour pouvoir l’ouvrir.',
+      anneeFuture:
+        'Cette année n’est pas encore échue : elle ne peut pas être ouverte. Son barème, lui, peut être configuré dès maintenant.',
     },
     anneeLabel: 'Année',
     montantLabel: 'Montant attendu (FCFA)',

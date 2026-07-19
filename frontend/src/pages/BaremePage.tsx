@@ -53,6 +53,12 @@ export function BaremePage() {
   const anneeAjoutDejaPrise = anneesAvecBareme.has(Number(annee))
   /** Ouvrir une année exige un barème (sinon 400) : on le signale avant l'appel. */
   const anneeOuvrirSansBareme = !anneesAvecBareme.has(Number(anneeAOuvrir))
+  /**
+   * Une année FUTURE ne s'ouvre pas : sa contribution serait affichée et encaissable alors que le
+   * montant attendu cumulé (borné à l'année courante) l'ignore → argent reçu invisible. Configurer
+   * son barème à l'avance reste permis.
+   */
+  const anneeOuvrirFuture = Number(anneeAOuvrir) > new Date().getFullYear()
 
   // Défauts calés sur les données, une seule fois au premier chargement (ne pas écraser un choix
   // manuel ensuite) : ajout → première année libre ; ouverture → année configurée la plus récente.
@@ -61,7 +67,12 @@ export function BaremePage() {
     if (defautsAppliques.current || baremes.length === 0) return
     defautsAppliques.current = true
     setAnnee(String(premiereAnneeLibre))
-    setAnneeAOuvrir(String(Math.max(...baremes.map((b) => b.annee))))
+    // Défaut d'OUVERTURE : la dernière année de barème qui soit ÉCHUE. Viser le max absolu
+    // proposerait une année future dès qu'un barème est configuré en avance (bug vécu : créer le
+    // barème 2027 faisait pointer le sélecteur sur 2027, et l'ouvrir créait 35 contributions non dues).
+    const courante = new Date().getFullYear()
+    const echues = baremes.map((b) => b.annee).filter((a) => a <= courante)
+    setAnneeAOuvrir(String(echues.length > 0 ? Math.max(...echues) : courante))
   }, [baremes, premiereAnneeLibre])
 
   const [editId, setEditId] = useState<string | null>(null)
@@ -304,15 +315,20 @@ export function BaremePage() {
               variant="outline"
               icon={CalendarPlus}
               loading={ouvrant}
-              disabled={anneeOuvrirSansBareme}
+              disabled={anneeOuvrirSansBareme || anneeOuvrirFuture}
               onClick={handleOuvrirAnnee}
             >
               {t('bareme.ouvrir.bouton')}
             </Button>
           </div>
-          {/* Ouvrir exige un barème pour l'année : on le dit AVANT l'appel (sinon 400 opaque). */}
-          {anneeOuvrirSansBareme && (
-            <p className="mt-3 text-sm text-terra">{t('bareme.ouvrir.sansBareme')}</p>
+          {/* Motifs de blocage dits AVANT l'appel (sinon 400 opaque). L'année future prime : c'est
+              le cas le plus fréquent quand un barème a été configuré en avance. */}
+          {anneeOuvrirFuture ? (
+            <p className="mt-3 text-sm text-terra">{t('bareme.ouvrir.anneeFuture')}</p>
+          ) : (
+            anneeOuvrirSansBareme && (
+              <p className="mt-3 text-sm text-terra">{t('bareme.ouvrir.sansBareme')}</p>
+            )
           )}
         </Card>
       )}

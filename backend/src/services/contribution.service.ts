@@ -32,6 +32,22 @@ export class BaremeIntrouvableError extends Error {
   }
 }
 
+/**
+ * Levée quand on tente d'ouvrir une année FUTURE. Une contribution non encore due créerait un
+ * écart : le montant attendu cumulé est borné à `min(anneeCourante, anneeFinContribution)` et
+ * ignorerait cette ligne, alors que la fiche l'afficherait et la rendrait encaissable — l'argent
+ * reçu serait alors invisible dans les totaux du membre. Configurer le BARÈME d'une année future
+ * reste permis ; c'est son OUVERTURE qui attend l'échéance.
+ */
+export class AnneeFutureError extends Error {
+  readonly annee: number
+  constructor(annee: number) {
+    super(`L'année ${annee} n'est pas encore ouverte à la contribution.`)
+    this.name = 'AnneeFutureError'
+    this.annee = annee
+  }
+}
+
 /** Levée quand le membre n'est pas éligible à l'année (hors fenêtre d'adhésion, ou non ACTIF). */
 export class MembreNonEligibleError extends Error {
   readonly annee: number
@@ -82,9 +98,13 @@ export async function ouvrirAnneeMembre(
   prisma: OuvrirAnneeMembrePrisma,
   membreId: string,
   annee: number,
+  anneeCourante: number = new Date().getFullYear(),
 ): Promise<{ id: string; annee: number; montantAttendu: number } | null> {
   const existante = await prisma.contribution.findFirst({ where: { membreId, annee } })
   if (existante) return existante
+  // Borne haute : jamais d'année future (idem ouverture globale). Placée APRÈS la lecture
+  // idempotente pour qu'une contribution déjà créée reste consultable/encaissable.
+  if (annee > anneeCourante) throw new AnneeFutureError(annee)
 
   const membre = await prisma.membre.findUnique({
     where: { id: membreId },
@@ -122,7 +142,10 @@ export async function ouvrirAnneeMembre(
 export async function ouvrirAnnee(
   prisma: OuvrirAnneePrisma,
   annee: number,
+  anneeCourante: number = new Date().getFullYear(),
 ): Promise<OuvrirAnneeResult> {
+  // Borne haute : jamais d'année future (cf. AnneeFutureError). Horloge INJECTÉE → testable.
+  if (annee > anneeCourante) throw new AnneeFutureError(annee)
   const bareme = await prisma.baremeAnnuel.findFirst({ where: { annee } })
   if (!bareme) {
     throw new BaremeIntrouvableError(annee)

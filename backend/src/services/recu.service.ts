@@ -26,7 +26,21 @@
 
 import { anneeCouranteApp } from '../lib/date-app'
 
-/** Levée quand le Versement ciblé n'existe pas (→ 404 côté route). */
+/**
+ * Levée quand un reçu ACTIF existe déjà pour ce versement. Un versement ne peut porter qu'UN SEUL
+ * justificatif valide : deux reçus numérotés actifs pour un même encaissement, ce sont deux
+ * justificatifs pour un seul paiement. La séquence correcte est ANNULER puis RÉÉMETTRE — l'annulation
+ * libère l'émission d'un nouveau numéro.
+ */
+export class RecuActifExistantError extends Error {
+  readonly numero: string
+  constructor(numero: string) {
+    super(`Un reçu actif (${numero}) existe déjà pour ce versement.`)
+    this.name = 'RecuActifExistantError'
+    this.numero = numero
+  }
+}
+
 /** Levée quand on tente d'annuler un reçu déjà annulé (l'annulation n'est pas rejouable). */
 export class RecuDejaAnnuleError extends Error {
   constructor() {
@@ -80,6 +94,7 @@ export async function annulerRecu(
   })
 }
 
+/** Levée quand le Versement ciblé n'existe pas (→ 404 côté route). */
 export class VersementIntrouvableError extends Error {
   readonly versementId: string
   constructor(versementId: string) {
@@ -191,6 +206,16 @@ export async function genererRecu(
           select: { id: true },
         })
         if (!versement) throw new VersementIntrouvableError(versementId)
+
+        // UN SEUL reçu actif par versement. Contrôle DANS la transaction (et non en amont) pour
+        // rester sûr en concurrence. Un reçu ANNULÉ ne compte pas : c'est justement ce qui permet
+        // la réémission corrigée. N'est PAS un conflit d'unicité → ne déclenche pas la boucle de
+        // réessai ci-dessous, l'erreur remonte telle quelle.
+        const actif = await tx.recu.findFirst({
+          where: { versementId, annuleLe: null },
+          select: { numero: true },
+        })
+        if (actif) throw new RecuActifExistantError(actif.numero)
 
         const numero = await genererNumeroSequentiel(annee, tx)
 

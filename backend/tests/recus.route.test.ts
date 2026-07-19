@@ -55,6 +55,13 @@ function buildMock() {
     recu: {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       findFirst: async ({ where }: any) => {
+        // Recherche du reçu ACTIF d'un versement (contrainte « un seul actif par versement »).
+        if (where.versementId !== undefined) {
+          const actif = [...recus.values()].find(
+            (r) => r.versementId === where.versementId && (r.annuleLe ?? null) === null,
+          )
+          return actif ? { numero: actif.numero } : null
+        }
         const prefixe: string = where.numero.startsWith
         const m = [...recus.values()]
           .filter((r) => r.numero.startsWith(prefixe))

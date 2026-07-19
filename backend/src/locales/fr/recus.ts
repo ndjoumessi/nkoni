@@ -1,6 +1,7 @@
 /** Messages FR du domaine « recus » (§4 i18n). */
 export const messages = {
   'recus.versementIntrouvable': 'Versement introuvable.',
+  'recus.actifExistant': 'Un reçu actif ({numero}) existe déjà pour ce versement : annulez-le avant d’en émettre un nouveau.',
   'recus.dejaAnnule': 'Ce reçu est déjà annulé.',
   'recus.annuleNonTelechargeable':
     'Ce reçu a été annulé : il n’est plus téléchargeable ni partageable. Générez un nouveau reçu.',

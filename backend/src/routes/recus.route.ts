@@ -9,6 +9,7 @@ import {
   VersementIntrouvableError,
   RecuIntrouvableError,
   RecuDejaAnnuleError,
+  RecuActifExistantError,
 } from '../services/recu.service'
 import { chargerDonneesRecuPdf, produireRecuPdf } from '../services/recu-pdf.service'
 import { envoyerRecuWhatsApp } from '../services/whatsapp.service'
@@ -84,6 +85,12 @@ export const recusRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
         const recu = await genererRecu(app.prisma, versementId, req.user.sub ?? '')
         return reply.code(201).send(avecLienPartage(recu))
       } catch (err) {
+        if (err instanceof RecuActifExistantError) {
+          return reply.code(409).send({
+            error: 'Conflict',
+            message: t(langueDeRequete(req), 'recus.actifExistant', { numero: err.numero }),
+          })
+        }
         if (err instanceof VersementIntrouvableError) {
           return reply.code(404).send({
             error: 'Not Found',

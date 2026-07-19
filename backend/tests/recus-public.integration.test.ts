@@ -40,6 +40,7 @@ const whatsapp: WhatsAppClient = {
 
 let app: FastifyInstance
 let recuId = ''
+let recuAnnuleId = ''
 
 async function nettoyer(): Promise<void> {
   await base.recu.deleteMany({ where: { organisationId: ORG } })
@@ -76,6 +77,21 @@ beforeAll(async () => {
   })
   recuId = r.id
 
+  // Reçu ANNULÉ sur le MÊME versement (cas réel : reçu erroné annulé, puis réémis sous un
+  // nouveau numéro). Créé d'emblée annulé pour que les tests restent indépendants de l'ordre.
+  const rAnnule = await base.recu.create({
+    data: {
+      organisationId: ORG,
+      versementId: v.id,
+      numero: 'NKONI-2025-000002',
+      genereParId: u.id,
+      annuleLe: new Date('2025-06-15T00:00:00Z'),
+      annuleParId: u.id,
+      motifAnnulation: 'montant erroné',
+    },
+  })
+  recuAnnuleId = rAnnule.id
+
   app = await buildApp({ blob, whatsapp, logger: false })
 })
 
@@ -103,6 +119,21 @@ describe('GET /recus/:id/pdf-public — lien public signé (intégration)', () =
       url: `/recus/${recuId}/pdf-public?t=signature-bidon`,
     })
     expect(res.statusCode).toBe(404)
+  })
+
+  /**
+   * Le cas qui donne son sens à l'annulation comptable : la signature HMAC n'expire PAS et le lien
+   * a déjà été partagé sur WhatsApp. Sans cette garde, annuler un reçu ne l'empêchait pas d'être
+   * retéléchargé indéfiniment par le membre — le document corrigé continuait de circuler.
+   */
+  it('reçu ANNULÉ, signature pourtant VALIDE → 404 (le lien déjà partagé cesse de servir)', async () => {
+    const sig = signerRecu(recuAnnuleId)
+    const res = await app.inject({
+      method: 'GET',
+      url: `/recus/${recuAnnuleId}/pdf-public?t=${encodeURIComponent(sig)}`,
+    })
+    expect(res.statusCode).toBe(404)
+    expect(res.headers['content-type']).not.toContain('application/pdf')
   })
 
   it('id inexistant avec sa propre signature → 404 (pas d’énumération)', async () => {

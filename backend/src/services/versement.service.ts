@@ -52,7 +52,12 @@ export interface PatchVersement {
   note?: string
 }
 
-/** Met à jour le versement et reporte le DELTA de montant sur la contribution (même delta sur les deux). */
+/**
+ * Met à jour le versement et reporte le DELTA de montant sur la contribution (même delta sur les deux).
+ * REFUSE (VersementAvecRecuError) si un reçu ACTIF a été émis : sans cette garde, on pouvait changer
+ * le montant d'un versement dont le reçu numéroté était déjà remis au membre — le reçu se serait mis
+ * à mentir. Garde SYMÉTRIQUE de celle de la suppression ; annuler le reçu débloque les deux.
+ */
 export async function appliquerModificationVersement(
   tx: any,
   id: string,
@@ -60,6 +65,12 @@ export async function appliquerModificationVersement(
 ): Promise<any> {
   const existing = await tx.versement.findUnique({ where: { id } })
   if (!existing) introuvable()
+
+  const recuActif = await tx.recu.findFirst({
+    where: { versementId: id, annuleLe: null },
+    select: { id: true },
+  })
+  if (recuActif) throw new VersementAvecRecuError()
 
   const data: any = {}
   if (patch.montant !== undefined) data.montant = patch.montant
@@ -92,8 +103,12 @@ export async function appliquerSuppressionVersement(tx: any, id: string): Promis
   const existing = await tx.versement.findUnique({ where: { id } })
   if (!existing) introuvable()
 
-  const recuEmis = await tx.recu.findFirst({ where: { versementId: id }, select: { id: true } })
-  if (recuEmis) throw new VersementAvecRecuError()
+  // Seul un reçu ACTIF bloque : un reçu ANNULÉ garde sa trace comptable mais libère le versement.
+  const recuActif = await tx.recu.findFirst({
+    where: { versementId: id, annuleLe: null },
+    select: { id: true },
+  })
+  if (recuActif) throw new VersementAvecRecuError()
 
   await tx.versement.delete({ where: { id } })
   await tx.contribution.update({

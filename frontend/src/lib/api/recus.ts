@@ -11,6 +11,8 @@ export interface Recu {
   genereParId: string
   dateGeneration: string
   urlPdf: string | null
+  /** `null` = reçu ACTIF. Renseigné ⇒ annulé (le numéro et la trace sont conservés). */
+  annuleLe: string | null
   /** Jeton signé du lien PUBLIC de téléchargement (partage WhatsApp), fourni par le backend. */
   signaturePartage: string
 }
@@ -33,6 +35,16 @@ export const recusApi = {
     return res.blob()
   },
   /** Envoie le reçu au membre par WhatsApp (best-effort côté serveur, Meta Cloud API). */
+  /**
+   * ANNULE un reçu (annulation comptable, jamais une suppression). Débloque la modification et la
+   * suppression du versement source, et permet de réémettre un reçu corrigé (nouveau numéro).
+   */
+  annuler: (recuId: string, accessToken: string, motif?: string) =>
+    request<Recu>(`/recus/${recuId}/annuler`, {
+      method: 'POST',
+      json: motif ? { motif } : {},
+      accessToken,
+    }),
   envoyerWhatsApp: (recuId: string, accessToken: string) =>
     request<{ envoye: boolean; raison?: string }>(`/recus/${rid(recuId)}/whatsapp`, {
       method: 'POST',

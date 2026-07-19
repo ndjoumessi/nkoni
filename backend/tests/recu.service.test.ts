@@ -3,7 +3,11 @@ import {
   genererRecu,
   genererNumeroSequentiel,
   formaterNumero,
+  annulerRecu,
   VersementIntrouvableError,
+  RecuDejaAnnuleError,
+  RecuIntrouvableError,
+  RecuActifExistantError,
   type RecuPrisma,
 } from '../src/services/recu.service'
 
@@ -23,6 +27,8 @@ interface MockRecu {
   genereParId: string
   dateGeneration: Date
   urlPdf: string | null
+  /** `null` = reçu ACTIF (défaut à la création). */
+  annuleLe?: Date | null
 }
 
 function buildMock(versementIds: string[] = ['v1']) {
@@ -37,8 +43,16 @@ function buildMock(versementIds: string[] = ['v1']) {
       findUnique: async ({ where }: any) => versements.get(where.id) ?? null,
     },
     recu: {
+      // Deux formes d'appel : recherche du reçu ACTIF d'un versement (contrainte « un seul actif »)
+      // ou lecture du dernier numéro de l'année (numérotation séquentielle).
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       findFirst: async ({ where }: any) => {
+        if (where.versementId !== undefined) {
+          const actif = [...recus.values()].find(
+            (r) => r.versementId === where.versementId && (r.annuleLe ?? null) === null,
+          )
+          return actif ? { numero: actif.numero } : null
+        }
         const prefixe: string = where.numero.startsWith
         const matching = [...recus.values()]
           .filter((r) => r.numero.startsWith(prefixe))
@@ -53,7 +67,7 @@ function buildMock(versementIds: string[] = ['v1']) {
             throw Object.assign(new Error('Unique constraint failed'), { code: 'P2002' })
           }
         }
-        const rec: MockRecu = { id: `r${++seq}`, urlPdf: null, ...data }
+        const rec: MockRecu = { id: `r${++seq}`, urlPdf: null, annuleLe: null, ...data }
         recus.set(rec.id, rec)
         return { ...rec }
       },
@@ -152,6 +166,8 @@ describe('genererRecu (§4.6)', () => {
       recu: {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         findFirst: async ({ where }: any) => {
+          // Aucun reçu actif sur ce versement : ce test porte sur la collision de NUMÉRO.
+          if (where.versementId !== undefined) return null
           const prefixe: string = where.numero.startsWith
           const m = [...recus.values()]
             .filter((r) => r.numero.startsWith(prefixe))
@@ -169,7 +185,7 @@ describe('genererRecu (§4.6)', () => {
             })
             throw Object.assign(new Error('Unique constraint failed'), { code: 'P2002' })
           }
-          const rec: MockRecu = { id: `r${++seq}`, urlPdf: null, ...data }
+          const rec: MockRecu = { id: `r${++seq}`, urlPdf: null, annuleLe: null, ...data }
           recus.set(rec.id, rec)
           return { ...rec }
         },
@@ -181,5 +197,96 @@ describe('genererRecu (§4.6)', () => {
     const recu = await genererRecu(prisma as RecuPrisma, 'v1', 'u', now)
     // 1re tentative visait 000001 → collision (fantôme) ; retry → 000002.
     expect(recu.numero).toBe('NKONI-2026-000002')
+  })
+})
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
+/**
+ * ANNULATION COMPTABLE d'un reçu : jamais de suppression physique — le numéro et la trace restent.
+ * C'est la seule porte de sortie quand un versement doit être corrigé après émission du reçu.
+ */
+describe('annulerRecu (annulation comptable)', () => {
+  function buildPrisma(recu: { id: string; numero: string; annuleLe: Date | null } | null) {
+    const ecritures: any[] = []
+    const prisma: any = {
+      recu: {
+        findUnique: async () => recu,
+        update: async ({ data }: any) => {
+          ecritures.push(data)
+          return { id: recu?.id, numero: recu?.numero, annuleLe: data.annuleLe }
+        },
+      },
+    }
+    return { prisma, ecritures }
+  }
+
+  const actif = { id: 'r1', numero: 'NKONI-2026-000006', annuleLe: null }
+
+  it('marque le reçu annulé en conservant son numéro, avec auteur et horodatage', async () => {
+    const { prisma, ecritures } = buildPrisma(actif)
+    const le = new Date('2026-07-19T10:00:00Z')
+    const res = await annulerRecu(prisma, 'r1', 'u-tresoriere', 'saisie erronée', le)
+
+    expect(res).toMatchObject({ numero: 'NKONI-2026-000006', annuleLe: le })
+    expect(ecritures[0]).toMatchObject({
+      annuleLe: le,
+      annuleParId: 'u-tresoriere',
+      motifAnnulation: 'saisie erronée',
+    })
+  })
+
+  it('le motif est optionnel (non écrit si absent)', async () => {
+    const { prisma, ecritures } = buildPrisma(actif)
+    await annulerRecu(prisma, 'r1', 'u-admin')
+    expect(ecritures[0]).not.toHaveProperty('motifAnnulation')
+  })
+
+  it('refuse une seconde annulation (non rejouable)', async () => {
+    const { prisma, ecritures } = buildPrisma({ ...actif, annuleLe: new Date('2026-01-01') })
+    await expect(annulerRecu(prisma, 'r1', 'u-admin')).rejects.toBeInstanceOf(RecuDejaAnnuleError)
+    expect(ecritures).toHaveLength(0)
+  })
+
+  it('lève RecuIntrouvableError si le reçu n’existe pas (ou est hors organisation)', async () => {
+    const { prisma } = buildPrisma(null)
+    await expect(annulerRecu(prisma, 'inconnu', 'u-admin')).rejects.toBeInstanceOf(
+      RecuIntrouvableError,
+    )
+  })
+})
+
+
+/**
+ * UN SEUL reçu ACTIF par versement : deux justificatifs numérotés valides pour un même
+ * encaissement seraient une faille comptable. La séquence correcte est ANNULER puis RÉÉMETTRE.
+ */
+describe('genererRecu — un seul reçu actif par versement', () => {
+  it('refuse un second reçu tant que le premier est ACTIF', async () => {
+    const { prisma } = buildMock(['v1'])
+    const premier = await genererRecu(prisma, 'v1', 'u1')
+    await expect(genererRecu(prisma, 'v1', 'u1')).rejects.toBeInstanceOf(RecuActifExistantError)
+    // L'erreur porte le numéro en conflit (repris dans le message i18n de la route).
+    await expect(genererRecu(prisma, 'v1', 'u1')).rejects.toMatchObject({
+      numero: premier.numero,
+    })
+  })
+
+  it('AUTORISE la réémission une fois le premier reçu annulé, sous un NOUVEAU numéro', async () => {
+    const { prisma, recus } = buildMock(['v1'])
+    const premier = await genererRecu(prisma, 'v1', 'u1')
+
+    // Annulation (le mock stocke l'état ; le service d'annulation est testé à part).
+    const stocke = [...recus.values()].find((r) => r.numero === premier.numero)!
+    stocke.annuleLe = new Date('2026-07-19')
+
+    const second = await genererRecu(prisma, 'v1', 'u1')
+    expect(second.numero).not.toBe(premier.numero)
+  })
+
+  it('n’empêche pas d’émettre le reçu d’un AUTRE versement', async () => {
+    const { prisma } = buildMock(['v1', 'v2'])
+    await genererRecu(prisma, 'v1', 'u1')
+    await expect(genererRecu(prisma, 'v2', 'u1')).resolves.toMatchObject({ versementId: 'v2' })
   })
 })

@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Navigate } from 'react-router-dom'
-import { CalendarRange, Check, Pencil, Plus, X } from 'lucide-react'
+import { CalendarPlus, CalendarRange, Check, Pencil, Plus, X } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
-import { baremeApi, ApiError, messageErreur, type Bareme } from '@/lib/api'
-import { peutVoirBareme, peutGererBareme } from '@/lib/roles'
+import { baremeApi, contributionsApi, ApiError, messageErreur, type Bareme } from '@/lib/api'
+import { peutVoirBareme, peutGererBareme, peutOuvrirAnnee } from '@/lib/roles'
 import { focusPremierChampInvalide } from '@/lib/utils'
 import { formatMontant } from '@/lib/format'
 import { useToast } from '@/components/ui/Toast'
@@ -37,6 +37,10 @@ export function BaremePage() {
   const [errAnnee, setErrAnnee] = useState<string | undefined>(undefined)
   const [errMontant, setErrMontant] = useState<string | undefined>(undefined)
   const ajoutRef = useRef<HTMLFormElement>(null)
+
+  // Ouverture d'année pour toute l'organisation (action optionnelle de préparation d'exercice).
+  const [anneeAOuvrir, setAnneeAOuvrir] = useState(String(new Date().getFullYear()))
+  const [ouvrant, setOuvrant] = useState(false)
 
   const [editId, setEditId] = useState<string | null>(null)
   const [editMontant, setEditMontant] = useState('')
@@ -150,6 +154,32 @@ export function BaremePage() {
     }
   }
 
+  /**
+   * Ouvre l'année pour TOUS les membres éligibles (préparation d'exercice). Idempotent côté
+   * serveur ; un barème doit exister pour l'année (sinon 400 explicite).
+   */
+  const handleOuvrirAnnee = async () => {
+    if (!accessToken) return
+    setOuvrant(true)
+    try {
+      const res = await contributionsApi.ouvrirAnnee(Number(anneeAOuvrir), accessToken)
+      toast.success(
+        t('bareme.ouvrir.toastTitre', { annee: res.annee }),
+        t('bareme.ouvrir.toastDetail', {
+          crees: res.contributionsCreees,
+          eligibles: res.membresEligibles,
+        }),
+      )
+    } catch (e) {
+      toast.error(
+        t('bareme.ouvrir.toastErreur'),
+        e instanceof ApiError ? e.message : messageErreur(e),
+      )
+    } finally {
+      setOuvrant(false)
+    }
+  }
+
   return (
     <div className="mx-auto max-w-2xl">
       <PageHeader
@@ -203,6 +233,32 @@ export function BaremePage() {
               </div>
             </div>
           </form>
+        </Card>
+      )}
+
+      {/* Ouvrir une année pour TOUTE l'organisation (ADMIN + TRESORIERE). Placée ici — et non dans
+          le formulaire de versement — parce que c'est une action d'ORGANISATION qui prolonge
+          directement la configuration du barème (barème de l'année → ouverture → versements).
+          Elle reste OPTIONNELLE : encaisser une année non ouverte l'ouvre à la volée pour le membre
+          concerné (cf. `ouvrirAnneeMembre`). Sert à préparer l'exercice en une fois. */}
+      {peutOuvrirAnnee(user?.role) && (
+        <Card className="nk-reveal nk-d2 mt-4 p-5">
+          <Overline>{t('bareme.ouvrir.titre')}</Overline>
+          <p className="mt-1.5 text-xs text-faint">{t('bareme.ouvrir.hint')}</p>
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            {/* Bornes 1900–2200 alignées sur le schéma backend d'ouvrir-annee. */}
+            <SelecteurAnnee
+              value={Number(anneeAOuvrir) || new Date().getFullYear()}
+              min={1900}
+              max={2200}
+              onChange={(a) => setAnneeAOuvrir(String(a))}
+              className="w-32"
+              aria-label={t('bareme.ouvrir.anneeAria')}
+            />
+            <Button variant="outline" icon={CalendarPlus} loading={ouvrant} onClick={handleOuvrirAnnee}>
+              {t('bareme.ouvrir.bouton')}
+            </Button>
+          </div>
         </Card>
       )}
 

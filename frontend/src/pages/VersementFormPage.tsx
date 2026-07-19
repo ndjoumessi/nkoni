@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { CalendarPlus, Check, FileText } from 'lucide-react'
+import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { Check, FileText } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
 import { focusPremierChampInvalide } from '@/lib/utils'
 import { soumettreOuEnfiler } from '@/lib/offline-sync'
@@ -16,15 +16,14 @@ import {
   type Recu,
   type VersementCree,
 } from '@/lib/api'
-import { peutSaisirVersement, peutOuvrirAnnee } from '@/lib/roles'
+import { peutSaisirVersement } from '@/lib/roles'
 import { formatMontant } from '@/lib/format'
 import { useToast } from '@/components/ui/Toast'
 import { PageHeader } from '@/components/ui/PageHeader'
-import { Card, Overline } from '@/components/ui/Card'
+import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Field, Input, Select, Textarea } from '@/components/ui/Field'
 import { DatePicker } from '@/components/ui/DatePicker'
-import { SelecteurAnnee } from '@/components/ui/SelecteurAnnee'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { Badge } from '@/components/ui/Badge'
 
@@ -35,7 +34,9 @@ const aujourdHui = (): string => new Date().toISOString().slice(0, 10)
 /**
  * Saisie d'un versement pour une contribution (POST /versements). Réservé ADMIN + TRESORIERE.
  * Après succès : résumé des totaux réajustés + génération de reçu à la demande (§4.6).
- * « Ouvrir l'année » (POST /contributions/ouvrir-annee) débloque le cas « année absente ».
+ * Une année de la fenêtre d'adhésion jamais ouverte l'est à la volée POUR CE MEMBRE
+ * (POST /contributions/ouvrir-membre) à l'enregistrement. L'ouverture GLOBALE (toute l'org) a
+ * migré vers la page Barème (préparation d'exercice).
  */
 export function VersementFormPage() {
   const { t } = useTranslation()
@@ -66,10 +67,6 @@ export function VersementFormPage() {
 
   const [recu, setRecu] = useState<Recu | null>(null)
   const [generatingRecu, setGeneratingRecu] = useState(false)
-
-  const [anneeAOuvrir, setAnneeAOuvrir] = useState(String(new Date().getFullYear()))
-  const [ouvrant, setOuvrant] = useState(false)
-  const [baremeManquant, setBaremeManquant] = useState(false)
 
   // Années sélectionnables = TOUTE la fenêtre de contribution, de la plus récente à l'adhésion
   // (et non les seules années déjà ouvertes). Vide si la fenêtre est incohérente.
@@ -125,33 +122,6 @@ export function VersementFormPage() {
 
   if (!peutSaisirVersement(user?.role)) {
     return <Navigate to={id ? `/membres/${id}` : '/membres'} replace />
-  }
-
-  const handleOuvrirAnnee = async () => {
-    if (!accessToken) return
-    setBaremeManquant(false)
-    setOuvrant(true)
-    try {
-      const res = await contributionsApi.ouvrirAnnee(Number(anneeAOuvrir), accessToken)
-      const list = await chargerContributions()
-      const nouvelle = list.find((c) => c.annee === res.annee)
-      if (nouvelle) setAnneeChoisie(nouvelle.annee)
-      toast.success(
-        t('versements.toast.anneeOuverte', { annee: res.annee }),
-        t(nouvelle ? 'versements.toast.anneeOuverteEligible' : 'versements.toast.anneeOuverteNonEligible', {
-          crees: res.contributionsCreees,
-          eligibles: res.membresEligibles,
-        }),
-      )
-    } catch (e) {
-      if (e instanceof ApiError && e.status === 400) setBaremeManquant(true)
-      toast.error(
-        t('versements.toast.ouvertureImpossible'),
-        e instanceof ApiError ? e.message : t('versements.toast.ouvertureEchec'),
-      )
-    } finally {
-      setOuvrant(false)
-    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -393,42 +363,6 @@ export function VersementFormPage() {
               </>
             )}
 
-            {/* Ouvrir une année (ADMIN + TRESORIERE) */}
-            {peutOuvrirAnnee(user?.role) && (
-              <div className="border-t border-hairline pt-5">
-                <Overline>{t('versements.form.ouvrir.titre')}</Overline>
-                <p className="mt-1.5 text-xs text-faint">
-                  {t('versements.form.ouvrir.hint')}
-                </p>
-                <div className="mt-3 flex flex-wrap items-center gap-3">
-                  {/* Bornes 1900–2200 alignées sur le schéma backend d'ouvrir-annee. */}
-                  <SelecteurAnnee
-                    value={Number(anneeAOuvrir) || new Date().getFullYear()}
-                    min={1900}
-                    max={2200}
-                    onChange={(a) => setAnneeAOuvrir(String(a))}
-                    className="w-32"
-                    aria-label={t('versements.form.ouvrir.anneeAria')}
-                  />
-                  <Button
-                    variant="outline"
-                    icon={CalendarPlus}
-                    loading={ouvrant}
-                    onClick={handleOuvrirAnnee}
-                  >
-                    {t('versements.form.ouvrir.bouton')}
-                  </Button>
-                </div>
-                {baremeManquant && (
-                  <p className="mt-3 text-sm text-terra">
-                    {t('versements.form.ouvrir.baremeManquant')}{' '}
-                    <Link to="/bareme" className="font-semibold text-brass underline">
-                      {t('versements.form.ouvrir.configurerBareme')}
-                    </Link>
-                  </p>
-                )}
-              </div>
-            )}
           </form>
         </Card>
       )}

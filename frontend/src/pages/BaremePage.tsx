@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Navigate } from 'react-router-dom'
 import { CalendarPlus, CalendarRange, Check, Pencil, Plus, X } from 'lucide-react'
@@ -41,6 +41,28 @@ export function BaremePage() {
   // Ouverture d'année pour toute l'organisation (action optionnelle de préparation d'exercice).
   const [anneeAOuvrir, setAnneeAOuvrir] = useState(String(new Date().getFullYear()))
   const [ouvrant, setOuvrant] = useState(false)
+
+  const anneesAvecBareme = useMemo(() => new Set(baremes.map((b) => b.annee)), [baremes])
+  /** Première année SANS barème à partir de l'année courante — défaut du formulaire d'ajout. */
+  const premiereAnneeLibre = useMemo(() => {
+    let a = new Date().getFullYear()
+    while (anneesAvecBareme.has(a)) a += 1
+    return a
+  }, [anneesAvecBareme])
+  /** Ajouter un barème sur une année déjà configurée renverrait un 409 : on le bloque en amont. */
+  const anneeAjoutDejaPrise = anneesAvecBareme.has(Number(annee))
+  /** Ouvrir une année exige un barème (sinon 400) : on le signale avant l'appel. */
+  const anneeOuvrirSansBareme = !anneesAvecBareme.has(Number(anneeAOuvrir))
+
+  // Défauts calés sur les données, une seule fois au premier chargement (ne pas écraser un choix
+  // manuel ensuite) : ajout → première année libre ; ouverture → année configurée la plus récente.
+  const defautsAppliques = useRef(false)
+  useEffect(() => {
+    if (defautsAppliques.current || baremes.length === 0) return
+    defautsAppliques.current = true
+    setAnnee(String(premiereAnneeLibre))
+    setAnneeAOuvrir(String(Math.max(...baremes.map((b) => b.annee))))
+  }, [baremes, premiereAnneeLibre])
 
   const [editId, setEditId] = useState<string | null>(null)
   const [editMontant, setEditMontant] = useState('')
@@ -163,13 +185,23 @@ export function BaremePage() {
     setOuvrant(true)
     try {
       const res = await contributionsApi.ouvrirAnnee(Number(anneeAOuvrir), accessToken)
-      toast.success(
-        t('bareme.ouvrir.toastTitre', { annee: res.annee }),
-        t('bareme.ouvrir.toastDetail', {
-          crees: res.contributionsCreees,
-          eligibles: res.membresEligibles,
-        }),
-      )
+      // L'opération est idempotente : rouvrir une année déjà ouverte ne crée rien. On le dit
+      // franchement au lieu d'un « Année ouverte » vert qui laisse croire à une action effective.
+      // (Rouvrir reste utile : cela crée la contribution des membres ajoutés APRÈS la 1ʳᵉ ouverture.)
+      if (res.contributionsCreees === 0) {
+        toast.info(
+          t('bareme.ouvrir.toastAucuneTitre'),
+          t('bareme.ouvrir.toastAucuneDetail', { annee: res.annee, eligibles: res.membresEligibles }),
+        )
+      } else {
+        toast.success(
+          t('bareme.ouvrir.toastTitre', { annee: res.annee }),
+          t('bareme.ouvrir.toastDetail', {
+            crees: res.contributionsCreees,
+            eligibles: res.membresEligibles,
+          }),
+        )
+      }
     } catch (e) {
       toast.error(
         t('bareme.ouvrir.toastErreur'),
@@ -195,7 +227,12 @@ export function BaremePage() {
           <form ref={ajoutRef} onSubmit={handleAdd} noValidate>
             <Overline>{t('bareme.ajouterAnnee')}</Overline>
             <div className="mt-3 flex flex-wrap items-start gap-3">
-              <Field label={t('bareme.anneeLabel')} required className="w-32" error={errAnnee}>
+              <Field
+                label={t('bareme.anneeLabel')}
+                required
+                className="w-32"
+                error={errAnnee ?? (anneeAjoutDejaPrise ? t('bareme.erreurs.anneeDejaConfiguree') : undefined)}
+              >
                 <SelecteurAnnee
                   value={Number(annee) || new Date().getFullYear()}
                   min={1900}
@@ -227,7 +264,7 @@ export function BaremePage() {
                 >
                   &nbsp;
                 </span>
-                <Button type="submit" icon={Plus} loading={adding}>
+                <Button type="submit" icon={Plus} loading={adding} disabled={anneeAjoutDejaPrise}>
                   {t('bareme.ajouter')}
                 </Button>
               </div>
@@ -255,10 +292,20 @@ export function BaremePage() {
               className="w-32"
               aria-label={t('bareme.ouvrir.anneeAria')}
             />
-            <Button variant="outline" icon={CalendarPlus} loading={ouvrant} onClick={handleOuvrirAnnee}>
+            <Button
+              variant="outline"
+              icon={CalendarPlus}
+              loading={ouvrant}
+              disabled={anneeOuvrirSansBareme}
+              onClick={handleOuvrirAnnee}
+            >
               {t('bareme.ouvrir.bouton')}
             </Button>
           </div>
+          {/* Ouvrir exige un barème pour l'année : on le dit AVANT l'appel (sinon 400 opaque). */}
+          {anneeOuvrirSansBareme && (
+            <p className="mt-3 text-sm text-terra">{t('bareme.ouvrir.sansBareme')}</p>
+          )}
         </Card>
       )}
 

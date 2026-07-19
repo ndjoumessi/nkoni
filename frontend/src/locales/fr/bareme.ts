@@ -13,7 +13,11 @@ export default {
       bouton: "Ouvrir l'année",
       toastTitre: 'Année {{annee}} ouverte',
       toastDetail: '{{crees}} contribution(s) créée(s) sur {{eligibles}} membre(s) éligible(s).',
+      toastAucuneTitre: 'Rien à créer',
+      toastAucuneDetail:
+        'L’année {{annee}} était déjà ouverte pour les {{eligibles}} membre(s) éligible(s).',
       toastErreur: 'Ouverture impossible',
+      sansBareme: 'Configurez d’abord le barème de cette année pour pouvoir l’ouvrir.',
     },
     anneeLabel: 'Année',
     montantLabel: 'Montant attendu (FCFA)',
@@ -33,6 +37,7 @@ export default {
       montantRequis: 'Le montant est requis.',
       montantInvalide: 'Montant invalide (≥ 0).',
       anneeRequise: "L'année est requise.",
+      anneeDejaConfiguree: 'Un barème existe déjà pour cette année — utilisez « Modifier » ci-dessous.',
       anneeInvalide: 'Année invalide (entre 1900 et 2200).',
     },
     toast: {

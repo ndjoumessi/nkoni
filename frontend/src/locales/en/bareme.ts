@@ -13,7 +13,10 @@ export default {
       bouton: 'Open the year',
       toastTitre: 'Year {{annee}} opened',
       toastDetail: '{{crees}} contribution(s) created for {{eligibles}} eligible member(s).',
+      toastAucuneTitre: 'Nothing to create',
+      toastAucuneDetail: '{{annee}} was already open for all {{eligibles}} eligible member(s).',
       toastErreur: 'Opening failed',
+      sansBareme: 'Configure this year’s scale first to be able to open it.',
     },
     anneeLabel: 'Year',
     montantLabel: 'Expected amount (FCFA)',
@@ -33,6 +36,7 @@ export default {
       montantRequis: 'The amount is required.',
       montantInvalide: 'Invalid amount (≥ 0).',
       anneeRequise: 'The year is required.',
+      anneeDejaConfiguree: 'A scale already exists for this year — use “Edit” below.',
       anneeInvalide: 'Invalid year (between 1900 and 2200).',
     },
     toast: {

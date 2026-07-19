@@ -25,6 +25,7 @@ export default {
       anneeLabel: 'Year (contribution)',
       option: '{{annee}} — paid {{verse}} / expected {{attendu}}',
       optionNonOuverte: '{{annee}} — no payment yet (year to open)',
+      changerAnnee: 'Change year',
       montant: 'Amount (FCFA)',
       date: 'Date',
       mode: 'Mode',

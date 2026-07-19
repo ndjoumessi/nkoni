@@ -29,6 +29,7 @@ import {
 // Réutilise le calcul d'attendu ANNUEL de Rapports (fenêtre mono-année) — pas de recalcul
 // du montant attendu / du seuil ici : l'évolution mensuelle s'appuie dessus (cf. plus bas).
 import { rapportPourAnnee } from './rapport.service'
+import { moisCourantApp } from '../lib/date-app'
 
 /* -------------------------------------------------------------------------- */
 /* Erreurs                                                                     */
@@ -404,12 +405,10 @@ export async function calculerDashboardComplet(
   // Évolution mensuelle : l'attendu de l'année courante réutilise `rapportPourAnnee` (Rapports),
   // ventilé sur 12 mois ; le collecté est la Σ mensuelle des versements encaissés cette année.
   const totalAttenduAnnee = rapportPourAnnee(anneeCourante, baremes, membresActifs)?.totalAttendu ?? 0
-  // Mois courant dans le fuseau applicatif (Africa/Douala, comme le scheduler) et NON en UTC :
+  // Mois courant dans le fuseau applicatif (helper partagé `lib/date-app.ts`) et NON en UTC :
   // sinon, à minuit local le 1er du mois (23:00 UTC la veille), on afficherait les anniversaires
   // du mois précédent.
-  const moisCourant = Number(
-    new Intl.DateTimeFormat('en-US', { timeZone: 'Africa/Douala', month: 'numeric' }).format(new Date()),
-  )
+  const moisCourant = moisCourantApp()
 
   return {
     vue: 'COMPLET',

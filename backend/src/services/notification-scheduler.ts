@@ -38,6 +38,7 @@ import {
 } from './notification.service'
 import { t } from '../lib/i18n'
 import { orgContext } from '../lib/org-context'
+import { anneeCouranteApp } from '../lib/date-app'
 
 const JOURS_ANTISPAM = 7
 const MS_PAR_JOUR = 24 * 60 * 60 * 1000
@@ -187,7 +188,7 @@ export function demarrerScheduler(app: FastifyInstance): void {
   cron.schedule(
     '0 3 * * *',
     () => {
-      const anneeCourante = new Date().getFullYear()
+      const anneeCourante = anneeCouranteApp()
       // MULTI-INSTANCE (audit M4) : toute l'exécution tourne dans UNE transaction protégée par un
       // verrou consultatif TRANSACTION-SCOPÉ (`pg_try_advisory_xact_lock`, libéré au commit, fiable
       // avec le pool contrairement à un verrou de session). Si une autre instance le détient déjà

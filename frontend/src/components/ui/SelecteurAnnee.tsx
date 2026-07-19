@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils'
 import { controlClasses } from './control-styles'
 import { usePopoverFlottant } from './usePopoverFlottant'
 import { GrilleAnnees } from './GrilleAnnees'
+import { anneeCouranteApp } from '@/lib/date-app'
 
 /** Borne `n` dans [min, max] (pour recaler le focus initial sur la valeur). */
 const borner = (n: number, min: number, max: number) => Math.min(max, Math.max(min, n))
@@ -58,7 +59,7 @@ export function SelecteurAnnee({
   'aria-describedby': ariaDescribedBy,
 }: SelecteurAnneeProps) {
   const { t } = useTranslation()
-  const today = useMemo(() => new Date().getFullYear(), [])
+  const today = useMemo(() => anneeCouranteApp(), [])
 
   const [open, setOpen] = useState(false)
   // Focus roving : sur la valeur si définie, sinon sur l'année courante (bornée) comme point d'entrée.

@@ -31,6 +31,7 @@ import { AnniversairesCard } from '@/components/dashboard/AnniversairesCard'
 import { FinancesConsolideesCard } from '@/components/dashboard/FinancesConsolideesCard'
 import { ExportButtons } from '@/components/dashboard/ExportButtons'
 import { GrapheEvolution, type PointEvolution } from '@/components/dashboard/GrapheEvolution'
+import { moisCourantApp } from '@/lib/date-app'
 import { formatMontant, formatNombre } from '@/lib/format'
 import type {
   Dashboard,
@@ -107,11 +108,7 @@ function EvolutionMensuelleCard({ annee, data }: { annee: number; data: Evolutio
   const { t, i18n } = useTranslation()
   const points = useMemo<PointEvolution[]>(() => {
     const fmt = new Intl.DateTimeFormat(i18n.language, { month: 'short', timeZone: 'UTC' })
-    const moisCourant = Number(
-      new Intl.DateTimeFormat('en-US', { timeZone: 'Africa/Douala', month: 'numeric' }).format(
-        new Date(),
-      ),
-    )
+    const moisCourant = moisCourantApp()
     let cumulCollecte = 0
     let cumulAttendu = 0
     let cumulN1 = 0

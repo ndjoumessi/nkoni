@@ -1,8 +1,11 @@
 /**
  * Service Contributions — ouverture d'année (§5 point 4).
  *
- * Découplé de Fastify, Prisma injecté (mockable en test).
+ * Découplé de Fastify, Prisma injecté (mockable en test). L'année courante est INJECTABLE ; son
+ * défaut passe par le fuseau applicatif (`lib/date-app.ts`), jamais par le fuseau du process.
  */
+
+import { anneeCouranteApp } from '../lib/date-app'
 
 /** Surface minimale de Prisma utilisée par ouvrirAnnee (mockable). */
 export interface OuvrirAnneePrisma {
@@ -98,7 +101,7 @@ export async function ouvrirAnneeMembre(
   prisma: OuvrirAnneeMembrePrisma,
   membreId: string,
   annee: number,
-  anneeCourante: number = new Date().getFullYear(),
+  anneeCourante: number = anneeCouranteApp(),
 ): Promise<{ id: string; annee: number; montantAttendu: number } | null> {
   const existante = await prisma.contribution.findFirst({ where: { membreId, annee } })
   if (existante) return existante
@@ -142,7 +145,7 @@ export async function ouvrirAnneeMembre(
 export async function ouvrirAnnee(
   prisma: OuvrirAnneePrisma,
   annee: number,
-  anneeCourante: number = new Date().getFullYear(),
+  anneeCourante: number = anneeCouranteApp(),
 ): Promise<OuvrirAnneeResult> {
   // Borne haute : jamais d'année future (cf. AnneeFutureError). Horloge INJECTÉE → testable.
   if (annee > anneeCourante) throw new AnneeFutureError(annee)

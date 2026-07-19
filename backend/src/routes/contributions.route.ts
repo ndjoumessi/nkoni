@@ -11,6 +11,7 @@ import {
   AnneeFutureError,
 } from '../services/contribution.service'
 import { calculerStatutContribution } from '../services/statutContribution'
+import { anneeCouranteApp } from '../lib/date-app'
 
 /**
  * Contributions (§5 points 4-5) : ouverture d'année, lecture (filtrée pour
@@ -49,7 +50,7 @@ const listQuerySchema = {
   },
 } as const
 
-const anneeCourante = (): number => new Date().getFullYear()
+const anneeCourante = (): number => anneeCouranteApp()
 
 export const contributionsRoutes: FastifyPluginAsync = async (
   app: FastifyInstance,

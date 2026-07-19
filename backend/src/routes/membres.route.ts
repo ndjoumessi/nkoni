@@ -16,6 +16,7 @@ import { t, langueDeRequete } from '../lib/i18n'
 import { limiteMembresForfait, type Forfait } from '../lib/forfait'
 import { parserFichierImport } from '../services/import-parse.service'
 import type { CleMessage } from '../locales/fr'
+import { anneeCouranteApp } from '../lib/date-app'
 
 /**
  * CRUD Membre (§5 point 2), conforme à la matrice §2 :
@@ -109,7 +110,7 @@ const updateMembreSchema = {
   },
 } as const
 
-const anneeCourante = (): number => new Date().getFullYear()
+const anneeCourante = (): number => anneeCouranteApp()
 
 /* --- Import CSV/Excel (§5.2) ------------------------------------------------ */
 

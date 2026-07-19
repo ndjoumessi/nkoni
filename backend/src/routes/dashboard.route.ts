@@ -9,6 +9,7 @@ import {
   calculerFinancesConsolidees,
   MembreIntrouvableError,
 } from '../services/dashboard.service'
+import { anneeCouranteApp } from '../lib/date-app'
 
 /**
  * Tableau de bord (§5 point 8) — un endpoint unique, vue adaptée au rôle (§2).
@@ -27,7 +28,7 @@ import {
  *   n'est définie pour ce rôle dans le MVP. (Idem pour tout rôle non prévu → 403 défensif.)
  */
 
-const anneeCourante = (): number => new Date().getFullYear()
+const anneeCourante = (): number => anneeCouranteApp()
 
 export const dashboardRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
   app.get(

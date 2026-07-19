@@ -24,6 +24,7 @@ export default {
         "Aucune contribution n'existe pour ce membre. Ouvrez d'abord une année ci-dessous pour pouvoir enregistrer un versement.",
       anneeLabel: 'Année (contribution)',
       option: '{{annee}} — versé {{verse}} / attendu {{attendu}}',
+      optionNonOuverte: '{{annee}} — aucun versement (année à ouvrir)',
       montant: 'Montant (FCFA)',
       date: 'Date',
       mode: 'Mode',

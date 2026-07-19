@@ -32,11 +32,79 @@ export class BaremeIntrouvableError extends Error {
   }
 }
 
+/** Levée quand le membre n'est pas éligible à l'année (hors fenêtre d'adhésion, ou non ACTIF). */
+export class MembreNonEligibleError extends Error {
+  readonly annee: number
+  constructor(annee: number) {
+    super(`Le membre n'est pas éligible à la contribution de l'année ${annee}.`)
+    this.name = 'MembreNonEligibleError'
+    this.annee = annee
+  }
+}
+
 export interface OuvrirAnneeResult {
   annee: number
   montantAttendu: number
   membresEligibles: number
   contributionsCreees: number
+}
+
+/** Surface Prisma de `ouvrirAnneeMembre` (mockable). */
+export interface OuvrirAnneeMembrePrisma {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  baremeAnnuel: { findFirst(args: any): Promise<any> }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  membre: { findUnique(args: any): Promise<any> }
+  contribution: {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    findFirst(args: any): Promise<any>
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    create(args: any): Promise<any>
+  }
+}
+
+/**
+ * Ouvre l'année de contribution pour UN SEUL membre — pendant CIBLÉ de `ouvrirAnnee`, qui agit
+ * lui sur toute l'organisation. Motivation : le montant attendu cumulé d'un membre est CALCULÉ sur
+ * sa fenêtre `[anneeAdhesion .. min(anneeCourante, anneeFinContribution)]` × barèmes, alors que
+ * saisir un versement exige une ligne `Contribution`. Sans ouverture ciblée, un membre adhérent
+ * depuis 2023 dont les années 2023-2024 n'ont jamais été ouvertes ne pouvait pas être encaissé sur
+ * ces années — alors que l'application les compte comme attendues.
+ *
+ * MÊMES règles que l'ouverture globale : barème obligatoire pour l'année (le `montantAttendu` est
+ * copié → historisation, jamais de création silencieuse à 0) et éligibilité (statut ACTIF,
+ * `anneeAdhesion <= annee`, `anneeFinContribution` null ou `>= annee`).
+ *
+ * IDEMPOTENT : si la contribution existe déjà, elle est renvoyée telle quelle (aucune écriture).
+ * Renvoie `null` si le membre est introuvable (→ 404 côté route, pas de fuite d'existence).
+ */
+export async function ouvrirAnneeMembre(
+  prisma: OuvrirAnneeMembrePrisma,
+  membreId: string,
+  annee: number,
+): Promise<{ id: string; annee: number; montantAttendu: number } | null> {
+  const existante = await prisma.contribution.findFirst({ where: { membreId, annee } })
+  if (existante) return existante
+
+  const membre = await prisma.membre.findUnique({
+    where: { id: membreId },
+    select: { statut: true, anneeAdhesion: true, anneeFinContribution: true },
+  })
+  if (!membre) return null
+
+  const bareme = await prisma.baremeAnnuel.findFirst({ where: { annee } })
+  if (!bareme) throw new BaremeIntrouvableError(annee)
+
+  const eligible =
+    membre.statut === 'ACTIF' &&
+    membre.anneeAdhesion <= annee &&
+    (membre.anneeFinContribution === null || membre.anneeFinContribution >= annee)
+  if (!eligible) throw new MembreNonEligibleError(annee)
+
+  // FK SCALAIRE (`membreId`) : l'extension d'isolation injecte `organisationId` (cf. CLAUDE.md).
+  return prisma.contribution.create({
+    data: { membreId, annee, montantAttendu: bareme.montantAttendu },
+  })
 }
 
 /**

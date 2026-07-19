@@ -19,8 +19,12 @@
  *     recommence alors la transaction, qui relit le max à jour et prend le numéro
  *     suivant. Simple, portable (aucun SQL brut), et sûr.
  *
- * Découplé de Fastify, Prisma injecté (mockable en test).
+ * Découplé de Fastify, Prisma injecté (mockable en test). `now` reste INJECTÉ ; c'est seulement
+ * l'extraction de l'ANNÉE qui passe par le fuseau applicatif (une génération le 1ᵉʳ janvier à 00h30
+ * à Douala doit numéroter sur la nouvelle année, pas sur celle encore en cours en UTC).
  */
+
+import { anneeCouranteApp } from '../lib/date-app'
 
 /** Levée quand le Versement ciblé n'existe pas (→ 404 côté route). */
 export class VersementIntrouvableError extends Error {
@@ -124,7 +128,7 @@ export async function genererRecu(
   genereParId: string,
   now: Date = new Date(),
 ) {
-  const annee = now.getFullYear()
+  const annee = anneeCouranteApp(now)
 
   for (let tentative = 1; tentative <= MAX_TENTATIVES; tentative++) {
     try {

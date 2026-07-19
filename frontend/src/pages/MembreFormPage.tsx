@@ -24,6 +24,7 @@ import { DatePicker } from '@/components/ui/DatePicker'
 import { SelecteurAnnee } from '@/components/ui/SelecteurAnnee'
 import { FormSection } from '@/components/ui/FormSection'
 import { Skeleton } from '@/components/ui/Skeleton'
+import { anneeCouranteApp } from '@/lib/date-app'
 
 const STATUTS: StatutMembre[] = ['ACTIF', 'INACTIF', 'DECEDE']
 
@@ -214,7 +215,7 @@ export function MembreFormPage() {
   }
 
   const finVisible = STATUTS_FIN.includes(form.statut)
-  const anneeCourante = new Date().getFullYear()
+  const anneeCourante = anneeCouranteApp()
   const backTo = isEdit && id ? `/membres/${id}` : '/membres'
 
   return (

@@ -7,6 +7,7 @@ import { signerStatutMembre, verifierStatutMembre } from '../lib/recu-lien'
 import { calculerStatutsMembres, type MembreAvecStatut } from '../services/membreStatut.service'
 import { genererCartesPdf, type DonneesCarte } from '../services/carte.service'
 import { formatDateHeure, type Langue } from '../lib/i18n'
+import { anneeCouranteApp } from '../lib/date-app'
 
 /**
  * Cartes de membre (§4.7) — génération PDF (unité + lot) réservée au bureau, et page PUBLIQUE de
@@ -161,7 +162,7 @@ export const cartesRoutes: FastifyPluginAsync = async (app: FastifyInstance) => 
 
   // GET /membres/cartes — PDF EN LOT (grille A4 découpable) de tous les membres non décédés.
   app.get('/membres/cartes', { preHandler: [authenticate, bureau] }, async (req, reply) => {
-    const annee = new Date().getFullYear()
+    const annee = anneeCouranteApp()
     const { items: membres } = await calculerStatutsMembres(app.prisma, annee)
     const actifs = membres.filter((m) => m.statut !== 'DECEDE')
     const photos = await chargerPhotos(actifs.map((m) => m.id))
@@ -181,7 +182,7 @@ export const cartesRoutes: FastifyPluginAsync = async (app: FastifyInstance) => 
     '/membres/:id/carte',
     { preHandler: [authenticate, bureau] },
     async (req, reply) => {
-      const annee = new Date().getFullYear()
+      const annee = anneeCouranteApp()
       const { items: membres } = await calculerStatutsMembres(app.prisma, annee, { id: req.params.id })
       const m = membres[0]
       if (!m) return reply.code(404).send({ error: 'Not Found' })
@@ -224,7 +225,7 @@ export const cartesRoutes: FastifyPluginAsync = async (app: FastifyInstance) => 
       if (!meta) return reply.code(404).send({ error: 'Not Found' })
 
       const html = await orgContext.run({ organisationId: meta.organisationId }, async () => {
-        const annee = new Date().getFullYear()
+        const annee = anneeCouranteApp()
         const { items: membres } = await calculerStatutsMembres(app.prisma, annee, { id })
         const m = membres[0]
         if (!m) return null

@@ -7,6 +7,7 @@ import {
   resoudreLangueDestinataire,
   resoudreDeviseDestinataire,
 } from '../services/notification.service'
+import { anneeCouranteApp } from '../lib/date-app'
 
 /**
  * Relevé de compte membre (§4.8) — proxy authentifié qui génère À LA DEMANDE le PDF « relevé
@@ -23,7 +24,7 @@ export const releveRoutes: FastifyPluginAsync = async (app: FastifyInstance) => 
     { preHandler: [authenticate, requirePermission('Membre', 'read')] },
     async (req, reply) => {
       const { id } = req.params
-      const annee = new Date().getFullYear()
+      const annee = anneeCouranteApp()
 
       // Statut + totaux CUMULÉS : même source de vérité que la fiche membre et la carte.
       const [avecStatut] = (await calculerStatutsMembres(app.prisma, annee, { id })).items

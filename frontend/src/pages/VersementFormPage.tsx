@@ -26,6 +26,7 @@ import { Field, Input, Select, Textarea } from '@/components/ui/Field'
 import { DatePicker } from '@/components/ui/DatePicker'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { Badge } from '@/components/ui/Badge'
+import { anneeCouranteApp } from '@/lib/date-app'
 
 const MODES: ModeVersement[] = ['ESPECES', 'TIERS', 'AUTRE']
 
@@ -103,7 +104,7 @@ export function VersementFormPage() {
         if (!active) return
         setMembreNom(`${membre.nom} ${membre.prenom}`)
         // Borne haute : année courante, ramenée à `anneeFinContribution` si le membre a cessé.
-        const courante = new Date().getFullYear()
+        const courante = anneeCouranteApp()
         const fin = Math.min(courante, membre.anneeFinContribution ?? courante)
         setFenetre({ debut: membre.anneeAdhesion, fin })
         // Présélection : la contribution passée en paramètre, sinon l'année la plus récente.

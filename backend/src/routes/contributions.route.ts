@@ -8,8 +8,10 @@ import {
   ouvrirAnneeMembre,
   BaremeIntrouvableError,
   MembreNonEligibleError,
+  AnneeFutureError,
 } from '../services/contribution.service'
 import { calculerStatutContribution } from '../services/statutContribution'
+import { anneeCouranteApp } from '../lib/date-app'
 
 /**
  * Contributions (§5 points 4-5) : ouverture d'année, lecture (filtrée pour
@@ -48,7 +50,7 @@ const listQuerySchema = {
   },
 } as const
 
-const anneeCourante = (): number => new Date().getFullYear()
+const anneeCourante = (): number => anneeCouranteApp()
 
 export const contributionsRoutes: FastifyPluginAsync = async (
   app: FastifyInstance,
@@ -65,6 +67,12 @@ export const contributionsRoutes: FastifyPluginAsync = async (
         const result = await ouvrirAnnee(app.prisma, req.body.annee)
         return reply.code(201).send(result)
       } catch (err) {
+        if (err instanceof AnneeFutureError) {
+          return reply.code(400).send({
+            error: 'Bad Request',
+            message: t(langueDeRequete(req), 'contributions.anneeFuture', { annee: err.annee }),
+          })
+        }
         if (err instanceof BaremeIntrouvableError) {
           return reply.code(400).send({
             error: 'Bad Request',
@@ -95,6 +103,12 @@ export const contributionsRoutes: FastifyPluginAsync = async (
         }
         return reply.code(201).send(contribution)
       } catch (err) {
+        if (err instanceof AnneeFutureError) {
+          return reply.code(400).send({
+            error: 'Bad Request',
+            message: t(langueDeRequete(req), 'contributions.anneeFuture', { annee: err.annee }),
+          })
+        }
         if (err instanceof BaremeIntrouvableError) {
           return reply.code(400).send({
             error: 'Bad Request',

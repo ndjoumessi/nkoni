@@ -17,6 +17,8 @@ export default {
       toastAucuneDetail: '{{annee}} was already open for all {{eligibles}} eligible member(s).',
       toastErreur: 'Opening failed',
       sansBareme: 'Configure this year’s scale first to be able to open it.',
+      anneeFuture:
+        'This year is not due yet, so it cannot be opened. Its fee schedule can still be configured now.',
     },
     anneeLabel: 'Year',
     montantLabel: 'Expected amount (FCFA)',

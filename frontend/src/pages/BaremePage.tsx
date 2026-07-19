@@ -7,6 +7,7 @@ import { baremeApi, contributionsApi, ApiError, messageErreur, type Bareme } fro
 import { peutVoirBareme, peutGererBareme, peutOuvrirAnnee } from '@/lib/roles'
 import { focusPremierChampInvalide } from '@/lib/utils'
 import { formatMontant } from '@/lib/format'
+import { anneeCouranteApp } from '@/lib/date-app'
 import { useToast } from '@/components/ui/Toast'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, Overline } from '@/components/ui/Card'
@@ -31,7 +32,7 @@ export function BaremePage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const [annee, setAnnee] = useState(String(new Date().getFullYear()))
+  const [annee, setAnnee] = useState(String(anneeCouranteApp()))
   const [montant, setMontant] = useState('')
   const [adding, setAdding] = useState(false)
   const [errAnnee, setErrAnnee] = useState<string | undefined>(undefined)
@@ -39,13 +40,13 @@ export function BaremePage() {
   const ajoutRef = useRef<HTMLFormElement>(null)
 
   // Ouverture d'année pour toute l'organisation (action optionnelle de préparation d'exercice).
-  const [anneeAOuvrir, setAnneeAOuvrir] = useState(String(new Date().getFullYear()))
+  const [anneeAOuvrir, setAnneeAOuvrir] = useState(String(anneeCouranteApp()))
   const [ouvrant, setOuvrant] = useState(false)
 
   const anneesAvecBareme = useMemo(() => new Set(baremes.map((b) => b.annee)), [baremes])
   /** Première année SANS barème à partir de l'année courante — défaut du formulaire d'ajout. */
   const premiereAnneeLibre = useMemo(() => {
-    let a = new Date().getFullYear()
+    let a = anneeCouranteApp()
     while (anneesAvecBareme.has(a)) a += 1
     return a
   }, [anneesAvecBareme])
@@ -53,6 +54,12 @@ export function BaremePage() {
   const anneeAjoutDejaPrise = anneesAvecBareme.has(Number(annee))
   /** Ouvrir une année exige un barème (sinon 400) : on le signale avant l'appel. */
   const anneeOuvrirSansBareme = !anneesAvecBareme.has(Number(anneeAOuvrir))
+  /**
+   * Une année FUTURE ne s'ouvre pas : sa contribution serait affichée et encaissable alors que le
+   * montant attendu cumulé (borné à l'année courante) l'ignore → argent reçu invisible. Configurer
+   * son barème à l'avance reste permis.
+   */
+  const anneeOuvrirFuture = Number(anneeAOuvrir) > anneeCouranteApp()
 
   // Défauts calés sur les données, une seule fois au premier chargement (ne pas écraser un choix
   // manuel ensuite) : ajout → première année libre ; ouverture → année configurée la plus récente.
@@ -61,7 +68,12 @@ export function BaremePage() {
     if (defautsAppliques.current || baremes.length === 0) return
     defautsAppliques.current = true
     setAnnee(String(premiereAnneeLibre))
-    setAnneeAOuvrir(String(Math.max(...baremes.map((b) => b.annee))))
+    // Défaut d'OUVERTURE : la dernière année de barème qui soit ÉCHUE. Viser le max absolu
+    // proposerait une année future dès qu'un barème est configuré en avance (bug vécu : créer le
+    // barème 2027 faisait pointer le sélecteur sur 2027, et l'ouvrir créait 35 contributions non dues).
+    const courante = anneeCouranteApp()
+    const echues = baremes.map((b) => b.annee).filter((a) => a <= courante)
+    setAnneeAOuvrir(String(echues.length > 0 ? Math.max(...echues) : courante))
   }, [baremes, premiereAnneeLibre])
 
   const [editId, setEditId] = useState<string | null>(null)
@@ -133,7 +145,7 @@ export function BaremePage() {
       // Réarme le champ sur la prochaine année LIBRE : sinon il resterait sur l'année qui vient
       // d'être créée, affichant aussitôt « un barème existe déjà » avec le bouton désactivé.
       const prises = new Set(suivants.map((b) => b.annee))
-      let libre = new Date().getFullYear()
+      let libre = anneeCouranteApp()
       while (prises.has(libre)) libre += 1
       setAnnee(String(libre))
       toast.success(
@@ -236,7 +248,7 @@ export function BaremePage() {
             <div className="mt-3 flex flex-wrap items-start gap-3">
               <Field label={t('bareme.anneeLabel')} required className="w-32" error={errAnnee}>
                 <SelecteurAnnee
-                  value={Number(annee) || new Date().getFullYear()}
+                  value={Number(annee) || anneeCouranteApp()}
                   min={1900}
                   max={2200}
                   onChange={(a) => {
@@ -293,7 +305,7 @@ export function BaremePage() {
           <div className="mt-3 flex flex-wrap items-center gap-3">
             {/* Bornes 1900–2200 alignées sur le schéma backend d'ouvrir-annee. */}
             <SelecteurAnnee
-              value={Number(anneeAOuvrir) || new Date().getFullYear()}
+              value={Number(anneeAOuvrir) || anneeCouranteApp()}
               min={1900}
               max={2200}
               onChange={(a) => setAnneeAOuvrir(String(a))}
@@ -304,15 +316,20 @@ export function BaremePage() {
               variant="outline"
               icon={CalendarPlus}
               loading={ouvrant}
-              disabled={anneeOuvrirSansBareme}
+              disabled={anneeOuvrirSansBareme || anneeOuvrirFuture}
               onClick={handleOuvrirAnnee}
             >
               {t('bareme.ouvrir.bouton')}
             </Button>
           </div>
-          {/* Ouvrir exige un barème pour l'année : on le dit AVANT l'appel (sinon 400 opaque). */}
-          {anneeOuvrirSansBareme && (
-            <p className="mt-3 text-sm text-terra">{t('bareme.ouvrir.sansBareme')}</p>
+          {/* Motifs de blocage dits AVANT l'appel (sinon 400 opaque). L'année future prime : c'est
+              le cas le plus fréquent quand un barème a été configuré en avance. */}
+          {anneeOuvrirFuture ? (
+            <p className="mt-3 text-sm text-terra">{t('bareme.ouvrir.anneeFuture')}</p>
+          ) : (
+            anneeOuvrirSansBareme && (
+              <p className="mt-3 text-sm text-terra">{t('bareme.ouvrir.sansBareme')}</p>
+            )
           )}
         </Card>
       )}

@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
 import { authenticate } from '../middlewares/authenticate'
 import { calculerStatutContribution } from '../services/statutContribution'
 import { t, langueDeRequete } from '../lib/i18n'
+import { anneeCouranteApp } from '../lib/date-app'
 
 /**
  * Espace membre SELF-SERVICE (§5) — routes scopées au MEMBRE connecté, HORS matrice de
@@ -12,7 +13,7 @@ import { t, langueDeRequete } from '../lib/i18n'
  * Sans Membre lié (ex. un ADMIN sans fiche) : `/moi/situation` → 404 propre ; les listes → [].
  */
 
-const anneeCourante = (): number => new Date().getFullYear()
+const anneeCourante = (): number => anneeCouranteApp()
 
 /** Résout le Membre lié au compte connecté (ou null). `findFirst` → organisationId injecté (scopé). */
 /* eslint-disable-next-line @typescript-eslint/no-explicit-any */

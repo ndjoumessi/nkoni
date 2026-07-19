@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { Check, FileText } from 'lucide-react'
+import { Check, FileText, Pencil } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
 import { focusPremierChampInvalide } from '@/lib/utils'
 import { soumettreOuEnfiler } from '@/lib/offline-sync'
@@ -320,10 +320,14 @@ export function VersementFormPage() {
                         : t('versements.form.optionNonOuverte', { annee: anneeChoisie })
                     })()}
                   </p>
+                  {/* `outline` + icône : au repos, un `ghost` n'a ni bordure ni soulignement et se
+                      lit comme une légende, pas comme un contrôle. Même motif que « Modifier »
+                      ailleurs dans l'app → l'affordance est immédiatement reconnaissable. */}
                   <Button
                     type="button"
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
+                    icon={Pencil}
                     onClick={() => setAnneeVerrouillee(false)}
                   >
                     {t('versements.form.changerAnnee')}

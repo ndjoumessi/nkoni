@@ -30,14 +30,6 @@ export default {
       mode: 'Mode',
       note: 'Note (optionnelle)',
       enregistrer: 'Enregistrer le versement',
-      ouvrir: {
-        titre: 'Ouvrir une année',
-        hint: "Crée les contributions de tous les membres éligibles pour l'année (nécessite un barème configuré pour cette année).",
-        anneeAria: 'Année à ouvrir',
-        bouton: "Ouvrir l'année",
-        baremeManquant: 'Aucun barème configuré pour cette année.',
-        configurerBareme: 'Configurer le barème →',
-      },
       validation: {
         montantRequis: 'Le montant est requis.',
         montantPositif: 'Le montant doit être supérieur à 0.',
@@ -45,11 +37,6 @@ export default {
     },
     toast: {
       chargementImpossible: 'Chargement impossible',
-      anneeOuverte: 'Année {{annee}} ouverte',
-      anneeOuverteEligible:
-        '{{crees}} contribution(s) créée(s) sur {{eligibles}} membre(s) éligible(s).',
-      anneeOuverteNonEligible:
-        "{{crees}} contribution(s) créée(s) sur {{eligibles}} membre(s) éligible(s). Ce membre n'est pas éligible pour cette année.",
       ouvertureImpossible: 'Ouverture impossible',
       ouvertureEchec: "Échec de l'ouverture de l'année.",
       enregistre: 'Versement enregistré',

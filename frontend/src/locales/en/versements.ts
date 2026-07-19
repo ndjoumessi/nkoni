@@ -30,14 +30,6 @@ export default {
       mode: 'Mode',
       note: 'Note (optional)',
       enregistrer: 'Record the payment',
-      ouvrir: {
-        titre: 'Open a year',
-        hint: 'Creates the contributions of all eligible members for the year (requires a scale configured for this year).',
-        anneeAria: 'Year to open',
-        bouton: 'Open the year',
-        baremeManquant: 'No scale configured for this year.',
-        configurerBareme: 'Configure the scale →',
-      },
       validation: {
         montantRequis: 'The amount is required.',
         montantPositif: 'The amount must be greater than 0.',
@@ -45,11 +37,6 @@ export default {
     },
     toast: {
       chargementImpossible: 'Loading failed',
-      anneeOuverte: 'Year {{annee}} opened',
-      anneeOuverteEligible:
-        '{{crees}} contribution(s) created for {{eligibles}} eligible member(s).',
-      anneeOuverteNonEligible:
-        '{{crees}} contribution(s) created for {{eligibles}} eligible member(s). This member is not eligible for this year.',
       ouvertureImpossible: 'Opening failed',
       ouvertureEchec: 'Failed to open the year.',
       enregistre: 'Payment recorded',

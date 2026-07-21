@@ -14,11 +14,20 @@ import { Prisma } from '../generated/prisma/client'
  */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-/** Suppression refusée : un reçu (preuve de paiement, potentiellement déjà partagé) a été émis. */
+/**
+ * Écriture refusée : un reçu (preuve de paiement, potentiellement déjà partagé) fait obstacle.
+ * Porte le `numero` du reçu en cause pour que la route puisse le nommer — l'erreur reste
+ * i18n-agnostique (elle transporte la DONNÉE, la traduction se fait à la frontière HTTP).
+ * Le sens diffère selon l'opération, d'où deux messages distincts côté route :
+ *   - suppression : bloquée par TOUT reçu (voir `appliquerSuppressionVersement`) ;
+ *   - modification : bloquée par un reçu ACTIF seulement (l'annuler débloque).
+ */
 export class VersementAvecRecuError extends Error {
-  constructor() {
-    super('Versement avec reçu émis : suppression interdite.')
+  readonly numero: string
+  constructor(numero: string) {
+    super(`Versement lié au reçu ${numero} : écriture interdite.`)
     this.name = 'VersementAvecRecuError'
+    this.numero = numero
   }
 }
 
@@ -68,9 +77,9 @@ export async function appliquerModificationVersement(
 
   const recuActif = await tx.recu.findFirst({
     where: { versementId: id, annuleLe: null },
-    select: { id: true },
+    select: { id: true, numero: true },
   })
-  if (recuActif) throw new VersementAvecRecuError()
+  if (recuActif) throw new VersementAvecRecuError(recuActif.numero)
 
   const data: any = {}
   if (patch.montant !== undefined) data.montant = patch.montant
@@ -96,19 +105,36 @@ export async function appliquerModificationVersement(
 }
 
 /**
- * Supprime le versement et décrémente la contribution du même montant. REFUSE (VersementAvecRecuError)
- * si un reçu a été émis (audit M3 : pas de reçu orphelin). Lève P2025 si le versement est introuvable.
+ * Supprime le versement et décrémente la contribution du même montant. REFUSE
+ * (VersementAvecRecuError) si un reçu a été émis (audit M3 : pas de reçu orphelin). Lève P2025 si
+ * le versement est introuvable.
+ *
+ * TOUT reçu bloque — ACTIF **comme ANNULÉ** — et c'est délibéré, contrairement à la garde de
+ * MODIFICATION qui, elle, ne regarde que les reçus actifs. Deux raisons, l'une subie, l'autre voulue :
+ *
+ *  1. La FK `Recu.versementId` est `onDelete: Restrict` INCONDITIONNEL : elle ignore `annuleLe`.
+ *     Ne bloquer que sur un reçu actif laissait donc passer la garde applicative pour aller heurter
+ *     la contrainte en base — erreur brute du driver (pas un code Prisma connu), non mappée, rendue
+ *     en **500 « erreur inattendue »**. Défaut vécu en production le 2026-07-21.
+ *  2. Même sans la FK, supprimer serait le mauvais geste : un reçu annulé RÉFÉRENCE ce versement et
+ *     reste visible dans l'historique du membre (`GET /recus`, résolu via `versementId`). Faire
+ *     disparaître le versement rendrait cette trace comptable illisible — or c'est précisément ce
+ *     que l'annulation comptable cherche à préserver. La correction d'une saisie erronée passe par
+ *     la MODIFICATION (annuler le reçu → corriger le montant → réémettre), qui reste ouverte.
+ *
+ * Corollaire assumé : un versement fantôme déjà reçu-annulé ne s'efface plus, il se corrige à 0.
+ * Le rendre supprimable exigerait de dénormaliser le membre sur `Recu` pour que les reçus orphelins
+ * restent affichables — chantier délibérément non entrepris (besoin jugé non urgent).
  */
 export async function appliquerSuppressionVersement(tx: any, id: string): Promise<void> {
   const existing = await tx.versement.findUnique({ where: { id } })
   if (!existing) introuvable()
 
-  // Seul un reçu ACTIF bloque : un reçu ANNULÉ garde sa trace comptable mais libère le versement.
-  const recuActif = await tx.recu.findFirst({
-    where: { versementId: id, annuleLe: null },
-    select: { id: true },
+  const recu = await tx.recu.findFirst({
+    where: { versementId: id },
+    select: { id: true, numero: true },
   })
-  if (recuActif) throw new VersementAvecRecuError()
+  if (recu) throw new VersementAvecRecuError(recu.numero)
 
   await tx.versement.delete({ where: { id } })
   await tx.contribution.update({

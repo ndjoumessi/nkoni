@@ -17,6 +17,7 @@ import {
   PlayCircle,
   Search,
   ShieldAlert,
+  Trash2,
   Users,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
@@ -204,6 +205,11 @@ export function SuperAdminPage() {
   const [tri, setTri] = useState<{ col: ColonneTri; dir: SortDir }>({ col: 'creee', dir: 'desc' })
 
   const [cibleSuspension, setCibleSuspension] = useState<PlatformOrganisation | null>(null)
+  // Suppression définitive (0.3) : la cible, la frappe de confirmation, et les états de charge.
+  const [cibleSuppression, setCibleSuppression] = useState<PlatformOrganisation | null>(null)
+  const [nomConfirmation, setNomConfirmation] = useState('')
+  const [suppressing, setSuppressing] = useState(false)
+  const [exportingId, setExportingId] = useState<string | null>(null)
   const [suspending, setSuspending] = useState(false)
   const [detailId, setDetailId] = useState<string | null>(null)
 
@@ -321,6 +327,76 @@ export function SuperAdminPage() {
       )
     } finally {
       setSuspending(false)
+    }
+  }
+
+  /** Déclenche le téléchargement d'un objet JSON, sans dépendance ni requête supplémentaire. */
+  const telechargerJson = (nomFichier: string, donnees: unknown) => {
+    const url = URL.createObjectURL(
+      new Blob([JSON.stringify(donnees, null, 2)], { type: 'application/json' }),
+    )
+    const a = document.createElement('a')
+    a.href = url
+    a.download = nomFichier
+    a.click()
+    // Libère l'objet URL : sans ça, le Blob reste en mémoire tant que l'onglet est ouvert.
+    URL.revokeObjectURL(url)
+  }
+
+  /** Export COMPLET d'une organisation — lecture seule, rejouable autant de fois que voulu. */
+  const exporterOrganisation = async (org: PlatformOrganisation) => {
+    if (!accessToken) return
+    setExportingId(org.id)
+    try {
+      const donnees = await platformApi.exporter(org.id, accessToken)
+      telechargerJson(`export-${org.nom.replace(/[^\w-]+/g, '-')}-${donnees.genereLe.slice(0, 10)}.json`, donnees)
+      toast.success(t('superAdmin.toast.exportPret'), org.nom)
+    } catch (err) {
+      toast.error(
+        t('superAdmin.toast.exportImpossible'),
+        err instanceof ApiError ? err.message : t('superAdmin.toast.reessayer'),
+      )
+    } finally {
+      setExportingId(null)
+    }
+  }
+
+  /**
+   * SUPPRESSION DÉFINITIVE. Le serveur reste le gardien (double verrou) ; l'UI le reproduit pour
+   * éviter un aller-retour perdu et rendre l'irréversibilité tangible.
+   *
+   * L'export renvoyé dans la réponse est téléchargé AUTOMATIQUEMENT : c'est la toute dernière
+   * occasion de récupérer ces données, et compter sur un opérateur pour avoir cliqué « Exporter »
+   * juste avant serait un pari.
+   */
+  const confirmerSuppression = async () => {
+    if (!accessToken || !cibleSuppression) return
+    const cible = cibleSuppression
+    setSuppressing(true)
+    try {
+      const res = await platformApi.supprimer(cible.id, nomConfirmation, accessToken)
+      telechargerJson(`export-final-${cible.nom.replace(/[^\w-]+/g, '-')}.json`, res.export)
+      setOrganisations((prev) => (prev ? prev.filter((o) => o.id !== cible.id) : prev))
+      setCibleSuppression(null)
+      setNomConfirmation('')
+      toast.success(t('superAdmin.toast.supprimee'), cible.nom)
+      // Un blob non supprimé n'annule pas la purge (les données sont parties) mais laisse un
+      // fichier facturé : on le dit plutôt que de le taire derrière un succès vert.
+      if (res.blobs.echecs.length > 0) {
+        toast.error(
+          t('superAdmin.toast.blobsRestants'),
+          // `count` et non `n` : c'est la variable sur laquelle i18next sélectionne le pluriel
+          // (_one / _other). Avec un autre nom, la forme plurielle ne serait jamais choisie.
+          t('superAdmin.toast.blobsRestantsDetail', { count: res.blobs.echecs.length }),
+        )
+      }
+    } catch (err) {
+      toast.error(
+        t('superAdmin.toast.suppressionImpossible'),
+        err instanceof ApiError ? err.message : t('superAdmin.toast.reessayer'),
+      )
+    } finally {
+      setSuppressing(false)
     }
   }
 
@@ -812,6 +888,42 @@ export function SuperAdminPage() {
               </div>
             </div>
 
+            {/*
+              Zone DANGER — visible uniquement sur une organisation SUSPENDUE, en miroir de la
+              précondition serveur (409 sinon). L'export est proposé À CÔTÉ de la suppression, et
+              d'abord : c'est la dernière occasion de récupérer les données.
+            */}
+            {!detailOrg.actif && (
+              <div className="space-y-3 rounded-xl border border-terra/30 bg-terra/[0.06] px-3.5 py-3">
+                <p className="text-sm font-medium text-foreground">
+                  {t('superAdmin.danger.titre')}
+                </p>
+                <p className="text-sm text-muted-foreground">{t('superAdmin.danger.explication')}</p>
+                <div className="flex flex-wrap justify-end gap-2">
+                  <Button
+                    variant="outline"
+                    icon={Download}
+                    loading={exportingId === detailOrg.id}
+                    onClick={() => exporterOrganisation(detailOrg)}
+                  >
+                    {t('superAdmin.danger.exporter')}
+                  </Button>
+                  <Button
+                    variant="danger"
+                    icon={Trash2}
+                    onClick={() => {
+                      const cible = detailOrg
+                      setDetailId(null)
+                      setNomConfirmation('')
+                      setCibleSuppression(cible)
+                    }}
+                  >
+                    {t('superAdmin.danger.supprimer')}
+                  </Button>
+                </div>
+              </div>
+            )}
+
             <div className="flex justify-end gap-2 border-t border-hairline pt-4">
               <Button variant="ghost" onClick={() => setDetailId(null)}>
                 {t('superAdmin.detail.fermer')}
@@ -877,6 +989,75 @@ export function SuperAdminPage() {
               onClick={confirmerSuspension}
             >
               {t('superAdmin.modal.suspendreAcces')}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/*
+        SUPPRESSION DÉFINITIVE — le seul geste irréversible de la console. Le bouton reste
+        DÉSACTIVÉ tant que le nom n'est pas frappé exactement : on force à lire ce qu'on détruit,
+        au lieu de confirmer par réflexe (même motif que la suppression d'un dépôt GitHub).
+      */}
+      <Modal
+        open={cibleSuppression !== null}
+        onClose={() => (suppressing ? undefined : setCibleSuppression(null))}
+        title={t('superAdmin.suppression.titre')}
+      >
+        <div className="space-y-4">
+          <div className="flex items-start gap-3 rounded-xl border border-terra/30 bg-terra/[0.08] px-3.5 py-3">
+            <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-terra" aria-hidden="true" />
+            <div className="space-y-2 text-sm text-muted-foreground">
+              <p>
+                {t('superAdmin.suppression.avert', { nom: cibleSuppression?.nom ?? '' })}
+              </p>
+              <p>{t('superAdmin.suppression.exportAuto')}</p>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label
+              htmlFor="confirmation-nom"
+              className="block text-sm font-medium text-foreground"
+            >
+              {t('superAdmin.suppression.label', { nom: cibleSuppression?.nom ?? '' })}
+            </label>
+            <input
+              id="confirmation-nom"
+              type="text"
+              value={nomConfirmation}
+              onChange={(e) => setNomConfirmation(e.target.value)}
+              disabled={suppressing}
+              autoComplete="off"
+              className="w-full rounded-lg border border-hairline bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60"
+              // PAS de placeholder reprenant le nom : il donnait l'illusion d'un champ déjà
+              // rempli et invitait au copier-coller — l'inverse du but, qui est de faire LIRE ce
+              // qu'on détruit. Le nom à saisir est déjà dans le libellé juste au-dessus.
+            />
+          </div>
+
+          <div className="flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={suppressing}
+              onClick={() => {
+                setCibleSuppression(null)
+                setNomConfirmation('')
+              }}
+            >
+              {t('superAdmin.modal.annuler')}
+            </Button>
+            <Button
+              type="button"
+              variant="danger"
+              icon={Trash2}
+              loading={suppressing}
+              // Comparaison EXACTE, casse comprise — identique au contrôle serveur.
+              disabled={nomConfirmation !== cibleSuppression?.nom}
+              onClick={confirmerSuppression}
+            >
+              {t('superAdmin.suppression.confirmer')}
             </Button>
           </div>
         </div>

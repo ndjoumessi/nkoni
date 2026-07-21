@@ -77,6 +77,11 @@ if (isProd) {
       "BLOB_READ_WRITE_TOKEN non défini → l'upload/téléchargement de documents, photos et reçus échouera. Posez-le sur Railway.",
     )
   }
+  if (!process.env['SENTRY_DSN']) {
+    avertir(
+      "SENTRY_DSN non défini → aucune erreur n'est remontée (5xx, échec d'audit, échec du scheduler nocturne) : une panne passera inaperçue jusqu'à ce qu'un client la signale. Posez-le sur Railway (bloquant GA 0.1).",
+    )
+  }
 }
 
 const DAY_SECONDS = 60 * 60 * 24

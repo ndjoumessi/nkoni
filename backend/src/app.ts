@@ -44,6 +44,7 @@ import { notificationsRoutes } from './routes/notifications.route'
 import { demarrerScheduler } from './services/notification-scheduler'
 import { auditContext } from './lib/audit-context'
 import { orgContext } from './lib/org-context'
+import { vraiObservabiliteClient, type ObservabiliteClient } from './lib/observabilite'
 
 // Décoration de l'instance Fastify avec le client Prisma + le client Blob (injectables en test).
 declare module 'fastify' {
@@ -51,6 +52,7 @@ declare module 'fastify' {
     prisma: PrismaClient
     blob: BlobClient
     whatsapp: WhatsAppClient
+    observabilite: ObservabiliteClient
   }
 }
 
@@ -61,6 +63,8 @@ export interface BuildAppOptions {
   blob?: BlobClient
   /** Client WhatsApp à utiliser (mock en test). Défaut : Meta Cloud API réel (no-op sans env). */
   whatsapp?: WhatsAppClient
+  /** Client d'observabilité (mock en test). Défaut : Sentry réel (no-op sans SENTRY_DSN). */
+  observabilite?: ObservabiliteClient
   /** Active le logger Fastify. Défaut : true (désactivable en test). */
   logger?: boolean
 }
@@ -82,6 +86,17 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
       return
     }
     req.log.error(error)
+    // Observabilité (0.1) : une 5xx est par définition un incident non anticipé — c'est le signal
+    // le plus important à remonter. Le `log.error` ci-dessus RESTE : les logs Railway doivent
+    // suffire à diagnostiquer même si Sentry est absent ou en panne.
+    app.observabilite.signaler(error, {
+      source: 'http',
+      methode: req.method,
+      // `routerPath` = motif de route ('/versements/:id'), pas l'URL réelle : évite de faire fuir
+      // des identifiants dans les titres d'incidents, et regroupe correctement les occurrences.
+      route: req.routeOptions?.url ?? req.url,
+      statut,
+    })
     reply.code(500).send({
       error: 'Internal Server Error',
       message: t(langueDeRequete(req), 'commun.erreurServeur'),
@@ -91,6 +106,7 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   app.decorate('prisma', opts.prisma ?? defaultPrisma)
   app.decorate('blob', opts.blob ?? vercelBlobClient)
   app.decorate('whatsapp', opts.whatsapp ?? vraiWhatsAppClient)
+  app.decorate('observabilite', opts.observabilite ?? vraiObservabiliteClient)
 
   // Contextes ALS par requête : audit (acteur, V2 §5) et organisation (isolation SaaS §2.2).
   // L'acteur et l'organisation sont renseignés ensuite par `authenticate` (après vérif JWT),

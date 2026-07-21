@@ -1,6 +1,7 @@
 import { Prisma } from '../generated/prisma/client'
 import { auditContext } from './audit-context'
 import { orgContext } from './org-context'
+import { vraiObservabiliteClient, type ObservabiliteClient } from './observabilite'
 
 /**
  * V2 (§5) — Audit trail transverse via extension Prisma ($extends, Prisma 7 ; `$use` est
@@ -121,6 +122,10 @@ export async function capturerAudit(
 export async function intercepterAudit(
   base: any,
   ctx: { model: string | undefined; operation: string; args: any; query: (args: any) => Promise<any> },
+  // Injectable pour les tests ; défaut = client réel (no-op sans SENTRY_DSN). L'extension étant
+  // construite au chargement du module (cf. `lib/prisma.ts`), il n'y a pas d'instance Fastify
+  // sous la main : l'injection se fait donc par paramètre, pas par décoration.
+  observabilite: ObservabiliteClient = vraiObservabiliteClient,
 ): Promise<any> {
   const { model, operation, args, query } = ctx
   if (!doitAuditer(model, operation)) return query(args)
@@ -145,6 +150,16 @@ export async function intercepterAudit(
   await capturerAudit(base, { model: model as string, operation, before, result }).catch((e: unknown) => {
     // eslint-disable-next-line no-console
     console.error('[audit] écriture du journal échouée (opération métier conservée) :', e)
+    // Observabilité (0.1) : ce `console.error` était le seul témoin d'une perte de traçabilité —
+    // invisible en pratique. Sur un produit dont la promesse est la transparence financière, une
+    // écriture métier NON tracée est un incident : l'opération a réussi, la preuve manque. On
+    // ALERTE donc, sans faire échouer l'opération (le best-effort de l'audit est préservé).
+    observabilite.signaler(e, {
+      source: 'audit',
+      modele: model as string,
+      operation,
+      organisationId: orgContext.organisationId() ?? null,
+    })
   })
   return result
 }

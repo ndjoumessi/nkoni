@@ -220,9 +220,14 @@ export function demarrerScheduler(app: FastifyInstance): void {
             'Vérification quotidienne des retards de cotisation terminée (toutes organisations)',
           )
         })
-        .catch((err) =>
-          app.log.error({ err }, 'Vérification des retards de cotisation échouée'),
-        )
+        .catch((err) => {
+          app.log.error({ err }, 'Vérification des retards de cotisation échouée')
+          // Observabilité (0.1) : un scheduler qui échoue est SILENCIEUX par nature — personne
+          // n'attend sa sortie, et un `log.error` à 03:00 dans Railway ne réveille personne. Il
+          // pourrait échouer toutes les nuits sans que quiconque le remarque, les relances de
+          // cotisation cessant simplement de partir. C'est précisément le cas que 0.1 vise.
+          app.observabilite.signaler(err, { source: 'scheduler', tache: 'COTISATION_RETARD' })
+        })
     },
     { timezone: 'Africa/Douala' },
   )

@@ -68,6 +68,26 @@ et opérationnel, même en vente assistée.
 4. **En continu** : 1.3 Pagination, 1.4 Revue sécurité, puis Phase 2 (doc, support, perfs, WCAG) au
    fil de l'eau et avant l'annonce GA.
 
+---
+
+## Reports assumés — dettes à traiter dans une version ultérieure
+
+Choix délibérés, pris en connaissance de cause pendant l'implémentation des bloquants 0.1 à 0.3.
+Aucun n'est un oubli : chacun a été écarté parce que son coût dépassait le besoin du moment. Ils
+sont consignés ici pour ne pas survivre uniquement dans des messages de commit.
+
+| # | Dette | Pourquoi reportée | Ce qui la rendra urgente |
+|---|-------|-------------------|--------------------------|
+| D1 | **`PlatformAuditLog` non scopé** — la suppression définitive d'une organisation n'est journalisée QUE hors base (`app.log.warn` + Sentry), l'`AuditLog` étant per-org et disparaissant avec l'org. | Une table plateforme est un ajout de schéma pour tracer une opération encore rarissime. | Le premier vrai offboarding client, ou toute exigence de traçabilité contractuelle : aujourd'hui, prouver *qui* a supprimé *quoi* dépend de la rétention des logs Railway. |
+| D2 | **Miroir des fichiers Blob** — documents et photos de membres ne sont sauvegardés nulle part. Les reçus PDF, eux, se régénèrent depuis la base (`produireRecuPdf`). | Demande du code (parcours du store, copie incrémentale) ; le runbook 0.2 documente le risque en attendant. | Le premier client qui téléverse des pièces justificatives ayant une valeur probante. ⚠️ Protéger au passage l'auto-réparation des reçus : une refonte qui la perdrait transformerait une perte Blob en perte de reçus. |
+| D3 | **Automatisation des sauvegardes** — le dump chiffré de 0.2 dépend d'un geste humain et d'une seule machine. | Acceptable à un seul tenant réel et 208 Mo de base. | **Avant l'ouverture publique** (cf. §6 du runbook). Un backup qui dépend d'une personne n'en est pas un à l'échelle. |
+| D4 | **`ErrorBoundary` React** — une erreur de rendu est bien ALERTÉE (via `window.onerror` → Sentry) mais laisse un écran blanc à l'utilisateur. | L'alerte, qui était le manque critique, est couverte par 0.1. | Dès qu'un utilisateur réel rencontre un écran blanc : on saura *qu'il* a eu lieu, sans qu'il ait pu continuer à travailler. |
+| D5 | **Export tenant self-service** — l'export et la suppression sont réservés au SUPER_ADMIN (`/platform/*`) ; un ADMIN d'organisation ne peut pas exporter ses propres données. | Choix de sécurité assumé : un compte ADMIN compromis ne doit pas pouvoir détruire les données de toute une association. | Une exigence légale de portabilité en libre-service, ou la charge de traitement manuel des demandes. Note : l'**export** pourrait être ouvert aux ADMIN sans ouvrir la **suppression**. |
+| D6 | **Suppression d'un versement au reçu annulé** — refusée (la FK `Restrict` ignore `annuleLe`, et un reçu annulé reste visible dans l'historique du membre). Une saisie fantôme se corrige à 0, elle ne s'efface pas. | Rendre la suppression possible exigerait de dénormaliser `membreId` sur `Recu` pour que les reçus orphelins restent affichables — sans quoi la trace comptable devient illisible. | Un besoin récurrent d'effacer des doublons, si les lignes à 0 polluent l'historique en pratique. |
+| D7 | **Access token survivant à une purge** — `authenticate` ne relit pas la base, un token non expiré d'un tenant supprimé passe encore la garde. | Exposition bornée à 15 min (TTL), lectures vides, écritures en échec FK, refresh mort. | Un raccourcissement du TTL ou une révocation immédiate ne se justifieraient que sur incident réel. |
+
+---
+
 ## Ce qui n'est **pas** sur le chemin critique
 
 Le produit est déjà fonctionnellement riche : inutile d'ajouter des modules métier pour la GA. Les

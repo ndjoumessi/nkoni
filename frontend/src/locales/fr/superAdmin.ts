@@ -88,6 +88,31 @@ export default {
       forfaitImpossible: 'Changement de forfait impossible',
       idCopie: 'Identifiant copié',
       copieImpossible: 'Copie impossible',
+      exportPret: 'Export téléchargé',
+      exportImpossible: 'Export impossible',
+      supprimee: 'Organisation supprimée définitivement',
+      suppressionImpossible: 'Suppression impossible',
+      blobsRestants: 'Fichiers non supprimés',
+      blobsRestantsDetail_one:
+        '{{count}} fichier n’a pas pu être effacé du stockage. Les données sont bien supprimées ; les URLs figurent dans l’export téléchargé.',
+      blobsRestantsDetail_other:
+        '{{count}} fichiers n’ont pas pu être effacés du stockage. Les données sont bien supprimées ; les URLs figurent dans l’export téléchargé.',
+    },
+    danger: {
+      titre: 'Zone de danger',
+      explication:
+        'Cette organisation est suspendue. Vous pouvez exporter ses données, ou la supprimer définitivement.',
+      exporter: 'Exporter les données',
+      supprimer: 'Supprimer définitivement',
+    },
+    suppression: {
+      titre: "Supprimer définitivement l'organisation",
+      avert:
+        'Toutes les données de {{nom}} seront effacées : membres, cotisations, versements, reçus, documents et photos. Cette action est IRRÉVERSIBLE.',
+      exportAuto:
+        "Un export complet sera téléchargé automatiquement avant l'effacement — ce sera la dernière occasion de récupérer ces données.",
+      label: 'Pour confirmer, saisissez exactement : {{nom}}',
+      confirmer: 'Supprimer définitivement',
     },
     modal: {
       titre: "Suspendre l'organisation",

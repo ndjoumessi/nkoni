@@ -88,6 +88,31 @@ export default {
       forfaitImpossible: 'Could not change plan',
       idCopie: 'Identifier copied',
       copieImpossible: 'Copy failed',
+      exportPret: 'Export downloaded',
+      exportImpossible: 'Export failed',
+      supprimee: 'Organisation permanently deleted',
+      suppressionImpossible: 'Deletion failed',
+      blobsRestants: 'Files not deleted',
+      blobsRestantsDetail_one:
+        '{{count}} file could not be removed from storage. The data is deleted; the URLs are listed in the downloaded export.',
+      blobsRestantsDetail_other:
+        '{{count}} files could not be removed from storage. The data is deleted; the URLs are listed in the downloaded export.',
+    },
+    danger: {
+      titre: 'Danger zone',
+      explication:
+        'This organisation is suspended. You can export its data, or delete it permanently.',
+      exporter: 'Export data',
+      supprimer: 'Delete permanently',
+    },
+    suppression: {
+      titre: 'Permanently delete organisation',
+      avert:
+        'All data for {{nom}} will be erased: members, contributions, payments, receipts, documents and photos. This action is IRREVERSIBLE.',
+      exportAuto:
+        'A complete export will be downloaded automatically before erasure — this is the last chance to recover the data.',
+      label: 'To confirm, type exactly: {{nom}}',
+      confirmer: 'Delete permanently',
     },
     modal: {
       titre: 'Suspend the organisation',

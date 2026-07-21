@@ -78,6 +78,13 @@ export default {
       whatsapp: 'WhatsApp',
       modifier: 'Modifier',
       supprimer: 'Supprimer',
+      // Motifs affichés sur les actions DÉSACTIVÉES (miroir des gardes serveur §4.6). Ils
+      // doivent dire quoi faire, pas seulement que c'est interdit : annuler le reçu débloque
+      // la modification, alors que la suppression, elle, ne se débloque jamais.
+      modifBloqueeRecuActif:
+        'Le reçu {{numero}} est actif : annulez-le avant de modifier ce versement.',
+      supprBloqueeRecu:
+        'Le reçu {{numero}} a été émis pour ce versement : il ne peut plus être supprimé. Corrigez plutôt son montant.',
     },
     edition: {
       titre: 'Modifier le versement',

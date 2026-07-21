@@ -277,6 +277,28 @@ export function VersementsList({
     <div className="space-y-2 px-3 py-3">
       {versements.map((v) => {
         const recu = recus.get(v.id)
+
+        /*
+          MIROIR EXACT des gardes serveur (§4.6) — asymétriques, et c'est délibéré :
+            - MODIFICATION bloquée par un reçu ACTIF seulement (l'annuler débloque) ;
+            - SUPPRESSION bloquée par TOUT reçu, annulé compris (la FK `Restrict` ignore
+              `annuleLe`, et un reçu annulé référence toujours ce versement).
+
+          On DÉSACTIVE plutôt que de laisser cliquer : le serveur refusait bien en 409, mais
+          l'interface continuait d'offrir une action qui ne pouvait jamais aboutir — l'utilisateur
+          ouvrait une modale de confirmation, confirmait, et récoltait une erreur. La garde
+          serveur reste la seule vraie protection ; celle-ci évite d'inviter à un geste perdu.
+
+          `null` = action permise ; sinon la chaîne EST le motif affiché à l'utilisateur.
+        */
+        const recuActif = recu && recu.annuleLe === null ? recu : null
+        const raisonBlocageModif = recuActif
+          ? t('versements.liste.modifBloqueeRecuActif', { numero: recuActif.numero })
+          : null
+        const raisonBlocageSuppr = recu
+          ? t('versements.liste.supprBloqueeRecu', { numero: recu.numero })
+          : null
+
         return (
           <div
             key={v.id}
@@ -291,16 +313,30 @@ export function VersementsList({
               </p>
               {v.note && <p className="mt-0.5 truncate text-xs text-faint">{v.note}</p>}
             </div>
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center justify-end gap-x-2 gap-y-1.5">
               {recu && recu.annuleLe === null ? (
                 <>
                   <Badge tone="jade" size="sm">
                     <FileText className="h-3.5 w-3.5" aria-hidden="true" />
                     {t('versements.liste.recu', { numero: recu.numero })}
                   </Badge>
-                  <Button variant="ghost" size="sm" icon={Download} onClick={() => telecharger(recu.id)}>
-                    {t('versements.liste.telecharger')}
-                  </Button>
+                  {/*
+                    ICÔNE SEULE — mesuré : la rangée d'un reçu actif porte 6 éléments pour 686 px
+                    dans 658 px disponibles, elle débordait donc systématiquement. Le libellé
+                    « Télécharger » (120 px) est celui qu'on retire : la flèche descendante est
+                    l'icône la moins ambiguë du lot, et Modifier/Supprimer sont déjà en icône seule
+                    juste à côté. « WhatsApp » et « Annuler le reçu » GARDENT leur libellé — le
+                    premier nomme un canal (une icône d'envoi ne le dirait pas), le second est
+                    l'action conséquente de la rangée.
+                  */}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    icon={Download}
+                    aria-label={t('versements.liste.telecharger')}
+                    title={t('versements.liste.telecharger')}
+                    onClick={() => telecharger(recu.id)}
+                  />
                   {peutGerer && (
                     <>
                       <Button
@@ -347,25 +383,42 @@ export function VersementsList({
                 </>
               )}
               {peutGerer && (
-                <>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    icon={Pencil}
-                    aria-label={t('versements.liste.modifier')}
-                    title={t('versements.liste.modifier')}
-                    onClick={() => ouvrirEdition(v)}
-                  />
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    icon={Trash2}
-                    aria-label={t('versements.liste.supprimer')}
-                    title={t('versements.liste.supprimer')}
-                    className="hover:bg-terra/10 hover:text-terra"
-                    onClick={() => setConfirmDelete(v)}
-                  />
-                </>
+                /*
+                  Actions portant sur le VERSEMENT (et non sur le reçu) — séparées par un filet
+                  et groupées en `flex-nowrap` : sans ça la corbeille se retrouvait seule sur une
+                  deuxième ligne dès qu'un reçu actif ajoutait ses trois actions à la rangée.
+                */
+                <div className="flex shrink-0 items-center gap-1 border-l border-hairline pl-2">
+                  {/*
+                    Un bouton désactivé ne reçoit AUCUN événement de pointeur
+                    (`disabled:pointer-events-none`) : son `title` natif ne s'afficherait jamais.
+                    D'où le `span` porteur — sans lui, l'utilisateur verrait un bouton grisé sans
+                    la moindre explication, ce qui est pire qu'un bouton qui échoue.
+                  */}
+                  <span title={raisonBlocageModif ?? undefined} className="inline-flex">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      icon={Pencil}
+                      disabled={raisonBlocageModif !== null}
+                      aria-label={raisonBlocageModif ?? t('versements.liste.modifier')}
+                      title={raisonBlocageModif ? undefined : t('versements.liste.modifier')}
+                      onClick={() => ouvrirEdition(v)}
+                    />
+                  </span>
+                  <span title={raisonBlocageSuppr ?? undefined} className="inline-flex">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      icon={Trash2}
+                      disabled={raisonBlocageSuppr !== null}
+                      aria-label={raisonBlocageSuppr ?? t('versements.liste.supprimer')}
+                      title={raisonBlocageSuppr ? undefined : t('versements.liste.supprimer')}
+                      className="hover:bg-terra/10 hover:text-terra"
+                      onClick={() => setConfirmDelete(v)}
+                    />
+                  </span>
+                </div>
               )}
             </div>
           </div>

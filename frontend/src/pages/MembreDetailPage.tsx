@@ -598,6 +598,7 @@ export function MembreDetailPage() {
                         <VersementsList
                           contributionId={c.id}
                           membreId={membre.id}
+                          annee={c.annee}
                           membreTelephone={membre.telephone}
                           membrePrenom={membre.prenom}
                           onChange={rechargerFinancier}

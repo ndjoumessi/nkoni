@@ -32,7 +32,11 @@ export interface RecuMembre {
   id: string
   numero: string
   date: string
+  /** Montant FIGÉ à l'émission — celui qu'atteste le PDF, pas celui du versement aujourd'hui. */
   montant: number
+  /** `null` = reçu ACTIF. Renseigné ⇒ annulé : le numéro reste, le PDF n'est plus servi. */
+  annuleLe: string | null
+  /** `false` pour un reçu annulé — l'annoncer téléchargeable menait droit à un 409. */
   telechargeable: boolean
 }
 

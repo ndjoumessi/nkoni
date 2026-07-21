@@ -6,7 +6,12 @@ import { API_URL, leverSiErreur, request, rid } from './core'
 
 export interface Recu {
   id: string
-  versementId: string
+  /**
+   * `null` = reçu ORPHELIN : son versement a été supprimé après annulation du reçu. La ligne
+   * survit (sans quoi son numéro serait réutilisé) et reste affichable grâce au snapshot
+   * ci-dessous. Un reçu orphelin est TOUJOURS annulé — c'est la condition de la suppression.
+   */
+  versementId: string | null
   numero: string
   genereParId: string
   dateGeneration: string
@@ -15,6 +20,17 @@ export interface Recu {
   annuleLe: string | null
   /** Jeton signé du lien PUBLIC de téléchargement (partage WhatsApp), fourni par le backend. */
   signaturePartage: string
+
+  /**
+   * SNAPSHOT figé à la génération. Ces valeurs viennent du versement au moment de l'émission,
+   * et sont la SEULE source d'affichage une fois le reçu orphelin. Ne pas les recalculer depuis
+   * le versement : il peut ne plus exister, et son montant a pu changer depuis.
+   */
+  membreId: string
+  montant: number
+  dateVersement: string
+  annee: number
+  mode: string
 }
 
 export const recusApi = {

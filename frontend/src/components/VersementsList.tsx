@@ -13,6 +13,7 @@ import {
 import { peutSaisirVersement } from '@/lib/roles'
 import { formatMontant } from '@/lib/format'
 import { formatDate, telephoneWaMe } from '@/lib/utils'
+import { cleI18n } from '@/lib/i18n'
 import { useToast } from '@/components/ui/Toast'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
@@ -40,12 +41,19 @@ const versISODate = (iso: string): string => iso.slice(0, 10)
 export function VersementsList({
   contributionId,
   membreId,
+  annee,
   membreTelephone,
   membrePrenom,
   onChange,
 }: {
   contributionId: string
   membreId: string
+  /**
+   * Année de la contribution affichée. Sert à ranger les reçus ORPHELINS sous le bon accordéon :
+   * `listByMembre` renvoie tous les reçus du membre, alors que ce composant est monté une fois
+   * par année. Sans ce filtre, un orphelin apparaîtrait partout.
+   */
+  annee: number
   /** Téléphone du membre — pré-remplit le destinataire du lien `wa.me` de partage du reçu. */
   membreTelephone?: string | null
   /** Prénom du membre — personnalise la salutation du message WhatsApp (« Bonjour Romel, … »). */
@@ -57,6 +65,8 @@ export function VersementsList({
   const toast = useToast()
   const [versements, setVersements] = useState<Versement[]>([])
   const [recus, setRecus] = useState<Map<string, Recu>>(new Map())
+  /** Reçus dont le versement a été supprimé — affichés en trace, sans aucune action possible. */
+  const [orphelins, setOrphelins] = useState<Recu[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [generating, setGenerating] = useState<string | null>(null)
@@ -92,13 +102,25 @@ export function VersementsList({
         // (chaque émission consomme un numéro). On retient le reçu ACTIF s'il existe, sinon le
         // dernier annulé — pour afficher l'état courant, pas un document périmé.
         const parVersement = new Map<string, Recu>()
+        const sansVersement: Recu[] = []
         for (const r of rs) {
+          // Reçu ORPHELIN : son versement a été supprimé. Il n'a aucune ligne à laquelle
+          // s'accrocher — on le rend à part, en trace lecture seule.
+          //
+          // Filtré sur l'ANNÉE : ce composant est monté une fois par contribution (donc par
+          // année), alors que `listByMembre` renvoie TOUS les reçus du membre. Sans ce filtre,
+          // chaque orphelin apparaîtrait dans TOUS les accordéons annuels.
+          if (r.versementId === null) {
+            if (r.annee === annee) sansVersement.push(r)
+            continue
+          }
           const courant = parVersement.get(r.versementId)
           if (!courant || (courant.annuleLe !== null && r.annuleLe === null)) {
             parVersement.set(r.versementId, r)
           }
         }
         setRecus(parVersement)
+        setOrphelins(sansVersement)
       } catch (e) {
         if (e instanceof DOMException && e.name === 'AbortError') return
         setError(e instanceof ApiError ? e.message : t('versements.liste.erreurChargement'))
@@ -106,7 +128,7 @@ export function VersementsList({
         setLoading(false)
       }
     },
-    [accessToken, contributionId, membreId, t],
+    [accessToken, contributionId, membreId, annee, t],
   )
 
   useEffect(() => {
@@ -141,7 +163,11 @@ export function VersementsList({
     setAnnulantRecu(recu.id)
     try {
       const maj = await recusApi.annuler(recu.id, accessToken)
-      setRecus((prev) => new Map(prev).set(recu.versementId, { ...recu, annuleLe: maj.annuleLe }))
+      // `versementId` non nul par construction : seul un reçu ACTIF est annulable, et un reçu
+      // actif a TOUJOURS un versement (l'orphelinage suppose l'annulation préalable). La garde
+      // rend l'invariant lisible plutôt que de l'écraser d'un `!`.
+      const vId = recu.versementId
+      if (vId) setRecus((prev) => new Map(prev).set(vId, { ...recu, annuleLe: maj.annuleLe }))
       setRecuAAnnuler(null)
       toast.success(
         t('versements.toast.recuAnnule'),
@@ -279,15 +305,17 @@ export function VersementsList({
         const recu = recus.get(v.id)
 
         /*
-          MIROIR EXACT des gardes serveur (§4.6) — asymétriques, et c'est délibéré :
-            - MODIFICATION bloquée par un reçu ACTIF seulement (l'annuler débloque) ;
-            - SUPPRESSION bloquée par TOUT reçu, annulé compris (la FK `Restrict` ignore
-              `annuleLe`, et un reçu annulé référence toujours ce versement).
+          MIROIR EXACT des gardes serveur (§4.6) — désormais SYMÉTRIQUES : seul un reçu ACTIF
+          bloque, aussi bien la modification que la suppression. L'annuler débloque les deux.
 
-          On DÉSACTIVE plutôt que de laisser cliquer : le serveur refusait bien en 409, mais
-          l'interface continuait d'offrir une action qui ne pouvait jamais aboutir — l'utilisateur
-          ouvrait une modale de confirmation, confirmait, et récoltait une erreur. La garde
-          serveur reste la seule vraie protection ; celle-ci évite d'inviter à un geste perdu.
+          (Historique : la suppression a un temps été bloquée par TOUT reçu, la FK étant en
+          `Restrict` inconditionnel. Elle est passée en `SetNull` — supprimer le versement laisse
+          désormais un reçu ORPHELIN, conservé et affiché en trace plus bas.)
+
+          On DÉSACTIVE plutôt que de laisser cliquer : le serveur refuse bien en 409, mais offrir
+          une action qui ne peut jamais aboutir fait ouvrir une modale, confirmer, et récolter une
+          erreur. La garde serveur reste la seule vraie protection ; celle-ci évite d'inviter à un
+          geste perdu.
 
           `null` = action permise ; sinon la chaîne EST le motif affiché à l'utilisateur.
         */
@@ -295,8 +323,8 @@ export function VersementsList({
         const raisonBlocageModif = recuActif
           ? t('versements.liste.modifBloqueeRecuActif', { numero: recuActif.numero })
           : null
-        const raisonBlocageSuppr = recu
-          ? t('versements.liste.supprBloqueeRecu', { numero: recu.numero })
+        const raisonBlocageSuppr = recuActif
+          ? t('versements.liste.supprBloqueeRecu', { numero: recuActif.numero })
           : null
 
         return (
@@ -424,6 +452,38 @@ export function VersementsList({
           </div>
         )
       })}
+
+      {/*
+        REÇUS ORPHELINS — leur versement a été supprimé (ce qui suppose que le reçu était déjà
+        annulé). La ligne survit pour deux raisons : son numéro serait sinon réutilisé par la
+        génération suivante, et un membre à qui ce reçu a été remis doit pouvoir en retrouver la
+        trace. Tout est lu sur le SNAPSHOT figé à l'émission, pas sur un versement qui n'existe
+        plus.
+
+        Lecture seule et SANS garde de rôle : c'est une trace, pas une action. Aucun bouton —
+        télécharger et partager sont refusés (409) sur un reçu annulé, et il n'y a plus rien à
+        modifier ni à supprimer.
+      */}
+      {orphelins.map((r) => (
+        <div
+          key={r.id}
+          className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dashed border-hairline bg-surface/30 px-4 py-3 opacity-75"
+        >
+          <div className="min-w-0">
+            <p className="num text-sm font-medium text-muted-foreground">
+              {formatMontant(r.montant)}
+              <span className="ml-2 text-xs font-normal text-faint">
+                {formatDate(r.dateVersement, DATE_COURTE)} · {t(cleI18n(`versements.modes.${r.mode}`))}
+              </span>
+            </p>
+            <p className="mt-0.5 text-xs text-faint">{t('versements.liste.versementSupprime')}</p>
+          </div>
+          <Badge tone="neutral" size="sm">
+            <Ban className="h-3.5 w-3.5" aria-hidden="true" />
+            {t('versements.liste.recuAnnule', { numero: r.numero })}
+          </Badge>
+        </div>
+      ))}
 
       {/* Modale d'édition */}
       <Modal open={editing !== null} onClose={() => setEditing(null)} title={t('versements.edition.titre')}>

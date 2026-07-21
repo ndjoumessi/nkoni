@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Wallet, ArrowDownCircle, CircleDollarSign, CalendarDays, FileText, Download, UserX } from 'lucide-react'
+import { Wallet, ArrowDownCircle, CircleDollarSign, CalendarDays, FileText, Download, UserX, Ban } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
 import {
   moiApi,
@@ -22,6 +22,7 @@ import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { DataTable, type Column } from '@/components/ui/DataTable'
 import { Skeleton } from '@/components/ui/Skeleton'
+import { Badge } from '@/components/ui/Badge'
 import { StatutCotisationBadge, StatutMembreBadge } from '@/components/membres/StatutBadges'
 import { TypeReunionBadge } from '@/components/reunions/StatutBadges'
 import type { StatutContribution, StatutMembre, TypeReunion } from '@/lib/api'
@@ -141,7 +142,23 @@ export function MonEspacePage() {
   ]
 
   const colRecus: Column<RecuMembre>[] = [
-    { key: 'numero', header: t('monEspace.recus.numero'), cell: (r) => <span className="num">{r.numero}</span> },
+    {
+      key: 'numero',
+      header: t('monEspace.recus.numero'),
+      // Le badge est ce qui distingue « ce reçu a été annulé » d'une panne de téléchargement :
+      // sans lui, la mention « indisponible » de la dernière colonne se lit comme un incident.
+      cell: (r) => (
+        <span className="inline-flex items-center gap-2">
+          <span className="num">{r.numero}</span>
+          {r.annuleLe !== null && (
+            <Badge tone="neutral" size="sm">
+              <Ban className="h-3 w-3" aria-hidden="true" />
+              {t('monEspace.recus.annule')}
+            </Badge>
+          )}
+        </span>
+      ),
+    },
     { key: 'date', header: t('monEspace.recus.date'), cell: (r) => formatDate(r.date) },
     { key: 'montant', header: t('monEspace.recus.montant'), numeric: true, cell: (r) => formatMontant(r.montant) },
     {

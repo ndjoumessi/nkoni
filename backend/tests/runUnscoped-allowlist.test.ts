@@ -31,7 +31,15 @@ const APPROUVES: Record<string, number> = {
   'routes/auth.route.ts': 8,
   // Console PLATEFORME (SUPER_ADMIN transverse, §2.3) : liste / lecture / attribution de forfait
   // d'organisations — par nature hors d'un tenant unique. 3 appels.
-  'routes/platform.route.ts': 3,
+  // + EXPORT et SUPPRESSION DÉFINITIVE d'une organisation (bloquant GA 0.3) : 2 appels de plus,
+  // UN SEUL par handler, enveloppant tout le flux (lecture des 26 modèles scopés, transaction de
+  // purge, collecte des ids d'utilisateurs). Bypass INDISPENSABLE — le SUPER_ADMIN n'a pas de
+  // claim `organisationId`, l'extension d'isolation fail-close sinon dès la première lecture.
+  // ⚠️ CONTREPARTIE : l'isolation ne protège plus rien à l'intérieur. C'est le service
+  // `organisation-purge.service.ts` qui construit lui-même chaque `where.organisationId` (un
+  // `deleteMany({})` y effacerait TOUTES les organisations), et un test unitaire dédié vérifie
+  // que chaque suppression est scopée. 5 appels au total.
+  'routes/platform.route.ts': 5,
   // Lien PUBLIC signé — carte de statut (§4.7) : résolution de l'org du membre AVANT `orgContext.run`.
   'routes/cartes.route.ts': 1,
   // Lien PUBLIC signé — reçu PDF public (§4.6) : résolution de l'org du reçu, idem.

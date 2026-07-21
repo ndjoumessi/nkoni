@@ -131,6 +131,16 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
       .map((o) => o.trim())
       .filter(Boolean),
     credentials: true,
+    // `methods` est OBLIGATOIRE : le défaut de @fastify/cors est `GET,HEAD,POST` seulement, donc
+    // le préflight REFUSAIT tout PATCH et tout DELETE (le navigateur n'envoyait même pas la
+    // requête — échec `net::ERR_FAILED` côté client, AUCUNE trace côté serveur, d'où un
+    // diagnostic très trompeur).
+    //
+    // Pourquoi ça n'a jamais été vu : en PRODUCTION le front passe par le proxy same-origin
+    // Vercel (`/api/*`), donc aucun préflight n'a lieu et tout fonctionne. Le défaut ne mordait
+    // qu'en développement local (Vite :5173 → API :3000, cross-origin), où modifier un versement,
+    // supprimer un document, changer un forfait ou une photo échouaient silencieusement.
+    methods: ['GET', 'HEAD', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
   })
 
   // En-têtes de sécurité (nosniff, X-Frame-Options, Referrer-Policy, HSTS en prod…). CSP désactivée

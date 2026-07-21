@@ -81,6 +81,25 @@ const updateVersementSchema = {
 const isP2025 = (err: unknown): boolean =>
   err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2025'
 
+/**
+ * FILET DE SÉCURITÉ — violation de clé étrangère atteignant la base malgré les gardes applicatives.
+ *
+ * Ne doit jamais se déclencher : les gardes de `versement.service` interceptent en amont. Mais quand
+ * la garde et la contrainte divergent, l'erreur remonte du DRIVER (`DriverAdapterError`, message
+ * « violates RESTRICT setting of foreign key constraint ») et NON en `P2003` — donc hors de tout
+ * mappage typé, jusqu'au `throw` → 500 « erreur inattendue » (défaut vécu en production le
+ * 2026-07-21). On teste donc le code Prisma connu ET le message brut du driver, pour qu'une
+ * divergence future dégrade en 409 explicite plutôt qu'en 500 opaque.
+ */
+const isViolationCleEtrangere = (err: unknown): boolean => {
+  if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2003') return true
+  const message = (err as { message?: unknown } | null)?.message
+  return (
+    typeof message === 'string' &&
+    /foreign key constraint|RESTRICT setting/i.test(message)
+  )
+}
+
 export const versementsRoutes: FastifyPluginAsync = async (
   app: FastifyInstance,
 ) => {
@@ -208,6 +227,16 @@ export const versementsRoutes: FastifyPluginAsync = async (
         )
         return versement
       } catch (err) {
+        // Garde symétrique de celle de la suppression : sans ce mappage, le refus métier
+        // (reçu ACTIF) remontait en 500 « erreur inattendue » au lieu d'un 409 explicite.
+        if (err instanceof VersementAvecRecuError) {
+          return reply.code(409).send({
+            error: 'Conflict',
+            message: t(langueDeRequete(req), 'versements.modificationRecuActif', {
+              numero: err.numero,
+            }),
+          })
+        }
         if (isP2025(err)) {
           return reply.code(404).send({
             error: 'Not Found',
@@ -231,13 +260,22 @@ export const versementsRoutes: FastifyPluginAsync = async (
         if (err instanceof VersementAvecRecuError) {
           return reply.code(409).send({
             error: 'Conflict',
-            message: t(langueDeRequete(req), 'versements.suppressionRecuEmis'),
+            message: t(langueDeRequete(req), 'versements.suppressionRecuEmis', {
+              numero: err.numero,
+            }),
           })
         }
         if (isP2025(err)) {
           return reply.code(404).send({
             error: 'Not Found',
             message: t(langueDeRequete(req), 'versements.versementIntrouvable'),
+          })
+        }
+        // Filet : la FK a parlé avant la garde (divergence garde ↔ contrainte) → 409, jamais 500.
+        if (isViolationCleEtrangere(err)) {
+          return reply.code(409).send({
+            error: 'Conflict',
+            message: t(langueDeRequete(req), 'versements.suppressionRecuEmis', { numero: '—' }),
           })
         }
         throw err

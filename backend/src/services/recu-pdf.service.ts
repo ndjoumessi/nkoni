@@ -144,6 +144,11 @@ export async function chargerDonneesRecuPdf(
     },
   })
   if (!recu) return null
+  // Reçu ORPHELIN (son versement a été supprimé) → forcément ANNULÉ, donc jamais servi de toute
+  // façon. On sort AVANT le findUnique : `where: { id: null }` ne renvoie PAS null, il lève une
+  // `PrismaClientValidationError` — hors de tout mappage typé, donc 500, y compris sur le lien
+  // PUBLIC signé dont la garantie est un 404 UNIFORME (pas de fuite d'existence).
+  if (!recu.versementId) return null
   const versement = await prisma.versement.findUnique({
     where: { id: recu.versementId },
     select: {

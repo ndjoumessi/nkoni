@@ -32,7 +32,20 @@ interface MockRecu {
 }
 
 function buildMock(versementIds: string[] = ['v1']) {
-  const versements = new Map(versementIds.map((id) => [id, { id }]))
+  // Le versement doit porter tout ce que `genererRecu` FIGE sur le reçu (snapshot) : sans la
+  // relation `contribution`, la génération planterait sur `versement.contribution.membreId`.
+  const versements = new Map(
+    versementIds.map((id) => [
+      id,
+      {
+        id,
+        montant: 12000,
+        dateVersement: new Date('2026-06-01T00:00:00Z'),
+        mode: 'ESPECES',
+        contribution: { membreId: 'm1', annee: 2026 },
+      },
+    ]),
+  )
   const recus = new Map<string, MockRecu>()
   let seq = 0
 
@@ -162,7 +175,15 @@ describe('genererRecu (§4.6)', () => {
     let premiereCreation = true
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const prisma: any = {
-      versement: { findUnique: async () => ({ id: 'v1' }) },
+      versement: {
+        findUnique: async () => ({
+          id: 'v1',
+          montant: 12000,
+          dateVersement: new Date('2026-06-01T00:00:00Z'),
+          mode: 'ESPECES',
+          contribution: { membreId: 'm1', annee: 2026 },
+        }),
+      },
       recu: {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         findFirst: async ({ where }: any) => {

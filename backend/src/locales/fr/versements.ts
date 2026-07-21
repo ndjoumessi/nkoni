@@ -2,11 +2,11 @@
 export const messages = {
   'versements.contributionIntrouvable': 'Contribution introuvable.',
   'versements.versementIntrouvable': 'Versement introuvable.',
-  // Suppression : bloquée par TOUT reçu, annulé compris — annuler ne débloque PAS (la FK
-  // `onDelete: Restrict` l'ignore, et le reçu annulé référence ce versement). On oriente donc
-  // vers la correction, seule issue réelle, plutôt que vers une annulation sans effet.
+  // Suppression : bloquée par un reçu ACTIF seulement. L'annuler débloque — le reçu survit alors
+  // en orphelin, avec son numéro et son montant figés (migration `recu_orphelin_snapshot_membre`).
+  // Même conseil que pour la modification, car c'est le même geste.
   'versements.suppressionRecuEmis':
-    'Le reçu {numero} a été émis pour ce versement : il ne peut plus être supprimé. Corrigez plutôt son montant.',
+    'Le reçu {numero} est actif pour ce versement : annulez-le avant de le supprimer.',
   // Modification : bloquée par un reçu ACTIF seulement — l'annuler débloque vraiment.
   'versements.modificationRecuActif':
     'Le reçu {numero} est actif pour ce versement : annulez-le avant de le modifier.',

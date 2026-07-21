@@ -34,9 +34,9 @@ describe('ORDRE_SUPPRESSION — parité avec les modèles à purger', () => {
 /**
  * VALIDITÉ TOPOLOGIQUE — dérivée du SCHÉMA, pas d'une liste recopiée à la main.
  *
- * On parse `schema.prisma` plutôt que le DMMF : la relation qui nous intéresse (`Recu.versementId`
- * en `onDelete: Restrict`) y est déclarée explicitement, et le parsing textuel reste cohérent avec
- * `tests/tenant-scoped-models.test.ts` qui procède déjà ainsi.
+ * On parse `schema.prisma` plutôt que le DMMF : les relations qui nous intéressent y sont déclarées
+ * explicitement, et le parsing textuel reste cohérent avec `tests/tenant-scoped-models.test.ts`
+ * qui procède déjà ainsi.
  *
  * NB : les relations OBLIGATOIRES sans `onDelete` explicite sont en `Restrict` chez Prisma — mais
  * elles pointent toutes vers `Organisation`, déjà placée en dernier par construction. On ne teste
@@ -63,9 +63,15 @@ describe('ORDRE_SUPPRESSION — validité topologique vis-à-vis des FK Restrict
       }
     }
 
-    // Le schéma DOIT contenir au moins l'arête connue Recu → Versement ; sans elle, le parsing
-    // est cassé et le test passerait à vide (piège classique du test qui ne teste rien).
-    expect(aretes).toContainEqual({ enfant: 'Recu', parent: 'Versement' })
+    // Le schéma DOIT contenir au moins une arête connue ; sans elle, le parsing est cassé et le
+    // test passerait à vide (piège classique du test qui ne teste rien).
+    //
+    // C'ÉTAIT `Recu → Versement`, jusqu'à ce que cette FK passe en `SetNull` (migration
+    // `recu_orphelin_snapshot_membre` : supprimer un versement dont le reçu est ANNULÉ est
+    // désormais permis, le reçu survit en orphelin). On ancre donc sur `Recu → Membre`, la FK
+    // introduite par ce même chantier — le reçu porte maintenant son membre en dur, et un membre
+    // porteur de reçus reste indélétable.
+    expect(aretes).toContainEqual({ enfant: 'Recu', parent: 'Membre' })
 
     for (const { enfant, parent } of aretes) {
       const iEnfant = ORDRE_SUPPRESSION.indexOf(enfant)

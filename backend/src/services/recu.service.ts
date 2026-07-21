@@ -201,9 +201,17 @@ export async function genererRecu(
   for (let tentative = 1; tentative <= MAX_TENTATIVES; tentative++) {
     try {
       return await prisma.$transaction(async (tx) => {
+        // On lit tout ce qui sera FIGÉ sur le reçu (cf. `data` du create plus bas) : le versement
+        // peut disparaître plus tard, et ces valeurs deviennent alors irrécupérables.
         const versement = await tx.versement.findUnique({
           where: { id: versementId },
-          select: { id: true },
+          select: {
+            id: true,
+            montant: true,
+            dateVersement: true,
+            mode: true,
+            contribution: { select: { membreId: true, annee: true } },
+          },
         })
         if (!versement) throw new VersementIntrouvableError(versementId)
 
@@ -220,7 +228,25 @@ export async function genererRecu(
         const numero = await genererNumeroSequentiel(annee, tx)
 
         return tx.recu.create({
-          data: { versementId, numero, genereParId, dateGeneration: now },
+          data: {
+            versementId,
+            numero,
+            genereParId,
+            dateGeneration: now,
+            // SNAPSHOT — recopié, jamais joint. Le versement peut être supprimé une fois ce reçu
+            // annulé ; ces valeurs sont alors la SEULE façon de continuer à afficher le reçu dans
+            // l'historique du membre (cf. commentaire du champ `versementId` dans schema.prisma).
+            //
+            // FK SCALAIRE `membreId`, JAMAIS `membre: { connect }` : la forme relation bascule
+            // Prisma en input « checked », où le scalaire `organisationId` n'existe plus —
+            // l'extension d'isolation ne peut alors plus l'injecter (« Argument `organisation` is
+            // missing »). Régression connue : `document-create.integration.test.ts`.
+            membreId: versement.contribution.membreId,
+            annee: versement.contribution.annee,
+            montant: versement.montant,
+            dateVersement: versement.dateVersement,
+            mode: versement.mode,
+          },
         })
       })
     } catch (err) {

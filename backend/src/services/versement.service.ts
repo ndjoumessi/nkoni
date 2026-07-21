@@ -109,32 +109,43 @@ export async function appliquerModificationVersement(
  * (VersementAvecRecuError) si un reçu a été émis (audit M3 : pas de reçu orphelin). Lève P2025 si
  * le versement est introuvable.
  *
- * TOUT reçu bloque — ACTIF **comme ANNULÉ** — et c'est délibéré, contrairement à la garde de
- * MODIFICATION qui, elle, ne regarde que les reçus actifs. Deux raisons, l'une subie, l'autre voulue :
+ * Garde SYMÉTRIQUE de celle de la modification : seul un reçu **ACTIF** bloque. L'annuler débloque
+ * les deux — c'est le parcours de correction (annuler → corriger, ou annuler → supprimer), en deux
+ * gestes délibérés plutôt qu'un seul clic destructeur.
  *
- *  1. La FK `Recu.versementId` est `onDelete: Restrict` INCONDITIONNEL : elle ignore `annuleLe`.
- *     Ne bloquer que sur un reçu actif laissait donc passer la garde applicative pour aller heurter
- *     la contrainte en base — erreur brute du driver (pas un code Prisma connu), non mappée, rendue
- *     en **500 « erreur inattendue »**. Défaut vécu en production le 2026-07-21.
- *  2. Même sans la FK, supprimer serait le mauvais geste : un reçu annulé RÉFÉRENCE ce versement et
- *     reste visible dans l'historique du membre (`GET /recus`, résolu via `versementId`). Faire
- *     disparaître le versement rendrait cette trace comptable illisible — or c'est précisément ce
- *     que l'annulation comptable cherche à préserver. La correction d'une saisie erronée passe par
- *     la MODIFICATION (annuler le reçu → corriger le montant → réémettre), qui reste ouverte.
+ * HISTORIQUE, car ce code a déjà changé d'avis deux fois et le prochain lecteur doit savoir
+ * pourquoi :
+ *  1. À l'origine, la garde ne regardait que les reçus actifs alors que la FK était
+ *     `onDelete: Restrict` INCONDITIONNEL. Elle laissait donc passer pour aller heurter la
+ *     contrainte en base — erreur brute du driver, non mappée, **500 opaque** (prod 2026-07-21).
+ *  2. On a d'abord aligné en bloquant sur TOUT reçu. Correct, mais un versement fantôme déjà
+ *     reçu-annulé devenait ineffaçable : il ne se corrigeait plus qu'à 0, laissant une ligne
+ *     parasite dans l'historique.
+ *  3. Aujourd'hui la FK est en `onDelete: SetNull` et le reçu porte un SNAPSHOT (`membreId`,
+ *     `montant`, `dateVersement`, `annee`, `mode`). Supprimer le versement laisse donc un reçu
+ *     ORPHELIN, qui reste consultable dans l'historique du membre grâce à ce snapshot. La ligne
+ *     `Recu` DOIT survivre : `genererNumeroSequentiel` lit `max(numero)`, la supprimer ferait
+ *     réutiliser son numéro.
  *
- * Corollaire assumé : un versement fantôme déjà reçu-annulé ne s'efface plus, il se corrige à 0.
- * Le rendre supprimable exigerait de dénormaliser le membre sur `Recu` pour que les reçus orphelins
- * restent affichables — chantier délibérément non entrepris (besoin jugé non urgent).
+ * INVARIANT que cette garde est seule à tenir : « un reçu ACTIF a toujours un versement ». Il n'est
+ * pas exprimable en base (Prisma ne porte pas de CHECK conditionnel ; un CHECK brut serait invisible
+ * de `schema.prisma` et perdu au prochain `migrate dev`). Le seul chemin vers `versementId = NULL`
+ * passe ICI. Vérifiable a posteriori par `recusActifsOrphelins`.
+ *
+ * Course résiduelle assumée : en READ COMMITTED, un `genererRecu` concurrent peut valider un reçu
+ * actif entre ce `findFirst` et le `delete`. Fermer la fenêtre demanderait un `FOR UPDATE` en SQL
+ * brut dans un service qui n'en contient pas ; à l'échelle d'une trésorière unique le risque est
+ * théorique, et `recusActifsOrphelins` le détecterait.
  */
 export async function appliquerSuppressionVersement(tx: any, id: string): Promise<void> {
   const existing = await tx.versement.findUnique({ where: { id } })
   if (!existing) introuvable()
 
-  const recu = await tx.recu.findFirst({
-    where: { versementId: id },
+  const recuActif = await tx.recu.findFirst({
+    where: { versementId: id, annuleLe: null },
     select: { id: true, numero: true },
   })
-  if (recu) throw new VersementAvecRecuError(recu.numero)
+  if (recuActif) throw new VersementAvecRecuError(recuActif.numero)
 
   await tx.versement.delete({ where: { id } })
   await tx.contribution.update({
@@ -167,6 +178,32 @@ export interface EcartReconciliation {
  * scopée par le contexte tenant (l'appelant est dans l'org). NB : on cible `montantVerse` et NON
  * `montantValorise`, ce dernier pouvant légitimement diverger via un Équilibrage.
  */
+/** Un reçu ACTIF privé de versement — état INTERDIT (cf. `appliquerSuppressionVersement`). */
+export interface RecuActifOrphelin {
+  id: string
+  numero: string
+  membreId: string
+}
+
+/**
+ * Reçus ACTIFS sans versement — DOIT toujours renvoyer une liste VIDE.
+ *
+ * Même esprit que `reconcilierVersements` : un invariant qu'on ne sait pas contraindre en base se
+ * vérifie à la demande plutôt que de rester une intention. Celui-ci — « un reçu actif a toujours un
+ * versement » — n'est pas exprimable (Prisma ne porte pas de CHECK conditionnel, et un CHECK brut
+ * serait invisible de `schema.prisma` donc perdu au prochain `migrate dev`). Il tient par le chemin
+ * d'écriture unique ; cette fonction est le filet qui le prouve.
+ *
+ * Une ligne renvoyée ici signale soit une course (un reçu généré pendant une suppression), soit une
+ * écriture hors chemin nominal. LECTURE SEULE, scopée par le contexte tenant.
+ */
+export async function recusActifsOrphelins(prisma: any): Promise<RecuActifOrphelin[]> {
+  return prisma.recu.findMany({
+    where: { versementId: null, annuleLe: null },
+    select: { id: true, numero: true, membreId: true },
+  })
+}
+
 export async function reconcilierVersements(prisma: any): Promise<EcartReconciliation[]> {
   const contributions = await prisma.contribution.findMany({
     select: { id: true, membreId: true, annee: true, montantVerse: true },

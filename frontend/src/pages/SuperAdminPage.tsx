@@ -1030,7 +1030,9 @@ export function SuperAdminPage() {
               disabled={suppressing}
               autoComplete="off"
               className="w-full rounded-lg border border-hairline bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60"
-              placeholder={cibleSuppression?.nom ?? ''}
+              // PAS de placeholder reprenant le nom : il donnait l'illusion d'un champ déjà
+              // rempli et invitait au copier-coller — l'inverse du but, qui est de faire LIRE ce
+              // qu'on détruit. Le nom à saisir est déjà dans le libellé juste au-dessus.
             />
           </div>
 

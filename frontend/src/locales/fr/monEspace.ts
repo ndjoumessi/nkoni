@@ -36,6 +36,7 @@ export default {
       montant: 'Montant',
       telecharger: 'Télécharger',
       indisponible: 'PDF indisponible',
+      annule: 'Annulé',
       aucun: 'Aucun reçu disponible.',
     },
   },

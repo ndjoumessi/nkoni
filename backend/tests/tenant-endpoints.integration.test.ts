@@ -89,6 +89,12 @@ async function semer(orgId: string, email: string, montant: number): Promise<Rec
       versementId: versement.id,
       numero: `NKONI-${ANNEE}-000001`,
       genereParId: user.id,
+      // Snapshot NOT NULL (migration `recu_orphelin_snapshot_membre`).
+      membreId: membre.id,
+      montant,
+      dateVersement: new Date(`${ANNEE}-01-15T00:00:00Z`),
+      annee: ANNEE,
+      mode: 'ESPECES',
     },
   })
   ids['recu'] = recu.id

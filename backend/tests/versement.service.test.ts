@@ -107,18 +107,24 @@ describe('appliquerSuppressionVersement (invariant + garde reçu)', () => {
   })
 
   /**
-   * RÉGRESSION (prod 2026-07-21) — ce test affirmait l'INVERSE : « autorise la suppression si le
-   * seul reçu est annulé ». Il passait, sur un `tx` MOCKÉ donc sans clé étrangère — alors que la
-   * FK `Recu.versementId` est `onDelete: Restrict` INCONDITIONNEL. En production la garde laissait
-   * passer, la base refusait, et l'utilisateur voyait « une erreur inattendue s'est produite ».
-   * Le vert d'un test sur mock ne prouve pas un invariant porté par le schéma.
+   * Ce test a changé de sens DEUX fois — l'historique importe plus que l'assertion :
+   *
+   *  1. Il affirmait « autorise la suppression si le seul reçu est annulé » et passait au vert,
+   *     alors que la FK était `onDelete: Restrict` INCONDITIONNEL : en production la garde laissait
+   *     passer, la base refusait, l'utilisateur voyait « une erreur inattendue ». Un `tx` MOCKÉ
+   *     n'a pas de clé étrangère — le vert ne prouvait rien.
+   *  2. On l'a donc inversé : « refuse AUSSI si le reçu est annulé ».
+   *  3. Aujourd'hui la FK est en `SetNull` et le reçu porte un snapshot : la suppression est de
+   *     nouveau permise, et cette fois la BASE est d'accord.
+   *
+   * Ce fichier prouve que la GARDE interroge le bon ensemble. Que la base l'accepte est prouvé
+   * par `versement-suppression-recu.integration.test.ts`, sur vraie Postgres. Jamais l'un sans
+   * l'autre — c'est toute la leçon du 2026-07-21.
    */
-  it('refuse AUSSI la suppression si le seul reçu est ANNULÉ (la FK Restrict ignore annuleLe)', async () => {
+  it('AUTORISE la suppression si le seul reçu est ANNULÉ (FK SetNull → reçu orphelin conservé)', async () => {
     const { tx, contribution } = buildTx(500, [{ id: 'r1', annuleLe: new Date('2026-07-19') }])
-    await expect(appliquerSuppressionVersement(tx, 'v1')).rejects.toBeInstanceOf(
-      VersementAvecRecuError,
-    )
-    expect(contribution).toMatchObject({ montantVerse: 500, montantValorise: 500 })
+    await appliquerSuppressionVersement(tx, 'v1')
+    expect(contribution).toMatchObject({ montantVerse: 0, montantValorise: 0 })
   })
 
   it('nomme le reçu en cause dans l’erreur (la route en fait un 409 explicite)', async () => {

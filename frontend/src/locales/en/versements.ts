@@ -78,10 +78,11 @@ export default {
       whatsapp: 'WhatsApp',
       modifier: 'Edit',
       supprimer: 'Delete',
+      versementSupprime: 'Payment deleted — the receipt is kept for the record',
       modifBloqueeRecuActif:
         'Receipt {{numero}} is active: cancel it before editing this payment.',
       supprBloqueeRecu:
-        'Receipt {{numero}} was issued for this payment: it can no longer be deleted. Correct its amount instead.',
+        'Receipt {{numero}} is active: cancel it before deleting this payment.',
     },
     edition: {
       titre: 'Edit payment',

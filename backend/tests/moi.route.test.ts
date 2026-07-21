@@ -55,7 +55,25 @@ function buildMock(membre: any) {
     recu: {
       findMany: async ({ where }: any) => {
         calls.recuWhere = where
-        return [{ id: 'r1', numero: 'NKONI-2024-000001', dateGeneration: new Date('2024-03-01'), versementId: 'v1', urlPdf: null }]
+        return [
+          // Reçu ACTIF, rattaché à un versement.
+          {
+            id: 'r1',
+            numero: 'NKONI-2024-000001',
+            dateGeneration: new Date('2024-03-01'),
+            montant: 4_000,
+            annuleLe: null,
+          },
+          // Reçu ANNULÉ dont le versement a été SUPPRIMÉ (orphelin) : il doit rester listé —
+          // c'est tout l'enjeu du snapshot — mais NON téléchargeable.
+          {
+            id: 'r2',
+            numero: 'NKONI-2024-000002',
+            dateGeneration: new Date('2024-04-01'),
+            montant: 1_500,
+            annuleLe: new Date('2024-05-01'),
+          },
+        ]
       },
     },
   }
@@ -89,13 +107,32 @@ describe('Espace membre /moi/* — membre lié', () => {
     expect(calls.contributionWhere).toEqual({ membreId: 'm1' })
   })
 
-  it('GET /moi/recus → SES reçus (montant du versement), filtrés par ses versements', async () => {
+  it('GET /moi/recus → SES reçus, lus DIRECTEMENT par membreId (orphelins compris)', async () => {
     const res = await app.inject({ method: 'GET', url: '/moi/recus', headers: auth() })
     expect(res.statusCode).toBe(200)
     expect(res.json()).toEqual([
-      { id: 'r1', numero: 'NKONI-2024-000001', date: '2024-03-01T00:00:00.000Z', montant: 4_000, telechargeable: true },
+      {
+        id: 'r1',
+        numero: 'NKONI-2024-000001',
+        date: '2024-03-01T00:00:00.000Z',
+        montant: 4_000,
+        annuleLe: null,
+        telechargeable: true,
+      },
+      // L'orphelin reste LISTÉ (sa trace survit au versement supprimé) mais n'est plus
+      // téléchargeable : `GET /recus/:id/pdf` refuse un reçu annulé en 409. L'annoncer
+      // téléchargeable envoyait le membre au-devant d'une erreur.
+      {
+        id: 'r2',
+        numero: 'NKONI-2024-000002',
+        date: '2024-04-01T00:00:00.000Z',
+        montant: 1_500,
+        annuleLe: '2024-05-01T00:00:00.000Z',
+        telechargeable: false,
+      },
     ])
-    expect(calls.versementWhere).toEqual({ contribution: { membreId: 'm1' } })
+    // Plus AUCUN détour par les versements : une seule requête, scopée par membre.
+    expect(calls.recuWhere).toEqual({ membreId: 'm1' })
   })
 
   it('GET /moi/contributions → filtré par l’id du membre résolu', async () => {

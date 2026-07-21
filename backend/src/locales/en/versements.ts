@@ -3,7 +3,7 @@ export const messages = {
   'versements.contributionIntrouvable': 'Contribution not found.',
   'versements.versementIntrouvable': 'Payment not found.',
   'versements.suppressionRecuEmis':
-    'Receipt {numero} was issued for this payment: it can no longer be deleted. Correct its amount instead.',
+    'Receipt {numero} is active for this payment: cancel it before deleting.',
   'versements.modificationRecuActif':
     'Receipt {numero} is active for this payment: cancel it before making changes.',
 }

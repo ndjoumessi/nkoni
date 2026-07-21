@@ -230,6 +230,9 @@ model Membre {
   donsCagnotte             DonCagnotte[]                  @relation("DonCagnotteMembre") // Dons faits par ce membre
   amendes                  Amende[]                      @relation("AmendeMembre") // Amendes/pénalités du membre
   organisationsCommeChef   Organisation[]                @relation("ChefOrganisation") // Chef de l'organisation (inverse ; rare : 1)
+  // Reçus dont ce membre est le SUJET (FK dénormalisée sur Recu, en Restrict) — c'est ce lien
+  // qui garde un reçu ORPHELIN (versement supprimé) atteignable dans son historique.
+  recusEmis                Recu[]
   // Idempotence (§ PWA hors-ligne) : rejeu d'un « ajouter membre » saisi hors-ligne (uuid client).
   idempotenceKey           String?
   createdAt                DateTime                      @default(now())
@@ -327,10 +330,41 @@ model Recu {
   id             String       @id @default(uuid())
   organisationId String
   organisation   Organisation @relation(fields: [organisationId], references: [id])
-  versementId    String
-  // FK vers le Versement source. `onDelete: Restrict` : interdit de supprimer un versement dont
-  // un reçu a été émis (preuve de paiement) → pas de reçu orphelin (audit M3).
-  versement      Versement    @relation(fields: [versementId], references: [id], onDelete: Restrict)
+  // FK vers le Versement source — NULLABLE depuis la migration `recu_orphelin_snapshot_membre`.
+  //
+  // `onDelete: SetNull` : supprimer un versement dont le reçu est ANNULÉ est autorisé ; le reçu
+  // survit en ORPHELIN. Il DOIT survivre : `genererNumeroSequentiel` calcule le prochain numéro
+  // par `max(numero)`, donc supprimer la ligne ferait RÉUTILISER son numéro — deux reçus
+  // différents portant le même numéro dans le temps.
+  //
+  // ⚠️ INVARIANT NON EXPRIMABLE ICI : un reçu ACTIF a TOUJOURS un versement. Prisma ne porte pas
+  // de CHECK conditionnel, et un CHECK brut serait invisible de ce fichier donc supprimé au
+  // prochain `migrate dev`. Il tient par le CHEMIN D'ÉCRITURE UNIQUE : la seule façon de mettre
+  // `versementId` à NULL est ce SetNull, déclenché par un `versement.delete`, lui-même gardé par
+  // `appliquerSuppressionVersement` qui refuse tant qu'un reçu actif existe. Vérifiable a
+  // posteriori par `recusActifsOrphelins` (exposé sur /tresorerie/reconciliation).
+  //
+  // NB : la mise à NULL est faite par POSTGRES, hors de toute extension Prisma — elle n'apparaît
+  // donc pas dans l'AuditLog. La trace de l'opération est l'entrée d'audit du `Versement.delete`.
+  versementId    String?
+  versement      Versement?   @relation(fields: [versementId], references: [id], onDelete: SetNull)
+
+  // SNAPSHOT figé à la génération (historisation par COPIE, comme `Contribution.montantAttendu`
+  // recopié du barème). Sans lui, un reçu orphelin serait STRUCTURELLEMENT inatteignable : `Recu`
+  // n'avait aucun lien vers `Membre`, le seul chemin étant Recu → Versement → Contribution →
+  // Membre. Chaque champ correspond à un affichage réel de la ligne de reçu, et devient
+  // irrécupérable dès que le versement disparaît.
+  //
+  // `membreId` porte une VRAIE FK en Restrict, contrairement à `genereParId`/`annuleParId` : ces
+  // derniers désignent un AUTEUR (métadonnée d'audit, le reçu se lit sans lui), alors que
+  // `membreId` est le SUJET du reçu et l'unique clé de sa lecture — un id pendant le rendrait
+  // invisible, c'est-à-dire exactement la perte qu'on cherche à éviter.
+  membreId       String
+  membre         Membre       @relation(fields: [membreId], references: [id], onDelete: Restrict)
+  montant        Int
+  dateVersement  DateTime
+  annee          Int
+  mode           ModeVersement
   // Numérotation PROPRE À CHAQUE ORGANISATION (SaaS §2.2) : unicité (org, numero). La
   // génération séquentielle lit le dernier numéro via un findFirst scopé (recu.service).
   numero         String // ex. NKONI-2025-000123
@@ -338,9 +372,9 @@ model Recu {
   dateGeneration DateTime     @default(now())
   urlPdf         String?
   // ANNULATION COMPTABLE (jamais de suppression) : un reçu numéroté, potentiellement déjà remis au
-  // membre, ne disparaît pas — il est marqué annulé et garde son numéro. Sans cela, corriger une
-  // saisie erronée était IMPOSSIBLE : la suppression du versement est refusée tant qu'un reçu
-  // ACTIF existe (onDelete: Restrict + garde applicative), et aucune route ne permettait d'annuler.
+  // membre, ne disparaît pas — il est marqué annulé et garde son numéro. C'est ce qui rend la
+  // correction possible : annuler → corriger → réémettre. Annuler libère aussi le versement, qui
+  // redevient modifiable ET supprimable (le reçu devient alors orphelin, cf. `versementId`).
   // `annuleLe = null` ⇒ reçu actif. FK auteur en SCALAIRE, comme `genereParId`.
   annuleLe       DateTime?
   annuleParId    String? // FK Utilisateur
@@ -348,6 +382,11 @@ model Recu {
 
   @@unique([organisationId, numero])
   @@index([organisationId])
+  // Lecture par membre — remplace le détour applicatif par les versements, et c'est le SEUL
+  // chemin qui atteigne les reçus orphelins (`versementId` NULL ne matche aucun `in: [...]`).
+  @@index([organisationId, membreId])
+  // Conservé : les gardes de suppression/modification cherchent toujours « un reçu ACTIF de ce
+  // versement ? » (versement.service, recu.service).
   @@index([versementId])
 }
 

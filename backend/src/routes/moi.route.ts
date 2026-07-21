@@ -109,25 +109,27 @@ export const moiRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
   app.get('/moi/recus', { preHandler: [authenticate] }, async (req) => {
     const membre = await membreConnecte(app.prisma, req.user.sub)
     if (!membre) return []
-    // Reçus rattachés aux versements de SES contributions (Recu → Versement → Contribution → Membre).
-    const versements = await app.prisma.versement.findMany({
-      where: { contribution: { membreId: membre.id } },
-      select: { id: true, montant: true },
-    })
-    const montantParVersement = new Map<string, number>(versements.map((v) => [v.id, v.montant]))
+    // Lecture DIRECTE par membre : `Recu.membreId` est dénormalisé depuis la migration
+    // `recu_orphelin_snapshot_membre`. Remplace le détour Versement → Contribution → Membre (2
+    // requêtes + une Map intermédiaire) et, surtout, atteint les reçus ORPHELINS — l'ancien
+    // `versementId: { in: [...] }` ne matchait JAMAIS un `versementId` NULL.
     const recus = await app.prisma.recu.findMany({
-      where: { versementId: { in: [...montantParVersement.keys()] } },
+      where: { membreId: membre.id },
       orderBy: { dateGeneration: 'desc' },
-      select: { id: true, numero: true, dateGeneration: true, versementId: true, urlPdf: true },
+      select: { id: true, numero: true, dateGeneration: true, montant: true, annuleLe: true },
     })
     return recus.map((r) => ({
       id: r.id,
       numero: r.numero,
       date: r.dateGeneration,
-      montant: montantParVersement.get(r.versementId) ?? 0,
-      // Le PDF est produit À LA DEMANDE par GET /recus/:id/pdf (généré si urlPdf null) → toujours
-      // téléchargeable. Le champ reste exposé pour un éventuel gate futur côté UI.
-      telechargeable: true,
+      // Montant FIGÉ à l'émission, et non le montant vivant du versement. Correction de fond :
+      // après « annuler → corriger le montant », cette ligne affichait le NOUVEAU montant, qui
+      // contredisait le PDF que le membre avait en main.
+      montant: r.montant,
+      annuleLe: r.annuleLe,
+      // `true` en dur auparavant — or un reçu ANNULÉ est refusé par GET /recus/:id/pdf (409). On
+      // envoyait donc le membre au-devant d'une erreur.
+      telechargeable: r.annuleLe === null,
     }))
   })
 }

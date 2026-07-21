@@ -73,7 +73,12 @@ beforeAll(async () => {
     },
   })
   const r = await base.recu.create({
-    data: { organisationId: ORG, versementId: v.id, numero: 'NKONI-2025-000001', genereParId: u.id },
+    data: {
+      organisationId: ORG, versementId: v.id, numero: 'NKONI-2025-000001', genereParId: u.id,
+      // Snapshot NOT NULL (migration `recu_orphelin_snapshot_membre`).
+      membreId: m.id, montant: 12000, dateVersement: new Date('2025-06-01T00:00:00Z'),
+      annee: 2025, mode: 'ESPECES',
+    },
   })
   recuId = r.id
 
@@ -85,6 +90,8 @@ beforeAll(async () => {
       versementId: v.id,
       numero: 'NKONI-2025-000002',
       genereParId: u.id,
+      membreId: m.id, montant: 12000, dateVersement: new Date('2025-06-01T00:00:00Z'),
+      annee: 2025, mode: 'ESPECES',
       annuleLe: new Date('2025-06-15T00:00:00Z'),
       annuleParId: u.id,
       motifAnnulation: 'montant erroné',

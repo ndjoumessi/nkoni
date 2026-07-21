@@ -96,6 +96,9 @@ async function semer(orgId: string, actif: boolean): Promise<void> {
     data: {
       organisationId: orgId, versementId: v.id, numero: `NKONI-2025-${orgId.slice(-3)}`,
       genereParId: u.id, urlPdf: `https://blob.test/${orgId}/recu.pdf`,
+      // Snapshot NOT NULL (migration `recu_orphelin_snapshot_membre`).
+      membreId: m.id, montant: 2000, dateVersement: new Date('2025-06-01T00:00:00Z'),
+      annee: 2025, mode: 'ESPECES',
     },
   })
   const eq = await base.equilibrageContribution.create({

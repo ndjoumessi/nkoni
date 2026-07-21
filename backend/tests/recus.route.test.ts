@@ -28,9 +28,18 @@ function buildMock() {
   const recus = new Map<string, any>()
   let seq = 0
 
+  // Doit porter tout ce que `genererRecu` FIGE sur le reçu (snapshot), sinon la génération
+  // planterait sur `versement.contribution.membreId`.
   const shapeVersement = (v: VersementInfo) => ({
     id: v.id,
-    contribution: { membreId: v.membreId, membre: { compteUtilisateurId: v.compte } },
+    montant: 12000,
+    dateVersement: new Date('2026-06-01T00:00:00Z'),
+    mode: 'ESPECES',
+    contribution: {
+      membreId: v.membreId,
+      annee: 2026,
+      membre: { compteUtilisateurId: v.compte },
+    },
   })
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -80,13 +89,18 @@ function buildMock() {
         return { ...rec }
       },
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // La lecture ne passe PLUS par les versements : `Recu.membreId` est dénormalisé, et c'est
+      // le seul filtre qui atteigne un reçu ORPHELIN (`versementId` NULL).
       findMany: async ({ where }: any) => {
         let res = [...recus.values()]
-        if (where?.versementId?.in) {
-          const ids: string[] = where.versementId.in
-          res = res.filter((r) => ids.includes(r.versementId))
-        } else if (where?.versementId) {
-          res = res.filter((r) => r.versementId === where.versementId)
+        if (where?.versementId) res = res.filter((r) => r.versementId === where.versementId)
+        if (where?.membreId) res = res.filter((r) => r.membreId === where.membreId)
+        const compte = where?.membre?.compteUtilisateurId
+        if (compte) {
+          const membresDuCompte = Object.values(versementsInfo)
+            .filter((v) => v.compte === compte)
+            .map((v) => v.membreId)
+          res = res.filter((r) => membresDuCompte.includes(r.membreId))
         }
         return res
       },

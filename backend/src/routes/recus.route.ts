@@ -34,9 +34,9 @@ const avecLienPartage = <T extends { id: string }>(recu: T): T & { signaturePart
  *     UNIQUEMENT pour ses propres versements (SECRETAIRE : —, donc 403).
  *   - read   : mêmes rôles ; MEMBRE_SIMPLE limité aux reçus de ses propres versements.
  *
- * Le modèle `Recu` ne porte pas de relation Prisma vers `Versement` (§3.1) ; le filtrage
- * « par membre » passe donc par une résolution applicative
- * Versement → Contribution → Membre, puis un `recu.findMany({ versementId: { in } })`.
+ * Le filtrage « par membre » se fait DIRECTEMENT sur `Recu.membreId`, dénormalisé à la génération
+ * (migration `recu_orphelin_snapshot_membre`). C'est le seul chemin qui atteigne les reçus
+ * ORPHELINS — ceux dont le versement a été supprimé après annulation.
  */
 
 const listQuerySchema = {
@@ -110,35 +110,26 @@ export const recusRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
     { schema: listQuerySchema, preHandler: [authenticate, requirePermission('Recu', 'read')] },
     async (req) => {
       const { membreId, versementId } = req.query
-      const scoping = req.user.role === 'MEMBRE_SIMPLE'
 
-      // Cas simple (rôle privilégié, pas de filtre par membre) : lecture directe.
-      if (!scoping && membreId === undefined) {
-        const where: Prisma.RecuWhereInput = {}
-        if (versementId !== undefined) where.versementId = versementId
-        const rs = await app.prisma.recu.findMany({ where, orderBy: { dateGeneration: 'desc' } })
-        return rs.map(avecLienPartage)
+      // UNE seule requête, filtrée directement sur `Recu.membreId` (dénormalisé depuis la
+      // migration `recu_orphelin_snapshot_membre`). Remplace l'ancienne résolution applicative
+      // Versement → Contribution → Membre suivie d'un `versementId: { in: ids }`.
+      //
+      // Ce n'est pas qu'une simplification : le `in: ids` ne matchait JAMAIS un `versementId`
+      // NULL, donc les reçus ORPHELINS (versement supprimé) étaient invisibles — exactement la
+      // perte de trace que le snapshot vise à empêcher. Au passage, le `in` portait sur une liste
+      // d'ids non bornée, qui grossissait avec l'historique du membre.
+      const where: Prisma.RecuWhereInput = {}
+      if (versementId !== undefined) where.versementId = versementId
+      if (membreId !== undefined) where.membreId = membreId
+      if (req.user.role === 'MEMBRE_SIMPLE') {
+        // Restriction à SES reçus. Le filtre relationnel n'est pas re-scopé par l'extension
+        // tenant (limite documentée dans `lib/tenant-extension.ts`), mais il ne fait que
+        // RESTREINDRE : l'`organisationId` reste injecté sur l'opération top-level.
+        where.membre = { compteUtilisateurId: req.user.sub ?? '' }
       }
 
-      // Filtrage par membre : on résout d'abord les versements concernés
-      // (Versement → Contribution → Membre), puis on lit les reçus de ces versements.
-      const contribution: Prisma.ContributionWhereInput = {}
-      if (membreId !== undefined) contribution.membreId = membreId
-      if (scoping) contribution.membre = { compteUtilisateurId: req.user.sub ?? '' }
-
-      const versementWhere: Prisma.VersementWhereInput = { contribution }
-      if (versementId !== undefined) versementWhere.id = versementId
-
-      const versements = await app.prisma.versement.findMany({
-        where: versementWhere,
-        select: { id: true },
-      })
-      const ids = versements.map((v) => v.id)
-
-      const rs = await app.prisma.recu.findMany({
-        where: { versementId: { in: ids } },
-        orderBy: { dateGeneration: 'desc' },
-      })
+      const rs = await app.prisma.recu.findMany({ where, orderBy: { dateGeneration: 'desc' } })
       return rs.map(avecLienPartage)
     },
   )

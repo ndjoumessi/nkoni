@@ -127,5 +127,6 @@ Toujours vérifier **build + test** (backend) ou **build + lint (+ test si le cl
 
 ## Docs de référence (racine repo & sous-dossiers)
 - `RUNBOOK_bascule_prod_PhaseD.md` — procédure pas-à-pas (PO) de bascule prod multi-tenant : ordre des migrations SaaS, backfill, passage NOT NULL, rollback par dump.
+- `docs/RUNBOOK_sauvegardes_restauration.md` — sauvegardes & **exercice de restauration** (bloquant GA 0.2) : RPO 24 h / RTO 4 h, dump chiffré hors-site, et surtout le **contrôle APPLICATIF** de la base restaurée (les comptes de lignes ne prouvent pas qu'elle est utilisable : on démarre le backend dessus, on se connecte, on vérifie `GET /tresorerie/reconciliation`). Contient l'inventaire de durabilité du Blob — **les reçus PDF se régénèrent** depuis la base (`produireRecuPdf` régénère si le blob est illisible), **photos et documents NON** (téléversements, perte définitive) : c'est ce qui borne le périmètre à sauvegarder. Réutilise la recette dump/restauration/comptes de `RUNBOOK_bascule_prod_PhaseD.md` §2 plutôt que de la redupliquer.
 - `docs/deploiement-auth.md` — détails déploiement du flux auth (JWT + cookie refresh same-origin).
 - `frontend/MAINTENANCE.md` — activer/désactiver la page de maintenance via un `redirect` Vercel (config seule, ne touche pas `src/` ni le proxy `/api/*`).

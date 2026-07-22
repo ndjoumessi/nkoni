@@ -79,10 +79,6 @@ export default {
       modifier: 'Edit',
       supprimer: 'Delete',
       versementSupprime: 'Payment deleted — the receipt is kept for the record',
-      modifBloqueeRecuActif:
-        'Receipt {{numero}} is active: cancel it before editing this payment.',
-      supprBloqueeRecu:
-        'Receipt {{numero}} is active: cancel it before deleting this payment.',
     },
     edition: {
       titre: 'Edit payment',

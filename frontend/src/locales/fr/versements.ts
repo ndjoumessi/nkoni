@@ -81,13 +81,6 @@ export default {
       // Ligne d'un reçu ORPHELIN : le versement a été supprimé après annulation du reçu. Le
       // numéro reste consultable — c'est toute la raison pour laquelle la ligne survit.
       versementSupprime: 'Versement supprimé — le reçu reste conservé pour mémoire',
-      // Motifs affichés sur les actions DÉSACTIVÉES (miroir des gardes serveur §4.6). Ils disent
-      // QUOI FAIRE, pas seulement que c'est interdit — et le geste est le même dans les deux cas :
-      // annuler le reçu débloque la modification COMME la suppression.
-      modifBloqueeRecuActif:
-        'Le reçu {{numero}} est actif : annulez-le avant de modifier ce versement.',
-      supprBloqueeRecu:
-        'Le reçu {{numero}} est actif : annulez-le avant de supprimer ce versement.',
     },
     edition: {
       titre: 'Modifier le versement',

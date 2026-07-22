@@ -305,27 +305,21 @@ export function VersementsList({
         const recu = recus.get(v.id)
 
         /*
-          MIROIR EXACT des gardes serveur (§4.6) — désormais SYMÉTRIQUES : seul un reçu ACTIF
-          bloque, aussi bien la modification que la suppression. L'annuler débloque les deux.
+          MIROIR des gardes serveur (§4.6) — SYMÉTRIQUES : seul un reçu ACTIF bloque, aussi bien la
+          modification que la suppression. L'annuler débloque les deux.
 
           (Historique : la suppression a un temps été bloquée par TOUT reçu, la FK étant en
           `Restrict` inconditionnel. Elle est passée en `SetNull` — supprimer le versement laisse
           désormais un reçu ORPHELIN, conservé et affiché en trace plus bas.)
 
-          On DÉSACTIVE plutôt que de laisser cliquer : le serveur refuse bien en 409, mais offrir
-          une action qui ne peut jamais aboutir fait ouvrir une modale, confirmer, et récolter une
-          erreur. La garde serveur reste la seule vraie protection ; celle-ci évite d'inviter à un
-          geste perdu.
-
-          `null` = action permise ; sinon la chaîne EST le motif affiché à l'utilisateur.
+          On MASQUE modifier/supprimer plutôt que de les afficher désactivés : un bouton grisé est
+          illisible et sans infobulle au tactile (anti-pattern proscrit, cf. CLAUDE.md), et
+          n'explique jamais le « pourquoi ». Le chemin de correction reste sur la MÊME ligne
+          (« Annuler le reçu » ci-dessus) : l'annulation rétablit aussitôt les deux actions. La garde
+          serveur (409) demeure le vrai garde-fou ; masquer ici évite juste d'inviter à un geste
+          voué à l'échec.
         */
         const recuActif = recu && recu.annuleLe === null ? recu : null
-        const raisonBlocageModif = recuActif
-          ? t('versements.liste.modifBloqueeRecuActif', { numero: recuActif.numero })
-          : null
-        const raisonBlocageSuppr = recuActif
-          ? t('versements.liste.supprBloqueeRecu', { numero: recuActif.numero })
-          : null
 
         return (
           <div
@@ -410,42 +404,31 @@ export function VersementsList({
                 </Button>
                 </>
               )}
-              {peutGerer && (
+              {peutGerer && !recuActif && (
                 /*
-                  Actions portant sur le VERSEMENT (et non sur le reçu) — séparées par un filet
-                  et groupées en `flex-nowrap` : sans ça la corbeille se retrouvait seule sur une
-                  deuxième ligne dès qu'un reçu actif ajoutait ses trois actions à la rangée.
+                  Actions portant sur le VERSEMENT (et non sur le reçu) — séparées par un filet.
+                  Entièrement MASQUÉES tant qu'un reçu actif verrouille la ligne (cf. `recuActif`
+                  plus haut) : ni bouton fantôme désactivé, ni corbeille orpheline sous le
+                  séparateur. Les deux boutons sont donc toujours cliquables ici.
                 */
                 <div className="flex shrink-0 items-center gap-1 border-l border-hairline pl-2">
-                  {/*
-                    Un bouton désactivé ne reçoit AUCUN événement de pointeur
-                    (`disabled:pointer-events-none`) : son `title` natif ne s'afficherait jamais.
-                    D'où le `span` porteur — sans lui, l'utilisateur verrait un bouton grisé sans
-                    la moindre explication, ce qui est pire qu'un bouton qui échoue.
-                  */}
-                  <span title={raisonBlocageModif ?? undefined} className="inline-flex">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      icon={Pencil}
-                      disabled={raisonBlocageModif !== null}
-                      aria-label={raisonBlocageModif ?? t('versements.liste.modifier')}
-                      title={raisonBlocageModif ? undefined : t('versements.liste.modifier')}
-                      onClick={() => ouvrirEdition(v)}
-                    />
-                  </span>
-                  <span title={raisonBlocageSuppr ?? undefined} className="inline-flex">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      icon={Trash2}
-                      disabled={raisonBlocageSuppr !== null}
-                      aria-label={raisonBlocageSuppr ?? t('versements.liste.supprimer')}
-                      title={raisonBlocageSuppr ? undefined : t('versements.liste.supprimer')}
-                      className="hover:bg-terra/10 hover:text-terra"
-                      onClick={() => setConfirmDelete(v)}
-                    />
-                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    icon={Pencil}
+                    aria-label={t('versements.liste.modifier')}
+                    title={t('versements.liste.modifier')}
+                    onClick={() => ouvrirEdition(v)}
+                  />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    icon={Trash2}
+                    aria-label={t('versements.liste.supprimer')}
+                    title={t('versements.liste.supprimer')}
+                    className="hover:bg-terra/10 hover:text-terra"
+                    onClick={() => setConfirmDelete(v)}
+                  />
                 </div>
               )}
             </div>

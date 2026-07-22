@@ -81,6 +81,10 @@ export default {
       // Ligne d'un reçu ORPHELIN : le versement a été supprimé après annulation du reçu. Le
       // numéro reste consultable — c'est toute la raison pour laquelle la ligne survit.
       versementSupprime: 'Versement supprimé — le reçu reste conservé pour mémoire',
+      // Dépliant regroupant les reçus orphelins (trace d'audit), replié par défaut sous les
+      // versements réels.
+      recusAnnulesGroupe_one: 'Reçu annulé ({{count}})',
+      recusAnnulesGroupe_other: 'Reçus annulés ({{count}})',
     },
     edition: {
       titre: 'Modifier le versement',

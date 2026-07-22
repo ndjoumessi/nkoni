@@ -79,6 +79,8 @@ export default {
       modifier: 'Edit',
       supprimer: 'Delete',
       versementSupprime: 'Payment deleted — the receipt is kept for the record',
+      recusAnnulesGroupe_one: 'Cancelled receipt ({{count}})',
+      recusAnnulesGroupe_other: 'Cancelled receipts ({{count}})',
     },
     edition: {
       titre: 'Edit payment',

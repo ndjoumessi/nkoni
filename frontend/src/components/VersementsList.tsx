@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { FileText, Loader2, Download, Send, Pencil, Trash2, Ban } from 'lucide-react'
+import { FileText, Loader2, Download, Send, Pencil, Trash2, Ban, ChevronDown, ChevronRight } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
 import {
   versementsApi,
@@ -86,6 +86,10 @@ export function VersementsList({
   // Suppression (confirmation).
   const [confirmDelete, setConfirmDelete] = useState<Versement | null>(null)
   const [deleting, setDeleting] = useState(false)
+
+  // Trace d'audit (reçus annulés dont le versement a été supprimé) repliée par défaut — elle ne
+  // doit pas dominer le registre vivant des versements réels.
+  const [orphelinsOuverts, setOrphelinsOuverts] = useState(false)
 
   const charger = useCallback(
     async (signal?: AbortSignal) => {
@@ -443,30 +447,58 @@ export function VersementsList({
         trace. Tout est lu sur le SNAPSHOT figé à l'émission, pas sur un versement qui n'existe
         plus.
 
+        SÉPARÉS du registre vivant : regroupés sous un dépliant REPLIÉ par défaut, APRÈS les
+        versements réels. Sur un membre ayant connu des corrections, ces traces noieraient sinon
+        les versements réels sous un poids visuel égal. Le montant y est ATTÉNUÉ (barré, sans la
+        police `.num` des montants réels) : c'est de l'argent NON collecté, il ne doit pas se lire
+        comme un encaissement.
+
         Lecture seule et SANS garde de rôle : c'est une trace, pas une action. Aucun bouton —
         télécharger et partager sont refusés (409) sur un reçu annulé, et il n'y a plus rien à
         modifier ni à supprimer.
       */}
-      {orphelins.map((r) => (
-        <div
-          key={r.id}
-          className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dashed border-hairline bg-surface/30 px-4 py-3 opacity-75"
-        >
-          <div className="min-w-0">
-            <p className="num text-sm font-medium text-muted-foreground">
-              {formatMontant(r.montant)}
-              <span className="ml-2 text-xs font-normal text-faint">
-                {formatDate(r.dateVersement, DATE_COURTE)} · {t(cleI18n(`versements.modes.${r.mode}`))}
-              </span>
-            </p>
-            <p className="mt-0.5 text-xs text-faint">{t('versements.liste.versementSupprime')}</p>
-          </div>
-          <Badge tone="neutral" size="sm">
-            <Ban className="h-3.5 w-3.5" aria-hidden="true" />
-            {t('versements.liste.recuAnnule', { numero: r.numero })}
-          </Badge>
+      {orphelins.length > 0 && (
+        <div className="mt-1 border-t border-hairline pt-2">
+          <button
+            type="button"
+            onClick={() => setOrphelinsOuverts((o) => !o)}
+            aria-expanded={orphelinsOuverts}
+            className="flex w-full items-center gap-2 rounded-lg px-1 py-1.5 text-xs font-medium text-faint transition-colors hover:text-muted-foreground"
+          >
+            {orphelinsOuverts ? (
+              <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" />
+            ) : (
+              <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
+            )}
+            {t('versements.liste.recusAnnulesGroupe', { count: orphelins.length })}
+          </button>
+          {orphelinsOuverts && (
+            <div className="mt-2 space-y-2">
+              {orphelins.map((r) => (
+                <div
+                  key={r.id}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dashed border-hairline bg-surface/30 px-4 py-3 opacity-75"
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm text-faint">
+                      {/* Montant BARRÉ et sans `.num` : argent non collecté, jamais lu comme un encaissement. */}
+                      <span className="line-through">{formatMontant(r.montant)}</span>
+                      <span className="ml-2 text-xs">
+                        {formatDate(r.dateVersement, DATE_COURTE)} · {t(cleI18n(`versements.modes.${r.mode}`))}
+                      </span>
+                    </p>
+                    <p className="mt-0.5 text-xs text-faint">{t('versements.liste.versementSupprime')}</p>
+                  </div>
+                  <Badge tone="neutral" size="sm">
+                    <Ban className="h-3.5 w-3.5" aria-hidden="true" />
+                    {t('versements.liste.recuAnnule', { numero: r.numero })}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-      ))}
+      )}
 
       {/* Modale d'édition */}
       <Modal open={editing !== null} onClose={() => setEditing(null)} title={t('versements.edition.titre')}>

@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Card } from './Card'
@@ -15,7 +16,8 @@ export function StatCard({
   className,
 }: {
   label: string
-  value: string
+  /** Chaîne (nombre/%, ex. `formatNombre`) OU `<Montant>` pour un montant à unité discrète. */
+  value: ReactNode
   hint?: string
   icon?: LucideIcon
   tone?: 'neutral' | 'brass' | 'jade'

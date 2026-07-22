@@ -19,6 +19,7 @@ import { useToast } from '@/components/ui/Toast'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, Overline } from '@/components/ui/Card'
 import { StatCard } from '@/components/ui/StatCard'
+import { Montant } from '@/components/ui/Montant'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { Field, Input, Select } from '@/components/ui/Field'
@@ -208,9 +209,9 @@ export function TresoreriePage() {
       {/* Solde */}
       {solde && (
         <div className="nk-reveal nk-d2 mt-6 grid gap-3 sm:grid-cols-3">
-          <StatCard label={t('tresorerie.solde.entrees')} value={formatMontant(solde.entrees)} tone="jade" icon={ArrowDownCircle} />
-          <StatCard label={t('tresorerie.solde.sorties')} value={formatMontant(solde.sorties)} tone="brass" icon={ArrowUpCircle} />
-          <StatCard label={t('tresorerie.solde.solde')} value={formatMontant(solde.solde)} icon={Wallet} />
+          <StatCard label={t('tresorerie.solde.entrees')} value={<Montant value={solde.entrees} />} tone="jade" icon={ArrowDownCircle} />
+          <StatCard label={t('tresorerie.solde.sorties')} value={<Montant value={solde.sorties} />} tone="brass" icon={ArrowUpCircle} />
+          <StatCard label={t('tresorerie.solde.solde')} value={<Montant value={solde.solde} />} icon={Wallet} />
         </div>
       )}
 

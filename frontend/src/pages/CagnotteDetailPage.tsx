@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { HeartHandshake, Pencil, Plus, Trash2, Lock, Unlock } from 'lucide-react'
@@ -15,6 +15,7 @@ import {
 } from '@/lib/api'
 import { peutVoirCagnottes, peutGererCagnotte, peutSaisirDon } from '@/lib/roles'
 import { formatMontant } from '@/lib/format'
+import { Montant } from '@/components/ui/Montant'
 import { formatDate } from '@/lib/utils'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, Overline } from '@/components/ui/Card'
@@ -31,7 +32,7 @@ function aujourdHui(): string {
   return new Date().toISOString().slice(0, 10)
 }
 
-function Ligne({ label, value, tone }: { label: string; value: string; tone?: string }) {
+function Ligne({ label, value, tone }: { label: string; value: ReactNode; tone?: string }) {
   return (
     <div>
       <p className="text-xs uppercase tracking-wide text-faint">{label}</p>
@@ -264,10 +265,10 @@ export function CagnotteDetailPage() {
         <Card className="p-5 lg:col-span-2">
           <Overline>{t('cagnottes.detail.donsTitre')}</Overline>
           <div className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-3">
-            <Ligne label={t('cagnottes.detail.collecte')} value={formatMontant(c.collecte)} tone="text-jade" />
-            <Ligne label={t('cagnottes.detail.reverse')} value={formatMontant(c.montantReverse)} />
-            <Ligne label={t('cagnottes.detail.solde')} value={formatMontant(c.solde)} tone="text-brass" />
-            {c.objectif != null && <Ligne label={t('cagnottes.detail.objectif')} value={formatMontant(c.objectif)} />}
+            <Ligne label={t('cagnottes.detail.collecte')} value={<Montant value={c.collecte} />} tone="text-jade" />
+            <Ligne label={t('cagnottes.detail.reverse')} value={<Montant value={c.montantReverse} />} />
+            <Ligne label={t('cagnottes.detail.solde')} value={<Montant value={c.solde} />} tone="text-brass" />
+            {c.objectif != null && <Ligne label={t('cagnottes.detail.objectif')} value={<Montant value={c.objectif} />} />}
             {c.beneficiaire && <Ligne label={t('cagnottes.detail.beneficiaire')} value={c.beneficiaire} />}
             {c.dateEvenement && <Ligne label={t('cagnottes.detail.evenement')} value={formatDate(c.dateEvenement)} />}
           </div>

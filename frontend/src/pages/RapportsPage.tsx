@@ -43,6 +43,7 @@ import { useToast } from '@/components/ui/Toast'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card } from '@/components/ui/Card'
 import { StatCard } from '@/components/ui/StatCard'
+import { Montant } from '@/components/ui/Montant'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Field, Select } from '@/components/ui/Field'
@@ -362,18 +363,18 @@ function VueDetailMembres({ data }: { data: DetailMembres }) {
       <div className="grid gap-4 sm:grid-cols-3">
         <StatCard
           label={t('rapports.detail.colonnes.attendu')}
-          value={formatMontant(data.totaux.montantAttendu)}
+          value={<Montant value={data.totaux.montantAttendu} />}
           icon={Wallet}
         />
         <StatCard
           label={t('rapports.detail.colonnes.verse')}
-          value={formatMontant(data.totaux.montantVerse)}
+          value={<Montant value={data.totaux.montantVerse} />}
           icon={Coins}
           tone="jade"
         />
         <StatCard
           label={t('rapports.detail.colonnes.valorise')}
-          value={formatMontant(data.totaux.montantValorise)}
+          value={<Montant value={data.totaux.montantValorise} />}
           icon={Scale}
           tone="brass"
         />
@@ -815,14 +816,14 @@ export function RapportsPage() {
                     <div className="grid gap-4 sm:grid-cols-3">
                       <StatCard
                         label={t('rapports.synthese.totalCollecte')}
-                        value={formatMontant(synthese.totCollecte)}
+                        value={<Montant value={synthese.totCollecte} />}
                         hint={t('rapports.synthese.annees', { count: synthese.nbAnnees })}
                         icon={Coins}
                         tone="jade"
                       />
                       <StatCard
                         label={t('rapports.synthese.totalAttendu')}
-                        value={formatMontant(synthese.totAttendu)}
+                        value={<Montant value={synthese.totAttendu} />}
                         icon={Wallet}
                       />
                       <StatCard

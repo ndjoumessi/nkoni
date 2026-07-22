@@ -23,12 +23,18 @@ function buildMock(opts: { actif?: boolean; absente?: boolean; auditThrows?: boo
   const platformAudits: any[] = []
 
   const modele = (nom: string) => ({
-    findMany: async () =>
-      nom === 'Utilisateur'
-        ? [{ id: 'u1' }]
-        : nom === 'Membre'
-          ? [{ id: 'm1', photoBlobUrl: 'https://blob.test/photo', photoMime: 'image/png' }]
-          : [],
+    findMany: async ({ omit }: any = {}) => {
+      if (nom === 'Utilisateur') {
+        // L'export plateforme (GET /export et le DELETE de purge, qui l'embarque dans sa
+        // réponse) ne doit JAMAIS ramener passwordHash — au niveau HTTP, pas seulement service.
+        expect(omit).toEqual({ passwordHash: true })
+        return [{ id: 'u1' }]
+      }
+      if (nom === 'Membre') {
+        return [{ id: 'm1', photoBlobUrl: 'https://blob.test/photo', photoMime: 'image/png' }]
+      }
+      return []
+    },
     // Résolution de l'`acteurEmail` par le journal d'audit (seul `Utilisateur` est interrogé) — via
     // le Proxy, pour NE PAS shadow `findMany`/`deleteMany` en ajoutant une entrée explicite.
     findUnique: async () => (nom === 'Utilisateur' ? { email: 'super-admin@nkoni.test' } : null),

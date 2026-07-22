@@ -31,5 +31,13 @@ export default {
       restants_other: '{{count}} places restantes',
       limiteAtteinte: 'Limite du forfait atteinte',
     },
+    export: {
+      titre: 'Exporter mes données',
+      description:
+        'Téléchargez l’ensemble des données de votre organisation (membres, versements, reçus, dépenses…) dans un fichier JSON. Les pièces jointes y sont référencées par leur adresse.',
+      bouton: 'Exporter (JSON)',
+      succes: 'Export téléchargé',
+      echec: 'Export impossible',
+    },
   },
 }

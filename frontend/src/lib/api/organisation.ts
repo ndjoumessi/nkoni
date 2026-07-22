@@ -1,5 +1,5 @@
 import type { Forfait } from '@/lib/forfait'
-import { request } from './core'
+import { API_URL, leverSiErreur, request } from './core'
 
 /**
  * Paramètres de l'organisation COURANTE (§5) — vue lecture seule (nom/devise/langue immuables)
@@ -44,4 +44,17 @@ export const organisationApi = {
       json: { membreId, surnom },
       accessToken,
     }),
+  /**
+   * EXPORT self-service des données de l'organisation (portabilité RGPD, ADMIN/PRESIDENT). Renvoie
+   * le JSON en Blob — le proxy authentifié pose l'en-tête de téléchargement côté serveur, mais pour
+   * un Blob c'est l'appelant qui nomme le fichier à l'enregistrement.
+   */
+  telechargerExport: async (accessToken: string): Promise<Blob> => {
+    const res = await fetch(`${API_URL}/organisations/moi/export`, {
+      credentials: 'include',
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+    await leverSiErreur(res)
+    return res.blob()
+  },
 }

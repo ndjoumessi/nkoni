@@ -7,6 +7,7 @@ import { initI18n } from '@/lib/i18n' // §4 : charge le catalogue de la langue 
 import App from './App.tsx'
 import { AuthProvider } from '@/contexts/AuthContext'
 import { ToastProvider } from '@/components/ui/Toast'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { signaler } from '@/lib/observabilite'
 
 // PWA : enregistre le service worker (app shell précaché, lecture /api hors-ligne). autoUpdate →
@@ -26,13 +27,15 @@ window.addEventListener('unhandledrejection', (e) =>
 void initI18n().then(() => {
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
-      <BrowserRouter>
-        <ToastProvider>
-          <AuthProvider>
-            <App />
-          </AuthProvider>
-        </ToastProvider>
-      </BrowserRouter>
+      <ErrorBoundary>
+        <BrowserRouter>
+          <ToastProvider>
+            <AuthProvider>
+              <App />
+            </AuthProvider>
+          </ToastProvider>
+        </BrowserRouter>
+      </ErrorBoundary>
     </StrictMode>,
   )
 })

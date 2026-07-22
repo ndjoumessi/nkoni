@@ -15,12 +15,15 @@ export function ErrorState({
   title,
   description,
   onRetry,
+  retryLabel,
   className,
 }: {
   icon?: LucideIcon
   title: string
   description?: string
   onRetry?: () => void
+  /** Libellé du bouton d'action (défaut « Réessayer »). Ex. « Recharger » pour un crash fatal. */
+  retryLabel?: string
   className?: string
 }) {
   const { t } = useTranslation()
@@ -55,7 +58,7 @@ export function ErrorState({
       {onRetry && (
         <div className="mt-6">
           <Button variant="outline" icon={RotateCcw} onClick={onRetry}>
-            {t('commun.actions.reessayer')}
+            {retryLabel ?? t('commun.actions.reessayer')}
           </Button>
         </div>
       )}

@@ -113,6 +113,41 @@ describe('cohérence avec calculerStatutContribution', () => {
   })
 })
 
+describe('borne « année future » (miroir Wave 33 : pas d\'attendu exigible en avance)', () => {
+  // Un barème 2027 EST configuré (permis en avance), mais aucune contribution n'y est ouverte.
+  const baremesAvecFutur = [...baremes, { annee: 2027, montantAttendu: 20_000 }]
+
+  it('rapportPourAnnee(2027) est null quand 2027 est future (anneeCourante 2026), malgré son barème', () => {
+    expect(rapportPourAnnee(2027, baremesAvecFutur, membres, 2026)).toBeNull()
+  })
+
+  it('rapportPourAnnee(2027) redevient une ligne réelle une fois 2027 échue (anneeCourante 2027)', () => {
+    const bloc = rapportPourAnnee(2027, baremesAvecFutur, membres, 2027)
+    expect(bloc).not.toBeNull()
+    expect(bloc!.annee).toBe(2027)
+  })
+
+  it('genererRapportFinancier(2025→2027) n\'émet AUCUNE ligne pour 2027 et ne gonfle pas l\'attendu', () => {
+    const rapport = genererRapportFinancier(2025, 2027, baremesAvecFutur, membres, 2026)
+    // 2025 seule (2026 sans barème, 2027 future) → pas de ligne « non à jour » fantôme pour 2027.
+    expect(rapport.annees.map((a) => a.annee)).toEqual([2025])
+    expect(rapport.annees.some((a) => a.annee === 2027)).toBe(false)
+    // Le total attendu n'inclut QUE 2025 (30000), pas les 60000 fantômes de 2027 (20000 × 3).
+    expect(rapport.annees.reduce((s, a) => s + a.totalAttendu, 0)).toBe(30_000)
+  })
+
+  it('comparerPeriodesMulti([2026, 2027]) rend 2027 « n/a » (rapport null) quand elle est future', () => {
+    const c = comparerPeriodesMulti([2026, 2027], baremesAvecFutur, membres, 2026)
+    // 2026 : sans barème → null ; 2027 : future → null. Variations null (incomparable), jamais de ligne due.
+    expect(c.annees.find((x) => x.annee === 2027)!.rapport).toBeNull()
+    expect(c.annees.find((x) => x.annee === 2027)!.variations).toEqual({
+      totalAttendu: null,
+      totalCollecte: null,
+      tauxRecouvrement: null,
+    })
+  })
+})
+
 describe('variationPourcent', () => {
   it('progression et régression', () => {
     expect(variationPourcent(100, 150)).toBe(50)

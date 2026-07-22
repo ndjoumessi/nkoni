@@ -4,7 +4,7 @@ export const messages = {
   'contributions.anneeFuture':
     'Year {annee} is not due yet, so it cannot be opened for contributions. Its fee schedule can still be configured now.',
   'contributions.membreNonEligible':
-    'This member is not eligible for the {annee} contribution (outside their membership period, or inactive).',
+    'This member is not eligible for the {annee} contribution (outside their membership period).',
   'contributions.membreIntrouvable': 'Member not found.',
   'contributions.accesStatutLimite': 'Access limited to your own status.',
 }

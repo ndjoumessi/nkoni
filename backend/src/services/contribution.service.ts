@@ -51,7 +51,7 @@ export class AnneeFutureError extends Error {
   }
 }
 
-/** Levée quand le membre n'est pas éligible à l'année (hors fenêtre d'adhésion, ou non ACTIF). */
+/** Levée quand l'année est hors de la fenêtre d'adhésion du membre (statut NON pris en compte). */
 export class MembreNonEligibleError extends Error {
   readonly annee: number
   constructor(annee: number) {
@@ -90,9 +90,13 @@ export interface OuvrirAnneeMembrePrisma {
  * depuis 2023 dont les années 2023-2024 n'ont jamais été ouvertes ne pouvait pas être encaissé sur
  * ces années — alors que l'application les compte comme attendues.
  *
- * MÊMES règles que l'ouverture globale : barème obligatoire pour l'année (le `montantAttendu` est
- * copié → historisation, jamais de création silencieuse à 0) et éligibilité (statut ACTIF,
- * `anneeAdhesion <= annee`, `anneeFinContribution` null ou `>= annee`).
+ * Éligibilité = `anneeAdhesion <= annee <= (anneeFinContribution ?? +∞)`, SANS filtre sur le statut :
+ * c'est EXACTEMENT la fenêtre sur laquelle `rapport.service` calcule l'attendu cumulé (il ne filtre
+ * pas non plus sur le statut, `anneeFinContribution` figeant déjà la fin d'obligation). Filtrer ACTIF
+ * ici contredisait cet attendu : un membre DÉCÉDÉ/INACTIF dont la fenêtre couvre l'année se voyait
+ * compter un attendu (ex. 36 000) qu'aucun versement ne pouvait solder (« membre non éligible »).
+ * Barème obligatoire pour l'année (le `montantAttendu` est copié → historisation, jamais de création
+ * silencieuse à 0). La borne « pas d'année future » (Wave 33) reste, en amont.
  *
  * IDEMPOTENT : si la contribution existe déjà, elle est renvoyée telle quelle (aucune écriture).
  * Renvoie `null` si le membre est introuvable (→ 404 côté route, pas de fuite d'existence).
@@ -111,15 +115,15 @@ export async function ouvrirAnneeMembre(
 
   const membre = await prisma.membre.findUnique({
     where: { id: membreId },
-    select: { statut: true, anneeAdhesion: true, anneeFinContribution: true },
+    select: { anneeAdhesion: true, anneeFinContribution: true },
   })
   if (!membre) return null
 
   const bareme = await prisma.baremeAnnuel.findFirst({ where: { annee } })
   if (!bareme) throw new BaremeIntrouvableError(annee)
 
+  // Fenêtre d'adhésion SEULE (statut ignoré) — miroir exact de l'attendu cumulé (rapport.service).
   const eligible =
-    membre.statut === 'ACTIF' &&
     membre.anneeAdhesion <= annee &&
     (membre.anneeFinContribution === null || membre.anneeFinContribution >= annee)
   if (!eligible) throw new MembreNonEligibleError(annee)

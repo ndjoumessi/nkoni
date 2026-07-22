@@ -177,6 +177,53 @@ describe('ouvrirAnneeMembre (ouverture ciblée)', () => {
 })
 
 /**
+ * Le statut (DÉCÉDÉ/INACTIF) N'entre PAS dans l'éligibilité : seule la fenêtre d'adhésion compte,
+ * exactement comme l'attendu cumulé de `rapport.service`. Sans quoi un décédé se voyait compter un
+ * attendu qu'aucun versement ne pouvait solder (bug KENGO). L'horloge est injectée (déterministe).
+ */
+describe('ouvrirAnneeMembre : membre DÉCÉDÉ/INACTIF éligible sur sa fenêtre (statut ignoré)', () => {
+  it('un DÉCÉDÉ (adhésion 2023, fin 2025) peut ouvrir 2024 (année dans sa fenêtre)', async () => {
+    const { prisma, creations } = buildMockMembre({
+      bareme: { annee: 2024, montantAttendu: 12_000 },
+      membre: { statut: 'DECEDE', anneeAdhesion: 2023, anneeFinContribution: 2025 },
+    })
+    const res = await ouvrirAnneeMembre(prisma, 'm1', 2024, 2026)
+    expect(res).toMatchObject({ annee: 2024, montantAttendu: 12_000 })
+    expect(creations).toEqual([{ membreId: 'm1', annee: 2024, montantAttendu: 12_000 }])
+  })
+
+  it('un INACTIF dans sa fenêtre est éligible tout autant', async () => {
+    const { prisma, creations } = buildMockMembre({
+      bareme: { annee: 2024, montantAttendu: 12_000 },
+      membre: { statut: 'INACTIF', anneeAdhesion: 2023, anneeFinContribution: 2025 },
+    })
+    const res = await ouvrirAnneeMembre(prisma, 'm1', 2024, 2026)
+    expect(res).toMatchObject({ annee: 2024, montantAttendu: 12_000 })
+    expect(creations).toHaveLength(1)
+  })
+
+  it('APRÈS la fin de contribution (2026, fin 2025) reste refusé, même pour un DÉCÉDÉ', async () => {
+    const { prisma } = buildMockMembre({
+      bareme: { annee: 2026, montantAttendu: 12_000 },
+      membre: { statut: 'DECEDE', anneeAdhesion: 2023, anneeFinContribution: 2025 },
+    })
+    await expect(ouvrirAnneeMembre(prisma, 'm1', 2026, 2026)).rejects.toBeInstanceOf(
+      MembreNonEligibleError,
+    )
+  })
+
+  it('AVANT l’année d’adhésion (2022, adhésion 2023) reste refusé pour un DÉCÉDÉ', async () => {
+    const { prisma } = buildMockMembre({
+      bareme: { annee: 2022, montantAttendu: 12_000 },
+      membre: { statut: 'DECEDE', anneeAdhesion: 2023, anneeFinContribution: 2025 },
+    })
+    await expect(ouvrirAnneeMembre(prisma, 'm1', 2022, 2026)).rejects.toBeInstanceOf(
+      MembreNonEligibleError,
+    )
+  })
+})
+
+/**
  * Borne haute : une année FUTURE ne s'ouvre pas. Sinon la ligne serait affichée et encaissable
  * alors que le montant attendu cumulé (borné à l'année courante) l'ignore → argent reçu invisible.
  * Horloge injectée : aucun test ne dépend de la date réelle.

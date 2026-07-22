@@ -135,11 +135,14 @@ export async function ouvrirAnneeMembre(
 }
 
 /**
- * Crée automatiquement une Contribution pour chaque Membre ACTIF éligible à l'année
- * donnée, avec montantAttendu copié du BaremeAnnuel (historisation).
+ * Crée automatiquement une Contribution pour chaque Membre éligible à l'année donnée, avec
+ * montantAttendu copié du BaremeAnnuel (historisation).
  *
- * Éligibilité : statut ACTIF, anneeAdhesion <= annee, et
- * (anneeFinContribution == null OU anneeFinContribution >= annee).
+ * Éligibilité = FENÊTRE d'adhésion SEULE (statut IGNORÉ) : anneeAdhesion <= annee et
+ * (anneeFinContribution == null OU anneeFinContribution >= annee). Aligné sur `ouvrirAnneeMembre`,
+ * sur `rapport.service` et sur l'INDICATEUR du dashboard : un membre INACTIF/DÉCÉDÉ dont la fenêtre
+ * couvre l'année garde une cotisation due, et doit donc recevoir sa ligne à l'ouverture globale
+ * (sinon son attendu apparaissait dans les totaux sans qu'aucun versement puisse le solder).
  *
  * - Si aucun BaremeAnnuel n'existe pour l'année → BaremeIntrouvableError (pas de
  *   création silencieuse à 0).
@@ -160,8 +163,8 @@ export async function ouvrirAnnee(
   const montantAttendu: number = bareme.montantAttendu
 
   const membres = await prisma.membre.findMany({
+    // Pas de `statut: 'ACTIF'` : seule la fenêtre d'adhésion borne l'éligibilité (cf. docstring).
     where: {
-      statut: 'ACTIF',
       anneeAdhesion: { lte: annee },
       OR: [{ anneeFinContribution: null }, { anneeFinContribution: { gte: annee } }],
     },

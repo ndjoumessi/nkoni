@@ -17,9 +17,10 @@ import { ORDRE_SUPPRESSION } from '../src/services/organisation-purge.service'
 const ORG = 'org-a'
 const NOM = 'WAMBA TCHOUPA'
 
-function buildMock(opts: { actif?: boolean; absente?: boolean } = {}) {
+function buildMock(opts: { actif?: boolean; absente?: boolean; auditThrows?: boolean } = {}) {
   const supprimes: string[] = []
   const blobsSupprimes: string[] = []
+  const platformAudits: any[] = []
 
   const modele = (nom: string) => ({
     findMany: async () =>
@@ -28,6 +29,9 @@ function buildMock(opts: { actif?: boolean; absente?: boolean } = {}) {
         : nom === 'Membre'
           ? [{ id: 'm1', photoBlobUrl: 'https://blob.test/photo', photoMime: 'image/png' }]
           : [],
+    // Résolution de l'`acteurEmail` par le journal d'audit (seul `Utilisateur` est interrogé) — via
+    // le Proxy, pour NE PAS shadow `findMany`/`deleteMany` en ajoutant une entrée explicite.
+    findUnique: async () => (nom === 'Utilisateur' ? { email: 'super-admin@nkoni.test' } : null),
     deleteMany: async () => {
       supprimes.push(nom)
       return { count: 1 }
@@ -39,7 +43,7 @@ function buildMock(opts: { actif?: boolean; absente?: boolean } = {}) {
     {
       organisation: {
         findUnique: async () =>
-          opts.absente ? null : { id: ORG, nom: NOM, actif: opts.actif ?? false },
+          opts.absente ? null : { id: ORG, nom: NOM, actif: opts.actif ?? false, forfait: 'GRATUIT' },
         delete: async () => {
           supprimes.push('Organisation')
           return { id: ORG }
@@ -50,6 +54,15 @@ function buildMock(opts: { actif?: boolean; absente?: boolean } = {}) {
         deleteMany: async () => {
           supprimes.push('RefreshToken')
           return { count: 1 }
+        },
+      },
+      // Journal d'audit PLATEFORME : la purge journalise FAIL-CLOSED avant la transaction.
+      // (`utilisateur` reste géré par le Proxy → conserve findMany/deleteMany.)
+      platformAuditLog: {
+        create: async (args: any) => {
+          if (opts.auditThrows) throw new Error('audit indisponible')
+          platformAudits.push(args.data)
+          return { id: 'pa-1' }
         },
       },
       $transaction: async (fn: any) => fn(prisma),
@@ -70,7 +83,7 @@ function buildMock(opts: { actif?: boolean; absente?: boolean } = {}) {
     lireContenu: async () => null,
   }
 
-  return { prisma, blob, supprimes, blobsSupprimes }
+  return { prisma, blob, supprimes, blobsSupprimes, platformAudits }
 }
 
 const superAdmin = (app: FastifyInstance) => ({
@@ -190,6 +203,31 @@ describe('DELETE /platform/organisations/:id — verrous', () => {
     // L'export est renvoyé dans la réponse : c'est la dernière occasion de le récupérer.
     expect(body.export.version).toBe(1)
     expect(body.export.fichiers).toHaveLength(1)
+    // TRACE PLATEFORME écrite AVANT la purge, avec snapshot de l'org (nom/forfait/actif).
+    expect(mock.platformAudits).toHaveLength(1)
+    expect(mock.platformAudits[0]).toMatchObject({
+      action: 'PURGER',
+      organisationCibleId: ORG,
+      organisationNom: NOM,
+      donneesAvant: { nom: NOM, forfait: 'GRATUIT', actif: false },
+    })
+  })
+
+  it('FAIL-CLOSED : si l’écriture du journal échoue → 503, RIEN n’est purgé', async () => {
+    mock = buildMock({ auditThrows: true })
+    app = await appAvec(mock)
+    const res = await app.inject({
+      method: 'DELETE',
+      url: `/platform/organisations/${ORG}`,
+      headers: superAdmin(app),
+      payload: { confirmationNom: NOM },
+    })
+
+    expect(res.statusCode).toBe(503)
+    // Pas de trace ⇒ pas de destruction : aucune suppression, aucun blob touché.
+    expect(mock.supprimes).toHaveLength(0)
+    expect(mock.blobsSupprimes).toHaveLength(0)
+    expect(mock.platformAudits).toHaveLength(0)
   })
 })
 

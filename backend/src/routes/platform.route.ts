@@ -16,6 +16,21 @@ import {
   purgerBlobs,
   OrganisationNonSuspendueError,
 } from '../services/organisation-purge.service'
+import {
+  journaliserActionPlateforme,
+  listerJournalPlateforme,
+  type ActionPlateforme,
+  type JournalActionParams,
+} from '../services/platform-audit.service'
+
+/** Valeurs autorisées pour le filtre d'action du journal (enum Prisma `ActionPlateforme`). */
+const ACTIONS_PLATEFORME: ActionPlateforme[] = [
+  'CHANGER_FORFAIT',
+  'SUSPENDRE',
+  'REACTIVER',
+  'PURGER',
+  'EXPORTER',
+]
 
 /**
  * Routes PLATEFORME (SaaS §2.3) — réservées au rôle transverse SUPER_ADMIN.
@@ -35,6 +50,25 @@ import {
 export const platformRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
   const garde = { preHandler: [authenticate, requireSuperAdmin] }
 
+  /**
+   * Journalisation BEST-EFFORT d'une action plateforme (CHANGER_FORFAIT/SUSPENDRE/REACTIVER/
+   * EXPORTER) : une trace manquante est regrettable mais l'action reste faite et re-jouable, donc
+   * un échec d'écriture ne doit JAMAIS la faire échouer (miroir de l'audit per-org). À appeler DANS
+   * un `runUnscoped` (le service lit `Utilisateur`, modèle scopé). PURGER n'utilise PAS ce chemin :
+   * il journalise FAIL-CLOSED (cf. handler DELETE).
+   */
+  const journaliserBestEffort = async (params: JournalActionParams): Promise<void> => {
+    try {
+      await journaliserActionPlateforme(app.prisma, params)
+    } catch (err) {
+      app.observabilite.signaler(err instanceof Error ? err : new Error(String(err)), {
+        source: 'platform',
+        operation: 'audit-log',
+        action: params.action,
+      })
+    }
+  }
+
   // GET /platform/organisations — liste + statut + date + nombre de membres.
   app.get('/platform/organisations', garde, async () => {
     const organisations = await orgContext.runUnscoped(async () =>
@@ -43,18 +77,48 @@ export const platformRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
     return { organisations }
   })
 
+  // GET /platform/audit-log — journal d'audit PLATEFORME (vue « Historique »), filtrable par
+  // action et par organisation ciblée, borné (cf. PLAFOND_JOURNAL_PLATEFORME). Lecture SEULE.
+  app.get<{ Querystring: { action?: ActionPlateforme; organisationCibleId?: string } }>(
+    '/platform/audit-log',
+    {
+      ...garde,
+      schema: {
+        querystring: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            action: { type: 'string', enum: [...ACTIONS_PLATEFORME] },
+            organisationCibleId: { type: 'string' },
+          },
+        },
+      },
+    },
+    async (req) => {
+      // `runUnscoped` — le journal plateforme est TRANSVERSE : aucun tenant n'en est propriétaire
+      // (il référence l'org ciblée par un snapshot scalaire, sans relation). Lecture hors-tenant
+      // légitime, inscrite dans l'allowlist. Le SUPER_ADMIN n'a de toute façon aucun contexte org.
+      return orgContext.runUnscoped(async () =>
+        listerJournalPlateforme(app.prisma, {
+          action: req.query.action,
+          organisationCibleId: req.query.organisationCibleId,
+        }),
+      )
+    },
+  )
+
   // POST /platform/organisations/:id/suspendre — bloque l'accès (§2.3, pas de suppression).
   app.post<{ Params: { id: string } }>(
     '/platform/organisations/:id/suspendre',
     garde,
-    async (req, reply) => definirStatut(app, req.params.id, false, reply),
+    async (req, reply) => definirStatut(app, req.params.id, false, req.user.sub ?? '', reply),
   )
 
   // POST /platform/organisations/:id/reactiver — rétablit l'accès.
   app.post<{ Params: { id: string } }>(
     '/platform/organisations/:id/reactiver',
     garde,
-    async (req, reply) => definirStatut(app, req.params.id, true, reply),
+    async (req, reply) => definirStatut(app, req.params.id, true, req.user.sub ?? '', reply),
   )
 
   // GET /platform/organisations/:id/export — export COMPLET des données d'une organisation
@@ -68,9 +132,26 @@ export const platformRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
     async (req, reply) => {
       const id = req.params.id
       const donnees = await orgContext.runUnscoped(async () => {
-        const org = await app.prisma.organisation.findUnique({ where: { id }, select: { id: true } })
+        const org = await app.prisma.organisation.findUnique({
+          where: { id },
+          select: { id: true, nom: true },
+        })
         if (!org) return null
-        return await assemblerExportOrganisation(app.prisma, id)
+        const exportComplet = await assemblerExportOrganisation(app.prisma, id)
+        // Trace best-effort : l'export est une lecture, aucune donnée modifiée → `donneesApres`
+        // porte seulement le VOLUME exporté (nb d'enregistrements), utile pour l'audit de sortie.
+        const nbEnregistrements = Object.values(exportComplet.donnees).reduce(
+          (n, lignes) => n + (Array.isArray(lignes) ? lignes.length : 0),
+          0,
+        )
+        await journaliserBestEffort({
+          acteurId: req.user.sub ?? '',
+          action: 'EXPORTER',
+          organisationCibleId: id,
+          organisationNom: org.nom,
+          donneesApres: { nbEnregistrements },
+        })
+        return exportComplet
       })
       if (!donnees) {
         return reply.code(404).send({
@@ -122,11 +203,32 @@ export const platformRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
       const issue = await orgContext.runUnscoped(async () => {
         const org = await app.prisma.organisation.findUnique({
           where: { id },
-          select: { id: true, nom: true, actif: true },
+          select: { id: true, nom: true, actif: true, forfait: true },
         })
         if (!org) return { statut: 404 as const }
         if (org.actif !== false) return { statut: 409 as const }
         if (org.nom !== req.body.confirmationNom) return { statut: 400 as const }
+
+        // TRACE FAIL-CLOSED — écrite AVANT toute destruction. C'est la SEULE trace qui survit à la
+        // purge (l'`AuditLog` per-org part avec l'org). Décision PO : pas de trace ⇒ pas de
+        // destruction. Si la journalisation échoue, on renvoie 503 et on ne touche à RIEN — l'org
+        // reste intacte, l'opérateur réessaiera. (Le snapshot `donneesAvant` fige nom/forfait/statut.)
+        try {
+          await journaliserActionPlateforme(app.prisma, {
+            acteurId: req.user.sub ?? '',
+            action: 'PURGER',
+            organisationCibleId: id,
+            organisationNom: org.nom,
+            donneesAvant: { nom: org.nom, forfait: org.forfait, actif: org.actif },
+          })
+        } catch (err) {
+          app.observabilite.signaler(err instanceof Error ? err : new Error(String(err)), {
+            source: 'platform',
+            operation: 'audit-log-purge',
+            organisationId: id,
+          })
+          return { statut: 503 as const }
+        }
 
         // L'export est produit AVANT la purge : il porte les URLs des blobs, donc il est ce qui
         // rend la suppression des fichiers rejouable en cas d'échec partiel.
@@ -173,6 +275,14 @@ export const platformRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
           message: t(langue, 'platform.organisationNonSuspendue'),
         })
       }
+      // Fail-closed : la trace d'audit n'a pas pu être écrite → rien n'a été purgé (l'org est
+      // intacte). 503 : réessayable une fois l'audit rétabli.
+      if (issue.statut === 503) {
+        return reply.code(503).send({
+          error: 'Service Unavailable',
+          message: t(langue, 'platform.auditIndisponible'),
+        })
+      }
       if (issue.statut === 400) {
         return reply.code(400).send({
           error: 'Bad Request',
@@ -187,7 +297,7 @@ export const platformRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
         {
           organisationId: id,
           nom: issue.org.nom,
-          acteurId: req.user.sub,
+          acteurId: req.user.sub ?? '',
           compteurs: issue.compteurs,
           blobsSupprimes: issue.blobs.supprimes,
           blobsEchoues: issue.blobs.echecs,
@@ -228,9 +338,24 @@ export const platformRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
     },
     async (req, reply) => {
       try {
-        const organisation = await orgContext.runUnscoped(async () =>
-          definirForfaitOrganisation(app.prisma, req.params.id, req.body.forfait),
-        )
+        const organisation = await orgContext.runUnscoped(async () => {
+          // Ancien forfait lu AVANT la mise à jour (le service renvoie le NOUVEL état) → snapshot
+          // `avant → après` de la trace. `null` seulement en cas de course (id disparu entre-temps).
+          const avant = await app.prisma.organisation.findUnique({
+            where: { id: req.params.id },
+            select: { forfait: true },
+          })
+          const org = await definirForfaitOrganisation(app.prisma, req.params.id, req.body.forfait)
+          await journaliserBestEffort({
+            acteurId: req.user.sub ?? '',
+            action: 'CHANGER_FORFAIT',
+            organisationCibleId: org.id,
+            organisationNom: org.nom,
+            donneesAvant: { forfait: avant?.forfait ?? null },
+            donneesApres: { forfait: req.body.forfait },
+          })
+          return org
+        })
         return { organisation }
       } catch (err) {
         if (err && typeof err === 'object' && (err as { code?: string }).code === 'P2025') {
@@ -254,13 +379,34 @@ async function definirStatut(
   app: FastifyInstance,
   id: string,
   actif: boolean,
+  acteurId: string,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   reply: any,
 ): Promise<unknown> {
+  const action: ActionPlateforme = actif ? 'REACTIVER' : 'SUSPENDRE'
   try {
-    const organisation = await orgContext.runUnscoped(async () =>
-      definirStatutOrganisation(app.prisma, id, actif),
-    )
+    const organisation = await orgContext.runUnscoped(async () => {
+      const org = await definirStatutOrganisation(app.prisma, id, actif)
+      // Trace best-effort (l'action est réversible) — inline ici car le helper est hors de la
+      // closure de route ; état booléen déterministe, aucune lecture préalable nécessaire.
+      try {
+        await journaliserActionPlateforme(app.prisma, {
+          acteurId,
+          action,
+          organisationCibleId: org.id,
+          organisationNom: org.nom,
+          donneesAvant: { actif: !actif },
+          donneesApres: { actif },
+        })
+      } catch (e) {
+        app.observabilite.signaler(e instanceof Error ? e : new Error(String(e)), {
+          source: 'platform',
+          operation: 'audit-log',
+          action,
+        })
+      }
+      return org
+    })
     return { organisation }
   } catch (err) {
     // P2025 : id d'organisation inconnu → 404 (pas de fuite d'existence).

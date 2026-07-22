@@ -33,9 +33,16 @@ function buildMock() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const updates: { id: string; [k: string]: any }[] = []
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const platformAudits: any[] = []
   const prisma: any = {
     organisation: {
       findMany: async () => orgs.map((o) => ({ ...o })),
+      // Lu par le handler forfait (ancien forfait pour le snapshot d'audit) : `null` si id inconnu.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      findUnique: async ({ where }: any) => {
+        const org = orgs.find((o) => o.id === where.id)
+        return org ? { ...org } : null
+      },
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       update: async ({ where, data }: any) => {
         const org = orgs.find((o) => o.id === where.id)
@@ -54,8 +61,14 @@ function buildMock() {
         { organisationId: 'org-b', _count: { _all: 1 } },
       ],
     },
+    // Journal d'audit PLATEFORME : chaque action journalise (best-effort ici).
+    utilisateur: { findUnique: async () => ({ email: 'super-admin@nkoni.test' }) },
+    platformAuditLog: {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      create: async (a: any) => (platformAudits.push(a.data), { id: 'pa-1', ...a.data }),
+    },
   }
-  return { prisma, updates }
+  return { prisma, updates, platformAudits }
 }
 
 async function appAvec(prisma: unknown): Promise<FastifyInstance> {

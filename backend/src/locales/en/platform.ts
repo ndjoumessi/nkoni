@@ -5,4 +5,6 @@ export const messages = {
     'This organisation is still active: suspend it before deleting it permanently.',
   'platform.confirmationInvalide':
     "The confirmation name does not match the organisation's name: deletion cancelled.",
+  'platform.auditIndisponible':
+    'The audit log is temporarily unavailable: deletion cancelled (no data erased). Please retry.',
 }

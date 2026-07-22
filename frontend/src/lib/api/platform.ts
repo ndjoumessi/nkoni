@@ -61,6 +61,44 @@ export const platformApi = {
       accessToken,
       json: { confirmationNom },
     }),
+  /**
+   * Journal d'audit PLATEFORME (vue « Historique », lecture seule). Filtrable par action et par
+   * organisation ciblée ; réponse BORNÉE (`tronque` signale un dépassement de la limite serveur).
+   */
+  listAudit: (
+    filtres: { action?: ActionPlateforme; organisationCibleId?: string },
+    accessToken: string,
+    signal?: AbortSignal,
+  ) => {
+    const qs = new URLSearchParams()
+    if (filtres.action) qs.set('action', filtres.action)
+    if (filtres.organisationCibleId) qs.set('organisationCibleId', filtres.organisationCibleId)
+    const suffixe = qs.toString() ? `?${qs.toString()}` : ''
+    return request<PlatformAuditPage>(`/platform/audit-log${suffixe}`, { accessToken, signal })
+  },
+}
+
+/** Actions plateforme journalisées (miroir de l'enum Prisma `ActionPlateforme`). */
+export type ActionPlateforme = 'CHANGER_FORFAIT' | 'SUSPENDRE' | 'REACTIVER' | 'PURGER' | 'EXPORTER'
+
+/** Une entrée du journal d'audit plateforme (SUPER_ADMIN). Snapshots figés à l'action. */
+export interface PlatformAuditEntry {
+  id: string
+  acteurId: string
+  acteurEmail: string
+  action: ActionPlateforme
+  organisationCibleId: string
+  organisationNom: string
+  donneesAvant: unknown
+  donneesApres: unknown
+  dateAction: string
+}
+
+export interface PlatformAuditPage {
+  items: PlatformAuditEntry[]
+  total: number
+  /** `true` si le total dépasse la limite serveur : la vue affiche une bannière de troncature. */
+  tronque: boolean
 }
 
 /** Pièce jointe référencée par l'export (photos, reçus PDF, documents). */

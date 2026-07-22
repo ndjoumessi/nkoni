@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   Building2,
+  History,
   CalendarDays,
   CheckCircle2,
   Coins,
@@ -641,6 +642,21 @@ export function SuperAdminPage() {
       </header>
 
       <div className="mx-auto max-w-6xl px-6 py-10">
+        {/* Navigation console : Organisations ↔ Historique (journal d'audit plateforme). */}
+        <nav className="mb-6 inline-flex rounded-xl border border-hairline bg-surface/60 p-1">
+          <span className="inline-flex items-center gap-1.5 rounded-lg bg-surface-2 px-3 py-1.5 text-sm font-medium text-foreground">
+            <Building2 className="h-4 w-4" aria-hidden="true" />
+            {t('superAdmin.header.organisations')}
+          </span>
+          <Link
+            to="/super-admin/historique"
+            className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <History className="h-4 w-4" aria-hidden="true" />
+            {t('superAdmin.header.historique')}
+          </Link>
+        </nav>
+
         <PageHeader overline={t('superAdmin.header.overline')} title={t('superAdmin.header.titre')} />
 
         {/* Bandeau de KPIs — skeletons pendant le chargement (cohérent avec le dashboard). */}

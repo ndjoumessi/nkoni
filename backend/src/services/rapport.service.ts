@@ -29,6 +29,7 @@ import {
   type BaremeAnnuelInput,
   type ContributionInput,
 } from './statutContribution'
+import { anneeCouranteApp } from '../lib/date-app'
 
 /* -------------------------------------------------------------------------- */
 /* Types                                                                      */
@@ -105,14 +106,27 @@ function arrondi2(x: number): number {
 }
 
 /**
- * Construit le bloc d'une année, ou `null` si aucun barème n'existe pour cette année.
+ * Construit le bloc d'une année, ou `null` si l'année ne doit produire AUCUNE ligne :
+ *  - aucun barème configuré pour cette année ; OU
+ *  - année FUTURE (`annee > anneeCourante`).
+ *
+ * L'exclusion des années futures est le MÊME invariant que Wave 33 (interdiction d'ouvrir une année
+ * future) : la fenêtre d'attendu s'arrête à `min(anneeCourante, …)`. Sans elle, un barème configuré
+ * en avance (permis) produisait pour l'année future un bloc attendu = barème × éligibles, collecté = 0
+ * (aucune contribution ne pouvant être ouverte), TOUS « non à jour » — ce qui gonflait le total
+ * attendu et écrasait le taux global. Une année future est donc traitée EXACTEMENT comme une année
+ * sans barème : ignorée en évolution, rendue « n/a » en comparaison. `anneeCourante` est injectable
+ * (défaut `anneeCouranteApp()`, fuseau applicatif) pour rester testable sans horloge réelle.
+ *
  * Réutilise `calculerStatutContribution` en fenêtre mono-année (cf. en-tête du module).
  */
 export function rapportPourAnnee(
   annee: number,
   baremes: BaremeAnnuelInput[],
   membres: MembreRapport[],
+  anneeCourante: number = anneeCouranteApp(),
 ): RapportAnnee | null {
+  if (annee > anneeCourante) return null // année future → non exigible (miroir Wave 33)
   const bareme = baremes.find((b) => b.annee === annee)
   if (!bareme) return null // année sans barème → ignorée
 
@@ -163,10 +177,12 @@ export function genererRapportFinancier(
   anneeFin: number,
   baremes: BaremeAnnuelInput[],
   membres: MembreRapport[],
+  anneeCourante: number = anneeCouranteApp(),
 ): RapportFinancier {
   const annees: RapportAnnee[] = []
   for (let a = anneeDebut; a <= anneeFin; a++) {
-    const bloc = rapportPourAnnee(a, baremes, membres)
+    // `rapportPourAnnee` renvoie null pour une année future → aucune ligne, pas d'inflation.
+    const bloc = rapportPourAnnee(a, baremes, membres, anneeCourante)
     if (bloc) annees.push(bloc)
   }
   return { anneeDebut, anneeFin, annees }
@@ -213,9 +229,10 @@ export function comparerPeriodes(
   anneeB: number,
   baremes: BaremeAnnuelInput[],
   membres: MembreRapport[],
+  anneeCourante: number = anneeCouranteApp(),
 ): ComparaisonPeriodes {
-  const rapportA = rapportPourAnnee(anneeA, baremes, membres)
-  const rapportB = rapportPourAnnee(anneeB, baremes, membres)
+  const rapportA = rapportPourAnnee(anneeA, baremes, membres, anneeCourante)
+  const rapportB = rapportPourAnnee(anneeB, baremes, membres, anneeCourante)
 
   return {
     anneeA,
@@ -259,12 +276,13 @@ export function comparerPeriodesMulti(
   annees: number[],
   baremes: BaremeAnnuelInput[],
   membres: MembreRapport[],
+  anneeCourante: number = anneeCouranteApp(),
 ): ComparaisonMulti {
   const items: AnneeComparee[] = []
   let precedent: RapportAnnee | null = null
 
   annees.forEach((annee, index) => {
-    const rapport = rapportPourAnnee(annee, baremes, membres)
+    const rapport = rapportPourAnnee(annee, baremes, membres, anneeCourante)
     // 1re année de la liste : aucune référence → pas de variation.
     const variations = index === 0 ? null : variationsEntre(precedent, rapport)
     items.push({ annee, rapport, variations })

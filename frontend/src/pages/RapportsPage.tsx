@@ -36,6 +36,7 @@ import {
   type Variation,
 } from '@/lib/api'
 import { peutVoirRapports } from '@/lib/roles'
+import { anneeCouranteApp } from '@/lib/date-app'
 import { formatMontant, formatNombre, formatPourcent } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { useToast } from '@/components/ui/Toast'
@@ -442,7 +443,12 @@ export function RapportsPage() {
   const [chargement, setChargement] = useState(false)
   const [erreur, setErreur] = useState<string | null>(null)
 
-  // Années disponibles = années ayant un barème configuré.
+  // Années disponibles = années ayant un barème configuré, BORNÉES à l'année courante applicative.
+  // Un barème peut être configuré en avance (permis, cf. Wave 33), mais une année future n'a pas
+  // d'attendu exigible (aucune contribution ne peut y être ouverte) : la proposer produirait un
+  // rapport « attendu plein / collecté 0 / tous non à jour » qui gonfle le total et écrase le taux.
+  // Filtrer ici cape d'un coup les trois sélecteurs (De/À, comparaison, détail) et fait viser les
+  // défauts sur la dernière année ÉCHUE — miroir du défaut de la page Barème.
   useEffect(() => {
     if (!accessToken) return
     const controller = new AbortController()
@@ -451,7 +457,10 @@ export function RapportsPage() {
       .list(accessToken, controller.signal)
       .then((list) => {
         if (!actif) return
-        const ys = [...new Set(list.map((b) => b.annee))].sort((a, b) => a - b)
+        const maintenant = anneeCouranteApp()
+        const ys = [...new Set(list.map((b) => b.annee))]
+          .filter((y) => y <= maintenant)
+          .sort((a, b) => a - b)
         setAnnees(ys)
         if (ys.length > 0) {
           setDebut(ys[0])

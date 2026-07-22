@@ -150,7 +150,11 @@ export async function assemblerExportOrganisation(
 
   for (const modele of ORDRE_SUPPRESSION) {
     if (modele === 'Organisation' || modele === 'RefreshToken') continue
-    const lignes = await prisma[accesseur(modele)].findMany({ where: { organisationId } })
+    // `Utilisateur.passwordHash` n'a rien à faire dans un export téléchargeable — ni pour un
+    // ADMIN/PRESIDENT tenant (self-service), ni pour le SUPER_ADMIN (export plateforme) : les deux
+    // routes partagent cette fonction, donc l'exclusion se fait ICI, une seule fois pour les deux.
+    const omit = modele === 'Utilisateur' ? { passwordHash: true } : undefined
+    const lignes = await prisma[accesseur(modele)].findMany({ where: { organisationId }, omit })
     donnees[modele] = lignes
     compteurs[modele] = lignes.length
   }

@@ -180,7 +180,7 @@ describe('assemblerExportOrganisation', () => {
         get(cible: any, prop: string) {
           if (prop in cible) return cible[prop]
           return {
-            findMany: async ({ where }: any) => {
+            findMany: async ({ where, omit }: any) => {
               lus.push(prop)
               expect(where).toEqual({ organisationId: ORG })
               if (prop === 'membre') {
@@ -188,6 +188,13 @@ describe('assemblerExportOrganisation', () => {
               }
               if (prop === 'document') return [{ id: 'd1', url: 'https://b/d', mimeType: 'application/pdf' }]
               if (prop === 'recu') return [{ id: 'r1', urlPdf: null }] // reçu sans PDF généré
+              if (prop === 'utilisateur') {
+                // Ni l'export self-service (ADMIN/PRESIDENT) ni l'export plateforme (SUPER_ADMIN)
+                // ne doivent jamais recevoir le hash de mot de passe.
+                expect(omit).toEqual({ passwordHash: true })
+                return [{ id: 'u1', email: 'x@y.z' }]
+              }
+              expect(omit).toBeUndefined()
               return []
             },
           }

@@ -4,6 +4,7 @@ import { ChevronRight, Coins, HeartHandshake, Landmark, Scale, type LucideIcon }
 import type { FinancesConsolidees } from '@/lib/api'
 import { formatMontant } from '@/lib/format'
 import { Card, Overline } from '@/components/ui/Card'
+import { Montant } from '@/components/ui/Montant'
 import { cn } from '@/lib/utils'
 
 /** Mini-métrique (icône + libellé + montant + sous-texte), optionnellement cliquable. */
@@ -17,7 +18,7 @@ function Metric({
 }: {
   icon: LucideIcon
   label: string
-  value: string
+  value: number
   sub?: string
   tone?: string
   to?: string
@@ -31,7 +32,7 @@ function Metric({
           <ChevronRight className="h-3.5 w-3.5 text-faint transition-transform group-hover:translate-x-0.5 group-hover:text-brass" aria-hidden="true" />
         )}
       </span>
-      <span className={cn('num mt-1.5 block text-lg font-semibold', tone)}>{value}</span>
+      <Montant value={value} className={cn('mt-1.5 block text-lg font-semibold', tone)} />
       {sub && <span className="mt-0.5 block text-xs text-muted-foreground">{sub}</span>}
     </>
   )
@@ -58,21 +59,21 @@ export function FinancesConsolideesCard({ data }: { data: FinancesConsolidees })
         <Metric
           icon={Landmark}
           label={t('dashboard.consolide.soldeCaisse')}
-          value={formatMontant(data.soldeTresorerie)}
+          value={data.soldeTresorerie}
           tone={data.soldeTresorerie >= 0 ? 'text-jade' : 'text-terra'}
           to="/tresorerie"
         />
         <Metric
           icon={HeartHandshake}
           label={t('dashboard.consolide.cagnottes')}
-          value={formatMontant(data.cagnottes.totalCollecte)}
+          value={data.cagnottes.totalCollecte}
           sub={t('dashboard.consolide.cagnottesOuvertes', { count: data.cagnottes.nombreOuvertes })}
           to="/cagnottes"
         />
         <Metric
           icon={Scale}
           label={t('dashboard.consolide.amendes')}
-          value={formatMontant(data.amendes.du)}
+          value={data.amendes.du}
           sub={t('dashboard.consolide.amendesEncaisse', { montant: formatMontant(data.amendes.encaisse) })}
           tone={data.amendes.du > 0 ? 'text-brass' : 'text-foreground'}
           to="/amendes"

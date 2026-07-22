@@ -31,16 +31,25 @@ function locale(): string {
 }
 
 /**
+ * `Intl.NumberFormat` du formatage monétaire — SOURCE UNIQUE des options (locale, devise ISO, sans
+ * décimales). Partagé par `formatMontant` (chaîne : exports, PDF, toasts) ET le composant écran
+ * `<Montant>` (via `formatToParts`). Les deux ne doivent JAMAIS diverger : d'où ce point unique.
+ */
+export function formatteurMontant(): Intl.NumberFormat {
+  return new Intl.NumberFormat(locale(), {
+    style: 'currency',
+    currency: ISO_PAR_DEVISE[deviseCourante] ?? 'XAF',
+    maximumFractionDigits: 0,
+  })
+}
+
+/**
  * Montant entier formaté dans la langue courante ET la devise de l'organisation. Sans décimales :
  * les montants sont stockés en entiers dans l'unité principale, on n'invente pas de centimes.
  * Ex. FR/FCFA → « 30 000 FCFA », FR/EUR → « 30 000 € », EN/USD → « $30,000 ».
  */
 export function formatMontant(montant: number): string {
-  return new Intl.NumberFormat(locale(), {
-    style: 'currency',
-    currency: ISO_PAR_DEVISE[deviseCourante] ?? 'XAF',
-    maximumFractionDigits: 0,
-  }).format(montant)
+  return formatteurMontant().format(montant)
 }
 
 /** Nombre entier groupé selon la langue courante, ex. `1234` → « 1 234 » (fr) / « 1,234 » (en). */

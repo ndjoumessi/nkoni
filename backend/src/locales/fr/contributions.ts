@@ -4,7 +4,7 @@ export const messages = {
   'contributions.anneeFuture':
     "L'année {annee} n'est pas encore échue : elle ne peut pas être ouverte à la contribution. Son barème peut en revanche être configuré dès maintenant.",
   'contributions.membreNonEligible':
-    "Ce membre n'est pas éligible à la contribution de l'année {annee} (hors période d'adhésion ou membre inactif).",
+    "Ce membre n'est pas éligible à la contribution de l'année {annee} (hors de sa période d'adhésion).",
   'contributions.membreIntrouvable': 'Membre introuvable.',
   'contributions.accesStatutLimite': 'Accès limité à votre propre statut.',
 } as const

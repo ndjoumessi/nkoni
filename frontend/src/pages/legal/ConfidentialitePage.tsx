@@ -12,7 +12,7 @@ export function ConfidentialitePage() {
         <p>
           NKONI est un service de gestion des cotisations et de transparence financière pour
           associations, familles élargies et tontines. Le responsable du traitement est la société{' '}
-          <Placeholder>RAISON SOCIALE</Placeholder>, immatriculée sous le numéro{' '}
+          HABATECH, immatriculée sous le numéro{' '}
           <Placeholder>NUMÉRO D’IMMATRICULATION</Placeholder>, dont le siège est situé{' '}
           <Placeholder>ADRESSE DU SIÈGE</Placeholder> (ci-après « nous »).
         </p>
@@ -118,9 +118,15 @@ export function ConfidentialitePage() {
           <li>droit de définir des directives sur le sort de vos données après votre décès.</li>
         </ul>
         <p>
-          Pour exercer ces droits, écrivez-nous à <Placeholder>EMAIL DE CONTACT</Placeholder>. Vous
-          disposez également du droit d’introduire une réclamation auprès de l’autorité de contrôle
-          compétente en matière de protection des données.
+          Pour exercer ces droits, écrivez-nous à{' '}
+          <a
+            href="mailto:romel.djoumessi@gmail.com"
+            className="text-brass underline-offset-2 hover:underline"
+          >
+            romel.djoumessi@gmail.com
+          </a>
+          . Vous disposez également du droit d’introduire une réclamation auprès de l’autorité de
+          contrôle compétente en matière de protection des données.
         </p>
       </SectionLegale>
 
@@ -147,7 +153,14 @@ export function ConfidentialitePage() {
         <p>
           Nous pouvons faire évoluer la présente politique. Toute modification substantielle sera
           portée à votre connaissance, et la date de dernière mise à jour figure en tête de page.
-          Pour toute question, contactez-nous à <Placeholder>EMAIL DE CONTACT</Placeholder>.
+          Pour toute question, contactez-nous à{' '}
+          <a
+            href="mailto:romel.djoumessi@gmail.com"
+            className="text-brass underline-offset-2 hover:underline"
+          >
+            romel.djoumessi@gmail.com
+          </a>
+          .
         </p>
       </SectionLegale>
     </PageLegale>

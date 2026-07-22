@@ -82,6 +82,35 @@ describe('ouvrirAnnee (§5 point 4)', () => {
     expect(second.contributionsCreees).toBe(0) // skipDuplicates via @@unique
     expect(second.membresEligibles).toBe(2)
   })
+
+  it('éligibilité = FENÊTRE seule, statut IGNORÉ (Définition B, aligné sur ouvrirAnneeMembre)', async () => {
+    // On capture le `where` réellement passé à Prisma : il ne doit PLUS filtrer sur le statut,
+    // mais conserver la borne de fenêtre d'adhésion. (Le mock ci-dessus ignore le `where`, d'où
+    // ce mock dédié qui l'inspecte.)
+    let whereCapture: Record<string, unknown> | undefined
+    const prisma: OuvrirAnneePrisma = {
+      baremeAnnuel: { findFirst: async () => ({ annee: 2025, montantAttendu: 10_000 }) },
+      membre: {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        findMany: async ({ where }: any) => {
+          whereCapture = where
+          return [{ id: 'm1' }, { id: 'm2' }]
+        },
+      },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      contribution: { createMany: async ({ data }: any) => ({ count: data.length }) },
+    }
+
+    const res = await ouvrirAnnee(prisma, 2025, 2026)
+
+    expect(whereCapture).not.toHaveProperty('statut') // plus de filtre ACTIF
+    expect(whereCapture!.anneeAdhesion).toEqual({ lte: 2025 })
+    expect(whereCapture!.OR).toEqual([
+      { anneeFinContribution: null },
+      { anneeFinContribution: { gte: 2025 } },
+    ])
+    expect(res.membresEligibles).toBe(2)
+  })
 })
 
 /**

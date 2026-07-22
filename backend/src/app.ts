@@ -10,6 +10,7 @@ import { prisma as defaultPrisma, type PrismaClient } from './lib/prisma'
 import { vercelBlobClient } from './lib/blob'
 import type { BlobClient } from './services/document.service'
 import { vraiWhatsAppClient, type WhatsAppClient } from './services/whatsapp.service'
+import { vraiEmailClient, type EmailClient } from './services/email.service'
 import { registerJwt } from './plugins/jwt'
 import { authRoutes } from './routes/auth.route'
 import { organisationsRoutes } from './routes/organisations.route'
@@ -52,6 +53,7 @@ declare module 'fastify' {
     prisma: PrismaClient
     blob: BlobClient
     whatsapp: WhatsAppClient
+    email: EmailClient
     observabilite: ObservabiliteClient
   }
 }
@@ -63,6 +65,8 @@ export interface BuildAppOptions {
   blob?: BlobClient
   /** Client WhatsApp à utiliser (mock en test). Défaut : Meta Cloud API réel (no-op sans env). */
   whatsapp?: WhatsAppClient
+  /** Client email de repli (mock en test). Défaut : Resend réel (no-op sans RESEND_API_KEY/FROM). */
+  email?: EmailClient
   /** Client d'observabilité (mock en test). Défaut : Sentry réel (no-op sans SENTRY_DSN). */
   observabilite?: ObservabiliteClient
   /** Active le logger Fastify. Défaut : true (désactivable en test). */
@@ -106,6 +110,7 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   app.decorate('prisma', opts.prisma ?? defaultPrisma)
   app.decorate('blob', opts.blob ?? vercelBlobClient)
   app.decorate('whatsapp', opts.whatsapp ?? vraiWhatsAppClient)
+  app.decorate('email', opts.email ?? vraiEmailClient)
   app.decorate('observabilite', opts.observabilite ?? vraiObservabiliteClient)
 
   // Contextes ALS par requête : audit (acteur, V2 §5) et organisation (isolation SaaS §2.2).

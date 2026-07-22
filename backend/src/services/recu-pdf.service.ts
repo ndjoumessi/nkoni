@@ -115,6 +115,8 @@ export interface ContexteRecuPdf {
   membreCompteId: string | null
   /** Téléphone du membre (pour l'envoi WhatsApp) — null si absent. */
   membreTelephone: string | null
+  /** Email de contact du membre (pour le repli email §4.6) — null si absent. */
+  membreEmail: string | null
   /**
    * `null` = reçu ACTIF. Renseigné ⇒ ANNULÉ : les routes de téléchargement et d'envoi WhatsApp
    * DOIVENT refuser. Sans ce champ, un reçu annulé restait servi tel quel — en particulier via le
@@ -158,7 +160,13 @@ export async function chargerDonneesRecuPdf(
         select: {
           annee: true,
           membre: {
-            select: { nom: true, prenom: true, compteUtilisateurId: true, telephone: true },
+            select: {
+              nom: true,
+              prenom: true,
+              compteUtilisateurId: true,
+              telephone: true,
+              email: true,
+            },
           },
         },
       },
@@ -179,6 +187,7 @@ export async function chargerDonneesRecuPdf(
     },
     membreCompteId: membre?.compteUtilisateurId ?? null,
     membreTelephone: membre?.telephone ?? null,
+    membreEmail: membre?.email ?? null,
     annuleLe: recu.annuleLe ?? null,
     urlPdf: recu.urlPdf,
   }

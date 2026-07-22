@@ -182,6 +182,8 @@ export default {
         feminin: 'Féminin',
         dateNaissance: 'Date de naissance',
         telephone: 'Téléphone',
+        email: 'Email',
+        emailPlaceholder: 'membre@exemple.com',
         adresse: 'Adresse',
         fonctionSociale: 'Fonction sociale',
         anneeAdhesion: "Année d'adhésion",

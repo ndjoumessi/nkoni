@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { FileText, Loader2, Download, Send, Pencil, Trash2, Ban, ChevronDown, ChevronRight } from 'lucide-react'
+import { FileText, Loader2, Download, Send, Mail, Pencil, Trash2, Ban, ChevronDown, ChevronRight } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
 import {
   versementsApi,
@@ -71,6 +71,7 @@ export function VersementsList({
   const [error, setError] = useState<string | null>(null)
   const [generating, setGenerating] = useState<string | null>(null)
   const [annulantRecu, setAnnulantRecu] = useState<string | null>(null)
+  const [envoyantRecu, setEnvoyantRecu] = useState<string | null>(null)
   const [recuAAnnuler, setRecuAAnnuler] = useState<Recu | null>(null)
   const peutGerer = peutSaisirVersement(user?.role)
 
@@ -219,6 +220,28 @@ export function VersementsList({
     })
     const base = numero ? `https://wa.me/${numero}` : 'https://wa.me/'
     window.open(`${base}?text=${encodeURIComponent(message)}`, '_blank', 'noopener')
+  }
+
+  // Envoi SERVEUR du reçu au membre : WhatsApp d'abord, EMAIL en repli (§4.6, GA 0.4). Distinct du
+  // partage `wa.me` ci-dessus (qui ouvre le WhatsApp de l'utilisateur) : ici c'est le serveur qui
+  // délivre, automatiquement, dès qu'un canal est configuré. Best-effort — on informe du canal.
+  const envoyerRecu = async (recu: Recu) => {
+    if (!accessToken) return
+    setEnvoyantRecu(recu.id)
+    try {
+      const r = await recusApi.envoyer(recu.id, accessToken)
+      if (r.envoye && r.canal === 'whatsapp') {
+        toast.success(t('versements.toast.recuEnvoye'), t('versements.toast.recuEnvoyeWhatsApp'))
+      } else if (r.envoye && r.canal === 'email') {
+        toast.success(t('versements.toast.recuEnvoye'), t('versements.toast.recuEnvoyeEmail'))
+      } else {
+        toast.info(t('versements.toast.recuNonEnvoye'), t('versements.toast.recuNonEnvoyeDetail'))
+      }
+    } catch (e) {
+      toast.error(t('versements.toast.recuEnvoiImpossible'), e instanceof ApiError ? e.message : '')
+    } finally {
+      setEnvoyantRecu(null)
+    }
   }
 
   const ouvrirEdition = (v: Versement) => {
@@ -372,6 +395,17 @@ export function VersementsList({
                         onClick={() => partagerWhatsApp(recu, v.montant)}
                       >
                         {t('versements.liste.whatsapp')}
+                      </Button>
+                      {/* Envoi SERVEUR (WhatsApp → repli email) — distinct du partage wa.me ci-dessus :
+                          ici le serveur délivre automatiquement dès qu'un canal est configuré. */}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        icon={Mail}
+                        loading={envoyantRecu === recu.id}
+                        onClick={() => envoyerRecu(recu)}
+                      >
+                        {t('versements.liste.envoyer')}
                       </Button>
                       {/* Seule porte de sortie quand ce versement doit être corrigé : tant qu'un reçu
                           ACTIF existe, sa modification et sa suppression sont refusées. */}

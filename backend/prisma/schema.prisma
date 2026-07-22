@@ -243,6 +243,11 @@ model Membre {
   fonctionSociale          String?
   statut                   StatutMembre                  @default(ACTIF)
   telephone                String?
+  // Email de contact (§4.6, canal de repli) — champ de CONTACT symétrique de `telephone`, distinct
+  // de l'email de LOGIN (`Utilisateur.email`) : un membre peut recevoir ses reçus par email sans
+  // avoir de compte. Optionnel, NON unique (une famille peut partager une adresse). Normalisé au
+  // create/update (trim + minuscule) ; non normalisable → simplement pas d'envoi email.
+  email                    String?
   adresse                  String?
   brancheId                String?
   branche                  BrancheFamiliale?             @relation(fields: [brancheId], references: [id])

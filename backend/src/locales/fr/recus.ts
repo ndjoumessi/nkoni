@@ -7,6 +7,9 @@ export const messages = {
     'Ce reçu a été annulé : il n’est plus téléchargeable ni partageable. Générez un nouveau reçu.',
   'recus.introuvable': 'Reçu introuvable.',
   'recus.whatsapp.legende': 'Votre reçu NKONI n° {numero}.',
+  'recus.email.sujet': 'Votre reçu NKONI n° {numero}',
+  'recus.email.corps':
+    'Bonjour,\n\nVeuillez trouver ci-joint votre reçu NKONI n° {numero}.\n\nCe message est envoyé automatiquement, merci de ne pas y répondre.',
   'recus.accesVersementsLimite': 'Accès limité à vos propres versements.',
   'recus.versementIntrouvableGeneration':
     'Versement {versementId} introuvable : impossible de générer un reçu.',

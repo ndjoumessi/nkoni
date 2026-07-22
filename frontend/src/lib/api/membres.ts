@@ -47,6 +47,7 @@ export interface Membre {
   fonctionSociale: string | null
   statut: StatutMembre
   telephone: string | null
+  email: string | null
   adresse: string | null
   brancheId: string | null
   chefSousFamilleId: string | null
@@ -68,6 +69,7 @@ export interface MembreInput {
   fonctionSociale?: string
   statut?: StatutMembre
   telephone?: string
+  email?: string
   adresse?: string
   brancheId?: string
   chefSousFamilleId?: string

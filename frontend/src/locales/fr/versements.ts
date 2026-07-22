@@ -65,6 +65,13 @@ export default {
         clientIndisponible: 'WhatsApp n’est pas configuré côté serveur.',
         echecEnvoi: 'L’envoi a échoué, réessayez plus tard.',
       },
+      recuEnvoye: 'Reçu envoyé',
+      recuEnvoyeWhatsApp: 'Envoyé au membre par WhatsApp.',
+      recuEnvoyeEmail: 'Envoyé au membre par email.',
+      recuNonEnvoye: 'Reçu non envoyé',
+      recuNonEnvoyeDetail:
+        'Aucun canal disponible : vérifiez le téléphone ou l’email du membre, ou la configuration serveur.',
+      recuEnvoiImpossible: 'Envoi impossible',
     },
     liste: {
       chargement: 'Chargement des versements…',
@@ -76,6 +83,7 @@ export default {
       recuAnnule: 'Reçu {{numero}} — annulé',
       telecharger: 'Télécharger',
       whatsapp: 'WhatsApp',
+      envoyer: 'Envoyer',
       modifier: 'Modifier',
       supprimer: 'Supprimer',
       // Ligne d'un reçu ORPHELIN : le versement a été supprimé après annulation du reçu. Le

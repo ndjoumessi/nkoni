@@ -18,6 +18,12 @@ export default {
     },
     chargement: 'Chargement',
     erreurGenerique: 'Une erreur est survenue. Réessayez plus tard.',
+    erreurFatale: {
+      titre: 'Une erreur inattendue est survenue',
+      description:
+        "L'application a rencontré un problème et n'a pas pu continuer. Recharger la page devrait résoudre le souci.",
+      recharger: 'Recharger la page',
+    },
     erreurs: {
       chargementImpossible: 'Chargement impossible',
     },

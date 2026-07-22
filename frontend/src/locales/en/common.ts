@@ -18,6 +18,12 @@ export default {
     },
     chargement: 'Loading',
     erreurGenerique: 'Something went wrong. Please try again later.',
+    erreurFatale: {
+      titre: 'An unexpected error occurred',
+      description:
+        'The application ran into a problem and could not continue. Reloading the page should fix it.',
+      recharger: 'Reload the page',
+    },
     erreurs: {
       chargementImpossible: 'Loading failed',
     },

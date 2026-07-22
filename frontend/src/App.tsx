@@ -17,6 +17,7 @@ import { RouteFallback } from '@/components/RouteFallback'
  * du chargement du chunk. Toutes les pages exportent un défaut → `import('@/pages/X')` direct.
  */
 const SuperAdminPage = lazy(() => import('@/pages/SuperAdminPage'))
+const PlatformAuditPage = lazy(() => import('@/pages/PlatformAuditPage'))
 const DashboardPage = lazy(() => import('@/pages/DashboardPage'))
 const MonEspacePage = lazy(() => import('@/pages/MonEspacePage'))
 const MembresPage = lazy(() => import('@/pages/MembresPage'))
@@ -76,6 +77,17 @@ function App() {
           <SuperAdminRoute>
             <Suspense fallback={<RouteFallback pleinEcran />}>
               <SuperAdminPage />
+            </Suspense>
+          </SuperAdminRoute>
+        }
+      />
+      {/* Historique des actions plateforme (journal d'audit SUPER_ADMIN, dette 0.3). */}
+      <Route
+        path="/super-admin/historique"
+        element={
+          <SuperAdminRoute>
+            <Suspense fallback={<RouteFallback pleinEcran />}>
+              <PlatformAuditPage />
             </Suspense>
           </SuperAdminRoute>
         }

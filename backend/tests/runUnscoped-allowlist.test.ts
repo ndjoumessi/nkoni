@@ -38,8 +38,14 @@ const APPROUVES: Record<string, number> = {
   // ⚠️ CONTREPARTIE : l'isolation ne protège plus rien à l'intérieur. C'est le service
   // `organisation-purge.service.ts` qui construit lui-même chaque `where.organisationId` (un
   // `deleteMany({})` y effacerait TOUTES les organisations), et un test unitaire dédié vérifie
-  // que chaque suppression est scopée. 5 appels au total.
-  'routes/platform.route.ts': 5,
+  // que chaque suppression est scopée.
+  // + JOURNAL D'AUDIT PLATEFORME (dette 0.3) : lecture de la vue « Historique » (GET
+  // /platform/audit-log). Le journal est TRANSVERSE — aucun tenant n'en est propriétaire (il
+  // référence l'org ciblée par un snapshot scalaire `organisationCibleId`, SANS relation, hors
+  // `SCOPED_MODELS`) — donc l'accès hors-tenant est légitime. Les ÉCRITURES de trace (à chaque
+  // action) N'ajoutent PAS d'appel : elles sont imbriquées dans les `runUnscoped` déjà comptés
+  // ci-dessus. 6 appels au total.
+  'routes/platform.route.ts': 6,
   // Lien PUBLIC signé — carte de statut (§4.7) : résolution de l'org du membre AVANT `orgContext.run`.
   'routes/cartes.route.ts': 1,
   // Lien PUBLIC signé — reçu PDF public (§4.6) : résolution de l'org du reçu, idem.

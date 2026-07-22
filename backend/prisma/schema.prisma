@@ -96,6 +96,43 @@ model RefreshToken {
   @@index([familleId])
 }
 
+/** Actions PLATEFORME journalisées (SUPER_ADMIN, dette roadmap 0.3). */
+enum ActionPlateforme {
+  CHANGER_FORFAIT
+  SUSPENDRE
+  REACTIVER
+  PURGER
+  EXPORTER
+}
+
+/**
+ * Journal d'audit PLATEFORME — trace des actions du SUPER_ADMIN sur les organisations clientes.
+ *
+ * NON SCOPÉ, délibérément (le SUPER_ADMIN §2.3 n'a pas d'`organisationId`) : hors `SCOPED_MODELS`,
+ * accédé en `runUnscoped`, sur le modèle de `RefreshToken`. La référence à l'org ciblée est le
+ * SCALAIRE `organisationCibleId` — surtout PAS `organisationId` (qui ferait basculer le modèle dans
+ * la parité `SCOPED_MODELS ↔ schéma`) et SANS relation Prisma vers `Organisation` : la ligne doit
+ * SURVIVRE à la purge du tenant qu'elle référence (une relation `onDelete` la détruirait/annulerait).
+ * `acteurEmail` et `organisationNom` sont des SNAPSHOTS figés à l'action — lisibles même après
+ * suppression/renommage de l'acteur ou purge de l'org. Pour PURGER, c'est la SEULE trace qui subsiste
+ * (l'`AuditLog` per-org part avec l'org) : elle est écrite AVANT la transaction de purge, fail-closed.
+ */
+model PlatformAuditLog {
+  id                  String           @id @default(uuid())
+  acteurId            String // super-admin (FK scalaire, pas de relation — comme RefreshToken)
+  acteurEmail         String // snapshot : identité durable et lisible sans jointure
+  action              ActionPlateforme
+  organisationCibleId String // SNAPSHOT scalaire de l'org ciblée — jamais `organisationId`, sans relation
+  organisationNom     String // snapshot : l'org peut être purgée
+  donneesAvant        Json? // ex. { forfait: 'GRATUIT' } — état avant l'action
+  donneesApres        Json? // ex. { forfait: 'PRO' } — état après (null pour PURGER)
+  dateAction          DateTime         @default(now())
+
+  @@index([action])
+  @@index([organisationCibleId])
+  @@index([dateAction])
+}
+
 model Organisation {
   id           String   @id @default(uuid())
   nom          String

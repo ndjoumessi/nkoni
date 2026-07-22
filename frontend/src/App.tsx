@@ -5,6 +5,8 @@ import { Routes, Route, Outlet } from 'react-router-dom'
 import LandingPage from '@/pages/LandingPage'
 import LoginPage from '@/pages/LoginPage'
 import InscriptionPage from '@/pages/InscriptionPage'
+import ConfidentialitePage from '@/pages/legal/ConfidentialitePage'
+import CGUPage from '@/pages/legal/CGUPage'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { SuperAdminRoute } from '@/components/SuperAdminRoute'
 import { AppShell } from '@/components/AppShell'
@@ -69,6 +71,8 @@ function App() {
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/inscription" element={<InscriptionPage />} />
+      <Route path="/confidentialite" element={<ConfidentialitePage />} />
+      <Route path="/cgu" element={<CGUPage />} />
 
       {/* Console PLATEFORME (SaaS §2.3) — SUPER_ADMIN uniquement, layout autonome (hors AppShell). */}
       <Route

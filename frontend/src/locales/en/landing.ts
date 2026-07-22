@@ -218,6 +218,9 @@ export default {
       contact: 'Contact us',
       contactSujet: 'NKONI — getting in touch',
       droits: '© 2026 NKONI. All rights reserved.',
+      legal: 'Legal',
+      confidentialite: 'Privacy',
+      cgu: 'Terms',
     },
   },
 }

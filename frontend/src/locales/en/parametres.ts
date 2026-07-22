@@ -31,5 +31,13 @@ export default {
       restants_other: '{{count}} seats remaining',
       limiteAtteinte: 'Plan limit reached',
     },
+    export: {
+      titre: 'Export my data',
+      description:
+        'Download all your organisation’s data (members, payments, receipts, expenses…) as a JSON file. Attachments are referenced by their address.',
+      bouton: 'Export (JSON)',
+      succes: 'Export downloaded',
+      echec: 'Export failed',
+    },
   },
 }

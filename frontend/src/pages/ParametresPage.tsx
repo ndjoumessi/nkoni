@@ -2,15 +2,17 @@ import { useEffect, useState, type ComponentType } from 'react'
 import { useTranslation } from 'react-i18next'
 import { cleI18n } from '@/lib/i18n'
 import { Navigate } from 'react-router-dom'
-import { Building2, CalendarDays, Coins, Crown, Languages, Lock, Users, type LucideProps } from 'lucide-react'
+import { Building2, CalendarDays, Coins, Crown, Download, Languages, Lock, Users, type LucideProps } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
 import { organisationApi, messageErreur, type OrganisationCourante } from '@/lib/api'
-import { peutVoirParametres } from '@/lib/roles'
+import { peutVoirParametres, peutExporterDonnees } from '@/lib/roles'
 import { cn, formatDate } from '@/lib/utils'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, Overline } from '@/components/ui/Card'
+import { Button } from '@/components/ui/Button'
 import { ErrorState } from '@/components/ui/ErrorState'
 import { Skeleton } from '@/components/ui/Skeleton'
+import { useToast } from '@/components/ui/Toast'
 
 /** Ligne d'information en lecture seule (icône + libellé + valeur). */
 function Info({
@@ -48,10 +50,35 @@ function couleurJauge(pct: number): string {
 export function ParametresPage() {
   const { t } = useTranslation()
   const { user, accessToken } = useAuth()
+  const toast = useToast()
 
   const [org, setOrg] = useState<OrganisationCourante | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [exporting, setExporting] = useState(false)
+
+  // Export self-service (portabilité RGPD) : télécharge le JSON de l'organisation. Le nom du fichier
+  // est posé ICI (un Blob ne porte pas l'en-tête Content-Disposition du serveur).
+  const telechargerExport = async () => {
+    if (!accessToken) return
+    setExporting(true)
+    try {
+      const blob = await organisationApi.telechargerExport(accessToken)
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `nkoni-export-${new Date().toISOString().slice(0, 10)}.json`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      setTimeout(() => URL.revokeObjectURL(url), 60_000)
+      toast.success(t('parametres.export.succes'))
+    } catch (e) {
+      toast.error(t('parametres.export.echec'), messageErreur(e))
+    } finally {
+      setExporting(false)
+    }
+  }
 
   useEffect(() => {
     if (!accessToken || !peutVoirParametres(user?.role)) return
@@ -188,6 +215,27 @@ export function ParametresPage() {
               </>
             )}
           </Card>
+
+          {/* Export self-service (portabilité RGPD, GA 0.3) — bureau dirigeant uniquement. */}
+          {peutExporterDonnees(user?.role) && (
+            <Card className="nk-reveal nk-d3 p-6">
+              <div className="flex items-center gap-2">
+                <Download className="h-4 w-4 text-brass" aria-hidden="true" />
+                <Overline>{t('parametres.export.titre')}</Overline>
+              </div>
+              <p className="mt-3 text-sm text-muted-foreground">{t('parametres.export.description')}</p>
+              <div className="mt-4">
+                <Button
+                  variant="outline"
+                  icon={Download}
+                  loading={exporting}
+                  onClick={telechargerExport}
+                >
+                  {t('parametres.export.bouton')}
+                </Button>
+              </div>
+            </Card>
+          )}
         </div>
       ) : null}
     </div>

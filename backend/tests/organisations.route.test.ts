@@ -322,3 +322,70 @@ describe('Chef de l’organisation — PATCH /organisations/moi/chef', () => {
     await app.close()
   })
 })
+
+/**
+ * Export SELF-SERVICE — GET /organisations/moi/export (portabilité RGPD, GA 0.3).
+ * Prisma mocké par PROXY : n'importe quel accesseur de modèle répond `findMany` (l'export lit les
+ * 26 modèles scopés). Vérifie : contenu (forme ExportOrganisation + données), header de
+ * téléchargement, garde de rôle (ADMIN/PRESIDENT OUI, TRESORIERE/MEMBRE_SIMPLE NON), auth requise.
+ */
+function buildExportMock() {
+  // Données par accesseur (minuscule) — l'export les regroupe par NOM de modèle (majuscule).
+  const parAccesseur: Record<string, unknown[]> = {
+    membre: [{ id: 'm1', nom: 'X', prenom: 'Y', organisationId: 'org-1' }],
+    versement: [{ id: 'v1', montant: 12000, organisationId: 'org-1' }],
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const prisma = new Proxy({} as any, {
+    get(_t, prop: string) {
+      if (prop === 'organisation') {
+        return { findUnique: async () => ({ id: 'org-1', nom: 'WAMBA TCHOUPA', devise: 'EUR' }) }
+      }
+      return { findMany: async () => parAccesseur[prop] ?? [] }
+    },
+  })
+  return prisma
+}
+
+const exportUrl = '/organisations/moi/export'
+
+describe('Export self-service — GET /organisations/moi/export', () => {
+  it('ADMIN → 200, JSON d’export (forme + données) + header de téléchargement', async () => {
+    const app = await appAvec(buildExportMock())
+    const res = await app.inject({ method: 'GET', url: exportUrl, headers: authMoi(app, 'ADMIN') })
+    expect(res.statusCode).toBe(200)
+    // Header de téléchargement (nom horodaté).
+    expect(res.headers['content-disposition']).toMatch(/attachment; filename="nkoni-export-\d{4}-\d{2}-\d{2}\.json"/)
+    const body = res.json()
+    expect(body).toMatchObject({ version: 1, organisation: { id: 'org-1', nom: 'WAMBA TCHOUPA' } })
+    // Les données scopées sont regroupées par modèle, avec compteurs cohérents.
+    expect(body.donnees.Membre).toHaveLength(1)
+    expect(body.compteurs.Membre).toBe(1)
+    expect(body.compteurs.Versement).toBe(1)
+    expect(typeof body.genereLe).toBe('string')
+    await app.close()
+  })
+
+  it('PRESIDENT → 200 (bureau dirigeant)', async () => {
+    const app = await appAvec(buildExportMock())
+    const res = await app.inject({ method: 'GET', url: exportUrl, headers: authMoi(app, 'PRESIDENT') })
+    expect(res.statusCode).toBe(200)
+    await app.close()
+  })
+
+  it('garde de rôle : TRESORIERE / SECRETAIRE / MEMBRE_SIMPLE → 403 (export = toutes les PII)', async () => {
+    for (const role of ['TRESORIERE', 'SECRETAIRE', 'MEMBRE_SIMPLE']) {
+      const app = await appAvec(buildExportMock())
+      const res = await app.inject({ method: 'GET', url: exportUrl, headers: authMoi(app, role) })
+      expect(res.statusCode, role).toBe(403)
+      await app.close()
+    }
+  })
+
+  it('sans authentification → 401', async () => {
+    const app = await appAvec(buildExportMock())
+    const res = await app.inject({ method: 'GET', url: exportUrl })
+    expect(res.statusCode).toBe(401)
+    await app.close()
+  })
+})

@@ -12,6 +12,7 @@ import {
   EmailDejaUtiliseError,
   MembreHorsOrganisationError,
 } from '../services/organisation.service'
+import { assemblerExportOrganisation } from '../services/organisation-purge.service'
 
 /**
  * Organisation SaaS :
@@ -115,6 +116,33 @@ export const organisationsRoutes: FastifyPluginAsync = async (app: FastifyInstan
           .send({ error: 'Not Found', message: t(langueDeRequete(req), 'organisations.introuvable') })
       }
       return organisation
+    },
+  )
+
+  // GET /organisations/moi/export — EXPORT self-service des données de l'organisation courante
+  // (portabilité RGPD, bloquant GA 0.3). Le pendant TENANT de l'export plateforme SUPER_ADMIN :
+  // ici un ADMIN/PRESIDENT récupère les données de SON espace, sans passer par la console.
+  // Réservé au bureau dirigeant (requireRoles) car l'export contient TOUTES les PII des membres
+  // + les données financières — plus large qu'une simple lecture de paramètres.
+  // SCOPÉ (aucun runUnscoped) : `assemblerExportOrganisation` lit chaque modèle avec un
+  // where.organisationId explicite, et l'extension d'isolation impose EN PLUS le même org
+  // (double filtre concordant). Aucune fuite cross-tenant possible, et l'allowlist runUnscoped
+  // reste inchangée. Télécharge un JSON (données + manifeste des pièces jointes Blob).
+  app.get(
+    '/organisations/moi/export',
+    { preHandler: [authenticate, requireRoles(['ADMIN', 'PRESIDENT'])] },
+    async (req, reply) => {
+      const organisationId = req.user.organisationId
+      if (!organisationId) {
+        return reply
+          .code(404)
+          .send({ error: 'Not Found', message: t(langueDeRequete(req), 'organisations.introuvable') })
+      }
+      const donnees = await assemblerExportOrganisation(app.prisma, organisationId)
+      const horodatage = donnees.genereLe.slice(0, 10) // YYYY-MM-DD
+      reply.header('Content-Type', 'application/json; charset=utf-8')
+      reply.header('Content-Disposition', `attachment; filename="nkoni-export-${horodatage}.json"`)
+      return donnees
     },
   )
 

@@ -39,6 +39,14 @@ export function peutDesignerChef(role: string | undefined): boolean {
   return role !== undefined && DESIGNATION_CHEF.includes(role)
 }
 
+/**
+ * Peut exporter les données de l'organisation (GET /organisations/moi/export, portabilité RGPD).
+ * Réservé au bureau dirigeant (ADMIN/PRESIDENT) : l'export contient toutes les PII + les finances.
+ */
+export function peutExporterDonnees(role: string | undefined): boolean {
+  return role !== undefined && DESIGNATION_CHEF.includes(role)
+}
+
 /** Rôles autorisés à saisir un versement et à ouvrir une année (Contribution/Versement CRUD §2). */
 const GESTION_FINANCE = ['ADMIN', 'TRESORIERE']
 

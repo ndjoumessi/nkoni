@@ -37,6 +37,37 @@ export interface StatutsMembres {
   tronque: boolean
 }
 
+/** Compteurs de tête — sur l'ensemble NON filtré (§1.3). */
+export interface ResumeStatuts {
+  total: number
+  actifs: number
+  aJour: number
+  nonAJour: number
+  inactifs: number
+}
+
+/** Réponse PAGINÉE de GET /membres/statuts/page (§1.3) : page + total filtré + synthèse + branches. */
+export interface StatutsMembresPagine {
+  items: MembreStatut[]
+  total: number
+  page: number
+  pageSize: number
+  resume: ResumeStatuts
+  branches: { id: string; nom: string }[]
+}
+
+/** Paramètres de la liste paginée (recherche + filtres + tri côté serveur). */
+export interface OptionsListeStatuts {
+  page?: number
+  pageSize?: number
+  recherche?: string
+  branche?: string
+  statut?: StatutMembre
+  cotisation?: StatutContribution
+  tri?: 'nom' | 'branche' | 'statut' | 'cotisation' | 'adhesion'
+  dir?: 'asc' | 'desc'
+}
+
 /** Fiche complète GET /membres/:id. */
 export interface Membre {
   id: string
@@ -105,6 +136,26 @@ export const membresApi = {
    */
   listStatuts: (accessToken: string, signal?: AbortSignal) =>
     request<StatutsMembres>('/membres/statuts', { accessToken, signal }).then((r) => r.items),
+  /**
+   * Liste PAGINÉE (§1.3) — recherche, filtres et tri côté SERVEUR, page bornée. Renvoie aussi la
+   * synthèse et les branches (sur l'ensemble non filtré). Pour la page Membres des grosses orgs.
+   */
+  listStatutsPagine: (opts: OptionsListeStatuts, accessToken: string, signal?: AbortSignal) => {
+    const p = new URLSearchParams()
+    if (opts.page) p.set('page', String(opts.page))
+    if (opts.pageSize) p.set('pageSize', String(opts.pageSize))
+    if (opts.recherche) p.set('recherche', opts.recherche)
+    if (opts.branche) p.set('branche', opts.branche)
+    if (opts.statut) p.set('statut', opts.statut)
+    if (opts.cotisation) p.set('cotisation', opts.cotisation)
+    if (opts.tri) p.set('tri', opts.tri)
+    if (opts.dir) p.set('dir', opts.dir)
+    const qs = p.toString()
+    return request<StatutsMembresPagine>(`/membres/statuts/page${qs ? `?${qs}` : ''}`, {
+      accessToken,
+      signal,
+    })
+  },
   get: (id: string, accessToken: string, signal?: AbortSignal) =>
     request<Membre>(`/membres/${id}`, { accessToken, signal }),
   statut: (id: string, accessToken: string, signal?: AbortSignal) =>

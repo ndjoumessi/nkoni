@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { AlertTriangle, CheckCircle2, CreditCard, Loader2, Plus, Search, Upload, Users } from 'lucide-react'
@@ -10,12 +10,12 @@ import {
   type MembreStatut,
   type StatutMembre,
   type StatutContribution,
+  type ResumeStatuts,
 } from '@/lib/api'
 import { estMembreSimple, peutGererMembres } from '@/lib/roles'
 import { ouvrirBlobPdf } from '@/lib/utils'
 import { useToast } from '@/components/ui/Toast'
 import { formatPourcent } from '@/lib/format'
-import { resumeMembres } from '@/lib/membres'
 import { StatutCotisationBadge, StatutMembreBadge } from '@/components/membres/StatutBadges'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Badge } from '@/components/ui/Badge'
@@ -27,30 +27,34 @@ import { Input, Select } from '@/components/ui/Field'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ErrorState } from '@/components/ui/ErrorState'
 import { RowsSkeleton } from '@/components/ui/Skeleton'
+import { Pagination } from '@/components/ui/Pagination'
 
 type ColonneTri = 'nom' | 'branche' | 'statut' | 'cotisation' | 'adhesion'
-const ORDRE_STATUT: Record<string, number> = { ACTIF: 0, INACTIF: 1, DECEDE: 2 }
-const ORDRE_COTISATION: Record<string, number> = { A_JOUR: 0, PARTIEL: 1, NON_A_JOUR: 2 }
 
 const STATUTS: StatutMembre[] = ['ACTIF', 'INACTIF', 'DECEDE']
 const COTISATIONS: StatutContribution[] = ['A_JOUR', 'PARTIEL', 'NON_A_JOUR']
+const PAGE_SIZE = 25
+const RESUME_VIDE: ResumeStatuts = { total: 0, actifs: 0, aJour: 0, nonAJour: 0, inactifs: 0 }
 
 /**
- * Liste des membres. Le statut de cotisation vient de GET /membres/statuts (calculé en
- * masse côté backend) → une seule requête. MEMBRE_SIMPLE est redirigé vers sa fiche.
+ * Liste des membres — PAGINÉE CÔTÉ SERVEUR (§1.3). Recherche, filtres et tri sont envoyés à
+ * `GET /membres/statuts/page` : le backend calcule le statut (non stocké) sur tout l'org, applique
+ * la vue, et ne renvoie que la page + la synthèse et les branches (sur l'ensemble non filtré).
+ * Lève le plafond de 1000 qui bornait l'ancienne réponse. MEMBRE_SIMPLE est redirigé vers sa fiche.
  */
 export function MembresPage() {
   const { t } = useTranslation()
   const { user, accessToken } = useAuth()
   const navigate = useNavigate()
+  const toast = useToast()
 
-  const [membres, setMembres] = useState<MembreStatut[] | null>(null)
-  // Réponse bornée (audit m4) : total réel + drapeau de troncature (bandeau si dépassement).
+  const [items, setItems] = useState<MembreStatut[] | null>(null)
   const [total, setTotal] = useState(0)
-  const [tronque, setTronque] = useState(false)
+  const [resume, setResume] = useState<ResumeStatuts>(RESUME_VIDE)
+  const [branches, setBranches] = useState<{ id: string; nom: string }[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  // Incrémenté par le bouton « Réessayer » de l'ErrorState : relance l'effet de chargement.
+  // Incrémenté par « Réessayer » de l'ErrorState : relance l'effet de chargement.
   const [reloadKey, setReloadKey] = useState(0)
   // Chef de l'organisation (badge sur sa ligne) — best-effort, chargé indépendamment.
   const [chef, setChef] = useState<{ id: string | null; surnom: string | null }>({ id: null, surnom: null })
@@ -58,14 +62,15 @@ export function MembresPage() {
   // Filtres initialisés depuis l'URL (dashboard actionnable : ?statut= / ?cotisation= / ?branche=).
   const [searchParams] = useSearchParams()
   const [recherche, setRecherche] = useState('')
+  const [rechercheDebounced, setRechercheDebounced] = useState('')
   const [filtreBranche, setFiltreBranche] = useState(searchParams.get('branche') ?? '')
   const [filtreStatut, setFiltreStatut] = useState(searchParams.get('statut') ?? '')
   const [filtreCotisation, setFiltreCotisation] = useState(searchParams.get('cotisation') ?? '')
   const [triCol, setTriCol] = useState<ColonneTri>('nom')
   const [triDir, setTriDir] = useState<'asc' | 'desc'>('asc')
+  const [page, setPage] = useState(1)
 
   const gestion = peutGererMembres(user?.role)
-  const toast = useToast()
   const [cartesEnCours, setCartesEnCours] = useState(false)
 
   const telechargerCartes = async () => {
@@ -80,6 +85,19 @@ export function MembresPage() {
     }
   }
 
+  // Debounce de la recherche : évite une requête serveur à chaque frappe.
+  useEffect(() => {
+    const id = setTimeout(() => setRechercheDebounced(recherche.trim()), 300)
+    return () => clearTimeout(id)
+  }, [recherche])
+
+  // Toute modification de recherche/filtre/tri repart en page 1 (sinon on resterait sur une page
+  // qui n'existe plus dans la nouvelle vue).
+  useEffect(() => {
+    setPage(1)
+  }, [rechercheDebounced, filtreBranche, filtreStatut, filtreCotisation, triCol, triDir])
+
+  // Chargement de la page courante (recherche + filtres + tri côté serveur).
   useEffect(() => {
     if (!accessToken) return
     const controller = new AbortController()
@@ -88,11 +106,25 @@ export function MembresPage() {
     setError(null)
     void (async () => {
       try {
-        const data = await membresApi.listStatutsPage(accessToken, controller.signal)
+        const data = await membresApi.listStatutsPagine(
+          {
+            page,
+            pageSize: PAGE_SIZE,
+            recherche: rechercheDebounced || undefined,
+            branche: filtreBranche || undefined,
+            statut: (filtreStatut || undefined) as StatutMembre | undefined,
+            cotisation: (filtreCotisation || undefined) as StatutContribution | undefined,
+            tri: triCol,
+            dir: triDir,
+          },
+          accessToken,
+          controller.signal,
+        )
         if (active) {
-          setMembres(data.items)
+          setItems(data.items)
           setTotal(data.total)
-          setTronque(data.tronque)
+          setResume(data.resume)
+          setBranches(data.branches)
         }
       } catch (e) {
         if (e instanceof DOMException && e.name === 'AbortError') return
@@ -105,7 +137,17 @@ export function MembresPage() {
       active = false
       controller.abort()
     }
-  }, [accessToken, reloadKey])
+  }, [
+    accessToken,
+    reloadKey,
+    page,
+    rechercheDebounced,
+    filtreBranche,
+    filtreStatut,
+    filtreCotisation,
+    triCol,
+    triDir,
+  ])
 
   // Chef de l'organisation : chargé à part (best-effort, jamais bloquant pour la liste).
   useEffect(() => {
@@ -128,54 +170,10 @@ export function MembresPage() {
 
   // MEMBRE_SIMPLE : le backend ne renvoie que sa fiche → on redirige vers son détail.
   useEffect(() => {
-    if (estMembreSimple(user?.role) && membres && membres.length > 0) {
-      navigate(`/membres/${membres[0].id}`, { replace: true })
+    if (estMembreSimple(user?.role) && items && items.length > 0) {
+      navigate(`/membres/${items[0].id}`, { replace: true })
     }
-  }, [user?.role, membres, navigate])
-
-  const branches = useMemo(() => {
-    const map = new Map<string, string>()
-    membres?.forEach((m) => {
-      if (m.branche) map.set(m.branche.id, m.branche.nom)
-    })
-    return [...map.entries()].sort((a, b) => a[1].localeCompare(b[1]))
-  }, [membres])
-
-  const filtres = useMemo(() => {
-    if (!membres) return []
-    const q = recherche.trim().toLowerCase()
-    return membres.filter((m) => {
-      if (q && !`${m.nom} ${m.prenom}`.toLowerCase().includes(q)) return false
-      if (filtreBranche && m.brancheId !== filtreBranche) return false
-      if (filtreStatut && m.statut !== filtreStatut) return false
-      if (filtreCotisation && m.statutCotisation !== filtreCotisation) return false
-      return true
-    })
-  }, [membres, recherche, filtreBranche, filtreStatut, filtreCotisation])
-
-  // Tri client (toutes les données sont chargées → tri fiable, pas seulement une page).
-  const triees = useMemo(() => {
-    const cmp = (a: MembreStatut, b: MembreStatut): number => {
-      switch (triCol) {
-        case 'branche':
-          return (a.branche?.nom ?? '').localeCompare(b.branche?.nom ?? '')
-        case 'statut':
-          return (ORDRE_STATUT[a.statut] ?? 9) - (ORDRE_STATUT[b.statut] ?? 9)
-        case 'cotisation':
-          return (ORDRE_COTISATION[a.statutCotisation] ?? 9) - (ORDRE_COTISATION[b.statutCotisation] ?? 9)
-        case 'adhesion':
-          return a.anneeAdhesion - b.anneeAdhesion
-        default:
-          return `${a.nom} ${a.prenom}`.localeCompare(`${b.nom} ${b.prenom}`)
-      }
-    }
-    const arr = [...filtres].sort(cmp)
-    return triDir === 'desc' ? arr.reverse() : arr
-  }, [filtres, triCol, triDir])
-
-  // Synthèse (point focal) — sur l'ensemble non filtré. « À jour »/« Non à jour » ne comptent que
-  // les membres ACTIF (obligation active) ; un DECEDE/INACTIF ne pèse que dans « Inactifs/Décédés ».
-  const resume = useMemo(() => resumeMembres(membres ?? []), [membres])
+  }, [user?.role, items, navigate])
 
   const trierPar = (col: ColonneTri) => {
     if (triCol === col) setTriDir((d) => (d === 'asc' ? 'desc' : 'asc'))
@@ -183,6 +181,13 @@ export function MembresPage() {
       setTriCol(col)
       setTriDir('asc')
     }
+  }
+
+  const resetFiltres = () => {
+    setRecherche('')
+    setFiltreBranche('')
+    setFiltreStatut('')
+    setFiltreCotisation('')
   }
 
   if (estMembreSimple(user?.role)) {
@@ -243,12 +248,10 @@ export function MembresPage() {
     },
   ]
 
-  const resetFiltres = () => {
-    setRecherche('')
-    setFiltreBranche('')
-    setFiltreStatut('')
-    setFiltreCotisation('')
-  }
+  // `resume.total` = effectif RÉEL de l'org (indépendant de la page/filtre) ; `total` = après filtres.
+  const orgAvecMembres = resume.total > 0
+  const filtresActifs = Boolean(rechercheDebounced || filtreBranche || filtreStatut || filtreCotisation)
+  const premierChargement = loading && items === null
 
   return (
     <>
@@ -256,12 +259,8 @@ export function MembresPage() {
         overline={t('membres.liste.overline')}
         title={t('membres.liste.titre')}
         description={
-          membres
-            ? t('membres.liste.compteur', {
-                filtres: filtres.length,
-                total: membres.length,
-                count: membres.length,
-              })
+          items
+            ? t('membres.liste.compteur', { filtres: total, total: resume.total, count: total })
             : undefined
         }
         actions={
@@ -270,7 +269,7 @@ export function MembresPage() {
               <ButtonLink to="/membres/import" variant="outline" icon={Upload}>
                 {t('import.boutonNav')}
               </ButtonLink>
-              {membres && membres.length > 0 && (
+              {orgAvecMembres && (
                 <Button
                   variant="outline"
                   icon={CreditCard}
@@ -280,8 +279,8 @@ export function MembresPage() {
                   {t('membres.carte.lot')}
                 </Button>
               )}
-              {/* « Nouveau » masqué quand la liste est vide : l'EmptyState porte déjà ce CTA. */}
-              {(!membres || membres.length > 0) && (
+              {/* « Nouveau » masqué quand l'org est vide : l'EmptyState porte déjà ce CTA. */}
+              {(premierChargement || orgAvecMembres) && (
                 <ButtonLink to="/membres/nouveau" icon={Plus}>
                   {t('membres.liste.nouveau')}
                 </ButtonLink>
@@ -291,8 +290,8 @@ export function MembresPage() {
         }
       />
 
-      {/* Synthèse (point focal) */}
-      {membres && membres.length > 0 && (
+      {/* Synthèse (point focal) — compteurs sur l'ensemble de l'org (serveur). */}
+      {orgAvecMembres && (
         <div className="nk-reveal nk-d2 mt-7 grid grid-cols-2 gap-3 lg:grid-cols-4">
           <StatCard label={t('membres.liste.resume.membres')} value={String(resume.total)} icon={Users} />
           <StatCard
@@ -309,78 +308,70 @@ export function MembresPage() {
       )}
 
       {/* Filtres */}
-      <div className="nk-reveal nk-d3 mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1fr]">
-        <div className="relative sm:col-span-2 lg:col-span-1">
-          <Search
-            className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-faint"
-            aria-hidden="true"
-          />
-          <Input
-            type="search"
-            value={recherche}
-            onChange={(e) => setRecherche(e.target.value)}
-            placeholder={t('membres.liste.filtres.recherchePlaceholder')}
-            className="pl-10"
-            aria-label={t('membres.liste.filtres.rechercheAria')}
-          />
+      {orgAvecMembres && (
+        <div className="nk-reveal nk-d3 mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1fr]">
+          <div className="relative sm:col-span-2 lg:col-span-1">
+            <Search
+              className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-faint"
+              aria-hidden="true"
+            />
+            <Input
+              type="search"
+              value={recherche}
+              onChange={(e) => setRecherche(e.target.value)}
+              placeholder={t('membres.liste.filtres.recherchePlaceholder')}
+              className="pl-10"
+              aria-label={t('membres.liste.filtres.rechercheAria')}
+            />
+          </div>
+          <Select
+            value={filtreBranche}
+            onChange={(e) => setFiltreBranche(e.target.value)}
+            aria-label={t('membres.liste.filtres.brancheAria')}
+          >
+            <option value="">{t('membres.liste.filtres.toutesBranches')}</option>
+            {branches.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.nom}
+              </option>
+            ))}
+          </Select>
+          <Select
+            value={filtreStatut}
+            onChange={(e) => setFiltreStatut(e.target.value)}
+            aria-label={t('membres.liste.filtres.statutAria')}
+          >
+            <option value="">{t('membres.liste.filtres.tousStatuts')}</option>
+            {STATUTS.map((s) => (
+              <option key={s} value={s}>
+                {t(`membres.liste.statutOptions.${s}`)}
+              </option>
+            ))}
+          </Select>
+          <Select
+            value={filtreCotisation}
+            onChange={(e) => setFiltreCotisation(e.target.value)}
+            aria-label={t('membres.liste.filtres.cotisationAria')}
+          >
+            <option value="">{t('membres.liste.filtres.toutesCotisations')}</option>
+            {COTISATIONS.map((s) => (
+              <option key={s} value={s}>
+                {t(`membres.liste.cotisationOptions.${s}`)}
+              </option>
+            ))}
+          </Select>
         </div>
-        <Select
-          value={filtreBranche}
-          onChange={(e) => setFiltreBranche(e.target.value)}
-          aria-label={t('membres.liste.filtres.brancheAria')}
-        >
-          <option value="">{t('membres.liste.filtres.toutesBranches')}</option>
-          {branches.map(([id, nom]) => (
-            <option key={id} value={id}>
-              {nom}
-            </option>
-          ))}
-        </Select>
-        <Select
-          value={filtreStatut}
-          onChange={(e) => setFiltreStatut(e.target.value)}
-          aria-label={t('membres.liste.filtres.statutAria')}
-        >
-          <option value="">{t('membres.liste.filtres.tousStatuts')}</option>
-          {STATUTS.map((s) => (
-            <option key={s} value={s}>
-              {t(`membres.liste.statutOptions.${s}`)}
-            </option>
-          ))}
-        </Select>
-        <Select
-          value={filtreCotisation}
-          onChange={(e) => setFiltreCotisation(e.target.value)}
-          aria-label={t('membres.liste.filtres.cotisationAria')}
-        >
-          <option value="">{t('membres.liste.filtres.toutesCotisations')}</option>
-          {COTISATIONS.map((s) => (
-            <option key={s} value={s}>
-              {t(`membres.liste.cotisationOptions.${s}`)}
-            </option>
-          ))}
-        </Select>
-      </div>
-
-      {tronque && (
-        <Card
-          role="status"
-          className="nk-reveal mt-4 flex items-start gap-2.5 border-amber/30 bg-amber/[0.07] p-3.5 text-sm text-muted-foreground"
-        >
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber" aria-hidden="true" />
-          <span>{t('membres.liste.tronque', { plafond: membres?.length ?? 0, total })}</span>
-        </Card>
       )}
 
       {/* Contenu */}
       <div className="nk-reveal nk-d3 mt-6">
-        {loading && (
+        {premierChargement && (
           <Card className="overflow-hidden p-0">
             <RowsSkeleton rows={6} />
           </Card>
         )}
 
-        {!loading && error && (
+        {!premierChargement && error && (
           <ErrorState
             title={t('commun.erreurs.chargementImpossible')}
             description={error}
@@ -388,7 +379,7 @@ export function MembresPage() {
           />
         )}
 
-        {!loading && !error && membres && membres.length === 0 && (
+        {!premierChargement && !error && !orgAvecMembres && (
           <EmptyState
             icon={Users}
             title={t('membres.liste.empty.titre')}
@@ -408,29 +399,32 @@ export function MembresPage() {
           />
         )}
 
-        {!loading && !error && membres && membres.length > 0 && (
-          <Card className="overflow-hidden p-0">
-            {triees.length > 0 ? (
-              <DataTable
-                caption={t('membres.liste.caption')}
-                columns={colonnes}
-                rows={triees}
-                rowKey={(m) => m.id}
-                rowHref={(m) => `/membres/${m.id}`}
-                sort={{ col: triCol, dir: triDir }}
-                onSort={(c) => trierPar(c as ColonneTri)}
-              />
-            ) : (
-              <div className="flex flex-col items-center gap-3 px-5 py-12 text-center">
-                <p className="text-sm text-muted-foreground">
-                  {t('membres.liste.aucunCorrespond')}
-                </p>
-                <Button variant="ghost" size="sm" onClick={resetFiltres}>
-                  {t('membres.liste.reinitialiser')}
-                </Button>
-              </div>
-            )}
-          </Card>
+        {!premierChargement && !error && orgAvecMembres && (
+          <>
+            <Card className="overflow-hidden p-0">
+              {items && items.length > 0 ? (
+                <DataTable
+                  caption={t('membres.liste.caption')}
+                  columns={colonnes}
+                  rows={items}
+                  rowKey={(m) => m.id}
+                  rowHref={(m) => `/membres/${m.id}`}
+                  sort={{ col: triCol, dir: triDir }}
+                  onSort={(c) => trierPar(c as ColonneTri)}
+                />
+              ) : (
+                <div className="flex flex-col items-center gap-3 px-5 py-12 text-center">
+                  <p className="text-sm text-muted-foreground">{t('membres.liste.aucunCorrespond')}</p>
+                  {filtresActifs && (
+                    <Button variant="ghost" size="sm" onClick={resetFiltres}>
+                      {t('membres.liste.reinitialiser')}
+                    </Button>
+                  )}
+                </div>
+              )}
+            </Card>
+            <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPageChange={setPage} />
+          </>
         )}
       </div>
     </>

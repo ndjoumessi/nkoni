@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   calculerStatutsMembres,
+  calculerStatutsMembresPage,
   type MembreStatutPrisma,
 } from '../src/services/membreStatut.service'
 
@@ -94,5 +95,73 @@ describe('calculerStatutsMembres (bulk, §4.1)', () => {
     // Le mock findMany ne coupe pas, mais total (3) > limite (2) → tronque = true.
     expect(res.total).toBe(3)
     expect(res.tronque).toBe(true)
+  })
+})
+
+describe('calculerStatutsMembresPage (pagination réelle §1.3)', () => {
+  it('pagine : page 1 (taille 2) → 2 items, total réel, resume + branches sur TOUT', async () => {
+    const res = await calculerStatutsMembresPage(buildMock(), 2025, { page: 1, pageSize: 2 })
+    expect(res.items.map((m) => m.id)).toEqual(['m1', 'm2'])
+    expect(res.total).toBe(3)
+    expect(res.page).toBe(1)
+    // Resume sur l'ensemble NON filtré : actifs = m1,m2 ; aJour = m1 ; nonAJour parmi actifs = 0 ;
+    // inactifs = m3 (DECEDE).
+    expect(res.resume).toEqual({ total: 3, actifs: 2, aJour: 1, nonAJour: 0, inactifs: 1 })
+    // Branches présentes (b1 via m1/m3) — uniques, triées.
+    expect(res.branches).toEqual([{ id: 'b1', nom: 'Branche Nord' }])
+  })
+
+  it('page 2 (taille 2) → le reliquat (m3)', async () => {
+    const res = await calculerStatutsMembresPage(buildMock(), 2025, { page: 2, pageSize: 2 })
+    expect(res.items.map((m) => m.id)).toEqual(['m3'])
+    expect(res.total).toBe(3)
+  })
+
+  it('filtre par statut de cotisation (calculé) → total filtré, mais resume reste sur TOUT', async () => {
+    const res = await calculerStatutsMembresPage(buildMock(), 2025, {
+      page: 1,
+      pageSize: 25,
+      filtreCotisation: 'NON_A_JOUR',
+    })
+    expect(res.items.map((m) => m.id)).toEqual(['m3'])
+    expect(res.total).toBe(1)
+    expect(res.resume.total).toBe(3) // synthèse inchangée par le filtre
+  })
+
+  it('recherche nom/prénom (insensible à la casse)', async () => {
+    const res = await calculerStatutsMembresPage(buildMock(), 2025, {
+      page: 1,
+      pageSize: 25,
+      recherche: 'WAMBA',
+    })
+    expect(res.items.map((m) => m.id)).toEqual(['m2'])
+    expect(res.total).toBe(1)
+  })
+
+  it('tri par cotisation asc puis desc (sur le statut calculé)', async () => {
+    const asc = await calculerStatutsMembresPage(buildMock(), 2025, {
+      page: 1,
+      pageSize: 25,
+      triCol: 'cotisation',
+      triDir: 'asc',
+    })
+    expect(asc.items.map((m) => m.statutCotisation)).toEqual(['A_JOUR', 'PARTIEL', 'NON_A_JOUR'])
+    const desc = await calculerStatutsMembresPage(buildMock(), 2025, {
+      page: 1,
+      pageSize: 25,
+      triCol: 'cotisation',
+      triDir: 'desc',
+    })
+    expect(desc.items.map((m) => m.statutCotisation)).toEqual(['NON_A_JOUR', 'PARTIEL', 'A_JOUR'])
+  })
+
+  it('propage le scope MEMBRE_SIMPLE (where) → seule sa fiche', async () => {
+    const res = await calculerStatutsMembresPage(buildMock(), 2025, {
+      page: 1,
+      pageSize: 25,
+      where: { compteUtilisateurId: 'u-simple' },
+    })
+    expect(res.items.map((m) => m.id)).toEqual(['m1'])
+    expect(res.total).toBe(1)
   })
 })

@@ -59,6 +59,76 @@ describe('agregerFinances (pure, §5.8)', () => {
   })
 })
 
+/**
+ * Réconciliation INDICATEUR ↔ « recouvrement par branche » (Définition A : fenêtre, statut-agnostique).
+ *
+ * L'INDICATEUR (hero) et la carte « recouvrement par branche » (front, à partir de
+ * `GET /membres/statuts`) doivent porter sur la MÊME population : tous les membres dans leur
+ * fenêtre, statut ignoré. Avant, l'INDICATEUR filtrait `statut === 'ACTIF'` → il divergeait de la
+ * carte par branche (numérateur ET dénominateur). Ces tests verrouillent l'alignement.
+ */
+describe('réconciliation INDICATEUR ↔ recouvrement par branche (Définition A)', () => {
+  // 2 branches, statuts mixtes. Barèmes 2024/2025 = 10 000 chacun ; année courante = 2025.
+  const membresMixtes = [
+    // Branche X (ACTIF)
+    {
+      id: 'm1', statut: 'ACTIF', branche: 'X', anneeAdhesion: 2024, anneeFinContribution: null,
+      contributions: [{ annee: 2024, montantValorise: 10_000 }, { annee: 2025, montantValorise: 10_000 }],
+    }, // attendu 20000 / valorisé 20000
+    {
+      id: 'm2', statut: 'ACTIF', branche: 'X', anneeAdhesion: 2024, anneeFinContribution: null,
+      contributions: [{ annee: 2024, montantValorise: 10_000 }],
+    }, // attendu 20000 / valorisé 10000
+    // Branche Y (non-ACTIF, mais DANS leur fenêtre → comptés)
+    {
+      id: 'm3', statut: 'DECEDE', branche: 'Y', anneeAdhesion: 2024, anneeFinContribution: 2025,
+      contributions: [{ annee: 2025, montantValorise: 5_000 }],
+    }, // fenêtre 2024-2025 → attendu 20000 / valorisé 5000
+    {
+      id: 'm4', statut: 'INACTIF', branche: 'Y', anneeAdhesion: 2025, anneeFinContribution: null,
+      contributions: [],
+    }, // attendu 10000 (2025 seul) / valorisé 0
+  ]
+  // Total sur TOUS : attendu 70000, valorisé 35000. (ACTIF seuls : 40000 / 30000.)
+
+  const mock = {
+    baremeAnnuel: { findMany: async () => baremes2024_2025 },
+    membre: { findMany: async () => membresMixtes, findUnique: async () => null },
+    brancheFamiliale: { count: async () => 2 },
+    versement: { findMany: async () => [] as { montant: number; dateVersement: Date }[] },
+  } as unknown as DashboardPrisma
+
+  it('l’INDICATEUR compte les membres INACTIF/DÉCÉDÉ dans leur fenêtre (plus de filtre ACTIF)', async () => {
+    const dash = await calculerDashboardComplet(mock, 2025)
+    // Tous les membres dans leur fenêtre — pas seulement les ACTIF (sinon 40000/30000).
+    expect(dash.finances.totalAttenduCumule).toBe(70_000)
+    expect(dash.finances.totalCollecteCumule).toBe(35_000)
+    expect(dash.finances.tauxRecouvrement).toBe(50) // 35000 / 70000
+  })
+
+  it('la somme des recouvrements PAR BRANCHE se réconcilie avec l’INDICATEUR', async () => {
+    const dash = await calculerDashboardComplet(mock, 2025)
+    // Reproduit l'agrégation par branche du front (AnalyseMembres) : Σ attendu/valorisé par branche,
+    // chaque membre évalué sur SA fenêtre (comme `calculerStatutsMembres`).
+    const parBranche = new Map<string, { attendu: number; valorise: number }>()
+    for (const m of membresMixtes) {
+      const r = agregerFinances([m], baremes2024_2025, 2025)
+      const cur = parBranche.get(m.branche) ?? { attendu: 0, valorise: 0 }
+      cur.attendu += r.totalAttenduCumule
+      cur.valorise += r.totalCollecteCumule
+      parBranche.set(m.branche, cur)
+    }
+    const sommeAttendu = [...parBranche.values()].reduce((s, b) => s + b.attendu, 0)
+    const sommeValorise = [...parBranche.values()].reduce((s, b) => s + b.valorise, 0)
+    // Numérateur ET dénominateur réconciliés (l'écart 12000/36000 d'avant a disparu).
+    expect(sommeAttendu).toBe(dash.finances.totalAttenduCumule)
+    expect(sommeValorise).toBe(dash.finances.totalCollecteCumule)
+    // Ventilation par branche (sanity).
+    expect(parBranche.get('X')).toEqual({ attendu: 40_000, valorise: 30_000 })
+    expect(parBranche.get('Y')).toEqual({ attendu: 30_000, valorise: 5_000 })
+  })
+})
+
 describe('construireEvolutionMensuelle (pure, §10)', () => {
   it('renvoie 12 mois ordonnés avec une cible mensuelle = attendu annuel / 12', () => {
     const ev = construireEvolutionMensuelle([], 120_000, 2026)

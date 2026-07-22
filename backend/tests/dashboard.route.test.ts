@@ -116,12 +116,16 @@ describe('Routes Dashboard (§5.8)', () => {
     expect(res.statusCode).toBe(200)
     const b = res.json()
     expect(b.vue).toBe('COMPLET')
+    // Statut-agnostique (Définition A) : les 5 membres comptent sur LEUR fenêtre, pas seulement
+    // les ACTIF. m4 (INACTIF) et m5 (DECEDE), fenêtre Y-2 seule, ajoutent 10000+10000 d'attendu
+    // et 10000+5000 de valorisé. Aligné sur la carte « recouvrement par branche ».
     expect(b.finances).toEqual({
-      totalAttenduCumule: 60_000, // 3 actifs × 20000
-      totalCollecteCumule: 30_000, // 20000 + 10000 + 0
-      tauxRecouvrement: 50,
+      totalAttenduCumule: 80_000, // 3×20000 (actifs) + 10000 (m4) + 10000 (m5)
+      totalCollecteCumule: 45_000, // 20000+10000+0 + 10000 (m4) + 5000 (m5)
+      tauxRecouvrement: 56.25, // 45000 / 80000
     })
-    expect(b.membresParStatutContribution).toEqual({ A_JOUR: 1, PARTIEL: 1, NON_A_JOUR: 1 })
+    // m4 A_JOUR (10000/10000), m5 PARTIEL (5000/10000) s'ajoutent à la répartition.
+    expect(b.membresParStatutContribution).toEqual({ A_JOUR: 2, PARTIEL: 2, NON_A_JOUR: 1 })
     expect(b.membresParStatutMembre).toEqual({ ACTIF: 3, INACTIF: 1, DECEDE: 1 })
     expect(b.nombreBranches).toBe(4)
     expect(b.alertes.baremeAnneeCouranteManquant).toBe(true) // année Y sans barème
@@ -149,8 +153,9 @@ describe('Routes Dashboard (§5.8)', () => {
     const res = await get('TRESORIERE')
     const b = res.json()
     expect(b.vue).toBe('FINANCIER')
-    expect(b.finances.tauxRecouvrement).toBe(50)
-    expect(b.membresParStatutContribution).toEqual({ A_JOUR: 1, PARTIEL: 1, NON_A_JOUR: 1 })
+    // Même population statut-agnostique que la vue COMPLET (cf. plus haut) : 45000 / 80000.
+    expect(b.finances.tauxRecouvrement).toBe(56.25)
+    expect(b.membresParStatutContribution).toEqual({ A_JOUR: 2, PARTIEL: 2, NON_A_JOUR: 1 })
   })
 
   it('COMMISSAIRE_COMPTES → FINANCIER, JAMAIS de champ structurel (branches, statut membre)', async () => {

@@ -1,7 +1,8 @@
 import { useTranslation } from 'react-i18next'
 import { Coins, TrendingDown, Wallet } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
-import { formatMontant, formatPourcent } from '@/lib/format'
+import { Montant } from '@/components/ui/Montant'
+import { formatPourcent } from '@/lib/format'
 import { useCountUp } from '@/hooks/useCountUp'
 
 /** Jauge circulaire menthe pour le taux de recouvrement. */
@@ -86,7 +87,7 @@ export function RecouvrementHero({
               </span>
               {t('dashboard.hero.totalCollecte')}
             </span>
-            <span className="num text-lg font-semibold text-foreground">{formatMontant(collecte)}</span>
+            <Montant value={collecte} className="text-lg font-semibold text-foreground" />
           </div>
           <div className="flex items-center justify-between gap-4 rounded-xl border border-hairline bg-surface/60 px-4 py-3.5">
             <span className="flex items-center gap-2.5 text-sm text-muted-foreground">
@@ -95,7 +96,7 @@ export function RecouvrementHero({
               </span>
               {t('dashboard.hero.totalAttendu')}
             </span>
-            <span className="num text-lg font-semibold text-foreground">{formatMontant(attendu)}</span>
+            <Montant value={attendu} className="text-lg font-semibold text-foreground" />
           </div>
           <div className="flex items-center justify-between gap-4 rounded-xl border border-hairline bg-surface/60 px-4 py-3.5">
             <span className="flex items-center gap-2.5 text-sm text-muted-foreground">
@@ -104,9 +105,10 @@ export function RecouvrementHero({
               </span>
               {t('dashboard.hero.resteACollecter')}
             </span>
-            <span className="num text-lg font-semibold text-terra">
-              {formatMontant(Math.max(0, attendu - collecte))}
-            </span>
+            <Montant
+              value={Math.max(0, attendu - collecte)}
+              className="text-lg font-semibold text-terra"
+            />
           </div>
         </div>
       </div>

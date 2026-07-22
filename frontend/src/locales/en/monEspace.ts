@@ -15,6 +15,8 @@ export default {
       branche: 'Branch',
       anneeAdhesion: 'Member since',
       statut: 'Status',
+      progression: 'Progress',
+      aJourMerci: 'You are up to date with your contributions. Thank you!',
     },
     contributions: {
       titre: 'My contributions',
@@ -22,6 +24,7 @@ export default {
       attendu: 'Expected',
       verse: 'Paid',
       valorise: 'Valued',
+      statut: 'Status',
       aucune: 'No contribution recorded.',
     },
     reunions: {

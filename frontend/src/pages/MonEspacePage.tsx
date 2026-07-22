@@ -12,8 +12,8 @@ import {
   type ReunionAVenir,
   type RecuMembre,
 } from '@/lib/api'
-import { formatMontant } from '@/lib/format'
-import { formatDate } from '@/lib/utils'
+import { formatMontant, formatPourcent } from '@/lib/format'
+import { cn, formatDate } from '@/lib/utils'
 import { useToast } from '@/components/ui/Toast'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, Overline } from '@/components/ui/Card'
@@ -117,6 +117,15 @@ export function MonEspacePage() {
 
   const { membre, cotisation } = situation
   const reste = Math.max(0, cotisation.totalDu - cotisation.totalVerse)
+  // Progression versé / dû → sens visuel de complétion (célébrée à 100 %). Rien dû = 100 % (à jour).
+  const pct =
+    cotisation.totalDu > 0
+      ? Math.min(100, Math.round((cotisation.totalVerse / cotisation.totalDu) * 100))
+      : 100
+
+  // Statut d'UNE année (mêmes seuils que le calcul global) → badge par ligne dans le tableau.
+  const statutAnnee = (c: ContributionMembre): StatutContribution =>
+    c.montantValorise >= c.montantAttendu ? 'A_JOUR' : c.montantValorise > 0 ? 'PARTIEL' : 'NON_A_JOUR'
 
   const telechargerRecu = async (recuId: string) => {
     if (!accessToken) return
@@ -139,6 +148,12 @@ export function MonEspacePage() {
       header: t('monEspace.contributions.valorise'),
       numeric: true,
       cell: (c) => <span className="text-jade">{formatMontant(c.montantValorise)}</span>,
+    },
+    {
+      key: 'statut',
+      header: t('monEspace.contributions.statut'),
+      align: 'right',
+      cell: (c) => <StatutCotisationBadge statut={statutAnnee(c)} size="sm" />,
     },
   ]
 
@@ -205,6 +220,35 @@ export function MonEspacePage() {
           <StatCard label={t('monEspace.situation.totalVerse')} value={<Montant value={cotisation.totalVerse} />} tone="jade" icon={ArrowDownCircle} />
           <StatCard label={t('monEspace.situation.reste')} value={<Montant value={reste} />} tone={reste > 0 ? 'brass' : 'jade'} icon={Wallet} />
         </div>
+
+        {/* Progression versé/dû — transforme les trois chiffres en un sens visuel de complétion,
+            célébré quand le membre est à jour (barre + compteur jade + remerciement). */}
+        {cotisation.totalDu > 0 && (
+          <div className="mt-5">
+            <div className="mb-1.5 flex items-center justify-between text-xs">
+              <span className="text-muted-foreground">{t('monEspace.situation.progression')}</span>
+              <span className={cn('num font-medium', reste === 0 ? 'text-jade' : 'text-foreground')}>
+                {formatPourcent(pct)}
+              </span>
+            </div>
+            <div
+              className="h-2 w-full overflow-hidden rounded-full bg-surface-2"
+              role="progressbar"
+              aria-valuenow={cotisation.totalVerse}
+              aria-valuemin={0}
+              aria-valuemax={cotisation.totalDu}
+              aria-label={t('monEspace.situation.progression')}
+            >
+              <div
+                className={cn('h-full rounded-full transition-all', reste === 0 ? 'bg-jade' : 'bg-brass')}
+                style={{ width: `${pct}%` }}
+              />
+            </div>
+            {reste === 0 && (
+              <p className="mt-2 text-xs font-medium text-jade">{t('monEspace.situation.aJourMerci')}</p>
+            )}
+          </div>
+        )}
       </Card>
 
       {/* Mes contributions */}

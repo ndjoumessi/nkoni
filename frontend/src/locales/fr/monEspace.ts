@@ -15,6 +15,8 @@ export default {
       branche: 'Branche',
       anneeAdhesion: 'Adhésion',
       statut: 'Statut',
+      progression: 'Progression',
+      aJourMerci: 'Vous êtes à jour de vos cotisations. Merci !',
     },
     contributions: {
       titre: 'Mes contributions',
@@ -22,6 +24,7 @@ export default {
       attendu: 'Attendu',
       verse: 'Versé',
       valorise: 'Valorisé',
+      statut: 'Statut',
       aucune: 'Aucune contribution enregistrée.',
     },
     reunions: {

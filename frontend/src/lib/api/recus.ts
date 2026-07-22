@@ -33,6 +33,17 @@ export interface Recu {
   mode: string
 }
 
+/** Canal ayant délivré un reçu, `null` si aucun (cf. orchestrateur backend). */
+export type CanalEnvoiRecu = 'whatsapp' | 'email'
+
+/** Résultat de l'envoi multi-canal (§4.6, GA 0.4) : WhatsApp d'abord, email en repli. */
+export interface ResultatEnvoiRecu {
+  envoye: boolean
+  canal: CanalEnvoiRecu | null
+  whatsapp: { envoye: boolean; raison?: string }
+  email: { envoye: boolean; raison?: string }
+}
+
 export const recusApi = {
   listByMembre: (membreId: string, accessToken: string, signal?: AbortSignal) =>
     request<Recu[]>(`/recus?membreId=${encodeURIComponent(membreId)}`, { accessToken, signal }),
@@ -63,6 +74,15 @@ export const recusApi = {
     }),
   envoyerWhatsApp: (recuId: string, accessToken: string) =>
     request<{ envoye: boolean; raison?: string }>(`/recus/${rid(recuId)}/whatsapp`, {
+      method: 'POST',
+      accessToken,
+    }),
+  /**
+   * Envoie le reçu au membre par le MEILLEUR canal disponible : WhatsApp d'abord, EMAIL en repli
+   * (§4.6, GA 0.4). Best-effort côté serveur : renvoie le canal ayant délivré (`null` si aucun).
+   */
+  envoyer: (recuId: string, accessToken: string) =>
+    request<ResultatEnvoiRecu>(`/recus/${rid(recuId)}/envoyer`, {
       method: 'POST',
       accessToken,
     }),

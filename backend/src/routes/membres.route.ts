@@ -41,6 +41,7 @@ interface MembreCreateBody {
   fonctionSociale?: string
   statut?: StatutMembre
   telephone?: string
+  email?: string
   adresse?: string
   brancheId?: string
   chefSousFamilleId?: string
@@ -84,6 +85,7 @@ const membreProperties = {
   fonctionSociale: { type: 'string', maxLength: 200 },
   statut: { type: 'string', enum: STATUT_ENUM },
   telephone: { type: 'string', maxLength: 40 },
+  email: { type: 'string', maxLength: 200 },
   adresse: { type: 'string', maxLength: 500 },
   brancheId: { type: 'string' },
   chefSousFamilleId: { type: 'string' },
@@ -302,6 +304,7 @@ export const membresRoutes: FastifyPluginAsync = async (app: FastifyInstance) =>
       if (body.sexe !== undefined) data.sexe = body.sexe
       if (body.fonctionSociale !== undefined) data.fonctionSociale = body.fonctionSociale
       if (body.telephone !== undefined) data.telephone = body.telephone
+      if (body.email !== undefined) data.email = body.email
       if (body.adresse !== undefined) data.adresse = body.adresse
       if (body.statut !== undefined) data.statut = body.statut
       if (body.brancheId !== undefined) data.brancheId = body.brancheId
@@ -450,6 +453,7 @@ export const membresRoutes: FastifyPluginAsync = async (app: FastifyInstance) =>
       if (body.sexe !== undefined) data.sexe = body.sexe
       if (body.fonctionSociale !== undefined) data.fonctionSociale = body.fonctionSociale
       if (body.telephone !== undefined) data.telephone = body.telephone
+      if (body.email !== undefined) data.email = body.email
       if (body.adresse !== undefined) data.adresse = body.adresse
       if (body.statut !== undefined) data.statut = body.statut
       if (body.brancheId !== undefined) data.brancheId = body.brancheId

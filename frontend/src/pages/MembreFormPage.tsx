@@ -39,6 +39,7 @@ interface FormState {
   fonctionSociale: string
   statut: StatutMembre
   telephone: string
+  email: string
   adresse: string
   brancheId: string
   chefSousFamilleId: string
@@ -48,7 +49,7 @@ interface FormState {
 
 const VIDE: FormState = {
   nom: '', prenom: '', sexe: '', dateNaissance: '', fonctionSociale: '', statut: 'ACTIF',
-  telephone: '', adresse: '', brancheId: '', chefSousFamilleId: '', anneeAdhesion: '',
+  telephone: '', email: '', adresse: '', brancheId: '', chefSousFamilleId: '', anneeAdhesion: '',
   anneeFinContribution: '',
 }
 
@@ -125,6 +126,7 @@ export function MembreFormPage() {
               fonctionSociale: membre.fonctionSociale ?? '',
               statut: membre.statut,
               telephone: membre.telephone ?? '',
+              email: membre.email ?? '',
               adresse: membre.adresse ?? '',
               brancheId: membre.brancheId ?? '',
               chefSousFamilleId: membre.chefSousFamilleId ?? '',
@@ -180,6 +182,7 @@ export function MembreFormPage() {
       opt('dateNaissance', form.dateNaissance)
       opt('fonctionSociale', form.fonctionSociale)
       opt('telephone', form.telephone)
+      opt('email', form.email)
       opt('adresse', form.adresse)
       opt('brancheId', form.brancheId)
       opt('chefSousFamilleId', form.chefSousFamilleId)
@@ -259,6 +262,14 @@ export function MembreFormPage() {
             <FormSection icon={Phone} title={t('membres.form.section.coordonnees')}>
               <Field label={t('membres.form.champ.telephone')}>
                 <Input value={form.telephone} onChange={(e) => set('telephone', e.target.value)} />
+              </Field>
+              <Field label={t('membres.form.champ.email')}>
+                <Input
+                  type="email"
+                  value={form.email}
+                  onChange={(e) => set('email', e.target.value)}
+                  placeholder={t('membres.form.champ.emailPlaceholder')}
+                />
               </Field>
               <Field label={t('membres.form.champ.adresse')} className="sm:col-span-2">
                 <Textarea

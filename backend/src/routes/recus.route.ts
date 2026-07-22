@@ -13,6 +13,7 @@ import {
 } from '../services/recu.service'
 import { chargerDonneesRecuPdf, produireRecuPdf } from '../services/recu-pdf.service'
 import { envoyerRecuWhatsApp } from '../services/whatsapp.service'
+import { envoyerRecu } from '../services/envoi-recu.service'
 import {
   resoudreLangueDestinataire,
   resoudreDeviseDestinataire,
@@ -278,6 +279,63 @@ export const recusRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
           legende: t(langue, 'recus.whatsapp.legende', { numero: ctx.donnees.numero }),
         },
       })
+      return reply.code(200).send(resultat)
+    },
+  )
+
+  // POST /recus/:id/envoyer — envoie le reçu au membre par le MEILLEUR canal disponible : WhatsApp
+  // d'abord, EMAIL en REPLI (§4.6, bloquant GA 0.4). Mêmes accès que /whatsapp. Best-effort :
+  // n'échoue jamais l'appel ; renvoie { envoye, canal, whatsapp, email } pour informer l'UI.
+  app.post<{ Params: { id: string } }>(
+    '/recus/:id/envoyer',
+    { preHandler: [authenticate, requirePermission('Recu', 'read')] },
+    async (req, reply) => {
+      const ctx = await chargerDonneesRecuPdf(app.prisma, req.params.id)
+      if (!ctx) {
+        return reply
+          .code(404)
+          .send({ error: 'Not Found', message: t(langueDeRequete(req), 'recus.introuvable') })
+      }
+      if (req.user.role === 'MEMBRE_SIMPLE' && ctx.membreCompteId !== req.user.sub) {
+        return reply
+          .code(404)
+          .send({ error: 'Not Found', message: t(langueDeRequete(req), 'recus.introuvable') })
+      }
+      // Reçu ANNULÉ : refus EXPLICITE (409), comme /whatsapp — l'envoi n'échoue pas, il est interdit.
+      if (ctx.annuleLe) {
+        return reply
+          .code(409)
+          .send({ error: 'Conflict', message: t(langueDeRequete(req), 'recus.annuleNonTelechargeable') })
+      }
+
+      const langue = ctx.membreCompteId
+        ? await resoudreLangueDestinataire(app.prisma, ctx.membreCompteId)
+        : 'FR'
+      const devise = ctx.membreCompteId
+        ? await resoudreDeviseDestinataire(app.prisma, ctx.membreCompteId)
+        : 'FCFA'
+
+      const { buffer } = await produireRecuPdf(app.prisma, app.blob, ctx, langue, devise)
+      const nomFichier = `recu-${ctx.donnees.numero}.pdf`
+      const resultat = await envoyerRecu(
+        app.prisma,
+        { whatsapp: app.whatsapp, email: app.email },
+        {
+          telephone: ctx.membreTelephone,
+          email: ctx.membreEmail,
+          membreCompteId: ctx.membreCompteId,
+          pdf: buffer,
+          metaWhatsApp: {
+            nomFichier,
+            legende: t(langue, 'recus.whatsapp.legende', { numero: ctx.donnees.numero }),
+          },
+          metaEmail: {
+            nomFichier,
+            sujet: t(langue, 'recus.email.sujet', { numero: ctx.donnees.numero }),
+            corps: t(langue, 'recus.email.corps', { numero: ctx.donnees.numero }),
+          },
+        },
+      )
       return reply.code(200).send(resultat)
     },
   )

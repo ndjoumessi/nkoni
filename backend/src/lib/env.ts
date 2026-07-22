@@ -82,6 +82,16 @@ if (isProd) {
       "SENTRY_DSN non défini → aucune erreur n'est remontée (5xx, échec d'audit, échec du scheduler nocturne) : une panne passera inaperçue jusqu'à ce qu'un client la signale. Posez-le sur Railway (bloquant GA 0.1).",
     )
   }
+  // Canal de notification (§4.6, bloquant GA 0.4) : reçus et relances partent par WhatsApp d'abord,
+  // email (Resend) en repli. Si AUCUN des deux n'est configuré, rien ne part — le plus utile est
+  // de le signaler d'un bloc plutôt que canal par canal (l'un OU l'autre suffit).
+  const whatsappConfig = process.env['WHATSAPP_TOKEN'] && process.env['WHATSAPP_PHONE_ID']
+  const resendConfig = process.env['RESEND_API_KEY'] && process.env['RESEND_FROM']
+  if (!whatsappConfig && !resendConfig) {
+    avertir(
+      'Aucun canal de notification configuré (ni WhatsApp WHATSAPP_TOKEN/WHATSAPP_PHONE_ID, ni email RESEND_API_KEY/RESEND_FROM) → les reçus et relances ne partiront pas. Posez au moins un canal sur Railway (bloquant GA 0.4).',
+    )
+  }
 }
 
 const DAY_SECONDS = 60 * 60 * 24

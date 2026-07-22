@@ -65,6 +65,13 @@ export default {
         clientIndisponible: 'WhatsApp is not configured on the server.',
         echecEnvoi: 'Sending failed, try again later.',
       },
+      recuEnvoye: 'Receipt sent',
+      recuEnvoyeWhatsApp: 'Sent to the member via WhatsApp.',
+      recuEnvoyeEmail: 'Sent to the member via email.',
+      recuNonEnvoye: 'Receipt not sent',
+      recuNonEnvoyeDetail:
+        'No channel available: check the member’s phone or email, or the server configuration.',
+      recuEnvoiImpossible: 'Sending failed',
     },
     liste: {
       chargement: 'Loading payments…',
@@ -76,6 +83,7 @@ export default {
       recuAnnule: 'Receipt {{numero}} — cancelled',
       telecharger: 'Download',
       whatsapp: 'WhatsApp',
+      envoyer: 'Send',
       modifier: 'Edit',
       supprimer: 'Delete',
       versementSupprime: 'Payment deleted — the receipt is kept for the record',

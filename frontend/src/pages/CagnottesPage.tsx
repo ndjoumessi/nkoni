@@ -5,7 +5,7 @@ import { HeartHandshake, Plus, Target, Users } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
 import { cagnottesApi, messageErreur, type Cagnotte } from '@/lib/api'
 import { peutVoirCagnottes, peutGererCagnotte } from '@/lib/roles'
-import { formatMontant } from '@/lib/format'
+import { Montant } from '@/components/ui/Montant'
 import { staggerDelay } from '@/lib/utils'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card } from '@/components/ui/Card'
@@ -59,12 +59,12 @@ function CarteCagnotte({ c }: { c: Cagnotte }) {
 
       <div className="mt-3 flex items-end justify-between gap-3">
         <div>
-          <p className="num text-xl font-semibold text-foreground">{formatMontant(c.collecte)}</p>
+          <p className="text-xl font-semibold text-foreground"><Montant value={c.collecte} /></p>
           <p className="text-xs text-faint">{t('cagnottes.liste.collecte')}</p>
         </div>
         {c.objectif != null ? (
           <div className="text-right">
-            <p className="num text-sm text-muted-foreground">{formatMontant(c.objectif)}</p>
+            <p className="text-sm text-muted-foreground"><Montant value={c.objectif} /></p>
             <p className="inline-flex items-center gap-1 text-xs text-faint">
               <Target className="h-3 w-3" aria-hidden="true" />
               {t('cagnottes.liste.objectif')}

@@ -3,7 +3,12 @@ import { cn } from '@/lib/utils'
 
 /**
  * Affichage ÉCRAN d'un montant : chiffre proéminent (classe `.num`, IBM Plex Mono), unité de devise
- * discrète (plus petite, `text-faint`). Purement présentation.
+ * discrète (plus petite, `text-muted-foreground`). Purement présentation.
+ *
+ * L'unité est en `text-muted-foreground` (et non `text-faint`) : à 0.72em elle compte comme du
+ * PETIT texte (~13-17 px → seuil AA 4.5:1), et `text-faint` y devenait limite sur les cartes
+ * claires et au survol des `Card interactive`. `text-muted-foreground` garde une marge AA sûre
+ * tout en restant nettement subordonnée au chiffre (foreground, taille pleine).
  *
  * Formate via `Intl.NumberFormat.formatToParts()` en réutilisant `formatteurMontant()` — la MÊME
  * source d'options que `formatMontant` (locale, devise ISO, sans décimales). On n'appelle donc PAS
@@ -41,7 +46,7 @@ export function Montant({
             <span
               key={i}
               className={cn(
-                'text-[0.72em] font-normal text-faint',
+                'text-[0.72em] font-normal text-muted-foreground',
                 devisePrefixe ? 'mr-0.5' : 'ml-0.5',
                 deviseClassName,
               )}

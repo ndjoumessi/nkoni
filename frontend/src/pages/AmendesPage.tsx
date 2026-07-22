@@ -21,6 +21,7 @@ import { formatDate } from '@/lib/utils'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card } from '@/components/ui/Card'
 import { StatCard } from '@/components/ui/StatCard'
+import { Montant } from '@/components/ui/Montant'
 import { Button } from '@/components/ui/Button'
 import { Field, Input, Select } from '@/components/ui/Field'
 import { SelecteurMembreUnique } from '@/components/membres/SelecteurMembreUnique'
@@ -246,8 +247,8 @@ export function AmendesPage() {
 
       {data && (
         <div className="nk-reveal nk-d2 mt-7 grid grid-cols-2 gap-3">
-          <StatCard label={t('amendes.totaux.du')} value={formatMontant(data.totaux.du)} tone="brass" icon={Gavel} />
-          <StatCard label={t('amendes.totaux.encaisse')} value={formatMontant(data.totaux.encaisse)} tone="jade" icon={Check} />
+          <StatCard label={t('amendes.totaux.du')} value={<Montant value={data.totaux.du} />} tone="brass" icon={Gavel} />
+          <StatCard label={t('amendes.totaux.encaisse')} value={<Montant value={data.totaux.encaisse} />} tone="jade" icon={Check} />
         </div>
       )}
 

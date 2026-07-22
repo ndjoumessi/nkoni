@@ -18,6 +18,7 @@ import { useToast } from '@/components/ui/Toast'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, Overline } from '@/components/ui/Card'
 import { StatCard } from '@/components/ui/StatCard'
+import { Montant } from '@/components/ui/Montant'
 import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { DataTable, type Column } from '@/components/ui/DataTable'
@@ -200,9 +201,9 @@ export function MonEspacePage() {
           {t('monEspace.situation.anneeAdhesion')} : <span className="num">{membre.anneeAdhesion}</span>
         </p>
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
-          <StatCard label={t('monEspace.situation.totalDu')} value={formatMontant(cotisation.totalDu)} icon={CircleDollarSign} />
-          <StatCard label={t('monEspace.situation.totalVerse')} value={formatMontant(cotisation.totalVerse)} tone="jade" icon={ArrowDownCircle} />
-          <StatCard label={t('monEspace.situation.reste')} value={formatMontant(reste)} tone={reste > 0 ? 'brass' : 'jade'} icon={Wallet} />
+          <StatCard label={t('monEspace.situation.totalDu')} value={<Montant value={cotisation.totalDu} />} icon={CircleDollarSign} />
+          <StatCard label={t('monEspace.situation.totalVerse')} value={<Montant value={cotisation.totalVerse} />} tone="jade" icon={ArrowDownCircle} />
+          <StatCard label={t('monEspace.situation.reste')} value={<Montant value={reste} />} tone={reste > 0 ? 'brass' : 'jade'} icon={Wallet} />
         </div>
       </Card>
 

@@ -30,6 +30,7 @@ import { DocumentsSection } from '@/components/documents/DocumentsSection'
 import { StatutCotisationBadge, StatutMembreBadge } from '@/components/membres/StatutBadges'
 import { VersementsList } from '@/components/VersementsList'
 import { formatMontant } from '@/lib/format'
+import { Montant } from '@/components/ui/Montant'
 import { formatDate, ouvrirBlobPdf, telephoneWaMe, lienRelanceWhatsApp } from '@/lib/utils'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, Overline } from '@/components/ui/Card'
@@ -502,14 +503,14 @@ export function MembreDetailPage() {
         <section className="nk-reveal nk-d2 mt-7 grid gap-4 sm:grid-cols-2">
           <Card className="p-5">
             <Overline>{t('membres.detail.totalAttendu')}</Overline>
-            <p className="num mt-2 text-xl font-semibold text-foreground">
-              {formatMontant(statut.totalAttenduCumule)}
+            <p className="mt-2 text-xl font-semibold text-foreground">
+              <Montant value={statut.totalAttenduCumule} />
             </p>
           </Card>
           <Card className="p-5">
             <Overline>{t('membres.detail.totalValorise')}</Overline>
-            <p className="num mt-2 text-xl font-semibold text-jade">
-              {formatMontant(statut.totalValoriseCumule)}
+            <p className="mt-2 text-xl font-semibold text-jade">
+              <Montant value={statut.totalValoriseCumule} />
             </p>
           </Card>
         </section>

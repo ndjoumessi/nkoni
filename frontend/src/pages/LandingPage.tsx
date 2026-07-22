@@ -364,7 +364,24 @@ export function LandingPage() {
             </ul>
           </nav>
         </div>
-        <div className="border-t border-hairline py-6">
+        <div className="flex flex-col items-center gap-3 border-t border-hairline py-6">
+          <nav className="flex items-center gap-4 text-xs" aria-label={t('landing.footerNav.legal')}>
+            <Link
+              to="/confidentialite"
+              className="text-muted-foreground transition-colors hover:text-foreground"
+            >
+              {t('landing.footerNav.confidentialite')}
+            </Link>
+            <span className="text-hairline" aria-hidden="true">
+              ·
+            </span>
+            <Link
+              to="/cgu"
+              className="text-muted-foreground transition-colors hover:text-foreground"
+            >
+              {t('landing.footerNav.cgu')}
+            </Link>
+          </nav>
           <p className="text-center text-xs text-faint">{t('landing.footerNav.droits')}</p>
         </div>
       </footer>

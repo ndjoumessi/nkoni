@@ -399,12 +399,18 @@ export async function calculerDashboardComplet(
     }),
   ])
 
-  const membresActifs = membres.filter((m) => m.statut === 'ACTIF')
-  const fin = agregerFinances(membresActifs, baremes, anneeCourante)
+  // Recouvrement = valorisé/attendu DANS LA FENÊTRE, sur TOUS les membres cotisants (statut
+  // IGNORÉ) — même population que `rapport.service`, que `calculerStatutsMembres` (carte
+  // « recouvrement par branche ») et que l'ouverture ciblée d'année. Un membre INACTIF/DÉCÉDÉ
+  // reste compté sur les années de sa fenêtre `[anneeAdhesion .. anneeFinContribution]` : sa
+  // cotisation due ne s'efface pas de l'attendu de l'org. Le filtre `statut === 'ACTIF'` d'avant
+  // faisait diverger l'INDICATEUR de la carte par branche (205 000/1 548 000 vs 217 000/1 584 000).
+  // `membresParStatutMembre` (camembert des statuts de membre) garde `membres` complet, inchangé.
+  const fin = agregerFinances(membres, baremes, anneeCourante)
 
   // Évolution mensuelle : l'attendu de l'année courante réutilise `rapportPourAnnee` (Rapports),
   // ventilé sur 12 mois ; le collecté est la Σ mensuelle des versements encaissés cette année.
-  const totalAttenduAnnee = rapportPourAnnee(anneeCourante, baremes, membresActifs)?.totalAttendu ?? 0
+  const totalAttenduAnnee = rapportPourAnnee(anneeCourante, baremes, membres)?.totalAttendu ?? 0
   // Mois courant dans le fuseau applicatif (helper partagé `lib/date-app.ts`) et NON en UTC :
   // sinon, à minuit local le 1er du mois (23:00 UTC la veille), on afficherait les anniversaires
   // du mois précédent.
@@ -436,12 +442,14 @@ export async function calculerDashboardFinancier(
   prisma: DashboardPrisma,
   anneeCourante: number,
 ): Promise<DashboardFinancier> {
-  const [baremes, membresActifs] = await Promise.all([
+  const [baremes, membres] = await Promise.all([
     prisma.baremeAnnuel.findMany({ select: SELECT_BAREME }),
-    prisma.membre.findMany({ where: { statut: 'ACTIF' }, select: SELECT_MEMBRE_COTISANT }),
+    // Statut-agnostique : recouvrement sur la FENÊTRE, comme la vue COMPLET (cf. commentaire là-bas).
+    // Plus de `where: { statut: 'ACTIF' }` — un membre INACTIF/DÉCÉDÉ compte sur les années de sa fenêtre.
+    prisma.membre.findMany({ select: SELECT_MEMBRE_COTISANT }),
   ])
 
-  const fin = agregerFinances(membresActifs, baremes, anneeCourante)
+  const fin = agregerFinances(membres, baremes, anneeCourante)
 
   return {
     vue: 'FINANCIER',

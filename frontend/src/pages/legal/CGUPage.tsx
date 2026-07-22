@@ -92,8 +92,8 @@ export function CGUPage() {
 
       <SectionLegale titre="9. Droit applicable et litiges">
         <p>
-          Les présentes conditions sont régies par le droit applicable au siège de l’éditeur (
-          droit français). En cas de litige, une solution
+          Les présentes conditions sont régies par le droit applicable au siège de l’éditeur
+          (droit français). En cas de litige, une solution
           amiable sera recherchée en priorité ; à défaut, les tribunaux compétents seront ceux
           désignés par la réglementation applicable.
         </p>

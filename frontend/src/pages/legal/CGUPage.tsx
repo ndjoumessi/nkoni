@@ -1,4 +1,4 @@
-import { PageLegale, SectionLegale, Placeholder } from './PageLegale'
+import { PageLegale, SectionLegale } from './PageLegale'
 
 /**
  * Conditions générales d’utilisation (CGU) — bloquant GA 0.3. Ancrées sur le produit réel
@@ -12,7 +12,7 @@ export function CGUPage() {
         <p>
           Les présentes conditions régissent l’utilisation de NKONI, service de gestion des
           cotisations et de transparence financière pour associations, familles élargies et
-          tontines, édité par <Placeholder>RAISON SOCIALE</Placeholder> (ci-après « nous »). En
+          tontines, édité par HABATECH (ci-après « nous »). En
           créant un espace ou en utilisant le service, vous acceptez ces conditions.
         </p>
       </SectionLegale>
@@ -93,7 +93,7 @@ export function CGUPage() {
       <SectionLegale titre="9. Droit applicable et litiges">
         <p>
           Les présentes conditions sont régies par le droit applicable au siège de l’éditeur (
-          <Placeholder>JURIDICTION / DROIT APPLICABLE</Placeholder>). En cas de litige, une solution
+          droit français). En cas de litige, une solution
           amiable sera recherchée en priorité ; à défaut, les tribunaux compétents seront ceux
           désignés par la réglementation applicable.
         </p>
@@ -102,7 +102,13 @@ export function CGUPage() {
       <SectionLegale titre="10. Contact">
         <p>
           Pour toute question relative aux présentes conditions, contactez-nous à{' '}
-          <Placeholder>EMAIL DE CONTACT</Placeholder>.
+          <a
+            href="mailto:romel.djoumessi@gmail.com"
+            className="text-brass underline-offset-2 hover:underline"
+          >
+            romel.djoumessi@gmail.com
+          </a>
+          .
         </p>
       </SectionLegale>
     </PageLegale>

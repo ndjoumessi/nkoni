@@ -4,7 +4,15 @@ import { estConflitIdempotence } from '../lib/idempotence'
 import type { CreationScopee } from '../lib/tenant-extension'
 import { authenticate } from '../middlewares/authenticate'
 import { requirePermission } from '../middlewares/permissions'
-import { calculerStatutsMembres, PLAFOND_STATUTS_MEMBRES } from '../services/membreStatut.service'
+import {
+  calculerStatutsMembres,
+  calculerStatutsMembresPage,
+  PLAFOND_STATUTS_MEMBRES,
+  type ColonneTriMembre,
+  type StatutMembreValue,
+} from '../services/membreStatut.service'
+import type { StatutContributionValue } from '../services/statutContribution'
+import { resoudrePagination, PAGINATION_PROPS } from '../lib/pagination'
 import {
   analyserImport,
   executerImport,
@@ -245,6 +253,61 @@ export const membresRoutes: FastifyPluginAsync = async (app: FastifyInstance) =>
       // Réponse BORNÉE (audit m4) : { items, total, tronque }. `tronque` = plus de membres que le
       // plafond → le front affiche un bandeau. Aucune org réelle ne l'atteint aujourd'hui.
       return calculerStatutsMembres(app.prisma, anneeCourante(), where, PLAFOND_STATUTS_MEMBRES)
+    },
+  )
+
+  // GET /membres/statuts/page — pagination RÉELLE (§1.3) : recherche + filtres + tri côté SERVEUR,
+  // page bornée. Le statut de cotisation étant CALCULÉ (pas une colonne), le serveur calcule tout
+  // l'org puis pagine en mémoire (cf. `calculerStatutsMembresPage`). L'endpoint BORNÉ ci-dessus reste
+  // pour les consommateurs « tous membres » (sélecteurs, dashboard, ⌘K). MEMBRE_SIMPLE : même scope.
+  app.get<{
+    Querystring: {
+      page?: number
+      pageSize?: number
+      recherche?: string
+      branche?: string
+      statut?: StatutMembreValue
+      cotisation?: StatutContributionValue
+      tri?: ColonneTriMembre
+      dir?: 'asc' | 'desc'
+    }
+  }>(
+    '/membres/statuts/page',
+    {
+      preHandler: [authenticate, perm('read')],
+      schema: {
+        querystring: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            ...PAGINATION_PROPS,
+            recherche: { type: 'string', maxLength: 200 },
+            branche: { type: 'string' },
+            statut: { type: 'string', enum: STATUT_ENUM },
+            cotisation: { type: 'string', enum: ['A_JOUR', 'PARTIEL', 'NON_A_JOUR'] },
+            tri: { type: 'string', enum: ['nom', 'branche', 'statut', 'cotisation', 'adhesion'] },
+            dir: { type: 'string', enum: ['asc', 'desc'] },
+          },
+        },
+      },
+    },
+    async (req) => {
+      const where =
+        req.user.role === 'MEMBRE_SIMPLE'
+          ? { compteUtilisateurId: req.user.sub ?? '' }
+          : undefined
+      const { page, pageSize } = resoudrePagination(req.query)
+      return calculerStatutsMembresPage(app.prisma, anneeCourante(), {
+        where,
+        recherche: req.query.recherche,
+        filtreBranche: req.query.branche,
+        filtreStatut: req.query.statut,
+        filtreCotisation: req.query.cotisation,
+        triCol: req.query.tri,
+        triDir: req.query.dir,
+        page,
+        pageSize,
+      })
     },
   )
 

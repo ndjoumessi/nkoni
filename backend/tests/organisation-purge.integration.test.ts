@@ -285,6 +285,16 @@ describe('export', () => {
       `https://blob.test/${A}/recu.pdf`,
     ])
   })
+
+  it("n'expose jamais passwordHash (partagé par l'export self-service ADMIN/PRESIDENT)", async () => {
+    const exp = await orgContext.runUnscoped(async () =>
+      await assemblerExportOrganisation(prismaEtendu as any, A),
+    )
+    expect(exp.donnees['Utilisateur'].length).toBeGreaterThan(0)
+    for (const u of exp.donnees['Utilisateur'] as Record<string, unknown>[]) {
+      expect(u).not.toHaveProperty('passwordHash')
+    }
+  })
 })
 
 describe('sécurité de la purge', () => {

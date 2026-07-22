@@ -39,6 +39,8 @@ export interface DataTableProps<T> {
   rowHref?: (row: T) => string
   /** Contenu déplié d'une ligne (null = pas de bouton détails pour cette ligne). */
   expandable?: (row: T) => ReactNode | null
+  /** Classe optionnelle appliquée par ligne (ex. dé-emphaser une ligne annulée/inactive). */
+  rowClassName?: (row: T) => string
   /** Légende lue par les lecteurs d'écran. */
   caption?: string
   className?: string
@@ -57,6 +59,7 @@ export function DataTable<T>({
   onSort,
   rowHref,
   expandable,
+  rowClassName,
   caption,
   className,
 }: DataTableProps<T>) {
@@ -146,6 +149,7 @@ export function DataTable<T>({
                     'border-b border-hairline transition-colors',
                     href && 'cursor-pointer',
                     'hover:bg-surface-2/60',
+                    rowClassName?.(row),
                   )}
                 >
                   {columns.map((col, i) => (

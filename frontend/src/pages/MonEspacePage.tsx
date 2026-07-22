@@ -294,7 +294,14 @@ export function MonEspacePage() {
           <p className="mt-4 text-sm text-faint">{t('monEspace.recus.aucun')}</p>
         ) : (
           <div className="mt-4">
-            <DataTable columns={colRecus} rows={recus} rowKey={(r) => r.id} />
+            {/* Un reçu annulé reste une trace mais n'est plus « utile » : on le dé-emphase pour que
+                les reçus téléchargeables ressortent. Le badge « Annulé » reste le marqueur coloré. */}
+            <DataTable
+              columns={colRecus}
+              rows={recus}
+              rowKey={(r) => r.id}
+              rowClassName={(r) => (r.annuleLe !== null ? 'text-muted-foreground' : '')}
+            />
           </div>
         )}
       </Card>

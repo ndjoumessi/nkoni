@@ -36,6 +36,29 @@ export default {
         versements: 'Record payments',
       },
     },
+    guide: {
+      overline: 'Getting started',
+      titre: 'First steps',
+      progression: '{{faites}} of {{total}} steps',
+      faire: 'Do it',
+      fait: 'Done',
+      ignorer: 'Don’t show again',
+      masquer: 'Hide the getting-started guide',
+      etapes: {
+        bareme: {
+          titre: 'Configure the annual scale',
+          description: 'The amount expected per member for the year.',
+        },
+        membres: {
+          titre: 'Add members',
+          description: 'The people contributing in your space.',
+        },
+        versement: {
+          titre: 'Record a first payment',
+          description: 'Contribution tracking starts with the first payment.',
+        },
+      },
+    },
     stat: {
       membresAJour: 'Members up to date',
       membresActifs: 'Active members',

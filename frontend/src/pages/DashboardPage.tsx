@@ -31,6 +31,7 @@ import { AnniversairesCard } from '@/components/dashboard/AnniversairesCard'
 import { FinancesConsolideesCard } from '@/components/dashboard/FinancesConsolideesCard'
 import { ExportButtons } from '@/components/dashboard/ExportButtons'
 import { GrapheEvolution, type PointEvolution } from '@/components/dashboard/GrapheEvolution'
+import { GuideDemarrage } from '@/components/dashboard/GuideDemarrage'
 import { moisCourantApp } from '@/lib/date-app'
 import { formatMontant, formatNombre } from '@/lib/format'
 import type {
@@ -153,11 +154,23 @@ function EvolutionMensuelleCard({ annee, data }: { annee: number; data: Evolutio
 function VueComplet({ d, canManage }: { d: DashboardComplet; canManage: boolean }) {
   const { t } = useTranslation()
   const vide = d.finances.totalAttenduCumule === 0
+  // Étapes de mise en route (onboarding §1.2) — dérivées des données déjà chargées, aucun appel.
+  const etapes = {
+    bareme: !d.alertes.baremeAnneeCouranteManquant,
+    membres: Object.values(d.membresParStatutMembre).reduce((a, b) => a + b, 0) > 0,
+    versement: d.finances.totalCollecteCumule > 0,
+  }
+  const setupComplet = etapes.bareme && etapes.membres && etapes.versement
+  // Un espace DÉJÀ opérationnel (membres + versements) auquel il manque le barème de l'année = une
+  // bascule d'année → alerte ciblée, pas le guide complet. Le guide ne sert que la mise en route.
+  const operationnel = etapes.membres && etapes.versement
+  const montrerGuide = canManage && !setupComplet && !operationnel
   return (
     <div className="space-y-4">
-      {d.alertes.baremeAnneeCouranteManquant && <AlerteBareme annee={d.anneeCourante} />}
+      {montrerGuide && <GuideDemarrage etapes={etapes} />}
+      {!montrerGuide && d.alertes.baremeAnneeCouranteManquant && <AlerteBareme annee={d.anneeCourante} />}
       {vide ? (
-        <OnboardingVide canManage={canManage} />
+        !canManage ? <OnboardingVide canManage={canManage} /> : null
       ) : (
         <>
           <RecouvrementHero

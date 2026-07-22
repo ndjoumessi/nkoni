@@ -36,6 +36,29 @@ export default {
         versements: 'Enregistrer les versements',
       },
     },
+    guide: {
+      overline: 'Mise en route',
+      titre: 'Premiers pas',
+      progression: '{{faites}} sur {{total}} étapes',
+      faire: 'Faire',
+      fait: 'Fait',
+      ignorer: 'Ne plus afficher',
+      masquer: 'Masquer le guide de mise en route',
+      etapes: {
+        bareme: {
+          titre: 'Configurer le barème annuel',
+          description: 'Le montant attendu par membre pour l’année.',
+        },
+        membres: {
+          titre: 'Ajouter des membres',
+          description: 'Les personnes qui cotisent dans votre espace.',
+        },
+        versement: {
+          titre: 'Enregistrer un premier versement',
+          description: 'Le suivi des cotisations démarre au premier paiement.',
+        },
+      },
+    },
     stat: {
       membresAJour: 'Membres à jour',
       membresActifs: 'Membres actifs',

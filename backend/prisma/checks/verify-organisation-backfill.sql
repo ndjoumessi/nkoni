@@ -17,7 +17,7 @@ BEGIN
   FOR r IN SELECT unnest(ARRAY[
     'Utilisateur','BrancheFamiliale','Membre','BaremeAnnuel','Contribution','Versement',
     'EquilibrageContribution','EquilibrageDetail','Recu','Reunion','PointOrdreDuJour',
-    'Resolution','FonctionFamiliale','AffectationFonction','EvenementFamilial','Conflit',
+    'Resolution','FonctionFamiliale','AffectationFonction','Conflit',
     'ConflitMembreConcerne','Commemoration','CommemorationMembreConcerne','Document',
     'AuditLog','Notification'
   ]) AS tbl

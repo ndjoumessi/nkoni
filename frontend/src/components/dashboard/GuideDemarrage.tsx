@@ -73,7 +73,10 @@ export function GuideDemarrage({ etapes }: { etapes: EtapesDemarrage }) {
         type="button"
         onClick={masquer}
         aria-label={t('dashboard.guide.masquer')}
-        className="absolute right-4 top-4 rounded-lg p-1 text-faint transition-colors hover:bg-surface-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass"
+        // Bouton ABSOLUTE → pas de .tap-target (position:relative le casserait, régression vécue).
+        // Cible portée à 44px en agrandissant le bouton ; ancres right-1.5/top-1.5 (6px) + h-11/w-11
+        // → centre à 28px des bords, soit exactement l'ancien right-4/top-4 + p-1 : la croix ne bouge pas.
+        className="absolute right-1.5 top-1.5 flex h-11 w-11 items-center justify-center rounded-lg text-faint transition-colors hover:bg-surface-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass"
       >
         <X className="h-4 w-4" aria-hidden="true" />
       </button>

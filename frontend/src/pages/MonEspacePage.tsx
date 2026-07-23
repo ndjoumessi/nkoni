@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Wallet,
@@ -123,50 +123,55 @@ export function MonEspacePage() {
     }
   }, [accessToken])
 
-  // Retour de la page de paiement Fapshi : si un paiement était en cours (id mémorisé AVANT la
-  // redirection, en sessionStorage car la redirection recharge la page), on sonde son statut quelques
-  // fois — le webhook peut arriver avec un léger décalage — pour un retour immédiat, puis on rafraîchit
-  // les finances. `verifierStatut` côté serveur reste la source de vérité.
+  // Sonde le statut d'un paiement quelques fois (le webhook peut arriver avec un léger décalage), puis
+  // rafraîchit les finances sur REUSSI. `verifierStatut` côté serveur reste la source de vérité. PARTAGÉ
+  // par les DEUX flux : retour de redirection (Fapshi, checkout hébergé) ET collecte directe (CamPay,
+  // invite MoMo sur le téléphone → aucune redirection). Borné à 8 essais ; libère le spinner à la fin.
+  const sonderPaiement = useCallback(
+    (id: string) => {
+      if (!accessToken) return
+      let essais = 0
+      const sonder = async () => {
+        try {
+          const { statut } = await moiApi.statutPaiement(id, accessToken)
+          if (statut === 'REUSSI') {
+            toast.success(t('monEspace.paiement.succes'))
+            const [s, c] = await Promise.all([
+              moiApi.situation(accessToken).catch(() => null),
+              moiApi.contributions(accessToken).catch(() => null),
+            ])
+            if (s) setSituation(s)
+            if (c) setContributions(c)
+            setPaiementEnCours(null)
+            return
+          }
+          if (statut === 'ECHEC' || statut === 'EXPIRE') {
+            toast.error(t('monEspace.paiement.echecPaiement'))
+            setPaiementEnCours(null)
+            return
+          }
+        } catch {
+          /* transitoire → on retente */
+        }
+        if (++essais < 8) setTimeout(sonder, 2500)
+        else {
+          toast.info(t('monEspace.paiement.enAttente'))
+          setPaiementEnCours(null)
+        }
+      }
+      void sonder()
+    },
+    [accessToken, toast, t],
+  )
+
+  // Retour de la page de paiement hébergée (Fapshi) : si un paiement était en cours (id mémorisé AVANT
+  // la redirection, en sessionStorage car la redirection recharge la page), on sonde son statut.
   useEffect(() => {
-    if (!accessToken) return
     const id = sessionStorage.getItem('nkoni_paiement')
     if (!id) return
     sessionStorage.removeItem('nkoni_paiement')
-    let stop = false
-    let essais = 0
-    const sonder = async () => {
-      if (stop) return
-      try {
-        const { statut } = await moiApi.statutPaiement(id, accessToken)
-        if (statut === 'REUSSI') {
-          toast.success(t('monEspace.paiement.succes'))
-          const [s, c] = await Promise.all([
-            moiApi.situation(accessToken).catch(() => null),
-            moiApi.contributions(accessToken).catch(() => null),
-          ])
-          if (stop) return
-          if (s) setSituation(s)
-          if (c) setContributions(c)
-          return
-        }
-        if (statut === 'ECHEC' || statut === 'EXPIRE') {
-          toast.error(t('monEspace.paiement.echecPaiement'))
-          return
-        }
-      } catch {
-        /* transitoire → on retente */
-      }
-      if (!stop && ++essais < 8) setTimeout(sonder, 2500)
-      else if (!stop) toast.info(t('monEspace.paiement.enAttente'))
-    }
-    void sonder()
-    return () => {
-      stop = true
-    }
-    // Effet one-shot au retour de redirection : `t`/`toast` sont stables (toast mémoïsé) et ne
-    // doivent pas relancer la sonde. Convention du dépôt (cf. TresoreriePage/AmendesPage).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accessToken])
+    sonderPaiement(id)
+  }, [sonderPaiement])
 
   if (loading) {
     return (
@@ -245,7 +250,10 @@ export function MonEspacePage() {
   }
 
   // Règlement en ligne d'une contribution : on paie le RESTE (attendu − valorisé), borné au minimum
-  // Fapshi (100 XAF). On mémorise l'id du paiement avant de rediriger vers la page hébergée.
+  // (100 XAF). Deux flux selon le PSP de l'org, distingués par la présence d'une URL de redirection :
+  //  - checkout hébergé (Fapshi) → `urlPaiement` présente : on mémorise l'id et on redirige ;
+  //  - collecte directe (CamPay) → PAS d'URL : l'invite MoMo part sur le téléphone du membre, on l'en
+  //    informe et on SONDE le statut sur place (pas de rechargement de page).
   const payerContribution = async (c: ContributionMembre) => {
     if (!accessToken) return
     const reste = Math.max(0, c.montantAttendu - c.montantValorise)
@@ -257,8 +265,9 @@ export function MonEspacePage() {
         sessionStorage.setItem('nkoni_paiement', r.paiementId)
         window.location.href = r.urlPaiement
       } else {
-        toast.error(t('monEspace.paiement.echec'))
-        setPaiementEnCours(null)
+        // Collecte directe : le membre doit valider le paiement sur son téléphone, puis on sonde.
+        toast.info(t('monEspace.paiement.validezTelephone'))
+        sonderPaiement(r.paiementId)
       }
     } catch (e) {
       toast.error(t('monEspace.paiement.echec'), e instanceof ApiError ? e.message : '')

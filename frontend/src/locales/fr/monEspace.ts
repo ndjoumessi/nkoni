@@ -40,6 +40,7 @@ export default {
       echec: 'Impossible de lancer le paiement',
       echecPaiement: 'Le paiement n’a pas abouti',
       enAttente: 'Paiement en cours de confirmation…',
+      validezTelephone: 'Validez le paiement sur votre téléphone (code Mobile Money), puis patientez.',
     },
     contributions: {
       titre: 'Mes contributions',

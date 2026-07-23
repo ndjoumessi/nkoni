@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { dechiffrerSecret } from '../lib/crypto-secret'
+import { normaliserTelephone } from '../lib/telephone'
 import { appliquerCreationVersement } from './versement.service'
 import { genererRecu } from './recu.service'
 import type { PspClient, StatutPaiementResolu } from './psp.service'
@@ -49,6 +50,13 @@ export class MontantSuperieurAuResteError extends Error {
     this.name = 'MontantSuperieurAuResteError'
   }
 }
+/** Collecte directe (CamPay) sans numéro de payeur valide : impossible de déclencher l'invite MoMo. */
+export class TelephonePayeurRequisError extends Error {
+  constructor() {
+    super('Numéro de téléphone du payeur requis pour ce mode de paiement.')
+    this.name = 'TelephonePayeurRequisError'
+  }
+}
 
 const MONTANT_MIN = 100 // minimum Fapshi (XAF)
 
@@ -96,11 +104,15 @@ export async function demarrerPaiement(
   const config = await prisma.parametrePaiement.findFirst({})
   if (!config || !config.actif) throw new ConfigPaiementIndisponibleError()
 
-  // La contribution doit appartenir au membre (lecture scopée → isolation tenant en plus).
-  const contribution = await prisma.contribution.findFirst({
-    where: { id: params.contributionId, membreId: params.membreId },
-    select: { id: true, montantAttendu: true, montantValorise: true },
-  })
+  // La contribution doit appartenir au membre (lecture scopée → isolation tenant en plus). On charge
+  // aussi le TÉLÉPHONE du membre : en collecte directe (CamPay) l'invite MoMo part vers ce numéro.
+  const [contribution, membre] = await Promise.all([
+    prisma.contribution.findFirst({
+      where: { id: params.contributionId, membreId: params.membreId },
+      select: { id: true, montantAttendu: true, montantValorise: true },
+    }),
+    prisma.membre.findFirst({ where: { id: params.membreId }, select: { telephone: true } }),
+  ])
   if (!contribution) throw new ContributionIntrouvableError()
 
   // Plafond SERVEUR au reste dû (attendu − valorisé) : ne JAMAIS se fier au montant du client. Sans
@@ -108,12 +120,19 @@ export async function demarrerPaiement(
   const reste = Math.max(0, contribution.montantAttendu - contribution.montantValorise)
   if (params.montant > reste) throw new MontantSuperieurAuResteError(reste)
 
+  // Numéro normalisé E.164 sans « + » (ex. 2376XXXXXXXX). Requis par la collecte DIRECTE (CamPay) ;
+  // ignoré par un checkout hébergé (Fapshi) qui collecte le numéro sur sa page. On tranche sur le
+  // PROVIDER de la config : pas de numéro valide + provider direct → 400 explicite (jamais un 500 PSP).
+  const telephone = normaliserTelephone(membre?.telephone) ?? undefined
+  if (config.provider === 'CAMPAY' && !telephone) throw new TelephonePayeurRequisError()
+
   const creds = credsDeConfig(config, params.organisationId)
-  const ref = randomUUID() // externalId Fapshi (réconciliation) — la clé locale reste le transId
+  const ref = randomUUID() // external_reference (réconciliation) — la clé locale reste la reference PSP
   const res = await psp.initierCollecte(creds, {
     montant: params.montant,
     reference: ref,
     description: params.description,
+    ...(telephone ? { telephone } : {}),
     ...(params.redirectUrl ? { redirectUrl: params.redirectUrl } : {}),
   })
 
@@ -127,6 +146,7 @@ export async function demarrerPaiement(
       provider: config.provider,
       referenceExterne: res.referenceExterne,
       statut: 'EN_ATTENTE',
+      ...(telephone ? { telephone } : {}),
     },
   })
   return { paiementId: paiement.id, ...(res.urlPaiement ? { urlPaiement: res.urlPaiement } : {}) }

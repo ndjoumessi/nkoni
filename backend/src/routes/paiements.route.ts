@@ -10,6 +10,7 @@ import {
   MontantInvalideError,
   MontantSuperieurAuResteError,
   ContributionIntrouvableError,
+  TelephonePayeurRequisError,
 } from '../services/paiement.service'
 
 /**
@@ -77,6 +78,9 @@ export const paiementsRoutes: FastifyPluginAsync = async (app: FastifyInstance) 
         if (err instanceof ContributionIntrouvableError) {
           return reply.code(404).send({ error: 'Not Found', message: t(langueDeRequete(req), 'paiement.contributionIntrouvable') })
         }
+        if (err instanceof TelephonePayeurRequisError) {
+          return reply.code(400).send({ error: 'Bad Request', message: t(langueDeRequete(req), 'paiement.telephoneRequis') })
+        }
         throw err
       }
     },
@@ -105,39 +109,46 @@ export const paiementsRoutes: FastifyPluginAsync = async (app: FastifyInstance) 
     },
   )
 
-  // POST /webhooks/fapshi — PUBLIC (aucune auth). Le corps n'est PAS digne de confiance (Fapshi ne
-  // signe pas) : il ne sert qu'à extraire le transId, après quoi on RE-VÉRIFIE le statut auprès du
-  // PSP (appel authentifié). On résout l'org du Paiement HORS scope, puis on confirme DANS son
-  // contexte. Toujours 200 (un webhook attend un accusé, jamais un 4xx qui le ferait réessayer en boucle).
+  // Confirmation déclenchée par un webhook PSP — PARTAGÉE Fapshi/CamPay. Le corps du webhook n'est
+  // JAMAIS digne de confiance (Fapshi ne signe pas ; CamPay signe mais on ne s'y fie pas) : il ne sert
+  // qu'à extraire la RÉFÉRENCE de transaction, après quoi `confirmerPaiement` RE-VÉRIFIE le statut
+  // auprès du PSP (appel authentifié). On résout l'org du Paiement HORS scope (`await` OBLIGATOIRE dans
+  // le callback — PrismaPromise paresseuse, cf. §4.6), puis on confirme DANS son contexte. Best-effort :
+  // on ne renvoie JAMAIS d'erreur au PSP (sinon réessais en boucle), on SIGNALE.
+  const confirmerParReference = async (referenceExterne: string | undefined, source: string): Promise<void> => {
+    if (!referenceExterne) return
+    const meta = await orgContext.runUnscoped(async () =>
+      await app.prisma.paiement.findFirst({ where: { referenceExterne }, select: { id: true, organisationId: true } }),
+    )
+    if (!meta) return // référence inconnue → on ignore silencieusement (pas de fuite d'existence)
+    await orgContext.run({ organisationId: meta.organisationId }, async () => {
+      try {
+        await confirmerPaiement({ prisma: app.prisma, psp: app.psp }, meta.id)
+      } catch (err) {
+        app.log.error({ err, referenceExterne, source }, 'confirmation de paiement échouée')
+        app.observabilite.signaler(err instanceof Error ? err : new Error(String(err)), { source, referenceExterne })
+      }
+    })
+  }
+
+  // POST /webhooks/fapshi — PUBLIC (aucune auth). Corps souple : on ne lit que `transId`. Toujours 200
+  // (un webhook attend un accusé, jamais un 4xx qui le ferait réessayer en boucle).
   app.post<{ Body: { transId?: string } }>(
     '/webhooks/fapshi',
-    {
-      // Rate-limit large (endpoint public). Corps souple : on ne lit que transId.
-      config: { rateLimit: { max: 120, timeWindow: '1 minute' } },
-    },
+    { config: { rateLimit: { max: 120, timeWindow: '1 minute' } } },
     async (req, reply) => {
-      const transId = (req.body as { transId?: string } | undefined)?.transId
-      if (!transId) return reply.code(200).send({ ok: true })
+      await confirmerParReference((req.body as { transId?: string } | undefined)?.transId, 'webhook-fapshi')
+      return reply.code(200).send({ ok: true })
+    },
+  )
 
-      // Résolution de l'org du Paiement AVANT tout contexte (comme les liens publics signés).
-      // `await` OBLIGATOIRE dans le callback (PrismaPromise paresseuse, cf. §4.6).
-      const meta = await orgContext.runUnscoped(async () =>
-        await app.prisma.paiement.findFirst({ where: { referenceExterne: transId }, select: { id: true, organisationId: true } }),
-      )
-      if (!meta) return reply.code(200).send({ ok: true }) // transId inconnu → on ignore silencieusement
-
-      await orgContext.run({ organisationId: meta.organisationId }, async () => {
-        try {
-          await confirmerPaiement({ prisma: app.prisma, psp: app.psp }, meta.id)
-        } catch (err) {
-          // Best-effort : on ne renvoie jamais d'erreur au PSP (réessais en boucle). On SIGNALE.
-          app.log.error({ err, transId }, 'confirmation de paiement échouée')
-          app.observabilite.signaler(err instanceof Error ? err : new Error(String(err)), {
-            source: 'webhook-fapshi',
-            transId,
-          })
-        }
-      })
+  // POST /webhooks/campay — PUBLIC. Corps souple : on ne lit que `reference` (id de transaction CamPay =
+  // notre `referenceExterne`). Même modèle infalsifiable : on re-vérifie le statut de façon authentifiée.
+  app.post<{ Body: { reference?: string } }>(
+    '/webhooks/campay',
+    { config: { rateLimit: { max: 120, timeWindow: '1 minute' } } },
+    async (req, reply) => {
+      await confirmerParReference((req.body as { reference?: string } | undefined)?.reference, 'webhook-campay')
       return reply.code(200).send({ ok: true })
     },
   )

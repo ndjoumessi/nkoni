@@ -67,9 +67,12 @@ describe('config paiement (service)', () => {
   it('enregistrement (update) quand une config existe déjà', async () => {
     const p = mockPrisma({ id: 'pp1', organisationId: ORG, provider: 'FAPSHI', identifiantsChiffres: 'x', actif: false })
     const vue = await enregistrerConfigPaiement(p as never, ORG, {
-      provider: 'CAMPAY', identifiants: { token: 'TOK' }, actif: true,
+      // CamPay exige désormais `environnement` (comme Fapshi) : l'adapter s'en sert pour choisir
+      // l'URL demo/prod. Sans lui → ENVIRONNEMENT_INVALIDE (validé par psp.service).
+      provider: 'CAMPAY', identifiants: { token: 'TOK', environnement: 'SANDBOX' }, actif: true,
     })
     expect(vue.provider).toBe('CAMPAY')
     expect(vue.actif).toBe(true)
+    expect(vue.environnement).toBe('SANDBOX')
   })
 })

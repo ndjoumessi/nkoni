@@ -19,12 +19,20 @@ export default {
       aJourMerci: 'You are up to date with your contributions. Thank you!',
     },
     carte: {
-      telecharger: 'My member card',
+      titre: 'My member card',
+      membreLabel: 'MEMBER CARD',
+      branche: 'Branch',
+      depuis: 'Member since',
+      scanner: 'Scan to check status',
+      chef: 'Head',
+      telecharger: 'Download the PDF',
       erreur: 'Could not download the card',
     },
     rappels: {
-      titre: 'My reminders',
+      titre: 'My notifications',
       nonLu: 'Unread',
+      nonLus_one: '{{count}} unread',
+      nonLus_other: '{{count}} unread',
     },
     contributions: {
       titre: 'My contributions',

@@ -30,6 +30,7 @@ import { releveRoutes } from './routes/releve.route'
 import { cagnottesRoutes } from './routes/cagnottes.route'
 import { amendesRoutes } from './routes/amendes.route'
 import { membrePhotoRoutes } from './routes/membre-photo.route'
+import { moiPhotoRoutes } from './routes/moi-photo.route'
 import { dashboardRoutes } from './routes/dashboard.route'
 import { exportsRoutes } from './routes/exports.route'
 import { utilisateursRoutes } from './routes/utilisateurs.route'
@@ -211,6 +212,7 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   await app.register(cagnottesRoutes)
   await app.register(amendesRoutes)
   await app.register(membrePhotoRoutes)
+  await app.register(moiPhotoRoutes)
   await app.register(dashboardRoutes)
   await app.register(exportsRoutes)
   await app.register(utilisateursRoutes)

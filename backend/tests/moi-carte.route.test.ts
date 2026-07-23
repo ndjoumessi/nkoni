@@ -46,3 +46,31 @@ describe('GET /moi/carte (self-service)', () => {
     await app.close()
   })
 })
+
+describe('GET /moi/carte-apercu (self-service, rendu visuel)', () => {
+  it('sans authentification → 401', async () => {
+    const app = await appAvec({})
+    const res = await app.inject({ method: 'GET', url: '/moi/carte-apercu' })
+    expect(res.statusCode).toBe(401)
+    await app.close()
+  })
+
+  it('compte sans fiche membre liée → 404', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const prisma: any = { membre: { findFirst: async () => null } }
+    const app = await appAvec(prisma)
+    const res = await app.inject({ method: 'GET', url: '/moi/carte-apercu', headers: auth(app) })
+    expect(res.statusCode).toBe(404)
+    await app.close()
+  })
+
+  it('résout la fiche par le sub de l’appelant (verrou anti-IDOR)', async () => {
+    let whereRecu: unknown = null
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const prisma: any = { membre: { findFirst: async ({ where }: any) => { whereRecu = where; return null } } }
+    const app = await appAvec(prisma)
+    await app.inject({ method: 'GET', url: '/moi/carte-apercu', headers: auth(app) })
+    expect(whereRecu).toEqual({ compteUtilisateurId: 'u1' })
+    await app.close()
+  })
+})

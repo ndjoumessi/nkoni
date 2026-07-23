@@ -12,6 +12,7 @@ import { Field } from '@/components/ui/Field'
 import { PasswordInput } from '@/components/ui/PasswordInput'
 import { FormSection } from '@/components/ui/FormSection'
 import { NotificationPreferences } from '@/components/NotificationPreferences'
+import { PhotoProfil } from '@/components/PhotoProfil'
 
 /**
  * Sélecteur de langue de l'interface (§4) — préférence PERSONNELLE. Persistée côté serveur
@@ -174,6 +175,9 @@ export function MonProfilPage() {
           </div>
         </dl>
       </Card>
+
+      {/* Photo de profil (§4.11) — self-service, masquée si le compte n'a pas de fiche membre. */}
+      <PhotoProfil />
 
       {/* Langue de l'interface (§4) */}
       <SelecteurLangue />

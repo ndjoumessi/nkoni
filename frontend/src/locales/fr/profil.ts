@@ -20,6 +20,18 @@ export default {
       email: 'Adresse e-mail',
       role: 'Rôle',
     },
+    photo: {
+      titre: 'Photo de profil',
+      ajouter: 'Ajouter une photo',
+      changer: 'Changer la photo',
+      retirer: 'Retirer',
+      contrainte: 'JPEG ou PNG, 5 Mo maximum.',
+      succes: 'Photo mise à jour',
+      succesRetrait: 'Photo retirée',
+      erreur: 'Opération impossible',
+      typeInvalide: 'Format non pris en charge (JPEG ou PNG uniquement).',
+      tropVolumineux: 'Fichier trop volumineux (5 Mo maximum).',
+    },
     motDePasse: {
       titre: 'Changer mon mot de passe',
       securite: 'Sécurité',

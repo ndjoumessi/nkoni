@@ -198,6 +198,35 @@ export const cartesRoutes: FastifyPluginAsync = async (app: FastifyInstance) => 
     },
   )
 
+  // GET /moi/carte — SELF-SERVICE : le membre connecté télécharge SA propre carte (PDF centré A4).
+  // Même génération que la route bureau, mais résolue depuis le compte (`req.user.sub`) et SANS garde
+  // bureau — un membre a droit à sa carte. Scopé (le membre a son org en contexte). Pas de fiche
+  // liée → 404 (aucune fuite d'existence).
+  app.get('/moi/carte', { preHandler: [authenticate] }, async (req, reply) => {
+    const membre = await app.prisma.membre.findFirst({
+      where: { compteUtilisateurId: req.user.sub ?? '' },
+      select: { id: true },
+    })
+    if (!membre) return reply.code(404).send({ error: 'Not Found' })
+    const annee = anneeCouranteApp()
+    const { items } = await calculerStatutsMembres(app.prisma, annee, { id: membre.id })
+    const m = items[0]
+    if (!m) return reply.code(404).send({ error: 'Not Found' })
+    const photos = await chargerPhotos([m.id])
+    const org = await app.prisma.organisation.findUnique({
+      where: { id: req.user.organisationId ?? '' },
+      select: { nom: true, langueDefaut: true },
+    })
+    const pdf = await genererCartesPdf(
+      [avecPhoto(versDonneesCarte(m), photos)],
+      org?.nom ?? 'NKONI',
+      org?.langueDefaut ?? 'FR',
+    )
+    reply.header('Content-Type', 'application/pdf')
+    reply.header('Content-Disposition', 'inline; filename="ma-carte-nkoni.pdf"')
+    return reply.send(pdf)
+  })
+
   // GET /membres/:id/statut-public?t=<sig> — PAGE PUBLIQUE (QR de la carte). PAS d'auth : la
   // signature HMAC (liée à cet id membre) autorise. Isolation tenant préservée — l'org du membre
   // est résolue HORS scope (l'`await` DANS runUnscoped est OBLIGATOIRE, cf. §4.6), puis le statut

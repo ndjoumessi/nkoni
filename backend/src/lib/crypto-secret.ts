@@ -2,14 +2,22 @@ import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto'
 
 /**
  * Chiffrement des SECRETS DE TIERS stockés en base (identifiants PSP par organisation, § paiement) —
- * AES-256-GCM (chiffrement authentifié : toute altération du ciphertext est détectée au déchiffrement
- * via le tag). La clé maître vient de `PSP_ENCRYPTION_KEY` (jamais en base) ; lue à l'appel pour
- * rester testable (un test pose la variable avant d'appeler). Sans clé valide → lève, la config de
- * paiement est simplement indisponible (fail-closed, jamais de stockage en clair).
+ * AES-256-GCM (chiffrement authentifié : toute altération du ciphertext est détectée via le tag). La
+ * clé maître vient de `PSP_ENCRYPTION_KEY` (jamais en base) ; lue à l'appel pour rester testable.
+ * Sans clé valide → lève, la config de paiement est simplement indisponible (fail-closed).
  *
- * Format de sortie : `iv:tag:ciphertext`, chaque segment en base64. IV aléatoire par chiffrement.
+ * Deux durcissements posés AVANT toute mise en service (aucune donnée à migrer tant que la table est
+ * vide) :
+ *   1. VERSION de format (`v1:`) — une rotation d'algorithme/clé future pourra coexister avec l'ancien
+ *      format au lieu d'exiger un re-chiffrement en bloc.
+ *   2. AAD = `organisationId` — le ciphertext est LIÉ à son organisation : un secret ne peut pas être
+ *      recopié d'une org vers une autre en base (le déchiffrement échoue si l'AAD ne correspond pas),
+ *      défense en profondeur au-delà de l'extension d'isolation.
+ *
+ * Format : `v1:iv:tag:ciphertext` (segments base64).
  */
 
+const VERSION = 'v1'
 const SEP = ':'
 
 /** Résout la clé maître (32 octets) depuis l'env — accepte base64 (44 car.) ou hex (64 car.). */
@@ -21,21 +29,26 @@ function cleMaitre(): Buffer {
   return cle
 }
 
-/** Chiffre une chaîne claire → `iv:tag:ciphertext` (base64). */
-export function chiffrerSecret(clair: string): string {
+/**
+ * Chiffre `clair` en le LIANT à `aad` (l'`organisationId`) → `v1:iv:tag:ciphertext`.
+ * Le même `aad` sera exigé au déchiffrement.
+ */
+export function chiffrerSecret(clair: string, aad: string): string {
   const iv = randomBytes(12)
   const cipher = createCipheriv('aes-256-gcm', cleMaitre(), iv)
+  cipher.setAAD(Buffer.from(aad, 'utf8'))
   const chiffre = Buffer.concat([cipher.update(clair, 'utf8'), cipher.final()])
   const tag = cipher.getAuthTag()
-  return [iv.toString('base64'), tag.toString('base64'), chiffre.toString('base64')].join(SEP)
+  return [VERSION, iv.toString('base64'), tag.toString('base64'), chiffre.toString('base64')].join(SEP)
 }
 
-/** Déchiffre `iv:tag:ciphertext` → chaîne claire. Lève si le format est invalide ou le contenu altéré. */
-export function dechiffrerSecret(enc: string): string {
+/** Déchiffre `v1:iv:tag:ciphertext` avec le MÊME `aad`. Lève si format/version/AAD/contenu ne collent pas. */
+export function dechiffrerSecret(enc: string, aad: string): string {
   const parts = enc.split(SEP)
-  if (parts.length !== 3) throw new Error('Format de secret chiffré invalide.')
-  const [ivB64, tagB64, dataB64] = parts as [string, string, string]
+  if (parts.length !== 4 || parts[0] !== VERSION) throw new Error('Format ou version de secret chiffré invalide.')
+  const [, ivB64, tagB64, dataB64] = parts as [string, string, string, string]
   const decipher = createDecipheriv('aes-256-gcm', cleMaitre(), Buffer.from(ivB64, 'base64'))
+  decipher.setAAD(Buffer.from(aad, 'utf8'))
   decipher.setAuthTag(Buffer.from(tagB64, 'base64'))
   return Buffer.concat([decipher.update(Buffer.from(dataB64, 'base64')), decipher.final()]).toString('utf8')
 }

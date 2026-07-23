@@ -30,39 +30,43 @@ function mockPrisma(initial: any = null) {
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
+const ORG = 'org-1'
+
 describe('config paiement (service)', () => {
   it('lecture sans config → configure=false', async () => {
     const p = mockPrisma(null)
-    expect(await lireConfigPaiement(p as never)).toEqual({
+    expect(await lireConfigPaiement(p as never, ORG)).toEqual({
       configure: false, provider: null, environnement: null, actif: false,
     })
   })
 
-  it('enregistrement (create) : chiffre le secret et ne l’expose JAMAIS dans la vue', async () => {
+  it('enregistrement (create) : chiffre le secret (AAD = orgId) et ne l’expose JAMAIS dans la vue', async () => {
     const p = mockPrisma(null)
-    const vue = await enregistrerConfigPaiement(p as never, {
+    const vue = await enregistrerConfigPaiement(p as never, ORG, {
       provider: 'FAPSHI',
       identifiants: { apiUser: 'u', apiKey: 'SECRET-KEY', environnement: 'SANDBOX' },
       actif: true,
     })
     expect(vue).toEqual({ configure: true, provider: 'FAPSHI', environnement: 'SANDBOX', actif: true })
     expect(JSON.stringify(vue)).not.toContain('SECRET-KEY')
-    // Stockage chiffré : le secret n'apparaît pas en clair, mais reste déchiffrable côté serveur.
+    // Stockage chiffré : secret absent en clair, déchiffrable seulement avec le MÊME orgId (AAD).
     const stocke = p.ligne().identifiantsChiffres
     expect(stocke).not.toContain('SECRET-KEY')
-    expect(JSON.parse(dechiffrerSecret(stocke)).apiKey).toBe('SECRET-KEY')
+    expect(JSON.parse(dechiffrerSecret(stocke, ORG)).apiKey).toBe('SECRET-KEY')
+    // Un autre orgId ne peut PAS déchiffrer ce secret.
+    expect(() => dechiffrerSecret(stocke, 'autre-org')).toThrow()
   })
 
   it('identifiants invalides → lève (IdentifiantsInvalidesError)', async () => {
     const p = mockPrisma(null)
     await expect(
-      enregistrerConfigPaiement(p as never, { provider: 'FAPSHI', identifiants: { apiUser: 'u' }, actif: true }),
+      enregistrerConfigPaiement(p as never, ORG, { provider: 'FAPSHI', identifiants: { apiUser: 'u' }, actif: true }),
     ).rejects.toThrow()
   })
 
   it('enregistrement (update) quand une config existe déjà', async () => {
-    const p = mockPrisma({ id: 'pp1', organisationId: 'org', provider: 'FAPSHI', identifiantsChiffres: 'x', actif: false })
-    const vue = await enregistrerConfigPaiement(p as never, {
+    const p = mockPrisma({ id: 'pp1', organisationId: ORG, provider: 'FAPSHI', identifiantsChiffres: 'x', actif: false })
+    const vue = await enregistrerConfigPaiement(p as never, ORG, {
       provider: 'CAMPAY', identifiants: { token: 'TOK' }, actif: true,
     })
     expect(vue.provider).toBe('CAMPAY')

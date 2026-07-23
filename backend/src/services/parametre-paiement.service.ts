@@ -42,10 +42,10 @@ export interface VueConfigPaiement {
   actif: boolean
 }
 
-/** Extrait l'environnement (méta non secrète) du blob chiffré — `null` si illisible. */
-function environnementDe(identifiantsChiffres: string): EnvironnementPsp | null {
+/** Extrait l'environnement (méta non secrète) du blob chiffré — `null` si illisible. AAD = orgId. */
+function environnementDe(identifiantsChiffres: string, organisationId: string): EnvironnementPsp | null {
   try {
-    const ids = JSON.parse(dechiffrerSecret(identifiantsChiffres)) as Record<string, unknown>
+    const ids = JSON.parse(dechiffrerSecret(identifiantsChiffres, organisationId)) as Record<string, unknown>
     return ids['environnement'] === 'SANDBOX' || ids['environnement'] === 'LIVE'
       ? (ids['environnement'] as EnvironnementPsp)
       : null
@@ -54,28 +54,36 @@ function environnementDe(identifiantsChiffres: string): EnvironnementPsp | null 
   }
 }
 
-/** Config paiement de l'org courante (scopée) — sans jamais exposer le secret. */
-export async function lireConfigPaiement(prisma: PrismaParametrePaiement): Promise<VueConfigPaiement> {
+/**
+ * Config paiement de l'org courante (scopée) — sans jamais exposer le secret. `organisationId` est
+ * l'AAD du chiffrement : indispensable pour relire l'environnement, et il DOIT être celui du contexte
+ * de requête (le même sous lequel `prisma` est scopé), sinon le déchiffrement échoue par construction.
+ */
+export async function lireConfigPaiement(
+  prisma: PrismaParametrePaiement,
+  organisationId: string,
+): Promise<VueConfigPaiement> {
   const p = await prisma.parametrePaiement.findFirst({})
   if (!p) return { configure: false, provider: null, environnement: null, actif: false }
   return {
     configure: true,
     provider: p.provider as PspProviderCode,
-    environnement: environnementDe(p.identifiantsChiffres),
+    environnement: environnementDe(p.identifiantsChiffres, organisationId),
     actif: Boolean(p.actif),
   }
 }
 
-/** Enregistre (crée ou remplace) la config paiement de l'org courante. Chiffre les identifiants. */
+/** Enregistre (crée ou remplace) la config paiement de l'org courante. Chiffre les identifiants (AAD = orgId). */
 export async function enregistrerConfigPaiement(
   prisma: PrismaParametrePaiement,
+  organisationId: string,
   input: { provider: PspProviderCode; identifiants: Record<string, unknown>; actif: boolean },
 ): Promise<VueConfigPaiement> {
   if (!chiffrementPspDisponible()) throw new ChiffrementIndisponibleError()
   const err = validerIdentifiants(input.provider, input.identifiants)
   if (err) throw new IdentifiantsInvalidesError(err)
 
-  const identifiantsChiffres = chiffrerSecret(JSON.stringify(input.identifiants))
+  const identifiantsChiffres = chiffrerSecret(JSON.stringify(input.identifiants), organisationId)
   const existant = await prisma.parametrePaiement.findFirst({})
   if (existant) {
     // FK scalaire `organisationId` forcée par l'extension d'isolation (écriture scopée).
@@ -88,5 +96,5 @@ export async function enregistrerConfigPaiement(
       data: { provider: input.provider, identifiantsChiffres, actif: input.actif },
     })
   }
-  return lireConfigPaiement(prisma)
+  return lireConfigPaiement(prisma, organisationId)
 }

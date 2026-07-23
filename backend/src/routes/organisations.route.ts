@@ -203,7 +203,15 @@ export const organisationsRoutes: FastifyPluginAsync = async (app: FastifyInstan
   app.get(
     '/organisations/moi/paiement',
     { preHandler: [authenticate, requireRoles(['ADMIN', 'PRESIDENT'])] },
-    async () => lireConfigPaiement(app.prisma),
+    async (req, reply) => {
+      const organisationId = req.user.organisationId
+      if (!organisationId) {
+        return reply
+          .code(404)
+          .send({ error: 'Not Found', message: t(langueDeRequete(req), 'organisations.introuvable') })
+      }
+      return lireConfigPaiement(app.prisma, organisationId)
+    },
   )
 
   // PUT /organisations/moi/paiement — enregistre (crée/remplace) la config. Les identifiants sont
@@ -227,8 +235,14 @@ export const organisationsRoutes: FastifyPluginAsync = async (app: FastifyInstan
       },
     },
     async (req, reply) => {
+      const organisationId = req.user.organisationId
+      if (!organisationId) {
+        return reply
+          .code(404)
+          .send({ error: 'Not Found', message: t(langueDeRequete(req), 'organisations.introuvable') })
+      }
       try {
-        return await enregistrerConfigPaiement(app.prisma, {
+        return await enregistrerConfigPaiement(app.prisma, organisationId, {
           provider: req.body.provider,
           identifiants: req.body.identifiants,
           actif: req.body.actif ?? false,

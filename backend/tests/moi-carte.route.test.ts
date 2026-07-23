@@ -35,4 +35,14 @@ describe('GET /moi/carte (self-service)', () => {
     expect(res.statusCode).toBe(404)
     await app.close()
   })
+
+  it('résout la fiche par le sub de l’appelant (verrou anti-IDOR) — jamais un id d’URL', async () => {
+    let whereRecu: unknown = null
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const prisma: any = { membre: { findFirst: async ({ where }: any) => { whereRecu = where; return null } } }
+    const app = await appAvec(prisma)
+    await app.inject({ method: 'GET', url: '/moi/carte', headers: auth(app) })
+    expect(whereRecu).toEqual({ compteUtilisateurId: 'u1' })
+    await app.close()
+  })
 })

@@ -34,6 +34,13 @@ export default {
       nonLus_one: '{{count}} non lu',
       nonLus_other: '{{count}} non lus',
     },
+    paiement: {
+      payer: 'Payer',
+      succes: 'Paiement confirmé. Merci !',
+      echec: 'Impossible de lancer le paiement',
+      echecPaiement: 'Le paiement n’a pas abouti',
+      enAttente: 'Paiement en cours de confirmation…',
+    },
     contributions: {
       titre: 'Mes contributions',
       annee: 'Année',

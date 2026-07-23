@@ -47,6 +47,14 @@ export function peutExporterDonnees(role: string | undefined): boolean {
   return role !== undefined && DESIGNATION_CHEF.includes(role)
 }
 
+/**
+ * Peut configurer le paiement en ligne de l'organisation (clés PSP, § paiement). Réservé au bureau
+ * dirigeant (ADMIN/PRESIDENT) : la config engage l'encaissement au nom de l'association.
+ */
+export function peutConfigurerPaiement(role: string | undefined): boolean {
+  return role !== undefined && DESIGNATION_CHEF.includes(role)
+}
+
 /** Rôles autorisés à saisir un versement et à ouvrir une année (Contribution/Versement CRUD §2). */
 const GESTION_FINANCE = ['ADMIN', 'TRESORIERE']
 

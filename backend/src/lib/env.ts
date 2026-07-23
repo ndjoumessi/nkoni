@@ -41,6 +41,11 @@ export const env = {
   // upload/suppression de documents en ont besoin (@vercel/blob le lit aussi via l'env).
   // À définir sur Railway : BLOB_READ_WRITE_TOKEN.
   BLOB_READ_WRITE_TOKEN: optional('BLOB_READ_WRITE_TOKEN', ''),
+  // Clé maître de CHIFFREMENT des identifiants PSP par organisation (§ paiement) — AES-256-GCM,
+  // 32 octets encodés en base64 (44 car.) ou hex (64 car.). Sans elle, aucune config de paiement ne
+  // peut être (dé)chiffrée : la config paiement est simplement indisponible. À poser sur Railway :
+  // PSP_ENCRYPTION_KEY (générer p.ex. `openssl rand -base64 32`).
+  PSP_ENCRYPTION_KEY: optional('PSP_ENCRYPTION_KEY', ''),
   // Chemin (attribut Path) du cookie refresh. Doit refléter le chemin PUBLIC vu par le
   // navigateur, qui n'est pas forcément le chemin interne du back.
   //   - Dev / appel direct : '/auth' (le front tape http://localhost:3000/auth/*).
@@ -80,6 +85,11 @@ if (isProd) {
   if (!process.env['SENTRY_DSN']) {
     avertir(
       "SENTRY_DSN non défini → aucune erreur n'est remontée (5xx, échec d'audit, échec du scheduler nocturne) : une panne passera inaperçue jusqu'à ce qu'un client la signale. Posez-le sur Railway (bloquant GA 0.1).",
+    )
+  }
+  if (!process.env['PSP_ENCRYPTION_KEY']) {
+    avertir(
+      'PSP_ENCRYPTION_KEY non défini → la configuration de paiement en ligne (§ paiement) sera indisponible : les identifiants PSP ne peuvent être ni chiffrés ni déchiffrés. Posez une clé 32 octets sur Railway.',
     )
   }
   // Canal de notification (§4.6, bloquant GA 0.4) : reçus et relances partent par WhatsApp d'abord,

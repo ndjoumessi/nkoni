@@ -201,6 +201,8 @@ model Organisation {
   cagnottes            CagnotteEvenement[]
   donsCagnotte         DonCagnotte[]
   amendes              Amende[]
+  parametrePaiement    ParametrePaiement?
+  paiements            Paiement[]
 }
 
 model Utilisateur {
@@ -294,6 +296,7 @@ model Membre {
   cagnottesBeneficiaire    CagnotteEvenement[]           @relation("CagnotteBeneficiaire") // Cagnottes dont il est bénéficiaire
   donsCagnotte             DonCagnotte[]                  @relation("DonCagnotteMembre") // Dons faits par ce membre
   amendes                  Amende[]                      @relation("AmendeMembre") // Amendes/pénalités du membre
+  paiements                Paiement[]                    @relation("PaiementMembre") // Paiements en ligne initiés par ce membre
   organisationsCommeChef   Organisation[]                @relation("ChefOrganisation") // Chef de l'organisation (inverse ; rare : 1)
   // Reçus dont ce membre est le SUJET (FK dénormalisée sur Recu, en Restrict) — c'est ce lien
   // qui garde un reçu ORPHELIN (versement supprimé) atteignable dans son historique.
@@ -332,6 +335,7 @@ model Contribution {
   montantVerse    Int          @default(0) // somme dénormalisée des Versement.montant
   montantValorise Int          @default(0) // = montantVerse par défaut, modifiable uniquement par un Équilibrage
   versements      Versement[]
+  paiements       Paiement[]   @relation("PaiementContribution")
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 
@@ -357,6 +361,8 @@ model Versement {
   // Reçu(s) émis. FK `onDelete: Restrict` côté Recu → un versement avec reçu ne peut pas être
   // supprimé (audit M3 : pas de reçu orphelin). Back-relation obligatoire côté Prisma.
   recus            Recu[]
+  // Paiement en ligne à l'origine de ce versement (0 ou 1) — créé à la confirmation du webhook PSP.
+  paiement         Paiement?     @relation("PaiementVersement")
 
   @@unique([organisationId, idempotenceKey])
   @@index([organisationId])
@@ -968,4 +974,59 @@ model Amende {
 
   @@index([organisationId, statut])
   @@index([organisationId, membreId])
+}
+
+// ── Paiement en ligne (§ paiement) ────────────────────────────────────────────
+// Modèle « argent direct à chaque organisation » : NKONI n'est jamais custodian. Chaque org branche
+// SON compte PSP (Fapshi) ; l'argent atterrit sur le compte de l'asso, NKONI orchestre seulement.
+
+enum PspProvider {
+  FAPSHI
+  CAMPAY
+}
+
+enum StatutPaiement {
+  EN_ATTENTE // collecte initiée, en attente de confirmation MoMo
+  REUSSI // confirmé (webhook) → Versement créé
+  ECHEC // refusé / annulé par le payeur
+  EXPIRE // sans réponse dans le délai
+}
+
+// Config paiement PAR ORGANISATION — 1 ligne/org. Les identifiants du PSP (secrets de TIERS) sont
+// stockés CHIFFRÉS (AES-256-GCM, clé `PSP_ENCRYPTION_KEY`) et ne sont JAMAIS renvoyés au client.
+model ParametrePaiement {
+  id                   String       @id @default(uuid())
+  organisationId       String       @unique
+  organisation         Organisation @relation(fields: [organisationId], references: [id])
+  provider             PspProvider
+  // JSON chiffré des identifiants propres au provider (ex. { token, environnement }).
+  identifiantsChiffres String
+  actif                Boolean      @default(false)
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+}
+
+// Transaction de paiement d'une cotisation. Le Versement n'est créé qu'à la CONFIRMATION (webhook),
+// de façon idempotente sur `referenceExterne` (id de transaction PSP). Scopé tenant.
+model Paiement {
+  id               String         @id @default(uuid())
+  organisationId   String
+  organisation     Organisation   @relation(fields: [organisationId], references: [id])
+  membreId         String
+  membre           Membre         @relation("PaiementMembre", fields: [membreId], references: [id])
+  contributionId   String?
+  contribution     Contribution?  @relation("PaiementContribution", fields: [contributionId], references: [id])
+  montant          Int
+  telephone        String
+  provider         PspProvider
+  referenceExterne String // id de transaction PSP — clé d'idempotence de la confirmation
+  statut           StatutPaiement @default(EN_ATTENTE)
+  versementId      String?        @unique // Versement créé à la confirmation (null tant que non réussi)
+  versement        Versement?     @relation("PaiementVersement", fields: [versementId], references: [id])
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  @@unique([organisationId, referenceExterne])
+  @@index([organisationId, membreId])
+  @@index([organisationId, statut])
 }

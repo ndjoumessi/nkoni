@@ -178,6 +178,18 @@ async function semer(orgId: string, actif: boolean): Promise<void> {
       dateAmende: new Date('2025-08-01T00:00:00Z'), creeParId: u.id,
     },
   })
+  await base.parametrePaiement.create({
+    data: {
+      organisationId: orgId, provider: 'FAPSHI',
+      identifiantsChiffres: `chiffre-${orgId}`, actif: true,
+    },
+  })
+  await base.paiement.create({
+    data: {
+      organisationId: orgId, membreId: m.id, montant: 12000, telephone: '237600000000',
+      provider: 'FAPSHI', referenceExterne: `ref-${orgId}`, statut: 'EN_ATTENTE',
+    },
+  })
   // NON scopé, sans FK : c'est le modèle que rien ne rappelle.
   await base.refreshToken.create({
     data: {
@@ -207,7 +219,7 @@ afterAll(async () => {
   await base.$disconnect()
 })
 
-describe('fixture — couverture des 25 modèles', () => {
+describe('fixture — couverture des 28 modèles', () => {
   it('peuple au moins une ligne de CHAQUE modèle scopé (sinon le test ne prouve rien)', async () => {
     const c = await compter(A)
     const vides = Object.entries(c).filter(([, n]) => n === 0).map(([m]) => m)
@@ -293,6 +305,19 @@ describe('export', () => {
     for (const u of exp.donnees['Utilisateur'] as Record<string, unknown>[]) {
       expect(u).not.toHaveProperty('passwordHash')
     }
+  })
+
+  it("n'expose jamais les identifiants PSP, même chiffrés (ParametrePaiement)", async () => {
+    const exp = await orgContext.runUnscoped(async () =>
+      await assemblerExportOrganisation(prismaEtendu as any, A),
+    )
+    // Le fixture en sème un : sans cette garde, le test ne prouverait rien.
+    expect(exp.donnees['ParametrePaiement'].length).toBeGreaterThan(0)
+    for (const p of exp.donnees['ParametrePaiement'] as Record<string, unknown>[]) {
+      expect(p).not.toHaveProperty('identifiantsChiffres')
+    }
+    // Ceinture et bretelles : la valeur semée ne doit apparaître NULLE PART dans l'export sérialisé.
+    expect(JSON.stringify(exp)).not.toContain(`chiffre-${A}`)
   })
 })
 

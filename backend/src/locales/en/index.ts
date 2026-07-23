@@ -34,6 +34,7 @@ import { messages as exportsMsgs } from './exports'
 import { messages as cagnottesMsgs } from './cagnottes'
 import { messages as amendesMsgs } from './amendes'
 import { messages as photoMembreMsgs } from './photoMembre'
+import { messages as paiementMsgs } from './paiement'
 
 export const en: Messages = {
   ...communMsgs,
@@ -67,4 +68,5 @@ export const en: Messages = {
   ...cagnottesMsgs,
   ...amendesMsgs,
   ...photoMembreMsgs,
+  ...paiementMsgs,
 }

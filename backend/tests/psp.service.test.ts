@@ -11,8 +11,20 @@ describe('validerIdentifiants', () => {
   it('FAPSHI environnement invalide → ENVIRONNEMENT_INVALIDE', () => {
     expect(validerIdentifiants('FAPSHI', { apiUser: 'u', apiKey: 'k', environnement: 'PROD' })).toBe('ENVIRONNEMENT_INVALIDE')
   })
-  it('CAMPAY sans token → IDENTIFIANTS_INCOMPLETS', () => {
+  it('CAMPAY sans identifiants → IDENTIFIANTS_INCOMPLETS', () => {
     expect(validerIdentifiants('CAMPAY', {})).toBe('IDENTIFIANTS_INCOMPLETS')
+  })
+  it('CAMPAY par username + password + environnement → null', () => {
+    expect(validerIdentifiants('CAMPAY', { username: 'u', password: 'p', environnement: 'SANDBOX' })).toBeNull()
+  })
+  it('CAMPAY par jeton permanent + environnement → null', () => {
+    expect(validerIdentifiants('CAMPAY', { token: 'T', environnement: 'LIVE' })).toBeNull()
+  })
+  it('CAMPAY username sans password → IDENTIFIANTS_INCOMPLETS', () => {
+    expect(validerIdentifiants('CAMPAY', { username: 'u', environnement: 'SANDBOX' })).toBe('IDENTIFIANTS_INCOMPLETS')
+  })
+  it('CAMPAY identifiants OK mais environnement invalide → ENVIRONNEMENT_INVALIDE', () => {
+    expect(validerIdentifiants('CAMPAY', { token: 'T', environnement: 'PROD' })).toBe('ENVIRONNEMENT_INVALIDE')
   })
 })
 

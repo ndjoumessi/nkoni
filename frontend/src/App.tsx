@@ -21,6 +21,7 @@ import { RouteFallback } from '@/components/RouteFallback'
  */
 const SuperAdminPage = lazy(() => import('@/pages/SuperAdminPage'))
 const PlatformAuditPage = lazy(() => import('@/pages/PlatformAuditPage'))
+const PlatformIncidentPage = lazy(() => import('@/pages/PlatformIncidentPage'))
 const DashboardPage = lazy(() => import('@/pages/DashboardPage'))
 const MonEspacePage = lazy(() => import('@/pages/MonEspacePage'))
 const MembresPage = lazy(() => import('@/pages/MembresPage'))
@@ -94,6 +95,17 @@ function App() {
           <SuperAdminRoute>
             <Suspense fallback={<RouteFallback pleinEcran />}>
               <PlatformAuditPage />
+            </Suspense>
+          </SuperAdminRoute>
+        }
+      />
+      {/* Bannière d'incident éditable sur /statut (SUPER_ADMIN, §2.2). */}
+      <Route
+        path="/super-admin/incident"
+        element={
+          <SuperAdminRoute>
+            <Suspense fallback={<RouteFallback pleinEcran />}>
+              <PlatformIncidentPage />
             </Suspense>
           </SuperAdminRoute>
         }

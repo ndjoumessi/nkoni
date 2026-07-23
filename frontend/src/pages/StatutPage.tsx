@@ -1,15 +1,51 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { ArrowLeft, CheckCircle2, AlertTriangle, Loader2, LifeBuoy } from 'lucide-react'
-import { API_URL } from '@/lib/api'
+import {
+  ArrowLeft,
+  CheckCircle2,
+  AlertTriangle,
+  Loader2,
+  LifeBuoy,
+  Info,
+  Wrench,
+  type LucideIcon,
+} from 'lucide-react'
+import { API_URL, statutApi, type IncidentPublic, type GraviteIncident } from '@/lib/api'
 import { NkoniMark } from '@/components/ui/NkoniMark'
 import { cleI18n } from '@/lib/i18n'
 import { cn, formatDateHeure } from '@/lib/utils'
 
+/** Tonalité de la bannière d'incident selon la gravité (même palette que les états). */
+const GRAVITE_STYLE: Record<GraviteIncident, { ring: string; tone: string; icon: LucideIcon }> = {
+  INFO: { ring: 'border-brass/30 bg-brass/[0.07]', tone: 'text-brass', icon: Info },
+  MAINTENANCE: { ring: 'border-amber/30 bg-amber/[0.07]', tone: 'text-amber', icon: Wrench },
+  INCIDENT: { ring: 'border-terra/30 bg-terra/[0.07]', tone: 'text-terra', icon: AlertTriangle },
+}
+
 const CONTACT_SUPPORT = 'romel.djoumessi@gmail.com'
 
 type Etat = 'verification' | 'operationnel' | 'incident'
+
+/** Bannière d'incident publiée (SUPER_ADMIN) — au-dessus de l'état sondé, tonée par gravité. */
+function BanniereIncident({ incident }: { incident: Extract<IncidentPublic, { actif: true }> }) {
+  const { t } = useTranslation()
+  const style = GRAVITE_STYLE[incident.gravite]
+  const GIcon = style.icon
+  return (
+    <div className={cn('mt-8 flex items-start gap-3 rounded-2xl border p-5', style.ring)} role="alert">
+      <GIcon className={cn('mt-0.5 h-5 w-5 shrink-0', style.tone)} aria-hidden="true" />
+      <div className="min-w-0">
+        <p className={cn('text-sm font-semibold', style.tone)}>
+          {t(cleI18n(`statut.incident.gravites.${incident.gravite}`))}
+        </p>
+        <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-foreground/90">
+          {incident.message}
+        </p>
+      </div>
+    </div>
+  )
+}
 
 /**
  * Page de STATUT publique (§2.2) — accessible sans authentification. Interroge le `/ready` du
@@ -23,6 +59,7 @@ export function StatutPage() {
   const { t } = useTranslation()
   const [etat, setEtat] = useState<Etat>('verification')
   const [verifieLe, setVerifieLe] = useState<string | null>(null)
+  const [incident, setIncident] = useState<IncidentPublic | null>(null)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -41,6 +78,23 @@ export function StatutPage() {
     })()
     return () => {
       actif = false
+      controller.abort()
+    }
+  }, [])
+
+  // Bannière d'incident publiée par le SUPER_ADMIN (indépendante de la sonde). Best-effort : en
+  // cas d'échec, on n'affiche simplement rien — l'état sondé reste, sans conséquence.
+  useEffect(() => {
+    const controller = new AbortController()
+    let vivant = true
+    void statutApi
+      .incidentPublic(controller.signal)
+      .then((i) => {
+        if (vivant) setIncident(i)
+      })
+      .catch(() => {})
+    return () => {
+      vivant = false
       controller.abort()
     }
   }, [])
@@ -81,6 +135,9 @@ export function StatutPage() {
         <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight text-foreground">
           {t('statut.titre')}
         </h1>
+
+        {/* Bannière d'incident publiée (si active) — au-dessus de l'état sondé automatique. */}
+        {incident && incident.actif && <BanniereIncident incident={incident} />}
 
         {/* Indicateur principal */}
         <div

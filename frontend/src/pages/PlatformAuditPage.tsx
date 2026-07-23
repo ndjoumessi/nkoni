@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
-import { LogOut, History, Building2 } from 'lucide-react'
+import { LogOut, History, Building2, Megaphone } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
 import {
   platformApi,
@@ -179,6 +179,7 @@ export function PlatformAuditPage() {
         <nav className="mb-6 inline-flex rounded-xl border border-hairline bg-surface/60 p-1">
           {lienNav('/super-admin', false, t('superAdmin.header.organisations'), Building2)}
           {lienNav('/super-admin/historique', true, t('superAdmin.header.historique'), History)}
+          {lienNav('/super-admin/incident', false, t('superAdmin.header.incident'), Megaphone)}
         </nav>
 
         <PageHeader

@@ -15,6 +15,7 @@ import { registerJwt } from './plugins/jwt'
 import { authRoutes } from './routes/auth.route'
 import { organisationsRoutes } from './routes/organisations.route'
 import { platformRoutes } from './routes/platform.route'
+import { statutRoutes } from './routes/statut.route'
 import { membresRoutes } from './routes/membres.route'
 import { moiRoutes } from './routes/moi.route'
 import { depensesRoutes } from './routes/depenses.route'
@@ -195,6 +196,7 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   await app.register(authRoutes, { prefix: '/auth' })
   await app.register(organisationsRoutes)
   await app.register(platformRoutes)
+  await app.register(statutRoutes)
   await app.register(membresRoutes)
   await app.register(moiRoutes)
   await app.register(depensesRoutes)

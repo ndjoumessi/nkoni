@@ -1,13 +1,22 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { campayClient, CampayTelephoneRequisError } from '../src/lib/psp-campay'
+import { campayClient, CampayTelephoneRequisError, CampayIdentifiantsRequisError } from '../src/lib/psp-campay'
 import type { CredentialsPsp } from '../src/services/psp.service'
 
-/** Identifiants CamPay sandbox/live pour les appels. */
+/** Identifiants CamPay par JETON PERMANENT (usage direct, sans passer par /token/). */
 const credsSandbox: CredentialsPsp = { provider: 'CAMPAY', identifiants: { token: 'TK', environnement: 'SANDBOX' } }
 const credsLive: CredentialsPsp = { provider: 'CAMPAY', identifiants: { token: 'TK', environnement: 'LIVE' } }
 
+function reponseMock(reponse: unknown, ok = true, status = 200): Response {
+  return {
+    ok,
+    status,
+    json: async () => reponse,
+    text: async () => (typeof reponse === 'string' ? reponse : JSON.stringify(reponse)),
+  } as unknown as Response
+}
+
 function mockFetch(reponse: unknown, ok = true, status = 200) {
-  const fn = vi.fn(async () => ({ ok, status, json: async () => reponse }) as unknown as Response)
+  const fn = vi.fn(async () => reponseMock(reponse, ok, status))
   vi.stubGlobal('fetch', fn)
   return fn
 }
@@ -42,6 +51,50 @@ describe('campayClient.initierCollecte (collecte directe)', () => {
     const fetchMock = mockFetch({ reference: 'CP-REF-2' })
     await campayClient.initierCollecte(credsLive, { montant: 100, reference: 'e', description: 'd', telephone: '237699000000' })
     expect((fetchMock.mock.calls[0] as [string, RequestInit])[0]).toBe('https://www.campay.net/api/collect/')
+  })
+
+  it('username+password → échange /token/ puis collect avec le token obtenu', async () => {
+    const fn = vi
+      .fn()
+      .mockResolvedValueOnce(reponseMock({ token: 'TEMP-TK', expires_in: 3600 })) // POST /token/
+      .mockResolvedValueOnce(reponseMock({ reference: 'CP-9' })) // POST /collect/
+    vi.stubGlobal('fetch', fn)
+    const creds: CredentialsPsp = {
+      provider: 'CAMPAY',
+      identifiants: { username: 'U', password: 'P', environnement: 'SANDBOX' },
+    }
+    const res = await campayClient.initierCollecte(creds, {
+      montant: 100, reference: 'e', description: 'd', telephone: '237699000000',
+    })
+    expect(res).toEqual({ referenceExterne: 'CP-9', statut: 'EN_ATTENTE' })
+    // 1er appel = /token/ (POST username+password)
+    const [urlToken, initToken] = fn.mock.calls[0] as [string, RequestInit]
+    expect(urlToken).toBe('https://demo.campay.net/api/token/')
+    expect(JSON.parse(initToken.body as string)).toEqual({ username: 'U', password: 'P' })
+    // 2e appel = /collect/ AVEC le token temporaire obtenu
+    const [urlCollect, initCollect] = fn.mock.calls[1] as [string, RequestInit]
+    expect(urlCollect).toBe('https://demo.campay.net/api/collect/')
+    expect((initCollect.headers as Record<string, string>)['Authorization']).toBe('Token TEMP-TK')
+  })
+
+  it('ni token ni username/password → CampayIdentifiantsRequisError', async () => {
+    const fetchMock = mockFetch({ reference: 'x' })
+    const creds: CredentialsPsp = { provider: 'CAMPAY', identifiants: { environnement: 'SANDBOX' } }
+    await expect(
+      campayClient.initierCollecte(creds, { montant: 100, reference: 'e', description: 'd', telephone: '237699000000' }),
+    ).rejects.toBeInstanceOf(CampayIdentifiantsRequisError)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('échec d’échange /token/ → lève avec le corps de réponse', async () => {
+    mockFetch({ detail: 'Invalid credentials' }, false, 400)
+    const creds: CredentialsPsp = {
+      provider: 'CAMPAY',
+      identifiants: { username: 'U', password: 'bad', environnement: 'SANDBOX' },
+    }
+    await expect(
+      campayClient.initierCollecte(creds, { montant: 100, reference: 'e', description: 'd', telephone: '237699000000' }),
+    ).rejects.toThrow(/CamPay token 400 — .*Invalid credentials/)
   })
 
   it('sans téléphone → CampayTelephoneRequisError, AUCUN appel réseau', async () => {

@@ -19,9 +19,16 @@ export interface IdentifiantsFapshi {
   environnement: EnvironnementPsp
 }
 
-/** Identifiants d'une app CamPay (par organisation) : token d'accès permanent + environnement. */
+/**
+ * Identifiants d'une app CamPay (par organisation). Deux modes d'auth acceptés (cf. adapter) :
+ *  - `username` + `password` de l'app → échangés contre un token via `/token/` (flux principal) ;
+ *  - `token` (jeton d'accès permanent du dashboard) → utilisé directement (repli).
+ * `environnement` est toujours requis (choisit la base demo/prod).
+ */
 export interface IdentifiantsCampay {
-  token: string
+  username?: string
+  password?: string
+  token?: string
   environnement: EnvironnementPsp
 }
 
@@ -71,7 +78,10 @@ export function validerIdentifiants(provider: PspProviderCode, identifiants: Rec
     return null
   }
   if (provider === 'CAMPAY') {
-    if (!nonVide(identifiants['token'])) return 'IDENTIFIANTS_INCOMPLETS'
+    // Auth par jeton permanent OU par couple username + password — au moins l'un des deux complet.
+    const parToken = nonVide(identifiants['token'])
+    const parLogin = nonVide(identifiants['username']) && nonVide(identifiants['password'])
+    if (!parToken && !parLogin) return 'IDENTIFIANTS_INCOMPLETS'
     const env = identifiants['environnement']
     if (env !== 'SANDBOX' && env !== 'LIVE') return 'ENVIRONNEMENT_INVALIDE'
     return null

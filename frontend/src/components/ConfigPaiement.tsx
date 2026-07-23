@@ -31,7 +31,8 @@ export function ConfigPaiement() {
   const [provider, setProvider] = useState<PspProvider>('FAPSHI')
   const [apiUser, setApiUser] = useState('')
   const [apiKey, setApiKey] = useState('')
-  const [token, setToken] = useState('')
+  const [campayUsername, setCampayUsername] = useState('')
+  const [campayPassword, setCampayPassword] = useState('')
   const [environnement, setEnvironnement] = useState<EnvironnementPsp>('SANDBOX')
   const [actif, setActif] = useState(false)
   const [enregistrement, setEnregistrement] = useState(false)
@@ -66,14 +67,14 @@ export function ConfigPaiement() {
     const identifiants: Record<string, string> =
       provider === 'FAPSHI'
         ? { apiUser: apiUser.trim(), apiKey: apiKey.trim(), environnement }
-        : { token: token.trim(), environnement }
+        : { username: campayUsername.trim(), password: campayPassword.trim(), environnement }
     setEnregistrement(true)
     try {
       const c = await organisationApi.enregistrerConfigPaiement({ provider, identifiants, actif }, accessToken)
       setConfig(c)
       // Ne pas conserver le secret dans l'état du formulaire après enregistrement.
       setApiKey('')
-      setToken('')
+      setCampayPassword('')
       toast.success(t('parametres.paiement.succes'))
     } catch (e) {
       const msg = messageErreur(e)
@@ -125,11 +126,24 @@ export function ConfigPaiement() {
           </>
         ) : (
           <>
+            <Field label={t('parametres.paiement.campayUsername')}>
+              <Input
+                value={campayUsername}
+                onChange={(e) => setCampayUsername(e.target.value)}
+                autoComplete="off"
+                placeholder={t('parametres.paiement.campayUsernamePlaceholder')}
+              />
+            </Field>
             <Field
-              label={t('parametres.paiement.token')}
+              label={t('parametres.paiement.campayPassword')}
               hint={config?.configure ? t('parametres.paiement.secretMasque') : undefined}
             >
-              <PasswordInput value={token} onChange={(e) => setToken(e.target.value)} autoComplete="off" placeholder="••••••••" />
+              <PasswordInput
+                value={campayPassword}
+                onChange={(e) => setCampayPassword(e.target.value)}
+                autoComplete="off"
+                placeholder="••••••••"
+              />
             </Field>
             <Field label={t('parametres.paiement.environnement')}>
               <Select value={environnement} onChange={(e) => setEnvironnement(e.target.value as EnvironnementPsp)}>

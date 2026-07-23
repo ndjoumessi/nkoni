@@ -1,19 +1,33 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Wallet, ArrowDownCircle, CircleDollarSign, CalendarDays, FileText, Download, UserX, Ban } from 'lucide-react'
+import {
+  Wallet,
+  ArrowDownCircle,
+  CircleDollarSign,
+  CalendarDays,
+  FileText,
+  Download,
+  UserX,
+  Ban,
+  CreditCard,
+  Bell,
+  ChevronDown,
+} from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
 import {
   moiApi,
   recusApi,
+  notificationsApi,
   ApiError,
   messageErreur,
   type SituationMembre,
   type ContributionMembre,
   type ReunionAVenir,
   type RecuMembre,
+  type Notification,
 } from '@/lib/api'
 import { formatMontant, formatPourcent } from '@/lib/format'
-import { cn, formatDate } from '@/lib/utils'
+import { cn, formatDate, ouvrirBlobPdf } from '@/lib/utils'
 import { useToast } from '@/components/ui/Toast'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, Overline } from '@/components/ui/Card'
@@ -37,9 +51,12 @@ export function MonEspacePage() {
   const [contributions, setContributions] = useState<ContributionMembre[]>([])
   const [reunions, setReunions] = useState<ReunionAVenir[]>([])
   const [recus, setRecus] = useState<RecuMembre[]>([])
+  const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(true)
   const [sansFiche, setSansFiche] = useState(false)
   const [erreur, setErreur] = useState<string | null>(null)
+  const [carteEnCours, setCarteEnCours] = useState(false)
+  const [annulesOuverts, setAnnulesOuverts] = useState(false)
 
   useEffect(() => {
     if (!accessToken) return
@@ -62,15 +79,17 @@ export function MonEspacePage() {
         return
       }
       // Listes (best-effort, chargées en parallèle).
-      const [c, r, rc] = await Promise.all([
+      const [c, r, rc, n] = await Promise.all([
         moiApi.contributions(accessToken, controller.signal).catch(() => []),
         moiApi.reunions(accessToken, controller.signal).catch(() => []),
         moiApi.recus(accessToken, controller.signal).catch(() => []),
+        notificationsApi.list(accessToken, controller.signal).catch(() => []),
       ])
       if (!actif) return
       setContributions(c)
       setReunions(r)
       setRecus(rc)
+      setNotifications(n)
       setLoading(false)
     })()
     return () => {
@@ -138,6 +157,23 @@ export function MonEspacePage() {
       toast.error(t('monEspace.recus.indisponible'), e instanceof ApiError ? e.message : '')
     }
   }
+
+  const telechargerCarte = async () => {
+    if (!accessToken) return
+    setCarteEnCours(true)
+    try {
+      ouvrirBlobPdf(await moiApi.carte(accessToken))
+    } catch (e) {
+      toast.error(t('monEspace.carte.erreur'), e instanceof ApiError ? e.message : '')
+    } finally {
+      setCarteEnCours(false)
+    }
+  }
+
+  // Reçus ACTIFS (téléchargeables) séparés des ANNULÉS : les actifs dans le tableau, les annulés
+  // repliés dans un groupe pour que les reçus utiles ne soient pas noyés.
+  const recusActifs = recus.filter((r) => r.annuleLe === null)
+  const recusAnnules = recus.filter((r) => r.annuleLe !== null)
 
   const colContributions: Column<ContributionMembre>[] = [
     { key: 'annee', header: t('monEspace.contributions.annee'), numeric: true, cell: (c) => c.annee },
@@ -215,6 +251,18 @@ export function MonEspacePage() {
           {t('monEspace.situation.branche')} : {membre.branche ?? '—'} ·{' '}
           {t('monEspace.situation.anneeAdhesion')} : <span className="num">{membre.anneeAdhesion}</span>
         </p>
+        <div className="mt-3">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            icon={CreditCard}
+            loading={carteEnCours}
+            onClick={telechargerCarte}
+          >
+            {t('monEspace.carte.telecharger')}
+          </Button>
+        </div>
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
           <StatCard label={t('monEspace.situation.totalDu')} value={<Montant value={cotisation.totalDu} />} icon={CircleDollarSign} />
           <StatCard label={t('monEspace.situation.totalVerse')} value={<Montant value={cotisation.totalVerse} />} tone="jade" icon={ArrowDownCircle} />
@@ -263,6 +311,39 @@ export function MonEspacePage() {
         )}
       </Card>
 
+      {/* Mes rappels (notifications) — affiché seulement s'il y en a. */}
+      {notifications.length > 0 && (
+        <Card className="nk-reveal mt-4 p-6">
+          <div className="flex items-center gap-2">
+            <Bell className="h-4 w-4 text-brass" aria-hidden="true" />
+            <Overline>{t('monEspace.rappels.titre')}</Overline>
+          </div>
+          <ul className="mt-4 space-y-2">
+            {notifications.slice(0, 8).map((n) => (
+              <li
+                key={n.id}
+                className={cn(
+                  'rounded-xl border bg-surface-2/40 p-3.5',
+                  n.lu ? 'border-hairline' : 'border-brass/30',
+                )}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <p className="text-sm font-medium text-foreground">{n.titre}</p>
+                  {!n.lu && (
+                    <span
+                      className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-brass"
+                      aria-label={t('monEspace.rappels.nonLu')}
+                    />
+                  )}
+                </div>
+                <p className="mt-0.5 text-sm text-muted-foreground">{n.message}</p>
+                <p className="mt-1 text-xs text-faint">{formatDate(n.dateCreation, { dateStyle: 'long' })}</p>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
+
       {/* Réunions à venir */}
       <Card className="nk-reveal nk-d4 mt-4 p-6">
         <Overline>{t('monEspace.reunions.titre')}</Overline>
@@ -293,15 +374,41 @@ export function MonEspacePage() {
         {recus.length === 0 ? (
           <p className="mt-4 text-sm text-faint">{t('monEspace.recus.aucun')}</p>
         ) : (
-          <div className="mt-4">
-            {/* Un reçu annulé reste une trace mais n'est plus « utile » : on le dé-emphase pour que
-                les reçus téléchargeables ressortent. Le badge « Annulé » reste le marqueur coloré. */}
-            <DataTable
-              columns={colRecus}
-              rows={recus}
-              rowKey={(r) => r.id}
-              rowClassName={(r) => (r.annuleLe !== null ? 'text-muted-foreground' : '')}
-            />
+          <div className="mt-4 space-y-3">
+            {recusActifs.length > 0 ? (
+              <DataTable columns={colRecus} rows={recusActifs} rowKey={(r) => r.id} />
+            ) : (
+              <p className="text-sm text-faint">{t('monEspace.recus.aucunActif')}</p>
+            )}
+
+            {/* Reçus annulés : repliés par défaut (trace, pas d'action possible) pour que les reçus
+                téléchargeables restent au premier plan. */}
+            {recusAnnules.length > 0 && (
+              <div className="overflow-hidden rounded-xl border border-hairline">
+                <button
+                  type="button"
+                  onClick={() => setAnnulesOuverts((o) => !o)}
+                  aria-expanded={annulesOuverts}
+                  className="flex w-full items-center justify-between gap-2 px-4 py-3 text-sm text-muted-foreground transition-colors hover:bg-surface-2/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brass"
+                >
+                  <span>{t('monEspace.recus.annulesGroupe', { count: recusAnnules.length })}</span>
+                  <ChevronDown
+                    className={cn('h-4 w-4 transition-transform', annulesOuverts && 'rotate-180')}
+                    aria-hidden="true"
+                  />
+                </button>
+                {annulesOuverts && (
+                  <div className="border-t border-hairline">
+                    <DataTable
+                      columns={colRecus}
+                      rows={recusAnnules}
+                      rowKey={(r) => r.id}
+                      rowClassName={() => 'text-muted-foreground'}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </Card>

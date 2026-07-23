@@ -1,4 +1,4 @@
-import { request } from './core'
+import { API_URL, leverSiErreur, request } from './core'
 import type { StatutContribution } from './types'
 
 /* Espace membre self-service (§5) — routes /moi/* --------------------------- */
@@ -49,4 +49,13 @@ export const moiApi = {
     request<ReunionAVenir[]>('/moi/reunions', { accessToken, signal }),
   recus: (accessToken: string, signal?: AbortSignal) =>
     request<RecuMembre[]>('/moi/recus', { accessToken, signal }),
+  /** Télécharge la carte de membre (PDF avec QR) du compte connecté — proxy authentifié. */
+  carte: async (accessToken: string): Promise<Blob> => {
+    const res = await fetch(`${API_URL}/moi/carte`, {
+      credentials: 'include',
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+    await leverSiErreur(res)
+    return res.blob()
+  },
 }

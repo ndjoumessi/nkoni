@@ -18,6 +18,14 @@ export default {
       progression: 'Progress',
       aJourMerci: 'You are up to date with your contributions. Thank you!',
     },
+    carte: {
+      telecharger: 'My member card',
+      erreur: 'Could not download the card',
+    },
+    rappels: {
+      titre: 'My reminders',
+      nonLu: 'Unread',
+    },
     contributions: {
       titre: 'My contributions',
       annee: 'Year',
@@ -41,6 +49,9 @@ export default {
       indisponible: 'PDF unavailable',
       annule: 'Cancelled',
       aucun: 'No receipt available.',
+      aucunActif: 'No downloadable receipt yet.',
+      annulesGroupe_one: 'Cancelled receipt ({{count}})',
+      annulesGroupe_other: 'Cancelled receipts ({{count}})',
     },
   },
 }

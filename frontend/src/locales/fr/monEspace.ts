@@ -18,6 +18,14 @@ export default {
       progression: 'Progression',
       aJourMerci: 'Vous êtes à jour de vos cotisations. Merci !',
     },
+    carte: {
+      telecharger: 'Ma carte de membre',
+      erreur: 'Téléchargement de la carte impossible',
+    },
+    rappels: {
+      titre: 'Mes rappels',
+      nonLu: 'Non lu',
+    },
     contributions: {
       titre: 'Mes contributions',
       annee: 'Année',
@@ -41,6 +49,9 @@ export default {
       indisponible: 'PDF indisponible',
       annule: 'Annulé',
       aucun: 'Aucun reçu disponible.',
+      aucunActif: 'Aucun reçu téléchargeable pour l’instant.',
+      annulesGroupe_one: 'Reçu annulé ({{count}})',
+      annulesGroupe_other: 'Reçus annulés ({{count}})',
     },
   },
 }

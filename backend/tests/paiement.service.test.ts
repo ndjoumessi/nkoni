@@ -4,6 +4,7 @@ import {
   demarrerPaiement,
   ConfigPaiementIndisponibleError,
   MontantInvalideError,
+  MontantSuperieurAuResteError,
   ContributionIntrouvableError,
 } from '../src/services/paiement.service'
 import { chiffrerSecret } from '../src/lib/crypto-secret'
@@ -93,12 +94,23 @@ describe('demarrerPaiement', () => {
     expect(psp.appels).toHaveLength(0)
   })
 
+  it('montant > reste dû → MontantSuperieurAuResteError (plafond serveur, avant le PSP)', async () => {
+    const psp = pspStub()
+    const prisma = {
+      parametrePaiement: { findFirst: async () => configFapshi() },
+      // reste = 12000 − 8000 = 4000, on tente 12000
+      contribution: { findFirst: async () => ({ id: 'c1', montantAttendu: 12000, montantValorise: 8000 }) },
+    }
+    await expect(demarrerPaiement({ prisma, psp }, base)).rejects.toBeInstanceOf(MontantSuperieurAuResteError)
+    expect(psp.appels).toHaveLength(0)
+  })
+
   it('happy path : déchiffre, appelle le PSP, crée le Paiement, renvoie l’URL', async () => {
     const psp = pspStub()
     let cree: any = null
     const prisma = {
       parametrePaiement: { findFirst: async () => configFapshi() },
-      contribution: { findFirst: async () => ({ id: 'c1' }) },
+      contribution: { findFirst: async () => ({ id: 'c1', montantAttendu: 12000, montantValorise: 0 }) },
       paiement: { create: async ({ data }: any) => { cree = data; return { id: 'p1', ...data } } },
     }
     const r = await demarrerPaiement({ prisma, psp }, base)

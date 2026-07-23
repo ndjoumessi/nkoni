@@ -51,7 +51,7 @@ import { auditContext } from './lib/audit-context'
 import { orgContext } from './lib/org-context'
 import { vraiObservabiliteClient, type ObservabiliteClient } from './lib/observabilite'
 import type { PspClient } from './services/psp.service'
-import { fapshiClient } from './lib/psp-fapshi'
+import { pspRegistry } from './lib/psp-registry'
 
 // Décoration de l'instance Fastify avec le client Prisma + le client Blob (injectables en test).
 declare module 'fastify' {
@@ -76,7 +76,7 @@ export interface BuildAppOptions {
   email?: EmailClient
   /** Client d'observabilité (mock en test). Défaut : Sentry réel (no-op sans SENTRY_DSN). */
   observabilite?: ObservabiliteClient
-  /** Client PSP (mock en test). Défaut : adapter Fapshi réel (identifiants passés par appel). */
+  /** Client PSP (mock en test). Défaut : dispatcher multi-provider (Fapshi/CamPay selon la config org). */
   psp?: PspClient
   /** Active le logger Fastify. Défaut : true (désactivable en test). */
   logger?: boolean
@@ -121,7 +121,7 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   app.decorate('whatsapp', opts.whatsapp ?? vraiWhatsAppClient)
   app.decorate('email', opts.email ?? vraiEmailClient)
   app.decorate('observabilite', opts.observabilite ?? vraiObservabiliteClient)
-  app.decorate('psp', opts.psp ?? fapshiClient)
+  app.decorate('psp', opts.psp ?? pspRegistry)
 
   // Contextes ALS par requête : audit (acteur, V2 §5) et organisation (isolation SaaS §2.2).
   // L'acteur et l'organisation sont renseignés ensuite par `authenticate` (après vérif JWT),

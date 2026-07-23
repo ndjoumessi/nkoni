@@ -40,6 +40,7 @@ export default {
       echec: 'Could not start the payment',
       echecPaiement: 'The payment did not go through',
       enAttente: 'Payment awaiting confirmation…',
+      validezTelephone: 'Approve the payment on your phone (Mobile Money prompt), then wait a moment.',
     },
     contributions: {
       titre: 'My contributions',

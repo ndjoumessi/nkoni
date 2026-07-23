@@ -96,3 +96,25 @@ describe('POST /webhooks/fapshi (public)', () => {
     await app.close()
   })
 })
+
+describe('POST /webhooks/campay (public)', () => {
+  it('sans reference → 200 sans effet', async () => {
+    const app = await appAvec({})
+    const res = await app.inject({ method: 'POST', url: '/webhooks/campay', payload: {} })
+    expect(res.statusCode).toBe(200)
+    await app.close()
+  })
+
+  it('reference inconnue → 200 silencieux (résolution tentée, aucune confirmation)', async () => {
+    let resolutionTentee = false
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const prisma: any = {
+      paiement: { findFirst: async () => { resolutionTentee = true; return null } },
+    }
+    const app = await appAvec(prisma)
+    const res = await app.inject({ method: 'POST', url: '/webhooks/campay', payload: { reference: 'inconnu' } })
+    expect(res.statusCode).toBe(200)
+    expect(resolutionTentee).toBe(true)
+    await app.close()
+  })
+})

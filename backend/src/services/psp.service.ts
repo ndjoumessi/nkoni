@@ -19,6 +19,12 @@ export interface IdentifiantsFapshi {
   environnement: EnvironnementPsp
 }
 
+/** Identifiants d'une app CamPay (par organisation) : token d'accès permanent + environnement. */
+export interface IdentifiantsCampay {
+  token: string
+  environnement: EnvironnementPsp
+}
+
 /** Identifiants déchiffrés + provider, tels que passés au client PSP. */
 export interface CredentialsPsp {
   provider: PspProviderCode
@@ -66,6 +72,8 @@ export function validerIdentifiants(provider: PspProviderCode, identifiants: Rec
   }
   if (provider === 'CAMPAY') {
     if (!nonVide(identifiants['token'])) return 'IDENTIFIANTS_INCOMPLETS'
+    const env = identifiants['environnement']
+    if (env !== 'SANDBOX' && env !== 'LIVE') return 'ENVIRONNEMENT_INVALIDE'
     return null
   }
   return 'PROVIDER_INCONNU'

@@ -7,4 +7,6 @@ export const messages = {
   'paiement.montantSuperieurReste': 'The amount exceeds the remaining balance on this contribution.',
   'paiement.nonConfigure': 'Online payment is not enabled for this organisation.',
   'paiement.contributionIntrouvable': 'Contribution not found.',
+  'paiement.telephoneRequis':
+    'A phone number is required for this payment method. Add your Mobile Money number, then try again.',
 } as const

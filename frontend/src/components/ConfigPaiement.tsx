@@ -66,7 +66,7 @@ export function ConfigPaiement() {
     const identifiants: Record<string, string> =
       provider === 'FAPSHI'
         ? { apiUser: apiUser.trim(), apiKey: apiKey.trim(), environnement }
-        : { token: token.trim() }
+        : { token: token.trim(), environnement }
     setEnregistrement(true)
     try {
       const c = await organisationApi.enregistrerConfigPaiement({ provider, identifiants, actif }, accessToken)
@@ -124,12 +124,20 @@ export function ConfigPaiement() {
             </Field>
           </>
         ) : (
-          <Field
-            label={t('parametres.paiement.token')}
-            hint={config?.configure ? t('parametres.paiement.secretMasque') : undefined}
-          >
-            <PasswordInput value={token} onChange={(e) => setToken(e.target.value)} autoComplete="off" placeholder="••••••••" />
-          </Field>
+          <>
+            <Field
+              label={t('parametres.paiement.token')}
+              hint={config?.configure ? t('parametres.paiement.secretMasque') : undefined}
+            >
+              <PasswordInput value={token} onChange={(e) => setToken(e.target.value)} autoComplete="off" placeholder="••••••••" />
+            </Field>
+            <Field label={t('parametres.paiement.environnement')}>
+              <Select value={environnement} onChange={(e) => setEnvironnement(e.target.value as EnvironnementPsp)}>
+                <option value="SANDBOX">{t('parametres.paiement.sandbox')}</option>
+                <option value="LIVE">{t('parametres.paiement.live')}</option>
+              </Select>
+            </Field>
+          </>
         )}
 
         <div className="flex items-center justify-between gap-3 rounded-xl border border-hairline bg-surface-2/40 p-4">

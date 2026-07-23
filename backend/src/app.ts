@@ -165,7 +165,32 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
 
   await registerJwt(app)
 
+  // LIVENESS — le process répond. C'est CE endpoint que le healthcheck Railway interroge
+  // (`railway.json` → healthcheckPath: /health). Ne JAMAIS y ajouter de dépendance (base, réseau) :
+  // le coupler à la base empêcherait un déploiement pendant un hoquet DB et interdirait de déployer
+  // quand la base est à terre — exactement au moment où l'on a besoin de la reprise.
   app.get('/health', async () => ({ status: 'ok' }))
+
+  // READINESS (§2.2/§8.3) — DISTINCT du liveness : vérifie que la BASE répond (SELECT 1). C'est
+  // `/statut` (page publique) et une future sonde externe qui l'interrogent, JAMAIS le healthcheck
+  // Railway. Sans ça, `/statut` afficherait « opérationnel » avec Postgres à terre (faux négatif
+  // public). `SELECT 1` ne touche aucun modèle scopé → l'extension tenant ne l'intercepte pas,
+  // aucun contexte org requis. Course contre un délai court pour ne pas pendre si la base ne répond
+  // pas. Best-effort : ne lève jamais → 503 `degraded` en cas d'échec, jamais une 500 opaque.
+  app.get('/ready', async (_req, reply) => {
+    let minuteur: ReturnType<typeof setTimeout> | undefined
+    try {
+      const delai = new Promise<never>((_, rejeter) => {
+        minuteur = setTimeout(() => rejeter(new Error('timeout')), 3000)
+      })
+      await Promise.race([app.prisma.$queryRaw`SELECT 1`, delai])
+      return { status: 'ok' }
+    } catch {
+      return reply.code(503).send({ status: 'degraded', db: 'unreachable' })
+    } finally {
+      if (minuteur) clearTimeout(minuteur)
+    }
+  })
 
   await app.register(authRoutes, { prefix: '/auth' })
   await app.register(organisationsRoutes)

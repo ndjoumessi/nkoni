@@ -12,8 +12,10 @@ const CONTACT_SUPPORT = 'romel.djoumessi@gmail.com'
 type Etat = 'verification' | 'operationnel' | 'incident'
 
 /**
- * Page de STATUT publique (§2.2) — accessible sans authentification. Interroge le `/health` du
- * backend à l'ouverture et affiche un état simple : opérationnel / incident / vérification. Donne
+ * Page de STATUT publique (§2.2) — accessible sans authentification. Interroge le `/ready` du
+ * backend (readiness : le process ET la base répondent, cf. §8.3) à l'ouverture et affiche un état
+ * simple : opérationnel / incident / vérification. `/health` (liveness) resterait vert avec la base
+ * à terre — d'où `/ready`, qui fait un `SELECT 1`. Donne
  * aussi un point de contact support. Volontairement minimale et sans dépendance : un utilisateur
  * qui n'arrive pas à se connecter doit pouvoir vérifier ici si le service est en cause.
  */
@@ -27,7 +29,8 @@ export function StatutPage() {
     let actif = true
     void (async () => {
       try {
-        const res = await fetch(`${API_URL}/health`, { signal: controller.signal })
+        // `/ready` renvoie 200 si la base répond, 503 sinon → `res.ok` distingue les deux.
+        const res = await fetch(`${API_URL}/ready`, { signal: controller.signal })
         if (!actif) return
         setEtat(res.ok ? 'operationnel' : 'incident')
       } catch {

@@ -381,6 +381,15 @@ export function LandingPage() {
             >
               {t('landing.footerNav.cgu')}
             </Link>
+            <span className="text-hairline" aria-hidden="true">
+              ·
+            </span>
+            <Link
+              to="/statut"
+              className="text-muted-foreground transition-colors hover:text-foreground"
+            >
+              {t('landing.footerNav.statut')}
+            </Link>
           </nav>
           <p className="text-center text-xs text-faint">{t('landing.footerNav.droits')}</p>
         </div>

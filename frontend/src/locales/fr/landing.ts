@@ -222,6 +222,7 @@ export default {
       legal: 'Mentions légales',
       confidentialite: 'Confidentialité',
       cgu: 'CGU',
+      statut: 'Statut',
     },
   },
 }

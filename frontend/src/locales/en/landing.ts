@@ -221,6 +221,7 @@ export default {
       legal: 'Legal',
       confidentialite: 'Privacy',
       cgu: 'Terms',
+      statut: 'Status',
     },
   },
 }

@@ -274,6 +274,32 @@ de saisies), **RTO 4 h**.
 > se prend que sur corruption ou perte avérée, jamais sur une simple indisponibilité — un service
 > lent ou muet se répare, il ne se restaure pas.
 
+### 4.8 Resynchroniser le token Blob (`BLOB_READ_WRITE_TOKEN`)
+Le stockage Vercel Blob (photos de membres, documents, reçus PDF) est authentifié par
+`BLOB_READ_WRITE_TOKEN`, posé **manuellement sur Railway** (le backend n'est pas sur Vercel, l'injection
+auto du store ne l'atteint pas). **Rotater le token dans Vercel → Storage invalide l'ancien** : si
+Railway garde le périmé, il y a désynchronisation.
+
+**Symptôme** : logs `Vercel Blob: Access denied` / `403 Forbidden` ; upload de photo ou de document en
+**500** (« Action impossible »), affichage des photos et téléchargement des reçus/documents cassés —
+alors que le code et la base sont intacts (les blobs existants ne sont **pas** perdus, seul le secret
+d'accès est désynchronisé).
+
+**Correctif** : récupérer le token courant du store `nkoni-config` (Vercel → Storage → *Tokens*, ou
+rotater une fois de plus pour en obtenir un frais affiché en clair), le poser sur Railway, **puis
+redéployer** :
+
+```bash
+railway variables --set BLOB_READ_WRITE_TOKEN="vercel_blob_rw_CfLXqvLVhfrTEyjd_XXXX"
+railway redeploy   # OBLIGATOIRE : un simple --set est SKIPPED par le watch-path /backend/**
+```
+
+> Règle : **ne jamais rotater `BLOB_READ_WRITE_TOKEN` sans mettre Railway à jour dans la foulée.** Le
+> store `nkoni-config` (`store_CfLXqvLVhfrTEyjd`) est l'UNIQUE store de prod ; son id apparaît dans
+> l'hôte des URLs stockées en base (`https://cflxqvlvhfrteyjd.private.blob.vercel-storage.com/…`) et
+> dans le token lui-même (`vercel_blob_rw_CfLXqvLVhfrTEyjd_…`) — de quoi vérifier en un coup d'œil que
+> Railway pointe le bon store.
+
 ---
 
 ## 5. Catalogue de pannes

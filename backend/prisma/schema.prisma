@@ -133,6 +133,30 @@ model PlatformAuditLog {
   @@index([dateAction])
 }
 
+enum GraviteIncident {
+  INFO
+  MAINTENANCE
+  INCIDENT
+}
+
+/**
+ * Bannière d'incident de la page de statut publique (§2.2/§8) — message éditable par le SUPER_ADMIN,
+ * affiché sur `/statut` au-dessus de l'état SONDÉ (`/ready`). Complète la sonde automatique : celle-ci
+ * ne sait refléter qu'un état mesuré, jamais communiquer un incident CONNU ou une maintenance PLANIFIÉE.
+ * PLATEFORME, NON SCOPÉ (hors `SCOPED_MODELS`, hors `ORDRE_SUPPRESSION`) : un incident concerne tout le
+ * service, pas un tenant — et sans `organisationId`, la parité tenant ne le voit pas. Ligne UNIQUE
+ * (id fixe `singleton` + upsert) : il n'existe qu'un état d'incident courant. `message` = texte libre
+ * rendu tel quel (pas de traduction). `updatedAt` date la dernière modification (l'attribution à un
+ * acteur est superflue : le SUPER_ADMIN est unique, et lire son email exigerait un accès scopé).
+ */
+model StatutIncident {
+  id        String          @id @default("singleton")
+  actif     Boolean         @default(false)
+  gravite   GraviteIncident @default(INFO)
+  message   String
+  updatedAt DateTime        @updatedAt
+}
+
 model Organisation {
   id           String   @id @default(uuid())
   nom          String

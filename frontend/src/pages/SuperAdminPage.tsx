@@ -15,6 +15,7 @@ import {
   Languages,
   LogOut,
   PauseCircle,
+  Megaphone,
   PlayCircle,
   Search,
   ShieldAlert,
@@ -654,6 +655,13 @@ export function SuperAdminPage() {
           >
             <History className="h-4 w-4" aria-hidden="true" />
             {t('superAdmin.header.historique')}
+          </Link>
+          <Link
+            to="/super-admin/incident"
+            className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <Megaphone className="h-4 w-4" aria-hidden="true" />
+            {t('superAdmin.header.incident')}
           </Link>
         </nav>
 

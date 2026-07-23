@@ -20,6 +20,13 @@ export default {
       },
     },
     derniereVerification: 'Last checked: {{heure}}',
+    incident: {
+      gravites: {
+        INFO: 'Information',
+        MAINTENANCE: 'Scheduled maintenance',
+        INCIDENT: 'Incident',
+      },
+    },
     support: {
       titre: 'Need help?',
       texte: 'A question, a problem, or something wrong that this page does not report?',

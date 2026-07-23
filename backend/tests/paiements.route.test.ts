@@ -50,6 +50,29 @@ describe('POST /moi/paiements', () => {
   })
 })
 
+describe('GET /moi/paiement-disponible', () => {
+  it('sans authentification → 401', async () => {
+    const app = await appAvec({})
+    const res = await app.inject({ method: 'GET', url: '/moi/paiement-disponible' })
+    expect(res.statusCode).toBe(401)
+    await app.close()
+  })
+
+  it('config active → { actif: true } ; absente → { actif: false }', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const appActif = await appAvec({ parametrePaiement: { findFirst: async () => ({ actif: true }) } } as any)
+    const rA = await appActif.inject({ method: 'GET', url: '/moi/paiement-disponible', headers: auth(appActif) })
+    expect(rA.json()).toEqual({ actif: true })
+    await appActif.close()
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const appVide = await appAvec({ parametrePaiement: { findFirst: async () => null } } as any)
+    const rV = await appVide.inject({ method: 'GET', url: '/moi/paiement-disponible', headers: auth(appVide) })
+    expect(rV.json()).toEqual({ actif: false })
+    await appVide.close()
+  })
+})
+
 describe('POST /webhooks/fapshi (public)', () => {
   it('sans transId → 200 sans effet', async () => {
     const app = await appAvec({})

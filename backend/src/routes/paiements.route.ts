@@ -8,6 +8,7 @@ import {
   confirmerPaiement,
   ConfigPaiementIndisponibleError,
   MontantInvalideError,
+  MontantSuperieurAuResteError,
   ContributionIntrouvableError,
 } from '../services/paiement.service'
 
@@ -66,6 +67,9 @@ export const paiementsRoutes: FastifyPluginAsync = async (app: FastifyInstance) 
       } catch (err) {
         if (err instanceof MontantInvalideError) {
           return reply.code(400).send({ error: 'Bad Request', message: t(langueDeRequete(req), 'paiement.montantInvalide') })
+        }
+        if (err instanceof MontantSuperieurAuResteError) {
+          return reply.code(400).send({ error: 'Bad Request', message: t(langueDeRequete(req), 'paiement.montantSuperieurReste') })
         }
         if (err instanceof ConfigPaiementIndisponibleError) {
           return reply.code(409).send({ error: 'Conflict', message: t(langueDeRequete(req), 'paiement.nonConfigure') })

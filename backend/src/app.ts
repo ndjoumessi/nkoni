@@ -46,6 +46,7 @@ import { auditLogRoutes } from './routes/audit-log.route'
 import { rapportsRoutes } from './routes/rapports.route'
 import { notificationsRoutes } from './routes/notifications.route'
 import { demarrerScheduler } from './services/notification-scheduler'
+import { demarrerSchedulerReconciliation } from './services/paiement-reconciliation.service'
 import { auditContext } from './lib/audit-context'
 import { orgContext } from './lib/org-context'
 import { vraiObservabiliteClient, type ObservabiliteClient } from './lib/observabilite'
@@ -245,8 +246,9 @@ if (require.main === module) {
   buildApp()
     .then(async (app) => {
       const address = await app.listen({ port, host: '0.0.0.0' })
-      // Scheduler démarré UNIQUEMENT dans le serveur long-vivant (jamais via buildApp/tests).
+      // Schedulers démarrés UNIQUEMENT dans le serveur long-vivant (jamais via buildApp/tests).
       demarrerScheduler(app)
+      demarrerSchedulerReconciliation(app)
       return address
     })
     .then((address) => {

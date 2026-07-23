@@ -43,6 +43,12 @@ export class ContributionIntrouvableError extends Error {
     this.name = 'ContributionIntrouvableError'
   }
 }
+export class MontantSuperieurAuResteError extends Error {
+  constructor(public readonly reste: number) {
+    super(`Montant supérieur au reste dû (${reste} XAF).`)
+    this.name = 'MontantSuperieurAuResteError'
+  }
+}
 
 const MONTANT_MIN = 100 // minimum Fapshi (XAF)
 
@@ -93,9 +99,14 @@ export async function demarrerPaiement(
   // La contribution doit appartenir au membre (lecture scopée → isolation tenant en plus).
   const contribution = await prisma.contribution.findFirst({
     where: { id: params.contributionId, membreId: params.membreId },
-    select: { id: true },
+    select: { id: true, montantAttendu: true, montantValorise: true },
   })
   if (!contribution) throw new ContributionIntrouvableError()
+
+  // Plafond SERVEUR au reste dû (attendu − valorisé) : ne JAMAIS se fier au montant du client. Sans
+  // ça, une requête forgée pourrait sur-payer une cotisation. On relâchera si l'avance est un jour voulue.
+  const reste = Math.max(0, contribution.montantAttendu - contribution.montantValorise)
+  if (params.montant > reste) throw new MontantSuperieurAuResteError(reste)
 
   const creds = credsDeConfig(config, params.organisationId)
   const ref = randomUUID() // externalId Fapshi (réconciliation) — la clé locale reste le transId

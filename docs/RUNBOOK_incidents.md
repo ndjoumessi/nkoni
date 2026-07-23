@@ -25,14 +25,20 @@ vérifiable :
 | Sentry backend (`SENTRY_DSN`) | **Non posé** sur Railway | Les 5xx, les échecs d'écriture d'audit et les échecs du scheduler ne remontent nulle part. `lib/env.ts` émet un warning au boot — dans les logs Railway, que personne ne lit. |
 | Sentry frontend (`VITE_SENTRY_DSN`) | **Absent du build Vercel** | Une erreur de rendu laisse un écran blanc, silencieusement. |
 | Sonde externe (uptime) | **Inexistante** | Personne ne sait que le service est tombé tant qu'un utilisateur n'écrit pas. |
-| `/health` | Répond `{"status":"ok"}` **sans toucher la base** | Le backend peut répondre 200 avec Postgres à terre. La page `/statut` affiche alors « opérationnel » — un faux négatif visible du public. |
+| `/health` (liveness) | Répond `{"status":"ok"}` **sans toucher la base** — **par conception** | Ne prouve que la vie du process. C'est le healthcheck Railway : lui ajouter une dépendance à la base interdirait de déployer pendant un hoquet DB. |
+| `/ready` (readiness) | **✅ Livré (§8.3)** — `SELECT 1`, 200 ou **503 `degraded`** | C'est LUI qui prouve que la base répond. `/statut` et toute sonde externe doivent l'interroger, **jamais** `/health`. |
 
 **Donc, aujourd'hui, la détection = un utilisateur se plaint.** Le délai de détection n'est pas
 mesurable et peut valoir plusieurs jours (typiquement : une panne nocturne un week-end).
 
-> **Les trois gestes qui changent cette situation sont en §8.** Tant qu'ils ne sont pas faits, tout
-> engagement de disponibilité (cf. `SLA_disponibilite.md`) est **déclaratif et non mesuré** — c'est
-> écrit noir sur blanc dans ce document.
+`/ready` (§8.3, livré) change la nature du **signal**, pas celle de la **détection** : il existe
+désormais un endroit qui dit la vérité sur l'état de la base — mais tant que **personne ni rien ne
+l'interroge périodiquement**, il ne se déclenche que lorsqu'un humain ouvre `/statut`. C'est
+exactement pourquoi §8.2 (la sonde) reste le chantier qui compte.
+
+> **Les gestes qui restent sont en §8** — §8.1 (poser les DSN) et §8.2 (la sonde). Tant qu'ils ne
+> sont pas faits, tout engagement de disponibilité (cf. `SLA_disponibilite.md`) est **déclaratif et
+> non mesuré** — c'est écrit noir sur blanc dans ce document.
 
 ---
 
@@ -86,12 +92,16 @@ Aujourd'hui : signalement utilisateur (cf. §0). Réflexe de premier niveau, en 
 
 ```bash
 curl -s -o /dev/null -w "front  : %{http_code}\n" https://nkoni.vercel.app/
-curl -s -o /dev/null -w "proxy  : %{http_code}\n" https://nkoni.vercel.app/api/health
-curl -s https://nkoni-backend-production.up.railway.app/health   # backend en direct, hors proxy
+curl -s -o /dev/null -w "proxy  : %{http_code}\n" https://nkoni.vercel.app/api/health   # process vivant
+curl -s -w "\nready  : %{http_code}\n" https://nkoni.vercel.app/api/ready              # ... ET base joignable
+curl -s https://nkoni-backend-production.up.railway.app/ready   # backend en direct, hors proxy
 ```
 
-> ⚠️ **Un `/health` à 200 ne prouve pas que le service fonctionne** — il ne touche pas la base. Pour
-> savoir si Postgres répond, il faut exercer un vrai chemin applicatif (§3.4).
+> **Lire les deux ensemble, c'est le diagnostic** :
+> `/health` 200 + `/ready` 200 → le service est sain (reste le front, ligne 1).
+> `/health` 200 + `/ready` **503** → le process tourne mais **la base ne répond pas** → §5.
+> `/health` KO → le backend est à terre ou le déploiement a échoué → §4.1.
+> Les deux injoignables alors que le front répond → panne Railway ou proxy.
 
 ### 3.2 Qualifier
 Poser le niveau (§1) et, surtout, répondre à trois questions **avant** de toucher quoi que ce soit :
@@ -124,7 +134,7 @@ railway logs --build <id>         # logs de BUILD — à utiliser si l'échec es
 > `railway status --json` n'expose **pas** de champ `deployment` : ne pas tenter d'extraire l'id par
 > script, le lire dans la sortie texte de `railway status`.
 
-Puis, si la base est suspectée — c'est le test que `/health` ne fait pas :
+Puis, si `/ready` a renvoyé 503 — il dit que la base ne répond pas, pas **pourquoi** :
 
 ```bash
 psql "$PROD_DATABASE_URL" -tAc 'SELECT 1;'                          # la base répond-elle ?
@@ -134,7 +144,8 @@ psql "$PROD_DATABASE_URL" -tAc 'SELECT count(*) FROM "Organisation";' # ... et s
 ### 3.5 Rétablir puis VÉRIFIER
 Un rétablissement non vérifié n'en est pas un. Le contrôle minimal reprend celui de l'exercice de
 restauration (`RUNBOOK_sauvegardes_restauration.md` §4.3) : le service doit répondre **sur un chemin
-authentifié**, pas seulement sur `/health`.
+authentifié**, pas seulement sur `/health` ni même sur `/ready` — une base joignable n'est pas une
+base cohérente.
 
 ```bash
 # 1. Le front sert l'app
@@ -270,7 +281,7 @@ de saisies), **RTO 4 h**.
 | Symptôme | Cause probable | Diagnostic | Geste |
 |---|---|---|---|
 | App inaccessible, `/api/health` KO | Backend à terre ou déploiement échoué | `railway deployment list` · `railway status` | §4.1 rollback. Si `FAILED`, le service précédent tourne encore : corriger sans panique. |
-| `/health` 200 mais tout échoue en 500 | Postgres injoignable ou saturée | `psql "$PROD_DATABASE_URL" -tAc 'SELECT 1;'` · Railway → Postgres → Metrics | Vérifier le service Postgres Railway. Si la base est perdue → §4.7. |
+| `/ready` **503 `degraded`** (ou tout échoue en 500) | Postgres injoignable ou saturée | `curl .../api/ready` · `psql "$PROD_DATABASE_URL" -tAc 'SELECT 1;'` · Railway → Postgres → Metrics | Vérifier le service Postgres Railway. Si la base est perdue → §4.7. |
 | Déploiement `FAILED` au boot | `migrate deploy` en échec (migration invalide, `DATABASE_URL` cassée → `P1000`) | `railway logs --deployment <id>` | Corriger la migration et redéployer. Le service **reste debout** sur l'ancienne version. |
 | Déploiement `SKIPPED` | Watch path `/backend/**` : le push ne touchait que `frontend/` | — | **Normal, ce n'est pas un incident.** Vérifier Vercel à la place. |
 | Écran blanc côté front | Erreur de rendu React (pas d'`ErrorBoundary`) | Console du navigateur | §4.2 rollback Vercel. Sans `VITE_SENTRY_DSN`, aucune alerte n'existe (§0). |
@@ -288,7 +299,7 @@ de saisies), **RTO 4 h**.
 ### 6.1 Canaux réels
 | Canal | Ce qu'il vaut | Limite dure |
 |---|---|---|
-| **Page `/statut`** | Publique, sans compte, atteignable même app coupée (hébergée sur Vercel, indépendante de Railway) | **Automatique uniquement** : elle sonde `/health` et n'a **aucun moyen de publier un message d'incident**. On ne peut pas y écrire « intervention en cours jusqu'à 14 h ». Cf. §8. |
+| **Page `/statut`** | Publique, sans compte, atteignable même app coupée (hébergée sur Vercel, indépendante de Railway). Sonde `/ready`, donc son « opérationnel » vaut désormais quelque chose | **Automatique uniquement** : aucun moyen d'y **publier un message d'incident**. On ne peut pas y écrire « intervention en cours jusqu'à 14 h ». Cf. §8. |
 | **Email (Resend)** | Configuré et opérationnel (`RESEND_API_KEY`/`RESEND_FROM` posés) | Aucun envoi groupé outillé : c'est un envoi à la main aux dirigeants concernés. |
 | **WhatsApp** | — | **Non configuré en production** (`WHATSAPP_TOKEN`/`WHATSAPP_PHONE_ID` absents). Ne pas compter dessus en incident. |
 | **Adresse de support** | Publiée sur `/statut` | Canal entrant, pas sortant. |
@@ -412,8 +423,8 @@ réaction sans déclencheur.
 | # | Chantier | Pourquoi c'est bloquant | Effort |
 |---|---|---|---|
 | **8.1** | **Poser `SENTRY_DSN` (Railway) et `VITE_SENTRY_DSN` (Vercel)** — projets **distincts**, un DSN front étant public par nature | Le code d'alerte existe, est testé et câblé sur les 5xx, l'échec d'audit et l'échec du scheduler. Il ne manque que la variable. **C'est le meilleur rapport effort/gain de toute cette liste.** | Minutes |
-| **8.2** | **Sonde externe** sur `https://nkoni.vercel.app/api/health`, toutes les 5 min, alerte email | Sans sonde, la disponibilité n'est **pas mesurable** — donc le SLA n'est pas vérifiable, et une panne nocturne dure jusqu'au matin. | ~1 h |
-| **8.3** | **Faire de `/health` un vrai healthcheck** — y ajouter un `SELECT 1` sur la base | Aujourd'hui il répond 200 avec Postgres à terre : la page `/statut` publie alors un « opérationnel » **faux**, ce qui est pire que pas de page du tout. Attention : le healthcheck Railway s'appuie dessus — un `/health` qui échoue sur base absente peut empêcher un boot légitime. Prévoir un code distinct (200 dégradé vs 503). | ~2 h |
+| **8.2** | **Sonde externe** sur `https://nkoni.vercel.app/api/ready`, toutes les 5 min, alerte email | Sans sonde, la disponibilité n'est **pas mesurable** — donc le SLA n'est pas vérifiable, et une panne nocturne dure jusqu'au matin. Sonder **`/ready`** et non `/health` : c'est le seul des deux qui tombe quand la base tombe. | ~1 h |
+| ~~8.3~~ | ~~**Faire de `/health` un vrai healthcheck**~~ → **✅ FAIT** (2026-07-23) : endpoint **`/ready`** SÉPARÉ (`SELECT 1`, 200 / **503 `degraded`**, course contre un délai de 3 s), consommé par `/statut`. **`/health` reste intact et sans dépendance** — c'est le healthcheck Railway (`railway.json`), et le coupler à la base interdirait de déployer pendant un hoquet DB, donc exactement au moment où l'on a besoin de la reprise. Régression : `backend/tests/ready.route.test.ts`. | — | Fait |
 
 Chantiers de second rang, à inscrire après les trois précédents :
 
@@ -445,5 +456,6 @@ Une ligne par incident P1/P2. C'est ce registre qui alimente la mesure de dispon
 - **Ne jamais annoncer « vos données sont intactes »** avant de l'avoir vérifié.
 - **Ne jamais rollback** un déploiement dont la migration est destructive sans avoir vérifié la
   compatibilité du schéma avec le code précédent.
-- **Ne jamais conclure d'un `/health` à 200** que le service fonctionne (§0).
+- **Ne jamais conclure d'un `/health` à 200** que le service fonctionne — il ne teste que la vie du
+  process. Lire `/ready` (§3.1).
 - **Toujours noter les heures UTC** au fil de l'incident, pas de mémoire après coup.

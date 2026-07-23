@@ -7,6 +7,7 @@ import LoginPage from '@/pages/LoginPage'
 import InscriptionPage from '@/pages/InscriptionPage'
 import ConfidentialitePage from '@/pages/legal/ConfidentialitePage'
 import CGUPage from '@/pages/legal/CGUPage'
+import StatutPage from '@/pages/StatutPage'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { SuperAdminRoute } from '@/components/SuperAdminRoute'
 import { AppShell } from '@/components/AppShell'
@@ -73,6 +74,7 @@ function App() {
       <Route path="/inscription" element={<InscriptionPage />} />
       <Route path="/confidentialite" element={<ConfidentialitePage />} />
       <Route path="/cgu" element={<CGUPage />} />
+      <Route path="/statut" element={<StatutPage />} />
 
       {/* Console PLATEFORME (SaaS §2.3) — SUPER_ADMIN uniquement, layout autonome (hors AppShell). */}
       <Route

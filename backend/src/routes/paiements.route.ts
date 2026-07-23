@@ -38,7 +38,7 @@ export const paiementsRoutes: FastifyPluginAsync = async (app: FastifyInstance) 
           additionalProperties: false,
           properties: {
             contributionId: { type: 'string', minLength: 1 },
-            montant: { type: 'integer', minimum: 100 },
+            montant: { type: 'integer', minimum: env.PAIEMENT_MONTANT_MIN },
           },
         },
       },

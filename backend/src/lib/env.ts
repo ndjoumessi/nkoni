@@ -18,6 +18,14 @@ function optional(name: string, fallback: string): string {
   return value && value.length > 0 ? value : fallback
 }
 
+/** Entier positif depuis l'env, avec repli si absent/illisible. */
+function optionalInt(name: string, fallback: number): number {
+  const value = process.env[name]
+  if (!value) return fallback
+  const n = Number.parseInt(value, 10)
+  return Number.isFinite(n) && n > 0 ? n : fallback
+}
+
 const jwtAccessSecret = required('JWT_ACCESS_SECRET')
 
 export const env = {
@@ -58,6 +66,11 @@ export const env = {
   // QR des cartes de membre (§4.7) : `${PUBLIC_BASE_URL}/api/membres/:id/statut-public?t=…`. Défaut
   // prod ; à surcharger seulement si le domaine public change. À poser sur Railway si besoin.
   PUBLIC_BASE_URL: optional('PUBLIC_BASE_URL', 'https://nkoni.vercel.app'),
+  // Montant MINIMUM d'un paiement en ligne (§ paiement), en XAF. Défaut 100 (plancher raisonnable en
+  // production). Rendu configurable pour le TEST : le bac à sable CamPay plafonne à 25 XAF, donc pour
+  // dérouler un paiement demo de bout en bout on abaisse ce plancher (ex. PAIEMENT_MONTANT_MIN=5) —
+  // à remettre à 100 (ou retirer) une fois les tests demo faits.
+  PAIEMENT_MONTANT_MIN: optionalInt('PAIEMENT_MONTANT_MIN', 100),
 } as const
 
 export const isProd = env.NODE_ENV === 'production'

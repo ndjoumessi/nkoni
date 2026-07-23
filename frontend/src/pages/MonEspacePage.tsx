@@ -44,6 +44,11 @@ import { CarteMembre } from '@/components/membres/CarteMembre'
 import { TypeReunionBadge } from '@/components/reunions/StatutBadges'
 import type { StatutContribution, StatutMembre, TypeReunion } from '@/lib/api'
 
+// Montant minimum d'un paiement en ligne (XAF). Défaut 100 ; configurable pour le TEST (le bac à
+// sable CamPay plafonne à 25 XAF). Doit refléter le PAIEMENT_MONTANT_MIN du backend, sinon un montant
+// accepté ici serait refusé côté serveur (ou l'inverse). Repli 100 si la variable n'est pas posée.
+const MONTANT_MIN_PAIEMENT = Number(import.meta.env['VITE_PAIEMENT_MONTANT_MIN']) || 100
+
 export function MonEspacePage() {
   const { t } = useTranslation()
   const { accessToken } = useAuth()
@@ -257,7 +262,7 @@ export function MonEspacePage() {
   const payerContribution = async (c: ContributionMembre) => {
     if (!accessToken) return
     const reste = Math.max(0, c.montantAttendu - c.montantValorise)
-    if (reste < 100) return
+    if (reste < MONTANT_MIN_PAIEMENT) return
     setPaiementEnCours(c.id)
     try {
       const r = await moiApi.demarrerPaiement(c.id, reste, accessToken)
@@ -318,7 +323,7 @@ export function MonEspacePage() {
             header: '',
             align: 'right' as const,
             cell: (c: ContributionMembre) =>
-              Math.max(0, c.montantAttendu - c.montantValorise) >= 100 ? (
+              Math.max(0, c.montantAttendu - c.montantValorise) >= MONTANT_MIN_PAIEMENT ? (
                 <Button
                   type="button"
                   variant="outline"

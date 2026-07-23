@@ -39,12 +39,15 @@ effective** confirmant la cible. Les trois premiers points sont les chantiers §
 
 ### 1.2 Périmètre mesuré
 Est « disponible » un service qui répond à un **chemin authentifié réel**, pas seulement à un
-ping. La mesure retenue est le succès de `GET https://nkoni.vercel.app/api/health` **et** la capacité
-à se connecter.
+ping. La mesure retenue est le succès de **`GET https://nkoni.vercel.app/api/ready`** — readiness :
+le process répond **et** la base répond (`SELECT 1`) — complété par la capacité à se connecter.
 
-> ⚠️ **Réserve majeure : `/health` ne teste pas la base de données** (`{"status":"ok"}` constant). Il
-> peut donc répondre 200 alors que l'application est inutilisable. Tant que le chantier §8.3 du
-> runbook n'est pas fait, toute mesure fondée sur `/health` **surestime** la disponibilité réelle.
+> **Mesurer sur `/ready`, jamais sur `/health`.** `/health` est le *liveness* : il répond
+> `{"status":"ok"}` sans toucher la base, par conception (c'est le healthcheck Railway). Une mesure
+> fondée sur lui **surestimerait** la disponibilité, puisqu'il reste vert avec Postgres à terre.
+>
+> Réserve résiduelle : `/ready` prouve que la base **répond**, pas qu'elle est **cohérente**. Une
+> base restaurée mais incomplète le laisserait vert — d'où le contrôle applicatif du §3.5 du runbook.
 
 ### 1.3 ⚠️ La disponibilité n'est pas mesurée aujourd'hui
 Il n'existe **aucune sonde externe** (chantier §8.2 du runbook). Le taux ci-dessus est donc, à ce
@@ -135,6 +138,7 @@ sonde externe dès qu'elle existe.
 | _(pas encore de mesure — cf. §1.3)_ | | | | |
 
 > **Revue trimestrielle** : relire ce document avec le registre en main. Si la cible est tenue quatre
-> trimestres d'affilée **et** que les chantiers §8.1–8.3 du runbook sont faits, envisager 99,5 %.
+> trimestres d'affilée **et** que les chantiers §8.1–8.2 du runbook sont faits (§8.3 l'est déjà),
+> envisager 99,5 %.
 > Si elle ne l'est pas, **abaisser la cible plutôt que de la maintenir par principe** — un engagement
 > qu'on rate systématiquement ne vaut rien.

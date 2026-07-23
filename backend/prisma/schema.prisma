@@ -1017,7 +1017,9 @@ model Paiement {
   contributionId   String?
   contribution     Contribution?  @relation("PaiementContribution", fields: [contributionId], references: [id])
   montant          Int
-  telephone        String
+  // Nullable : le checkout hébergé Fapshi (« Initiate Pay ») collecte le numéro sur SA page — il ne
+  // transite pas par NKONI. Renseigné seulement si un flux « direct pay » est ajouté plus tard.
+  telephone        String?
   provider         PspProvider
   referenceExterne String // id de transaction PSP — clé d'idempotence de la confirmation
   statut           StatutPaiement @default(EN_ATTENTE)

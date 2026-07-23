@@ -21,6 +21,9 @@ export const notificationsApi = {
   /** Notifications du compte connecté (les plus récentes d'abord). */
   list: (accessToken: string, signal?: AbortSignal) =>
     request<Notification[]>('/notifications', { accessToken, signal }),
+  /** Marque toutes ses notifications non-lues comme lues → nombre marqué. */
+  marquerToutesLues: (accessToken: string) =>
+    request<{ count: number }>('/notifications/tout-lu', { method: 'PATCH', accessToken }),
   getPreferences: (accessToken: string, signal?: AbortSignal) =>
     request<PreferencesNotification>('/notifications/preferences', { accessToken, signal }),
   updatePreferences: (patch: Partial<PreferencesNotification>, accessToken: string) =>

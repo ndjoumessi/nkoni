@@ -179,6 +179,22 @@ export function MonEspacePage() {
     }
   }
 
+  // Ouvrir le panneau = « vu » : on marque toutes les non-lues comme lues côté serveur puis on met
+  // à jour l'état local (le compteur retombe à 0). Best-effort : un échec laisse l'état inchangé, on
+  // réessaiera à la prochaine ouverture. Fermer ne redéclenche rien (garde `ouvre && …`).
+  const basculerRappels = () => {
+    const ouvre = !rappelsOuverts
+    setRappelsOuverts(ouvre)
+    if (ouvre && accessToken && notifications.some((n) => !n.lu)) {
+      void notificationsApi
+        .marquerToutesLues(accessToken)
+        .then(() => setNotifications((prev) => prev.map((n) => (n.lu ? n : { ...n, lu: true }))))
+        .catch(() => {
+          /* silencieux : réessai à la prochaine ouverture */
+        })
+    }
+  }
+
   const telechargerCarte = async () => {
     if (!accessToken) return
     setCarteEnCours(true)
@@ -345,7 +361,7 @@ export function MonEspacePage() {
         <Card className="nk-reveal mt-4 p-6">
           <button
             type="button"
-            onClick={() => setRappelsOuverts((o) => !o)}
+            onClick={basculerRappels}
             aria-expanded={rappelsOuverts}
             className="flex w-full items-center gap-2 rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass"
           >

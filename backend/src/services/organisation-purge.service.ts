@@ -73,7 +73,6 @@ export const ORDRE_SUPPRESSION: readonly string[] = [
   'Notification',
   'Depense',
   'BaremeAnnuel',
-  'EvenementFamilial',
   // AVANT `Utilisateur` : `AuditLog.acteurId` est en SetNull, donc l'ordre inverse fonctionnerait
   // — mais PostgreSQL exécuterait alors un UPDATE ... SET acteurId = NULL par utilisateur
   // supprimé, sur la table la plus volumineuse du tenant. Gain gratuit.

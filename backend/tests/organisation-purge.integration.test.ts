@@ -59,7 +59,7 @@ async function nettoyer(): Promise<void> {
 }
 
 /**
- * Peuple UNE organisation avec au moins une ligne de CHACUN des 26 modèles scopés.
+ * Peuple UNE organisation avec au moins une ligne de CHACUN des 25 modèles scopés.
  * C'est le cœur du dispositif : ne peupler que les modèles « importants » laisserait justement
  * les FK non exercées passer inaperçues. Un test de parité (plus bas) échoue si un modèle manque.
  */
@@ -124,7 +124,6 @@ async function semer(orgId: string, actif: boolean): Promise<void> {
   await base.affectationFonction.create({
     data: { organisationId: orgId, fonctionId: f.id, membreId: m.id, dateDebut: new Date('2025-01-01T00:00:00Z') },
   })
-  await base.evenementFamilial.create({ data: { organisationId: orgId } })
 
   const cf = await base.conflit.create({
     data: {
@@ -208,7 +207,7 @@ afterAll(async () => {
   await base.$disconnect()
 })
 
-describe('fixture — couverture des 26 modèles', () => {
+describe('fixture — couverture des 25 modèles', () => {
   it('peuple au moins une ligne de CHAQUE modèle scopé (sinon le test ne prouve rien)', async () => {
     const c = await compter(A)
     const vides = Object.entries(c).filter(([, n]) => n === 0).map(([m]) => m)

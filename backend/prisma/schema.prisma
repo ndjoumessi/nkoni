@@ -166,7 +166,6 @@ model Organisation {
   resolutions          Resolution[]
   fonctions            FonctionFamiliale[]
   affectations         AffectationFonction[]
-  evenements           EvenementFamilial[]
   conflits             Conflit[]
   conflitMembres       ConflitMembreConcerne[]
   commemorations       Commemoration[]
@@ -573,15 +572,6 @@ model AffectationFonction {
   @@index([fonctionId, dateFin])
   // Historique par membre (« quelles fonctions a occupé ce membre »).
   @@index([membreId])
-  @@index([organisationId])
-}
-
-model EvenementFamilial {
-  id             String       @id @default(uuid())
-  organisationId String
-  organisation   Organisation @relation(fields: [organisationId], references: [id])
-  createdAt      DateTime     @default(now())
-
   @@index([organisationId])
 }
 

@@ -72,7 +72,6 @@ export const SCOPED_MODELS = new Set<string>([
   'Resolution',
   'FonctionFamiliale',
   'AffectationFonction',
-  'EvenementFamilial',
   'Conflit',
   'ConflitMembreConcerne',
   'Commemoration',

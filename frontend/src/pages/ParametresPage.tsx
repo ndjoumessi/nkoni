@@ -5,7 +5,8 @@ import { Navigate } from 'react-router-dom'
 import { Building2, CalendarDays, Coins, Crown, Download, Languages, Lock, Users, type LucideProps } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
 import { organisationApi, messageErreur, type OrganisationCourante } from '@/lib/api'
-import { peutVoirParametres, peutExporterDonnees } from '@/lib/roles'
+import { peutVoirParametres, peutExporterDonnees, peutConfigurerPaiement } from '@/lib/roles'
+import { ConfigPaiement } from '@/components/ConfigPaiement'
 import { cn, formatDate } from '@/lib/utils'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, Overline } from '@/components/ui/Card'
@@ -236,6 +237,9 @@ export function ParametresPage() {
               </div>
             </Card>
           )}
+
+          {/* Config paiement en ligne (§ paiement) — bureau dirigeant uniquement. */}
+          {peutConfigurerPaiement(user?.role) && <ConfigPaiement />}
         </div>
       ) : null}
     </div>

@@ -52,6 +52,10 @@ import { SCOPED_MODELS } from '../lib/tenant-extension'
 export const ORDRE_SUPPRESSION: readonly string[] = [
   // — Chaîne financière : la plus contrainte (Recu →Restrict→ Versement →Restrict→ Contribution).
   'Recu',
+  // AVANT `Versement`/`Contribution` : `Paiement` les référence en SetNull — l'ordre inverse
+  // déclencherait un UPDATE ... SET …Id = NULL avant de tout supprimer. Il référence `Membre` en
+  // Restrict, donc il DOIT précéder `Membre` (contrainte dure). Le placer ici satisfait les deux.
+  'Paiement',
   'Versement',
   'Contribution',
   'EquilibrageDetail',
@@ -73,6 +77,8 @@ export const ORDRE_SUPPRESSION: readonly string[] = [
   'Notification',
   'Depense',
   'BaremeAnnuel',
+  // Config paiement : ne référence que `Organisation` (Restrict) → n'importe où avant elle.
+  'ParametrePaiement',
   // AVANT `Utilisateur` : `AuditLog.acteurId` est en SetNull, donc l'ordre inverse fonctionnerait
   // — mais PostgreSQL exécuterait alors un UPDATE ... SET acteurId = NULL par utilisateur
   // supprimé, sur la table la plus volumineuse du tenant. Gain gratuit.
@@ -137,6 +143,23 @@ function accesseur(modele: string): string {
  * Doit tourner sous `orgContext.runUnscoped` (appelé par une route plateforme) : les modèles
  * scopés sont lus avec un `where.organisationId` explicite, comme pour la suppression.
  */
+/**
+ * Champs à OMETTRE modèle par modèle dans l'export. Un export quitte le périmètre de l'application
+ * (téléchargé sur un poste, transmis, archivé) : rien de ce qui vaut identifiant ne doit y figurer,
+ * même sous forme dérivée ou chiffrée.
+ *
+ *  - `Utilisateur.passwordHash` — hash argon2 (fuite corrigée le 2026-07-22).
+ *  - `ParametrePaiement.identifiantsChiffres` — identifiants PSP de l'organisation. C'est un
+ *    ciphertext AES-256-GCM, donc illisible sans `PSP_ENCRYPTION_KEY` — mais la clé est UNIQUE pour
+ *    toute la plateforme : sa compromission transformerait rétroactivement chaque export archivé en
+ *    identifiants de paiement exploitables. Et l'API refuse DÉJÀ de renvoyer ce secret
+ *    (`lireConfigPaiement` n'expose que des méta) : l'export ne doit pas contredire cette règle.
+ */
+const CHAMPS_EXCLUS_EXPORT: Record<string, Record<string, true> | undefined> = {
+  Utilisateur: { passwordHash: true },
+  ParametrePaiement: { identifiantsChiffres: true },
+}
+
 export async function assemblerExportOrganisation(
   prisma: any,
   organisationId: string,
@@ -149,10 +172,10 @@ export async function assemblerExportOrganisation(
 
   for (const modele of ORDRE_SUPPRESSION) {
     if (modele === 'Organisation' || modele === 'RefreshToken') continue
-    // `Utilisateur.passwordHash` n'a rien à faire dans un export téléchargeable — ni pour un
+    // Champs SECRETS à ne jamais faire sortir dans un export téléchargeable — ni pour un
     // ADMIN/PRESIDENT tenant (self-service), ni pour le SUPER_ADMIN (export plateforme) : les deux
     // routes partagent cette fonction, donc l'exclusion se fait ICI, une seule fois pour les deux.
-    const omit = modele === 'Utilisateur' ? { passwordHash: true } : undefined
+    const omit = CHAMPS_EXCLUS_EXPORT[modele]
     const lignes = await prisma[accesseur(modele)].findMany({ where: { organisationId }, omit })
     donnees[modele] = lignes
     compteurs[modele] = lignes.length

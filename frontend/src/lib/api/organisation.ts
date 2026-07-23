@@ -30,6 +30,17 @@ export interface ChefOrganisation {
   chefPrenom: string | null
 }
 
+export type PspProvider = 'FAPSHI' | 'CAMPAY'
+export type EnvironnementPsp = 'SANDBOX' | 'LIVE'
+
+/** Vue SÛRE de la config de paiement (jamais le secret) — GET /organisations/moi/paiement. */
+export interface ConfigPaiement {
+  configure: boolean
+  provider: PspProvider | null
+  environnement: EnvironnementPsp | null
+  actif: boolean
+}
+
 export const organisationApi = {
   moi: (accessToken: string, signal?: AbortSignal) =>
     request<OrganisationCourante>('/organisations/moi', { accessToken, signal }),
@@ -57,4 +68,17 @@ export const organisationApi = {
     await leverSiErreur(res)
     return res.blob()
   },
+  /** Config de paiement en ligne de l'org (jamais le secret). ADMIN/PRESIDENT. */
+  configPaiement: (accessToken: string, signal?: AbortSignal) =>
+    request<ConfigPaiement>('/organisations/moi/paiement', { accessToken, signal }),
+  /** Enregistre (crée/remplace) la config de paiement — les identifiants sont chiffrés côté serveur. */
+  enregistrerConfigPaiement: (
+    input: { provider: PspProvider; identifiants: Record<string, string>; actif: boolean },
+    accessToken: string,
+  ) =>
+    request<ConfigPaiement>('/organisations/moi/paiement', {
+      method: 'PUT',
+      json: input,
+      accessToken,
+    }),
 }

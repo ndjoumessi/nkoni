@@ -194,6 +194,15 @@ describe('assemblerExportOrganisation', () => {
                 expect(omit).toEqual({ passwordHash: true })
                 return [{ id: 'u1', email: 'x@y.z' }]
               }
+              if (prop === 'parametrePaiement') {
+                // Même règle pour les identifiants PSP : un export quitte le périmètre de l'app, et
+                // la clé de chiffrement est UNIQUE pour toute la plateforme — un ciphertext archivé
+                // deviendrait exploitable si elle fuitait un jour.
+                expect(omit).toEqual({ identifiantsChiffres: true })
+                return [{ id: 'pp1', provider: 'FAPSHI', actif: true }]
+              }
+              // Tout autre modèle est exporté INTÉGRALEMENT : la liste des champs secrets est
+              // volontairement courte et explicite (cf. CHAMPS_EXCLUS_EXPORT).
               expect(omit).toBeUndefined()
               return []
             },

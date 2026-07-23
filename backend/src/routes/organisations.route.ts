@@ -13,6 +13,13 @@ import {
   MembreHorsOrganisationError,
 } from '../services/organisation.service'
 import { assemblerExportOrganisation } from '../services/organisation-purge.service'
+import {
+  lireConfigPaiement,
+  enregistrerConfigPaiement,
+  ChiffrementIndisponibleError,
+  IdentifiantsInvalidesError,
+} from '../services/parametre-paiement.service'
+import type { PspProviderCode } from '../services/psp.service'
 
 /**
  * Organisation SaaS :
@@ -184,6 +191,58 @@ export const organisationsRoutes: FastifyPluginAsync = async (app: FastifyInstan
           return reply
             .code(404)
             .send({ error: 'Not Found', message: t(langueDeRequete(req), 'organisations.chefMembreIntrouvable') })
+        }
+        throw err
+      }
+    },
+  )
+
+  // GET /organisations/moi/paiement — config de paiement en ligne de l'org courante. NE renvoie
+  // JAMAIS le secret (identifiants PSP) : seulement provider / environnement / actif + `configure`.
+  // Réservé au bureau dirigeant (la config engage l'encaissement au nom de l'asso).
+  app.get(
+    '/organisations/moi/paiement',
+    { preHandler: [authenticate, requireRoles(['ADMIN', 'PRESIDENT'])] },
+    async () => lireConfigPaiement(app.prisma),
+  )
+
+  // PUT /organisations/moi/paiement — enregistre (crée/remplace) la config. Les identifiants sont
+  // CHIFFRÉS au repos. `identifiants` est provider-spécifique (validé côté service).
+  app.put<{ Body: { provider: PspProviderCode; identifiants: Record<string, unknown>; actif?: boolean } }>(
+    '/organisations/moi/paiement',
+    {
+      preHandler: [authenticate, requireRoles(['ADMIN', 'PRESIDENT'])],
+      schema: {
+        body: {
+          type: 'object',
+          required: ['provider', 'identifiants'],
+          additionalProperties: false,
+          properties: {
+            provider: { type: 'string', enum: ['FAPSHI', 'CAMPAY'] },
+            // Objet provider-spécifique (ex. Fapshi : apiUser/apiKey/environnement) — validé au service.
+            identifiants: { type: 'object', additionalProperties: { type: 'string' } },
+            actif: { type: 'boolean' },
+          },
+        },
+      },
+    },
+    async (req, reply) => {
+      try {
+        return await enregistrerConfigPaiement(app.prisma, {
+          provider: req.body.provider,
+          identifiants: req.body.identifiants,
+          actif: req.body.actif ?? false,
+        })
+      } catch (err) {
+        if (err instanceof ChiffrementIndisponibleError) {
+          return reply
+            .code(503)
+            .send({ error: 'Service Unavailable', message: t(langueDeRequete(req), 'paiement.chiffrementIndisponible') })
+        }
+        if (err instanceof IdentifiantsInvalidesError) {
+          return reply
+            .code(400)
+            .send({ error: 'Bad Request', message: t(langueDeRequete(req), 'paiement.identifiantsInvalides') })
         }
         throw err
       }

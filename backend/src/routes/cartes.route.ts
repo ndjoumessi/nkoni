@@ -8,6 +8,7 @@ import { calculerStatutsMembres, type MembreAvecStatut } from '../services/membr
 import { genererCartesPdf, type DonneesCarte } from '../services/carte.service'
 import { formatDateHeure, type Langue } from '../lib/i18n'
 import { anneeCouranteApp } from '../lib/date-app'
+import QRCode from 'qrcode'
 
 /**
  * Cartes de membre (§4.7) — génération PDF (unité + lot) réservée au bureau, et page PUBLIQUE de
@@ -225,6 +226,43 @@ export const cartesRoutes: FastifyPluginAsync = async (app: FastifyInstance) => 
     reply.header('Content-Type', 'application/pdf')
     reply.header('Content-Disposition', 'inline; filename="ma-carte-nkoni.pdf"')
     return reply.send(pdf)
+  })
+
+  // GET /moi/carte-apercu — SELF-SERVICE : mêmes données + MÊME QR signé que le PDF, mais en JSON,
+  // pour un rendu VISUEL de la carte dans l'app (« voir sa carte »). Le PDF (/moi/carte) reste
+  // l'export officiel imprimable. Aucun montant. Résolu depuis le compte, 404 sans fiche liée.
+  app.get('/moi/carte-apercu', { preHandler: [authenticate] }, async (req, reply) => {
+    const membre = await app.prisma.membre.findFirst({
+      where: { compteUtilisateurId: req.user.sub ?? '' },
+      select: { id: true, photoBlobUrl: true },
+    })
+    if (!membre) return reply.code(404).send({ error: 'Not Found' })
+    const annee = anneeCouranteApp()
+    const { items } = await calculerStatutsMembres(app.prisma, annee, { id: membre.id })
+    const m = items[0]
+    if (!m) return reply.code(404).send({ error: 'Not Found' })
+    const org = await app.prisma.organisation.findUnique({
+      where: { id: req.user.organisationId ?? '' },
+      select: { nom: true, chefMembreId: true, chefSurnom: true },
+    })
+    // QR rendu côté serveur (lib `qrcode` déjà utilisée pour le PDF) → aucune dépendance front.
+    const qrDataUrl = await QRCode.toDataURL(urlStatut(m.id), {
+      margin: 0,
+      width: 240,
+      errorCorrectionLevel: 'M',
+    })
+    return {
+      orgNom: org?.nom ?? 'NKONI',
+      nom: m.nom,
+      prenom: m.prenom,
+      branche: m.branche?.nom ?? null,
+      anneeAdhesion: m.anneeAdhesion,
+      statutCotisation: m.statutCotisation,
+      estChef: org?.chefMembreId === m.id,
+      chefSurnom: org?.chefSurnom ?? null,
+      aPhoto: membre.photoBlobUrl !== null,
+      qrDataUrl,
+    }
   })
 
   // GET /membres/:id/statut-public?t=<sig> — PAGE PUBLIQUE (QR de la carte). PAS d'auth : la

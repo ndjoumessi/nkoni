@@ -25,6 +25,7 @@ import {
   type ReunionAVenir,
   type RecuMembre,
   type Notification,
+  type CarteApercu,
 } from '@/lib/api'
 import { formatMontant, formatPourcent } from '@/lib/format'
 import { cn, formatDate, ouvrirBlobPdf } from '@/lib/utils'
@@ -39,6 +40,7 @@ import { DataTable, type Column } from '@/components/ui/DataTable'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { Badge } from '@/components/ui/Badge'
 import { StatutCotisationBadge, StatutMembreBadge } from '@/components/membres/StatutBadges'
+import { CarteMembre } from '@/components/membres/CarteMembre'
 import { TypeReunionBadge } from '@/components/reunions/StatutBadges'
 import type { StatutContribution, StatutMembre, TypeReunion } from '@/lib/api'
 
@@ -52,16 +54,20 @@ export function MonEspacePage() {
   const [reunions, setReunions] = useState<ReunionAVenir[]>([])
   const [recus, setRecus] = useState<RecuMembre[]>([])
   const [notifications, setNotifications] = useState<Notification[]>([])
+  const [carteApercu, setCarteApercu] = useState<CarteApercu | null>(null)
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [sansFiche, setSansFiche] = useState(false)
   const [erreur, setErreur] = useState<string | null>(null)
   const [carteEnCours, setCarteEnCours] = useState(false)
   const [annulesOuverts, setAnnulesOuverts] = useState(false)
+  const [rappelsOuverts, setRappelsOuverts] = useState(false)
 
   useEffect(() => {
     if (!accessToken) return
     const controller = new AbortController()
     let actif = true
+    let objectUrl: string | null = null
     setLoading(true)
     void (async () => {
       try {
@@ -78,23 +84,38 @@ export function MonEspacePage() {
         setLoading(false)
         return
       }
-      // Listes (best-effort, chargées en parallèle).
-      const [c, r, rc, n] = await Promise.all([
+      // Listes + aperçu carte (best-effort, chargés en parallèle).
+      const [c, r, rc, n, ca] = await Promise.all([
         moiApi.contributions(accessToken, controller.signal).catch(() => []),
         moiApi.reunions(accessToken, controller.signal).catch(() => []),
         moiApi.recus(accessToken, controller.signal).catch(() => []),
         notificationsApi.list(accessToken, controller.signal).catch(() => []),
+        moiApi.carteApercu(accessToken, controller.signal).catch(() => null),
       ])
       if (!actif) return
       setContributions(c)
       setReunions(r)
       setRecus(rc)
       setNotifications(n)
+      setCarteApercu(ca)
       setLoading(false)
+      // Photo (proxy authentifié → blob) seulement si le membre en a une ; sinon on retombe sur
+      // les initiales dans la carte. Best-effort : un échec ne casse pas la page.
+      if (ca?.aPhoto) {
+        try {
+          const blob = await moiApi.photo(accessToken)
+          if (!actif) return
+          objectUrl = URL.createObjectURL(blob)
+          setPhotoUrl(objectUrl)
+        } catch {
+          /* photo indisponible → initiales */
+        }
+      }
     })()
     return () => {
       actif = false
       controller.abort()
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
     }
   }, [accessToken])
 
@@ -174,6 +195,7 @@ export function MonEspacePage() {
   // repliés dans un groupe pour que les reçus utiles ne soient pas noyés.
   const recusActifs = recus.filter((r) => r.annuleLe === null)
   const recusAnnules = recus.filter((r) => r.annuleLe !== null)
+  const notifsNonLues = notifications.filter((n) => !n.lu).length
 
   const colContributions: Column<ContributionMembre>[] = [
     { key: 'annee', header: t('monEspace.contributions.annee'), numeric: true, cell: (c) => c.annee },
@@ -251,18 +273,6 @@ export function MonEspacePage() {
           {t('monEspace.situation.branche')} : {membre.branche ?? '—'} ·{' '}
           {t('monEspace.situation.anneeAdhesion')} : <span className="num">{membre.anneeAdhesion}</span>
         </p>
-        <div className="mt-3">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            icon={CreditCard}
-            loading={carteEnCours}
-            onClick={telechargerCarte}
-          >
-            {t('monEspace.carte.telecharger')}
-          </Button>
-        </div>
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
           <StatCard label={t('monEspace.situation.totalDu')} value={<Montant value={cotisation.totalDu} />} icon={CircleDollarSign} />
           <StatCard label={t('monEspace.situation.totalVerse')} value={<Montant value={cotisation.totalVerse} />} tone="jade" icon={ArrowDownCircle} />
@@ -299,6 +309,24 @@ export function MonEspacePage() {
         )}
       </Card>
 
+      {/* Ma carte de membre — rendu visuel (« voir sa carte ») + téléchargement PDF. */}
+      {carteApercu && (
+        <Card className="nk-reveal mt-4 p-6">
+          <div className="flex items-center gap-2">
+            <CreditCard className="h-4 w-4 text-brass" aria-hidden="true" />
+            <Overline>{t('monEspace.carte.titre')}</Overline>
+          </div>
+          <div className="mt-4 max-w-md">
+            <CarteMembre
+              apercu={carteApercu}
+              photoUrl={photoUrl}
+              onTelecharger={telechargerCarte}
+              telechargement={carteEnCours}
+            />
+          </div>
+        </Card>
+      )}
+
       {/* Mes contributions */}
       <Card className="nk-reveal nk-d3 mt-4 p-6">
         <Overline>{t('monEspace.contributions.titre')}</Overline>
@@ -311,13 +339,29 @@ export function MonEspacePage() {
         )}
       </Card>
 
-      {/* Mes rappels (notifications) — affiché seulement s'il y en a. */}
+      {/* Mes notifications — repliées par défaut (le mur de confirmations n'a pas sa place sur
+          l'accueil) ; l'en-tête porte le compteur de non-lus et déplie la liste. */}
       {notifications.length > 0 && (
         <Card className="nk-reveal mt-4 p-6">
-          <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setRappelsOuverts((o) => !o)}
+            aria-expanded={rappelsOuverts}
+            className="flex w-full items-center gap-2 rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass"
+          >
             <Bell className="h-4 w-4 text-brass" aria-hidden="true" />
             <Overline>{t('monEspace.rappels.titre')}</Overline>
-          </div>
+            {notifsNonLues > 0 && (
+              <Badge tone="brass" size="sm">
+                {t('monEspace.rappels.nonLus', { count: notifsNonLues })}
+              </Badge>
+            )}
+            <ChevronDown
+              className={cn('ml-auto h-4 w-4 text-faint transition-transform', rappelsOuverts && 'rotate-180')}
+              aria-hidden="true"
+            />
+          </button>
+          {rappelsOuverts && (
           <ul className="mt-4 space-y-2">
             {notifications.slice(0, 8).map((n) => (
               <li
@@ -341,6 +385,7 @@ export function MonEspacePage() {
               </li>
             ))}
           </ul>
+          )}
         </Card>
       )}
 

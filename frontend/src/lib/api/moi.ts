@@ -28,6 +28,21 @@ export interface ReunionAVenir {
   type: string
   statut: string
 }
+/** Aperçu de la carte de membre pour un rendu VISUEL dans l'app (même QR signé que le PDF). */
+export interface CarteApercu {
+  orgNom: string
+  nom: string
+  prenom: string
+  branche: string | null
+  anneeAdhesion: number
+  statutCotisation: StatutContribution
+  estChef: boolean
+  chefSurnom: string | null
+  /** `true` si le membre a une photo — le front la charge alors via GET /moi/photo. */
+  aPhoto: boolean
+  /** QR (image data URL) rendu côté serveur → aucune lib QR côté client. */
+  qrDataUrl: string
+}
 export interface RecuMembre {
   id: string
   numero: string
@@ -58,4 +73,31 @@ export const moiApi = {
     await leverSiErreur(res)
     return res.blob()
   },
+  /** Données de la carte pour un rendu VISUEL dans l'app (nom, statut, QR…). */
+  carteApercu: (accessToken: string, signal?: AbortSignal) =>
+    request<CarteApercu>('/moi/carte-apercu', { accessToken, signal }),
+  /** Photo de profil du compte connecté (proxy authentifié) — Blob image, ou 404 si aucune. */
+  photo: async (accessToken: string): Promise<Blob> => {
+    const res = await fetch(`${API_URL}/moi/photo`, {
+      credentials: 'include',
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+    await leverSiErreur(res)
+    return res.blob()
+  },
+  /** Téléverse sa propre photo de profil (JPEG/PNG). */
+  televerserPhoto: async (fichier: File, accessToken: string): Promise<void> => {
+    const form = new FormData()
+    form.append('fichier', fichier)
+    const res = await fetch(`${API_URL}/moi/photo`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { Authorization: `Bearer ${accessToken}` },
+      body: form,
+    })
+    await leverSiErreur(res)
+  },
+  /** Retire sa propre photo de profil. */
+  supprimerPhoto: (accessToken: string) =>
+    request<void>('/moi/photo', { method: 'DELETE', accessToken }),
 }

@@ -19,12 +19,20 @@ export default {
       aJourMerci: 'Vous êtes à jour de vos cotisations. Merci !',
     },
     carte: {
-      telecharger: 'Ma carte de membre',
+      titre: 'Ma carte de membre',
+      membreLabel: 'CARTE DE MEMBRE',
+      branche: 'Branche',
+      depuis: 'Membre depuis',
+      scanner: 'Scanner pour vérifier le statut',
+      chef: 'Chef',
+      telecharger: 'Télécharger le PDF',
       erreur: 'Téléchargement de la carte impossible',
     },
     rappels: {
-      titre: 'Mes rappels',
+      titre: 'Mes notifications',
       nonLu: 'Non lu',
+      nonLus_one: '{{count}} non lu',
+      nonLus_other: '{{count}} non lus',
     },
     contributions: {
       titre: 'Mes contributions',

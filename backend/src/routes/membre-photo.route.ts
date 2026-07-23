@@ -2,7 +2,7 @@ import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
 import { authenticate } from '../middlewares/authenticate'
 import { requirePermission } from '../middlewares/permissions'
 import { t, langueDeRequete } from '../lib/i18n'
-import { signatureCoherente } from '../services/document.service'
+import { validerImageTeleversee } from '../lib/upload-image'
 
 /**
  * Photo du membre (§4.11) — stockée sur le Blob PRIVÉ (comme les documents/reçus) : l'URL interne
@@ -13,9 +13,6 @@ import { signatureCoherente } from '../services/document.service'
  * lecture = rôles `Membre`/read, MEMBRE_SIMPLE limité à SA propre fiche (404 sinon). La photo
  * n'apparaît PAS sur la page publique de statut (PII fort) — uniquement dans l'app + la carte.
  */
-
-const MIMES_AUTORISES = ['image/jpeg', 'image/png'] as const
-const TAILLE_MAX = 5 * 1024 * 1024 // 5 Mo
 
 export const membrePhotoRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
 
@@ -39,15 +36,12 @@ export const membrePhotoRoutes: FastifyPluginAsync = async (app: FastifyInstance
         return reply.code(400).send({ error: 'Bad Request', message: t(langueDeRequete(req), 'photoMembre.tropVolumineux') })
       }
       if (!fichier) return reply.code(400).send({ error: 'Bad Request', message: t(langueDeRequete(req), 'photoMembre.aucunFichier') })
-      if (!MIMES_AUTORISES.includes(fichier.mimetype as (typeof MIMES_AUTORISES)[number])) {
+      // Validation PARTAGÉE avec la route self-service /moi/photo (allowlist MIME + magic bytes + plafond).
+      const refus = validerImageTeleversee(fichier)
+      if (refus === 'TYPE_INVALIDE') {
         return reply.code(400).send({ error: 'Bad Request', message: t(langueDeRequete(req), 'photoMembre.typeInvalide') })
       }
-      // Magic bytes : le Content-Type déclaré est falsifiable — on vérifie la vraie signature du
-      // fichier (JPEG `FF D8 FF` / PNG `89 50 4E 47`) comme pour les Documents.
-      if (!signatureCoherente(fichier.buffer, fichier.mimetype)) {
-        return reply.code(400).send({ error: 'Bad Request', message: t(langueDeRequete(req), 'photoMembre.typeInvalide') })
-      }
-      if (fichier.buffer.length > TAILLE_MAX) {
+      if (refus === 'TROP_VOLUMINEUX') {
         return reply.code(400).send({ error: 'Bad Request', message: t(langueDeRequete(req), 'photoMembre.tropVolumineux') })
       }
 

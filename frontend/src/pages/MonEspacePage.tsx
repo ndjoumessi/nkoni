@@ -35,6 +35,8 @@ import { Card, Overline } from '@/components/ui/Card'
 import { StatCard } from '@/components/ui/StatCard'
 import { Montant } from '@/components/ui/Montant'
 import { Button } from '@/components/ui/Button'
+import { Modal } from '@/components/ui/Modal'
+import { Field, Input } from '@/components/ui/Field'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { DataTable, type Column } from '@/components/ui/DataTable'
 import { Skeleton } from '@/components/ui/Skeleton'
@@ -69,6 +71,9 @@ export function MonEspacePage() {
   const [rappelsOuverts, setRappelsOuverts] = useState(false)
   const [paiementActif, setPaiementActif] = useState(false)
   const [paiementEnCours, setPaiementEnCours] = useState<string | null>(null)
+  const [paiementCible, setPaiementCible] = useState<ContributionMembre | null>(null)
+  const [montantSaisi, setMontantSaisi] = useState('')
+  const [erreurMontant, setErreurMontant] = useState<string | null>(null)
 
   useEffect(() => {
     if (!accessToken) return
@@ -254,18 +259,41 @@ export function MonEspacePage() {
     }
   }
 
-  // Règlement en ligne d'une contribution : on paie le RESTE (attendu − valorisé), borné au minimum
-  // (100 XAF). Deux flux selon le PSP de l'org, distingués par la présence d'une URL de redirection :
+  // Ouvre la modale de paiement d'une contribution : le membre CHOISIT le montant (défaut = reste dû).
+  // Permet les paiements PARTIELS (on verse ce qu'on a — usage courant en tontine). La borne haute est
+  // le reste dû, la borne basse le minimum ; le serveur re-vérifie les deux (jamais confiance au client).
+  const ouvrirPaiement = (c: ContributionMembre) => {
+    const reste = Math.max(0, c.montantAttendu - c.montantValorise)
+    if (reste < MONTANT_MIN_PAIEMENT) return
+    setPaiementCible(c)
+    setMontantSaisi(String(reste)) // défaut : tout régler
+    setErreurMontant(null)
+  }
+
+  // Valide le montant saisi puis lance la collecte. Bornes : [MONTANT_MIN_PAIEMENT .. reste dû].
+  const confirmerMontant = () => {
+    if (!paiementCible) return
+    const reste = Math.max(0, paiementCible.montantAttendu - paiementCible.montantValorise)
+    const montant = Number(montantSaisi)
+    if (!Number.isInteger(montant) || montant < MONTANT_MIN_PAIEMENT || montant > reste) {
+      setErreurMontant(t('monEspace.paiement.montantInvalide'))
+      return
+    }
+    const contributionId = paiementCible.id
+    setPaiementCible(null)
+    void lancerPaiement(contributionId, montant)
+  }
+
+  // Lance le règlement en ligne du montant choisi. Deux flux selon le PSP, distingués par la présence
+  // d'une URL de redirection :
   //  - checkout hébergé (Fapshi) → `urlPaiement` présente : on mémorise l'id et on redirige ;
   //  - collecte directe (CamPay) → PAS d'URL : l'invite MoMo part sur le téléphone du membre, on l'en
   //    informe et on SONDE le statut sur place (pas de rechargement de page).
-  const payerContribution = async (c: ContributionMembre) => {
+  const lancerPaiement = async (contributionId: string, montant: number) => {
     if (!accessToken) return
-    const reste = Math.max(0, c.montantAttendu - c.montantValorise)
-    if (reste < MONTANT_MIN_PAIEMENT) return
-    setPaiementEnCours(c.id)
+    setPaiementEnCours(contributionId)
     try {
-      const r = await moiApi.demarrerPaiement(c.id, reste, accessToken)
+      const r = await moiApi.demarrerPaiement(contributionId, montant, accessToken)
       if (r.urlPaiement) {
         sessionStorage.setItem('nkoni_paiement', r.paiementId)
         window.location.href = r.urlPaiement
@@ -330,7 +358,7 @@ export function MonEspacePage() {
                   size="sm"
                   icon={CreditCard}
                   loading={paiementEnCours === c.id}
-                  onClick={() => payerContribution(c)}
+                  onClick={() => ouvrirPaiement(c)}
                 >
                   {t('monEspace.paiement.payer')}
                 </Button>
@@ -582,6 +610,59 @@ export function MonEspacePage() {
           </div>
         )}
       </Card>
+
+      {/* Modale de paiement — le membre CHOISIT le montant (défaut = reste dû, borné minimum..reste).
+          Autorise les paiements partiels ; le serveur re-vérifie les deux bornes (jamais le client). */}
+      <Modal
+        open={paiementCible !== null}
+        onClose={() => setPaiementCible(null)}
+        title={paiementCible ? t('monEspace.paiement.titre', { annee: paiementCible.annee }) : ''}
+      >
+        {paiementCible && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between rounded-xl border border-hairline bg-surface-2/40 px-4 py-3 text-sm">
+              <span className="text-muted-foreground">{t('monEspace.paiement.resteDu')}</span>
+              <Montant
+                value={Math.max(0, paiementCible.montantAttendu - paiementCible.montantValorise)}
+                className="font-medium"
+              />
+            </div>
+            <Field label={t('monEspace.paiement.montantLabel')} hint={t('monEspace.paiement.montantAide')}>
+              <Input
+                type="number"
+                inputMode="numeric"
+                min={MONTANT_MIN_PAIEMENT}
+                max={Math.max(0, paiementCible.montantAttendu - paiementCible.montantValorise)}
+                step={1}
+                value={montantSaisi}
+                onChange={(e) => {
+                  setMontantSaisi(e.target.value)
+                  setErreurMontant(null)
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    confirmerMontant()
+                  }
+                }}
+              />
+            </Field>
+            {erreurMontant && (
+              <p role="alert" className="rounded-xl border border-terra/30 bg-terra/10 px-3.5 py-2.5 text-sm text-terra">
+                {erreurMontant}
+              </p>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => setPaiementCible(null)}>
+                {t('monEspace.paiement.annuler')}
+              </Button>
+              <Button type="button" icon={CreditCard} onClick={confirmerMontant}>
+                {t('monEspace.paiement.confirmer')}
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   )
 }

@@ -41,6 +41,13 @@ export default {
       echecPaiement: 'Le paiement n’a pas abouti',
       enAttente: 'Paiement en cours de confirmation…',
       validezTelephone: 'Validez le paiement sur votre téléphone (code Mobile Money), puis patientez.',
+      titre: 'Payer ma cotisation {{annee}}',
+      resteDu: 'Reste dû',
+      montantLabel: 'Montant à payer',
+      montantAide: 'Réglez tout ou partie du reste dû.',
+      montantInvalide: 'Montant invalide : au moins le minimum, sans dépasser le reste dû.',
+      confirmer: 'Payer',
+      annuler: 'Annuler',
     },
     contributions: {
       titre: 'Mes contributions',

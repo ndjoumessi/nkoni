@@ -41,6 +41,13 @@ export default {
       echecPaiement: 'The payment did not go through',
       enAttente: 'Payment awaiting confirmation…',
       validezTelephone: 'Approve the payment on your phone (Mobile Money prompt), then wait a moment.',
+      titre: 'Pay my {{annee}} contribution',
+      resteDu: 'Remaining due',
+      montantLabel: 'Amount to pay',
+      montantAide: 'Pay all or part of the remaining balance.',
+      montantInvalide: 'Invalid amount: at least the minimum, no more than the remaining balance.',
+      confirmer: 'Pay',
+      annuler: 'Cancel',
     },
     contributions: {
       titre: 'My contributions',

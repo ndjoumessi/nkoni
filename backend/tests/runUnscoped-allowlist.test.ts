@@ -52,6 +52,10 @@ const APPROUVES: Record<string, number> = {
   'routes/recus.route.ts': 1,
   // Auto-inscription (§3.1) : création de l'organisation + son admin fondateur, aucun contexte encore.
   'routes/organisations.route.ts': 1,
+  // Webhook PSP PUBLIC (§ paiement) : résolution de l'org du Paiement à partir du transId AVANT
+  // `orgContext.run` — le webhook n'est pas authentifié et ne porte aucun claim org. Bypass nécessaire,
+  // borné à la seule résolution ; la confirmation ensuite tourne DANS le contexte org du Paiement.
+  'routes/paiements.route.ts': 1,
 }
 
 /** Liste récursivement les fichiers `.ts` de `src/`, en EXCLUANT le client Prisma généré. */

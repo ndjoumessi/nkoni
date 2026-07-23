@@ -28,15 +28,20 @@ export interface CredentialsPsp {
 /** Demande de collecte (débit du payeur vers le compte de l'org). */
 export interface DemandeCollecte {
   montant: number
-  telephone: string
   /** Référence interne NKONI (id du Paiement) — corrèle webhook ↔ transaction, idempotence. */
   reference: string
   description: string
+  /** URL de retour après paiement (checkout hébergé). Optionnel. */
+  redirectUrl?: string
+  /** Téléphone du payeur — utilisé par les PSP « direct pay » ; ignoré par le checkout hébergé. */
+  telephone?: string
 }
 
 export interface ResultatCollecte {
   /** Id de transaction attribué par le PSP — clé d'idempotence de la confirmation. */
   referenceExterne: string
+  /** URL de la page de paiement hébergée (checkout par redirection) — absente en « direct pay ». */
+  urlPaiement?: string
   statut: 'EN_ATTENTE' | 'ECHEC'
 }
 

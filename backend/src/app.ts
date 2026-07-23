@@ -31,6 +31,7 @@ import { cagnottesRoutes } from './routes/cagnottes.route'
 import { amendesRoutes } from './routes/amendes.route'
 import { membrePhotoRoutes } from './routes/membre-photo.route'
 import { moiPhotoRoutes } from './routes/moi-photo.route'
+import { paiementsRoutes } from './routes/paiements.route'
 import { dashboardRoutes } from './routes/dashboard.route'
 import { exportsRoutes } from './routes/exports.route'
 import { utilisateursRoutes } from './routes/utilisateurs.route'
@@ -48,6 +49,8 @@ import { demarrerScheduler } from './services/notification-scheduler'
 import { auditContext } from './lib/audit-context'
 import { orgContext } from './lib/org-context'
 import { vraiObservabiliteClient, type ObservabiliteClient } from './lib/observabilite'
+import type { PspClient } from './services/psp.service'
+import { fapshiClient } from './lib/psp-fapshi'
 
 // Décoration de l'instance Fastify avec le client Prisma + le client Blob (injectables en test).
 declare module 'fastify' {
@@ -57,6 +60,7 @@ declare module 'fastify' {
     whatsapp: WhatsAppClient
     email: EmailClient
     observabilite: ObservabiliteClient
+    psp: PspClient
   }
 }
 
@@ -71,6 +75,8 @@ export interface BuildAppOptions {
   email?: EmailClient
   /** Client d'observabilité (mock en test). Défaut : Sentry réel (no-op sans SENTRY_DSN). */
   observabilite?: ObservabiliteClient
+  /** Client PSP (mock en test). Défaut : adapter Fapshi réel (identifiants passés par appel). */
+  psp?: PspClient
   /** Active le logger Fastify. Défaut : true (désactivable en test). */
   logger?: boolean
 }
@@ -114,6 +120,7 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   app.decorate('whatsapp', opts.whatsapp ?? vraiWhatsAppClient)
   app.decorate('email', opts.email ?? vraiEmailClient)
   app.decorate('observabilite', opts.observabilite ?? vraiObservabiliteClient)
+  app.decorate('psp', opts.psp ?? fapshiClient)
 
   // Contextes ALS par requête : audit (acteur, V2 §5) et organisation (isolation SaaS §2.2).
   // L'acteur et l'organisation sont renseignés ensuite par `authenticate` (après vérif JWT),
@@ -213,6 +220,7 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   await app.register(amendesRoutes)
   await app.register(membrePhotoRoutes)
   await app.register(moiPhotoRoutes)
+  await app.register(paiementsRoutes)
   await app.register(dashboardRoutes)
   await app.register(exportsRoutes)
   await app.register(utilisateursRoutes)

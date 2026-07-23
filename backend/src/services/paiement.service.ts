@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { env } from '../lib/env'
 import { dechiffrerSecret } from '../lib/crypto-secret'
 import { normaliserTelephone } from '../lib/telephone'
 import { appliquerCreationVersement } from './versement.service'
@@ -34,7 +35,7 @@ export class ConfigPaiementIndisponibleError extends Error {
 }
 export class MontantInvalideError extends Error {
   constructor() {
-    super('Montant de paiement invalide (minimum 100 XAF).')
+    super('Montant de paiement invalide (inférieur au minimum autorisé).')
     this.name = 'MontantInvalideError'
   }
 }
@@ -58,7 +59,7 @@ export class TelephonePayeurRequisError extends Error {
   }
 }
 
-const MONTANT_MIN = 100 // minimum Fapshi (XAF)
+const MONTANT_MIN = env.PAIEMENT_MONTANT_MIN // minimum configurable (défaut 100 XAF, cf. env.ts)
 
 /**
  * Décision de transition PURE (testable sans DB) : que faire d'un Paiement selon son statut ACTUEL

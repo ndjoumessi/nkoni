@@ -299,7 +299,7 @@ de saisies), **RTO 4 h**.
 ### 6.1 Canaux réels
 | Canal | Ce qu'il vaut | Limite dure |
 |---|---|---|
-| **Page `/statut`** | Publique, sans compte, atteignable même app coupée (hébergée sur Vercel, indépendante de Railway). Sonde `/ready`, donc son « opérationnel » vaut désormais quelque chose | **Automatique uniquement** : aucun moyen d'y **publier un message d'incident**. On ne peut pas y écrire « intervention en cours jusqu'à 14 h ». Cf. §8. |
+| **Page `/statut`** | Publique, sans compte. Coquille servie par Vercel (indépendante de Railway) ; sonde `/ready` (état réel de la base) ET affiche une **bannière d'incident éditable** par le SUPER_ADMIN (`/super-admin/incident`, §2.2) — on peut donc y publier « intervention en cours jusqu'à 14 h ». | **Bannière backend-dépendante aux DEUX bouts** (publication via `PUT` après login super-admin ; lecture publique `GET /api/statut/incident` proxifiée vers Railway). Couvre la **maintenance planifiée** (publiée à l'avance) et le **dégradé/partiel**, mais **PAS la panne totale** : backend à terre, le super-admin ne peut pas publier et le visiteur ne voit rien (échec best-effort silencieux). Pour la panne totale → **page de maintenance Vercel (§4.3)**, seul canal réellement indépendant de Railway. |
 | **Email (Resend)** | Configuré et opérationnel (`RESEND_API_KEY`/`RESEND_FROM` posés) | Aucun envoi groupé outillé : c'est un envoi à la main aux dirigeants concernés. |
 | **WhatsApp** | — | **Non configuré en production** (`WHATSAPP_TOKEN`/`WHATSAPP_PHONE_ID` absents). Ne pas compter dessus en incident. |
 | **Adresse de support** | Publiée sur `/statut` | Canal entrant, pas sortant. |
@@ -428,9 +428,14 @@ réaction sans déclencheur.
 
 Chantiers de second rang, à inscrire après les trois précédents :
 
-- **Bandeau d'incident sur `/statut`** — aujourd'hui la page ne sait qu'afficher un état sondé
-  automatiquement ; on ne peut y publier ni message, ni fenêtre de maintenance, ni historique. Une
-  variable d'environnement Vercel lue au build suffirait pour une v1 (pas de base, pas de CMS).
+- **Bandeau d'incident sur `/statut`** — ✅ **Livré (§2.2)** : le SUPER_ADMIN publie un message toné
+  (info / maintenance / incident) depuis `/super-admin/incident`, affiché au-dessus de l'état sondé.
+  Modèle plateforme `StatutIncident` (ligne unique, upsert), live-éditable sans redéploiement.
+  **Compromis assumé** : l'approche backend (choisie pour l'édition en direct + l'UI) est
+  backend-dépendante et ne survit donc PAS à une panne totale, contrairement à l'ancienne piste
+  « variable Vercel lue au build » (qui, elle, aurait survécu mais imposait un redéploiement pour
+  publier). La panne totale reste couverte par la page de maintenance Vercel (§4.3). **Reste** :
+  un historique d'incidents.
 - **`ErrorBoundary` React** — une erreur de rendu laisse un écran blanc muet.
 - **Automatiser la sauvegarde quotidienne** — le RPO de 24 h suppose aujourd'hui que le PO lance le
   dump à la main, tous les jours.

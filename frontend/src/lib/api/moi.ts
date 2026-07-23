@@ -100,4 +100,19 @@ export const moiApi = {
   /** Retire sa propre photo de profil. */
   supprimerPhoto: (accessToken: string) =>
     request<void>('/moi/photo', { method: 'DELETE', accessToken }),
+  /** Le paiement en ligne est-il actif pour l'org du membre ? (indice d'UI, aucun secret). */
+  paiementDisponible: (accessToken: string, signal?: AbortSignal) =>
+    request<{ actif: boolean }>('/moi/paiement-disponible', { accessToken, signal }),
+  /** Lance le règlement en ligne d'une contribution → { paiementId, urlPaiement } (redirection). */
+  demarrerPaiement: (contributionId: string, montant: number, accessToken: string) =>
+    request<{ paiementId: string; urlPaiement?: string }>('/moi/paiements', {
+      method: 'POST',
+      json: { contributionId, montant },
+      accessToken,
+    }),
+  /** Statut d'un paiement du membre (page de retour après redirection). */
+  statutPaiement: (id: string, accessToken: string, signal?: AbortSignal) =>
+    request<{ statut: StatutPaiement }>(`/moi/paiements/${id}`, { accessToken, signal }),
 }
+
+export type StatutPaiement = 'EN_ATTENTE' | 'REUSSI' | 'ECHEC' | 'EXPIRE'

@@ -62,6 +62,8 @@ export function MonEspacePage() {
   const [carteEnCours, setCarteEnCours] = useState(false)
   const [annulesOuverts, setAnnulesOuverts] = useState(false)
   const [rappelsOuverts, setRappelsOuverts] = useState(false)
+  const [paiementActif, setPaiementActif] = useState(false)
+  const [paiementEnCours, setPaiementEnCours] = useState<string | null>(null)
 
   useEffect(() => {
     if (!accessToken) return
@@ -84,13 +86,14 @@ export function MonEspacePage() {
         setLoading(false)
         return
       }
-      // Listes + aperçu carte (best-effort, chargés en parallèle).
-      const [c, r, rc, n, ca] = await Promise.all([
+      // Listes + aperçu carte + disponibilité paiement (best-effort, chargés en parallèle).
+      const [c, r, rc, n, ca, pd] = await Promise.all([
         moiApi.contributions(accessToken, controller.signal).catch(() => []),
         moiApi.reunions(accessToken, controller.signal).catch(() => []),
         moiApi.recus(accessToken, controller.signal).catch(() => []),
         notificationsApi.list(accessToken, controller.signal).catch(() => []),
         moiApi.carteApercu(accessToken, controller.signal).catch(() => null),
+        moiApi.paiementDisponible(accessToken, controller.signal).catch(() => ({ actif: false })),
       ])
       if (!actif) return
       setContributions(c)
@@ -98,6 +101,7 @@ export function MonEspacePage() {
       setRecus(rc)
       setNotifications(n)
       setCarteApercu(ca)
+      setPaiementActif(pd.actif)
       setLoading(false)
       // Photo (proxy authentifié → blob) seulement si le membre en a une ; sinon on retombe sur
       // les initiales dans la carte. Best-effort : un échec ne casse pas la page.
@@ -117,6 +121,51 @@ export function MonEspacePage() {
       controller.abort()
       if (objectUrl) URL.revokeObjectURL(objectUrl)
     }
+  }, [accessToken])
+
+  // Retour de la page de paiement Fapshi : si un paiement était en cours (id mémorisé AVANT la
+  // redirection, en sessionStorage car la redirection recharge la page), on sonde son statut quelques
+  // fois — le webhook peut arriver avec un léger décalage — pour un retour immédiat, puis on rafraîchit
+  // les finances. `verifierStatut` côté serveur reste la source de vérité.
+  useEffect(() => {
+    if (!accessToken) return
+    const id = sessionStorage.getItem('nkoni_paiement')
+    if (!id) return
+    sessionStorage.removeItem('nkoni_paiement')
+    let stop = false
+    let essais = 0
+    const sonder = async () => {
+      if (stop) return
+      try {
+        const { statut } = await moiApi.statutPaiement(id, accessToken)
+        if (statut === 'REUSSI') {
+          toast.success(t('monEspace.paiement.succes'))
+          const [s, c] = await Promise.all([
+            moiApi.situation(accessToken).catch(() => null),
+            moiApi.contributions(accessToken).catch(() => null),
+          ])
+          if (stop) return
+          if (s) setSituation(s)
+          if (c) setContributions(c)
+          return
+        }
+        if (statut === 'ECHEC' || statut === 'EXPIRE') {
+          toast.error(t('monEspace.paiement.echecPaiement'))
+          return
+        }
+      } catch {
+        /* transitoire → on retente */
+      }
+      if (!stop && ++essais < 8) setTimeout(sonder, 2500)
+      else if (!stop) toast.info(t('monEspace.paiement.enAttente'))
+    }
+    void sonder()
+    return () => {
+      stop = true
+    }
+    // Effet one-shot au retour de redirection : `t`/`toast` sont stables (toast mémoïsé) et ne
+    // doivent pas relancer la sonde. Convention du dépôt (cf. TresoreriePage/AmendesPage).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accessToken])
 
   if (loading) {
@@ -195,6 +244,28 @@ export function MonEspacePage() {
     }
   }
 
+  // Règlement en ligne d'une contribution : on paie le RESTE (attendu − valorisé), borné au minimum
+  // Fapshi (100 XAF). On mémorise l'id du paiement avant de rediriger vers la page hébergée.
+  const payerContribution = async (c: ContributionMembre) => {
+    if (!accessToken) return
+    const reste = Math.max(0, c.montantAttendu - c.montantValorise)
+    if (reste < 100) return
+    setPaiementEnCours(c.id)
+    try {
+      const r = await moiApi.demarrerPaiement(c.id, reste, accessToken)
+      if (r.urlPaiement) {
+        sessionStorage.setItem('nkoni_paiement', r.paiementId)
+        window.location.href = r.urlPaiement
+      } else {
+        toast.error(t('monEspace.paiement.echec'))
+        setPaiementEnCours(null)
+      }
+    } catch (e) {
+      toast.error(t('monEspace.paiement.echec'), e instanceof ApiError ? e.message : '')
+      setPaiementEnCours(null)
+    }
+  }
+
   const telechargerCarte = async () => {
     if (!accessToken) return
     setCarteEnCours(true)
@@ -229,6 +300,30 @@ export function MonEspacePage() {
       align: 'right',
       cell: (c) => <StatutCotisationBadge statut={statutAnnee(c)} size="sm" />,
     },
+    // Colonne « Payer » — seulement si le paiement en ligne est actif pour l'org ET qu'il reste au
+    // moins le minimum Fapshi (100 XAF) à régler sur l'année.
+    ...(paiementActif
+      ? [
+          {
+            key: 'payer',
+            header: '',
+            align: 'right' as const,
+            cell: (c: ContributionMembre) =>
+              Math.max(0, c.montantAttendu - c.montantValorise) >= 100 ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  icon={CreditCard}
+                  loading={paiementEnCours === c.id}
+                  onClick={() => payerContribution(c)}
+                >
+                  {t('monEspace.paiement.payer')}
+                </Button>
+              ) : null,
+          },
+        ]
+      : []),
   ]
 
   const colRecus: Column<RecuMembre>[] = [

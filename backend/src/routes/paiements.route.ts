@@ -78,6 +78,13 @@ export const paiementsRoutes: FastifyPluginAsync = async (app: FastifyInstance) 
     },
   )
 
+  // GET /moi/paiement-disponible — le paiement en ligne est-il ACTIF pour l'org du membre ? Simple
+  // indice d'UI (aucun secret) : le front n'affiche « Payer » que si `actif`. Scopé par le contexte.
+  app.get('/moi/paiement-disponible', { preHandler: [authenticate] }, async () => {
+    const config = await app.prisma.parametrePaiement.findFirst({ select: { actif: true } })
+    return { actif: Boolean(config?.actif) }
+  })
+
   // GET /moi/paiements/:id — statut d'un paiement du membre (page de retour après redirection).
   app.get<{ Params: { id: string } }>(
     '/moi/paiements/:id',

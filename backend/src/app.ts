@@ -31,6 +31,7 @@ import { cagnottesRoutes } from './routes/cagnottes.route'
 import { amendesRoutes } from './routes/amendes.route'
 import { membrePhotoRoutes } from './routes/membre-photo.route'
 import { moiPhotoRoutes } from './routes/moi-photo.route'
+import { moiAvatarRoutes } from './routes/moi-avatar.route'
 import { paiementsRoutes } from './routes/paiements.route'
 import { dashboardRoutes } from './routes/dashboard.route'
 import { exportsRoutes } from './routes/exports.route'
@@ -221,6 +222,7 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   await app.register(amendesRoutes)
   await app.register(membrePhotoRoutes)
   await app.register(moiPhotoRoutes)
+  await app.register(moiAvatarRoutes)
   await app.register(paiementsRoutes)
   await app.register(dashboardRoutes)
   await app.register(exportsRoutes)

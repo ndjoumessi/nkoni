@@ -113,7 +113,7 @@ export class OrganisationNonSuspendueError extends Error {
 /** Une pièce jointe référencée par l'export — sans préfixe d'org sur les pathnames Blob, ce */
 /** manifeste est la SEULE table de correspondance permettant de retrouver les fichiers. */
 export interface FichierExporte {
-  modele: 'Membre' | 'Recu' | 'Document'
+  modele: 'Membre' | 'Utilisateur' | 'Recu' | 'Document'
   id: string
   champ: string
   url: string
@@ -197,6 +197,13 @@ function construireManifeste(donnees: Record<string, unknown[]>): FichierExporte
   for (const m of (donnees['Membre'] ?? []) as any[]) {
     if (m.photoBlobUrl) {
       fichiers.push({ modele: 'Membre', id: m.id, champ: 'photoBlobUrl', url: m.photoBlobUrl, mime: m.photoMime ?? null })
+    }
+  }
+  // Avatars de COMPTE (§4.11 bis) — portés par Utilisateur, à collecter pour que la purge les efface
+  // aussi (sinon blob orphelin au delete d'org). Même forme que la photo de membre.
+  for (const u of (donnees['Utilisateur'] ?? []) as any[]) {
+    if (u.photoBlobUrl) {
+      fichiers.push({ modele: 'Utilisateur', id: u.id, champ: 'photoBlobUrl', url: u.photoBlobUrl, mime: u.photoMime ?? null })
     }
   }
   for (const r of (donnees['Recu'] ?? []) as any[]) {

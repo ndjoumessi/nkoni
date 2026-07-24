@@ -100,6 +100,30 @@ export const moiApi = {
   /** Retire sa propre photo de profil. */
   supprimerPhoto: (accessToken: string) =>
     request<void>('/moi/photo', { method: 'DELETE', accessToken }),
+  /** Avatar de COMPTE (tout compte, même sans fiche membre) — proxy authentifié ; Blob image ou 404. */
+  avatar: async (accessToken: string): Promise<Blob> => {
+    const res = await fetch(`${API_URL}/moi/avatar`, {
+      credentials: 'include',
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+    await leverSiErreur(res)
+    return res.blob()
+  },
+  /** Téléverse son propre avatar de compte (JPEG/PNG). */
+  televerserAvatar: async (fichier: File, accessToken: string): Promise<void> => {
+    const form = new FormData()
+    form.append('fichier', fichier)
+    const res = await fetch(`${API_URL}/moi/avatar`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { Authorization: `Bearer ${accessToken}` },
+      body: form,
+    })
+    await leverSiErreur(res)
+  },
+  /** Retire son propre avatar de compte. */
+  supprimerAvatar: (accessToken: string) =>
+    request<void>('/moi/avatar', { method: 'DELETE', accessToken }),
   /** Le paiement en ligne est-il actif pour l'org du membre ? + montant minimum (source unique serveur). */
   paiementDisponible: (accessToken: string, signal?: AbortSignal) =>
     request<{ actif: boolean; montantMin: number }>('/moi/paiement-disponible', { accessToken, signal }),

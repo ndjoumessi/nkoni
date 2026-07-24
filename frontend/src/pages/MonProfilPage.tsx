@@ -96,10 +96,6 @@ export function MonProfilPage() {
   const { user, accessToken } = useAuth()
   const toast = useToast()
 
-  // Initiales de repli pour l'avatar de compte (dérivées de l'e-mail — fonctionne pour TOUT compte,
-  // y compris administratif sans fiche membre). Ex. « admin@nkoni.com » → « AD ».
-  const initiales = (user?.email ?? '').replace(/[^a-zA-Z]/g, '').slice(0, 2).toUpperCase() || '?'
-
   const [ancien, setAncien] = useState('')
   const [nouveau, setNouveau] = useState('')
   const [confirmation, setConfirmation] = useState('')
@@ -163,31 +159,23 @@ export function MonProfilPage() {
           <UserCircle className="h-4 w-4 text-brass" aria-hidden="true" />
           <Overline>{t('profil.identite.titre')}</Overline>
         </div>
-        <div className="mt-4 flex items-center gap-4">
-          <div
-            className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border border-hairline bg-brass/15 text-lg font-bold text-brass"
-            aria-hidden="true"
-          >
-            {initiales}
+        <dl className="mt-4 space-y-3 text-sm">
+          <div className="flex min-w-0 items-center gap-2">
+            <Mail className="h-4 w-4 shrink-0 text-faint" aria-hidden="true" />
+            <dt className="sr-only">{t('profil.identite.email')}</dt>
+            <dd className="min-w-0 break-words font-medium text-foreground">{user?.email}</dd>
           </div>
-          <dl className="min-w-0 space-y-2 text-sm">
-            <div className="flex min-w-0 items-center gap-2">
-              <Mail className="h-4 w-4 shrink-0 text-faint" aria-hidden="true" />
-              <dt className="sr-only">{t('profil.identite.email')}</dt>
-              <dd className="min-w-0 break-words font-medium text-foreground">{user?.email}</dd>
-            </div>
-            <div>
-              <dt className="sr-only">{t('profil.identite.role')}</dt>
-              <dd>
-                {user?.role && (
-                  <Badge tone="jade" size="sm">
-                    {t(`profil.roles.${user.role}`, { defaultValue: user.role })}
-                  </Badge>
-                )}
-              </dd>
-            </div>
-          </dl>
-        </div>
+          <div>
+            <dt className="sr-only">{t('profil.identite.role')}</dt>
+            <dd>
+              {user?.role && (
+                <Badge tone="jade" size="sm">
+                  {t(`profil.roles.${user.role}`, { defaultValue: user.role })}
+                </Badge>
+              )}
+            </dd>
+          </div>
+        </dl>
       </Card>
 
       {/* Photo de profil (§4.11) — self-service, masquée si le compte n'a pas de fiche membre. */}

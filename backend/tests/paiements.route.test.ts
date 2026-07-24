@@ -58,17 +58,20 @@ describe('GET /moi/paiement-disponible', () => {
     await app.close()
   })
 
-  it('config active → { actif: true } ; absente → { actif: false }', async () => {
+  it('config active → { actif: true, montantMin } ; absente → { actif: false, montantMin }', async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const appActif = await appAvec({ parametrePaiement: { findFirst: async () => ({ actif: true }) } } as any)
     const rA = await appActif.inject({ method: 'GET', url: '/moi/paiement-disponible', headers: auth(appActif) })
-    expect(rA.json()).toEqual({ actif: true })
+    // Le montant minimum (source unique serveur) accompagne toujours la disponibilité.
+    expect(rA.json()).toMatchObject({ actif: true })
+    expect(typeof rA.json().montantMin).toBe('number')
     await appActif.close()
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const appVide = await appAvec({ parametrePaiement: { findFirst: async () => null } } as any)
     const rV = await appVide.inject({ method: 'GET', url: '/moi/paiement-disponible', headers: auth(appVide) })
-    expect(rV.json()).toEqual({ actif: false })
+    expect(rV.json()).toMatchObject({ actif: false })
+    expect(typeof rV.json().montantMin).toBe('number')
     await appVide.close()
   })
 })

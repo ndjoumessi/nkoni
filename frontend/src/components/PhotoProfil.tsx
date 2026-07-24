@@ -8,18 +8,24 @@ import { Card, Overline } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 
 /**
- * Photo de profil — SELF-SERVICE (§4.11). Le membre gère SA photo via /moi/photo (résolue depuis
- * son compte, pas un id d'URL). Affichée seulement si le compte a une fiche membre liée (un compte
- * purement administratif n'a pas de photo) : on le détecte via /moi/situation, qui fournit aussi
- * les initiales de repli. Contrôles alignés sur les garde-fous serveur : JPEG/PNG, ≤ 5 Mo.
+ * Photo de profil — SELF-SERVICE (§4.11). UNIVERSEL : fonctionne pour TOUT compte.
+ *  - Compte AVEC fiche membre → gère la photo de MEMBRE via /moi/photo (celle de la carte/PDF).
+ *  - Compte SANS fiche (ex. administratif) → gère un AVATAR DE COMPTE via /moi/avatar (porté par
+ *    `Utilisateur`), pour que chacun ait une identité visuelle.
+ * On détecte le cas via /moi/situation (succès = fiche membre). Initiales de repli : nom du membre,
+ * sinon dérivées de l'e-mail. Contrôles alignés sur les garde-fous serveur : JPEG/PNG, ≤ 5 Mo.
  */
 
 const TAILLE_MAX = 5 * 1024 * 1024
 const TYPES = ['image/jpeg', 'image/png']
 
+function initialesEmail(email: string | undefined): string {
+  return (email ?? '').replace(/[^a-zA-Z]/g, '').slice(0, 2).toUpperCase() || '?'
+}
+
 export function PhotoProfil() {
   const { t } = useTranslation()
-  const { accessToken } = useAuth()
+  const { accessToken, user } = useAuth()
   const toast = useToast()
   const [aFiche, setAFiche] = useState(false)
   const [initiales, setInitiales] = useState('')
@@ -39,27 +45,31 @@ export function PhotoProfil() {
     if (!accessToken) return
     let actif = true
     void (async () => {
+      let membre = false
       try {
         const s = await moiApi.situation(accessToken)
         if (!actif) return
+        membre = true
         setAFiche(true)
         setInitiales(`${s.membre.prenom[0] ?? ''}${s.membre.nom[0] ?? ''}`.toUpperCase())
       } catch {
-        if (actif) setAFiche(false)
-        return
+        if (!actif) return
+        setAFiche(false)
+        setInitiales(initialesEmail(user?.email))
       }
+      // Photo de membre OU avatar de compte selon le cas.
       try {
-        const blob = await moiApi.photo(accessToken)
+        const blob = membre ? await moiApi.photo(accessToken) : await moiApi.avatar(accessToken)
         if (actif) poserPhoto(blob)
       } catch {
-        /* aucune photo → initiales */
+        /* aucune image → initiales */
       }
     })()
     return () => {
       actif = false
       if (urlRef.current) URL.revokeObjectURL(urlRef.current)
     }
-  }, [accessToken])
+  }, [accessToken, user?.email])
 
   const surFichier = async (e: ChangeEvent<HTMLInputElement>) => {
     const fichier = e.target.files?.[0]
@@ -75,8 +85,13 @@ export function PhotoProfil() {
     }
     setEnCours(true)
     try {
-      await moiApi.televerserPhoto(fichier, accessToken)
-      poserPhoto(await moiApi.photo(accessToken))
+      if (aFiche) {
+        await moiApi.televerserPhoto(fichier, accessToken)
+        poserPhoto(await moiApi.photo(accessToken))
+      } else {
+        await moiApi.televerserAvatar(fichier, accessToken)
+        poserPhoto(await moiApi.avatar(accessToken))
+      }
       toast.success(t('profil.photo.succes'))
     } catch (err) {
       toast.error(t('profil.photo.erreur'), err instanceof ApiError ? err.message : '')
@@ -89,7 +104,8 @@ export function PhotoProfil() {
     if (!accessToken) return
     setEnCours(true)
     try {
-      await moiApi.supprimerPhoto(accessToken)
+      if (aFiche) await moiApi.supprimerPhoto(accessToken)
+      else await moiApi.supprimerAvatar(accessToken)
       poserPhoto(null)
       toast.success(t('profil.photo.succesRetrait'))
     } catch (err) {
@@ -98,8 +114,6 @@ export function PhotoProfil() {
       setEnCours(false)
     }
   }
-
-  if (!aFiche) return null
 
   return (
     <Card className="nk-reveal nk-d1 mt-6 p-6">

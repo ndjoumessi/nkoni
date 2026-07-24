@@ -2,19 +2,20 @@ import { PageLegale, SectionLegale, Placeholder } from './PageLegale'
 
 /**
  * Politique de confidentialité (RGPD) — bloquant GA 0.3. Contenu ancré sur les traitements RÉELS
- * du logiciel (données membres, finances, hébergement). PLACEHOLDERS `[ … ]` à compléter et faire
- * RELIRE par un juriste avant mise en ligne réelle. Marché cible francophone → français.
+ * du logiciel (données membres, finances, hébergement). Date + adresse du siège renseignées ;
+ * RESTE le NUMÉRO D'IMMATRICULATION (Placeholder) à compléter, puis faire RELIRE par un juriste
+ * avant mise en ligne réelle. Marché cible francophone → français.
  */
 export function ConfidentialitePage() {
   return (
-    <PageLegale titre="Politique de confidentialité" majLe="[DATE DE PUBLICATION]">
+    <PageLegale titre="Politique de confidentialité" majLe="24 juillet 2026">
       <SectionLegale titre="1. Qui est responsable de vos données">
         <p>
           NKONI est un service de gestion des cotisations et de transparence financière pour
           associations, familles élargies et tontines. Le responsable du traitement est la société{' '}
           HABATECH, immatriculée sous le numéro{' '}
           <Placeholder>NUMÉRO D’IMMATRICULATION</Placeholder>, dont le siège est situé{' '}
-          <Placeholder>ADRESSE DU SIÈGE</Placeholder> (ci-après « nous »).
+          71 rue de Rome, 13001 Marseille (ci-après « nous »).
         </p>
         <p>
           Nous traitons les données personnelles dans le respect du Règlement général sur la

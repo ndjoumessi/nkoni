@@ -7,7 +7,7 @@ import { PageLegale, SectionLegale } from './PageLegale'
  */
 export function CGUPage() {
   return (
-    <PageLegale titre="Conditions générales d’utilisation" majLe="[DATE DE PUBLICATION]">
+    <PageLegale titre="Conditions générales d’utilisation" majLe="24 juillet 2026">
       <SectionLegale titre="1. Objet">
         <p>
           Les présentes conditions régissent l’utilisation de NKONI, service de gestion des

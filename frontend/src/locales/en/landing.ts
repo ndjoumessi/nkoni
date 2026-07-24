@@ -149,6 +149,7 @@ export default {
     capacites: {
       titre: 'And everything you need to run things day to day',
       description: 'One single app, from collection to accountability.',
+      paiementEnLigne: 'Online Mobile Money payment',
       reunions: 'Meetings & attendance',
       resolutions: 'Resolutions & roles',
       cagnottes: 'Event funds',
@@ -184,6 +185,10 @@ export default {
       cout: {
         q: 'Is NKONI really free?',
         r: 'Yes. The Free plan covers up to 50 members with all the essential features, no credit card required.',
+      },
+      paiement: {
+        q: 'Can members pay their contributions online?',
+        r: 'Yes. Each organization can enable Mobile Money payment (MTN, Orange): members pay all or part of their contribution from their own space, and the money goes straight to the organization’s provider account — NKONI never holds the funds.',
       },
       modules: {
         q: 'Does NKONI handle more than contributions?',

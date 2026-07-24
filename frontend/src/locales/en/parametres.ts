@@ -58,6 +58,8 @@ export default {
       activerAide: 'Once enabled, members can pay from their own space.',
       actif: 'Active',
       inactif: 'Inactive',
+      avertissementTitulaire:
+        'Make sure the provider account is opened in the organisation’s name, not a leader’s personal account: that account will receive your members’ contributions.',
       identifiant: 'Identifier',
       secret: 'Secret',
       secretDefini: 'Set',

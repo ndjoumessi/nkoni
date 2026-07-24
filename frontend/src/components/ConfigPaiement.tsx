@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { CreditCard, Check } from 'lucide-react'
+import { CreditCard, Check, ShieldCheck } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
 import {
   organisationApi,
@@ -125,6 +125,13 @@ export function ConfigPaiement() {
         )}
       </div>
       <p className="mt-3 text-sm text-muted-foreground">{t('parametres.paiement.description')}</p>
+
+      {/* Rappel de gouvernance (déclaratif) : l'API du PSP n'expose pas le titulaire du compte, on ne
+          peut donc pas le vérifier — mais on rappelle la bonne pratique (compte au nom de l'asso). */}
+      <div className="mt-3 flex items-start gap-2.5 rounded-xl border border-hairline bg-surface-2/40 p-3.5">
+        <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-brass" aria-hidden="true" />
+        <p className="text-xs text-muted-foreground">{t('parametres.paiement.avertissementTitulaire')}</p>
+      </div>
 
       {/* RÉCAP lecture seule de la config branchée — répond à « on ne voit pas ce qui est configuré ».
           Panneau informatif (distinct d'un champ désactivé) : le secret n'y figure jamais, seulement

@@ -39,18 +39,34 @@ export interface VueConfigPaiement {
   configure: boolean
   provider: PspProviderCode | null
   environnement: EnvironnementPsp | null
+  /**
+   * Identifiant PUBLIC (non secret) du compte PSP configuré : `username` (CamPay) ou `apiUser` (Fapshi).
+   * Sert à AFFICHER quel compte est branché (le mot de passe / la clé / le token restent, eux, secrets et
+   * ne sont JAMAIS renvoyés). `null` si illisible ou absent.
+   */
+  identifiantPublic: string | null
+  /** Date de dernière mise à jour de la config (ISO) — retour visuel « bien enregistré ». */
+  misAJourLe: string | null
   actif: boolean
 }
 
-/** Extrait l'environnement (méta non secrète) du blob chiffré — `null` si illisible. AAD = orgId. */
-function environnementDe(identifiantsChiffres: string, organisationId: string): EnvironnementPsp | null {
+/** Méta NON secrètes lisibles depuis le blob chiffré (environnement + identifiant public). AAD = orgId. */
+function metaDe(
+  identifiantsChiffres: string,
+  organisationId: string,
+): { environnement: EnvironnementPsp | null; identifiantPublic: string | null } {
   try {
     const ids = JSON.parse(dechiffrerSecret(identifiantsChiffres, organisationId)) as Record<string, unknown>
-    return ids['environnement'] === 'SANDBOX' || ids['environnement'] === 'LIVE'
-      ? (ids['environnement'] as EnvironnementPsp)
-      : null
+    const environnement =
+      ids['environnement'] === 'SANDBOX' || ids['environnement'] === 'LIVE'
+        ? (ids['environnement'] as EnvironnementPsp)
+        : null
+    // Identifiant public = le champ non secret propre au provider (username CamPay, apiUser Fapshi).
+    const brut = ids['username'] ?? ids['apiUser']
+    const identifiantPublic = typeof brut === 'string' && brut.trim().length > 0 ? brut : null
+    return { environnement, identifiantPublic }
   } catch {
-    return null
+    return { environnement: null, identifiantPublic: null }
   }
 }
 
@@ -64,11 +80,16 @@ export async function lireConfigPaiement(
   organisationId: string,
 ): Promise<VueConfigPaiement> {
   const p = await prisma.parametrePaiement.findFirst({})
-  if (!p) return { configure: false, provider: null, environnement: null, actif: false }
+  if (!p) {
+    return { configure: false, provider: null, environnement: null, identifiantPublic: null, misAJourLe: null, actif: false }
+  }
+  const { environnement, identifiantPublic } = metaDe(p.identifiantsChiffres, organisationId)
   return {
     configure: true,
     provider: p.provider as PspProviderCode,
-    environnement: environnementDe(p.identifiantsChiffres, organisationId),
+    environnement,
+    identifiantPublic,
+    misAJourLe: p.updatedAt ? new Date(p.updatedAt).toISOString() : null,
     actif: Boolean(p.actif),
   }
 }

@@ -43,6 +43,7 @@ export default {
       ancienRequis: 'Saisissez votre mot de passe actuel.',
       different: 'Doit être différent de l’actuel.',
       confirmationInvalide: 'La confirmation ne correspond pas.',
+      correspond: 'Les mots de passe correspondent.',
       ancienIncorrect: 'Mot de passe actuel incorrect.',
       succes: 'Mot de passe modifié',
       succesDetail: 'Votre nouveau mot de passe est actif.',

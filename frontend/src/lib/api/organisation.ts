@@ -38,6 +38,10 @@ export interface ConfigPaiement {
   configure: boolean
   provider: PspProvider | null
   environnement: EnvironnementPsp | null
+  /** Identifiant PUBLIC du compte PSP (username CamPay / apiUser Fapshi) — pour l'affichage, jamais le secret. */
+  identifiantPublic: string | null
+  /** Dernière mise à jour de la config (ISO) — retour visuel de confirmation. */
+  misAJourLe: string | null
   actif: boolean
 }
 

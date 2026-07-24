@@ -36,7 +36,7 @@ describe('config paiement (service)', () => {
   it('lecture sans config → configure=false', async () => {
     const p = mockPrisma(null)
     expect(await lireConfigPaiement(p as never, ORG)).toEqual({
-      configure: false, provider: null, environnement: null, actif: false,
+      configure: false, provider: null, environnement: null, identifiantPublic: null, misAJourLe: null, actif: false,
     })
   })
 
@@ -47,7 +47,10 @@ describe('config paiement (service)', () => {
       identifiants: { apiUser: 'u', apiKey: 'SECRET-KEY', environnement: 'SANDBOX' },
       actif: true,
     })
-    expect(vue).toEqual({ configure: true, provider: 'FAPSHI', environnement: 'SANDBOX', actif: true })
+    // La vue EXPOSE l'identifiant public (apiUser) pour l'affichage, mais JAMAIS le secret.
+    expect(vue).toMatchObject({
+      configure: true, provider: 'FAPSHI', environnement: 'SANDBOX', identifiantPublic: 'u', actif: true,
+    })
     expect(JSON.stringify(vue)).not.toContain('SECRET-KEY')
     // Stockage chiffré : secret absent en clair, déchiffrable seulement avec le MÊME orgId (AAD).
     const stocke = p.ligne().identifiantsChiffres

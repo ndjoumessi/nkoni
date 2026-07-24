@@ -1,12 +1,13 @@
 import { useRef, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
-import { KeyRound, Languages, Lock, Mail, ShieldCheck, UserCircle } from 'lucide-react'
+import { KeyRound, Languages, Lock, Mail, UserCircle } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
 import { authApi, ApiError } from '@/lib/api'
 import { cn, focusPremierChampInvalide } from '@/lib/utils'
 import { useToast } from '@/components/ui/Toast'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, Overline } from '@/components/ui/Card'
+import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Field } from '@/components/ui/Field'
 import { PasswordInput } from '@/components/ui/PasswordInput'
@@ -95,6 +96,10 @@ export function MonProfilPage() {
   const { user, accessToken } = useAuth()
   const toast = useToast()
 
+  // Initiales de repli pour l'avatar de compte (dérivées de l'e-mail — fonctionne pour TOUT compte,
+  // y compris administratif sans fiche membre). Ex. « admin@nkoni.com » → « AD ».
+  const initiales = (user?.email ?? '').replace(/[^a-zA-Z]/g, '').slice(0, 2).toUpperCase() || '?'
+
   const [ancien, setAncien] = useState('')
   const [nouveau, setNouveau] = useState('')
   const [confirmation, setConfirmation] = useState('')
@@ -158,22 +163,31 @@ export function MonProfilPage() {
           <UserCircle className="h-4 w-4 text-brass" aria-hidden="true" />
           <Overline>{t('profil.identite.titre')}</Overline>
         </div>
-        <dl className="mt-4 space-y-3 text-sm">
-          <div className="flex min-w-0 items-center gap-3">
-            <Mail className="h-4 w-4 shrink-0 text-faint" aria-hidden="true" />
-            <dt className="sr-only">{t('profil.identite.email')}</dt>
-            <dd className="min-w-0 break-words text-foreground">{user?.email}</dd>
+        <div className="mt-4 flex items-center gap-4">
+          <div
+            className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border border-hairline bg-brass/15 text-lg font-bold text-brass"
+            aria-hidden="true"
+          >
+            {initiales}
           </div>
-          <div className="flex items-center gap-3">
-            <ShieldCheck className="h-4 w-4 text-faint" aria-hidden="true" />
-            <dt className="sr-only">{t('profil.identite.role')}</dt>
-            <dd className="text-muted-foreground">
-              {user?.role
-                ? t(`profil.roles.${user.role}`, { defaultValue: user.role })
-                : user?.role}
-            </dd>
-          </div>
-        </dl>
+          <dl className="min-w-0 space-y-2 text-sm">
+            <div className="flex min-w-0 items-center gap-2">
+              <Mail className="h-4 w-4 shrink-0 text-faint" aria-hidden="true" />
+              <dt className="sr-only">{t('profil.identite.email')}</dt>
+              <dd className="min-w-0 break-words font-medium text-foreground">{user?.email}</dd>
+            </div>
+            <div>
+              <dt className="sr-only">{t('profil.identite.role')}</dt>
+              <dd>
+                {user?.role && (
+                  <Badge tone="jade" size="sm">
+                    {t(`profil.roles.${user.role}`, { defaultValue: user.role })}
+                  </Badge>
+                )}
+              </dd>
+            </div>
+          </dl>
+        </div>
       </Card>
 
       {/* Photo de profil (§4.11) — self-service, masquée si le compte n'a pas de fiche membre. */}
@@ -195,6 +209,7 @@ export function MonProfilPage() {
                 name="current-password"
                 autoComplete="current-password"
                 value={ancien}
+                disabled={submitting}
                 onChange={(e) => {
                   setAncien(e.target.value)
                   setErrAncien(undefined)
@@ -213,6 +228,7 @@ export function MonProfilPage() {
                 name="new-password"
                 autoComplete="new-password"
                 value={nouveau}
+                disabled={submitting}
                 onChange={(e) => {
                   setNouveau(e.target.value)
                   setErrNouveau(undefined)
@@ -221,11 +237,21 @@ export function MonProfilPage() {
                 leftIcon={KeyRound}
               />
             </Field>
-            <Field label={t('profil.motDePasse.confirmer')} required error={errConfirmation}>
+            <Field
+              label={t('profil.motDePasse.confirmer')}
+              required
+              error={errConfirmation}
+              hint={
+                confirmation.length > 0 && !errConfirmation && confirmation === nouveau && nouveau.length >= 8
+                  ? t('profil.motDePasse.correspond')
+                  : undefined
+              }
+            >
               <PasswordInput
                 name="confirm-password"
                 autoComplete="new-password"
                 value={confirmation}
+                disabled={submitting}
                 onChange={(e) => {
                   setConfirmation(e.target.value)
                   setErrConfirmation(undefined)

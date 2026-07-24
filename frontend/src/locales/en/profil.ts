@@ -42,6 +42,7 @@ export default {
       ancienRequis: 'Enter your current password.',
       different: 'Must be different from the current one.',
       confirmationInvalide: 'The confirmation does not match.',
+      correspond: 'Passwords match.',
       ancienIncorrect: 'Current password is incorrect.',
       succes: 'Password changed',
       succesDetail: 'Your new password is active.',

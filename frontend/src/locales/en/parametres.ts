@@ -48,7 +48,7 @@ export default {
       apiKey: 'API key',
       token: 'Access token',
       campayUsername: 'Application username',
-      campayUsernamePlaceholder: 'e.g. app_xxxxx',
+      campayUsernamePlaceholder: 'Your CamPay app username',
       campayPassword: 'Application password',
       environnement: 'Environment',
       sandbox: 'Test (sandbox)',

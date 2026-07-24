@@ -58,6 +58,8 @@ export default {
       activerAide: 'Une fois activé, vos membres pourront payer depuis leur espace.',
       actif: 'Actif',
       inactif: 'Inactif',
+      avertissementTitulaire:
+        'Assurez-vous que le compte du prestataire est ouvert au nom de l’organisation, et non d’un dirigeant à titre personnel : c’est ce compte qui recevra les cotisations de vos membres.',
       identifiant: 'Identifiant',
       secret: 'Secret',
       secretDefini: 'Défini',

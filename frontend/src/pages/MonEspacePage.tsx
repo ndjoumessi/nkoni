@@ -46,11 +46,6 @@ import { CarteMembre } from '@/components/membres/CarteMembre'
 import { TypeReunionBadge } from '@/components/reunions/StatutBadges'
 import type { StatutContribution, StatutMembre, TypeReunion } from '@/lib/api'
 
-// Montant minimum d'un paiement en ligne (XAF). Défaut 100 ; configurable pour le TEST (le bac à
-// sable CamPay plafonne à 25 XAF). Doit refléter le PAIEMENT_MONTANT_MIN du backend, sinon un montant
-// accepté ici serait refusé côté serveur (ou l'inverse). Repli 100 si la variable n'est pas posée.
-const MONTANT_MIN_PAIEMENT = Number(import.meta.env['VITE_PAIEMENT_MONTANT_MIN']) || 100
-
 export function MonEspacePage() {
   const { t } = useTranslation()
   const { accessToken } = useAuth()
@@ -70,6 +65,9 @@ export function MonEspacePage() {
   const [annulesOuverts, setAnnulesOuverts] = useState(false)
   const [rappelsOuverts, setRappelsOuverts] = useState(false)
   const [paiementActif, setPaiementActif] = useState(false)
+  // Montant minimum d'un paiement, fourni par le SERVEUR (source unique = PAIEMENT_MONTANT_MIN). Évite
+  // tout couplage build-time front/back : plus de variable VITE_ ni de rebuild Vercel à synchroniser.
+  const [montantMin, setMontantMin] = useState(100)
   const [paiementEnCours, setPaiementEnCours] = useState<string | null>(null)
   const [paiementCible, setPaiementCible] = useState<ContributionMembre | null>(null)
   const [montantSaisi, setMontantSaisi] = useState('')
@@ -103,7 +101,7 @@ export function MonEspacePage() {
         moiApi.recus(accessToken, controller.signal).catch(() => []),
         notificationsApi.list(accessToken, controller.signal).catch(() => []),
         moiApi.carteApercu(accessToken, controller.signal).catch(() => null),
-        moiApi.paiementDisponible(accessToken, controller.signal).catch(() => ({ actif: false })),
+        moiApi.paiementDisponible(accessToken, controller.signal).catch(() => ({ actif: false, montantMin: 100 })),
       ])
       if (!actif) return
       setContributions(c)
@@ -112,6 +110,7 @@ export function MonEspacePage() {
       setNotifications(n)
       setCarteApercu(ca)
       setPaiementActif(pd.actif)
+      setMontantMin(pd.montantMin ?? 100)
       setLoading(false)
       // Photo (proxy authentifié → blob) seulement si le membre en a une ; sinon on retombe sur
       // les initiales dans la carte. Best-effort : un échec ne casse pas la page.
@@ -264,18 +263,18 @@ export function MonEspacePage() {
   // le reste dû, la borne basse le minimum ; le serveur re-vérifie les deux (jamais confiance au client).
   const ouvrirPaiement = (c: ContributionMembre) => {
     const reste = Math.max(0, c.montantAttendu - c.montantValorise)
-    if (reste < MONTANT_MIN_PAIEMENT) return
+    if (reste < montantMin) return
     setPaiementCible(c)
     setMontantSaisi(String(reste)) // défaut : tout régler
     setErreurMontant(null)
   }
 
-  // Valide le montant saisi puis lance la collecte. Bornes : [MONTANT_MIN_PAIEMENT .. reste dû].
+  // Valide le montant saisi puis lance la collecte. Bornes : [montantMin (serveur) .. reste dû].
   const confirmerMontant = () => {
     if (!paiementCible) return
     const reste = Math.max(0, paiementCible.montantAttendu - paiementCible.montantValorise)
     const montant = Number(montantSaisi)
-    if (!Number.isInteger(montant) || montant < MONTANT_MIN_PAIEMENT || montant > reste) {
+    if (!Number.isInteger(montant) || montant < montantMin || montant > reste) {
       setErreurMontant(t('monEspace.paiement.montantInvalide'))
       return
     }
@@ -351,7 +350,7 @@ export function MonEspacePage() {
             header: '',
             align: 'right' as const,
             cell: (c: ContributionMembre) =>
-              Math.max(0, c.montantAttendu - c.montantValorise) >= MONTANT_MIN_PAIEMENT ? (
+              Math.max(0, c.montantAttendu - c.montantValorise) >= montantMin ? (
                 <Button
                   type="button"
                   variant="outline"
@@ -631,7 +630,7 @@ export function MonEspacePage() {
               <Input
                 type="number"
                 inputMode="numeric"
-                min={MONTANT_MIN_PAIEMENT}
+                min={montantMin}
                 max={Math.max(0, paiementCible.montantAttendu - paiementCible.montantValorise)}
                 step={1}
                 value={montantSaisi}

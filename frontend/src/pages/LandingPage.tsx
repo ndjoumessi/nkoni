@@ -21,6 +21,7 @@ import {
   Globe,
   HeartHandshake,
   CreditCard,
+  Smartphone,
   FileText,
   ListChecks,
   Download,
@@ -400,6 +401,7 @@ export function LandingPage() {
 
 // Capacités « et aussi » — clés i18n + icônes (libellés résolus à l'affichage, §4).
 const CAPACITES: { key: string; icon: LucideIcon }[] = [
+  { key: 'paiementEnLigne', icon: Smartphone },
   { key: 'reunions', icon: CalendarCheck },
   { key: 'resolutions', icon: Gavel },
   { key: 'cagnottes', icon: HeartHandshake },
@@ -412,7 +414,7 @@ const CAPACITES: { key: string; icon: LucideIcon }[] = [
   { key: 'multiDevise', icon: Globe },
 ]
 
-const FAQ_ITEMS = ['cout', 'modules', 'donnees', 'horsLigne', 'langues'] as const
+const FAQ_ITEMS = ['cout', 'paiement', 'modules', 'donnees', 'horsLigne', 'langues'] as const
 
 /** En-tête de section réutilisable (overline menthe + titre display + description). */
 function SectionHeading({

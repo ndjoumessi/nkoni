@@ -27,6 +27,17 @@ import { useToast } from '@/components/ui/Toast'
  */
 const LIBELLE_PROVIDER: Record<PspProvider, string> = { FAPSHI: 'Fapshi', CAMPAY: 'CamPay' }
 
+/**
+ * Masque partiellement l'identifiant public affiché : il n'est pas LE secret (le mot de passe / la clé
+ * l'est), mais c'est la moitié du couple d'auth — en révéler juste assez pour le RECONNAÎTRE, sans
+ * l'exposer entier (captures d'écran, épaule). Longueur cachée fixe (ne fuite pas la vraie longueur).
+ */
+function masquerIdentifiant(id: string | null): string {
+  if (!id) return '—'
+  if (id.length <= 14) return id
+  return `${id.slice(0, 6)}••••••${id.slice(-4)}`
+}
+
 export function ConfigPaiement() {
   const { t } = useTranslation()
   const { accessToken } = useAuth()
@@ -140,9 +151,7 @@ export function ConfigPaiement() {
           </div>
           <div className="flex items-center justify-between gap-3">
             <dt className="text-muted-foreground">{t('parametres.paiement.identifiant')}</dt>
-            <dd className="num max-w-[60%] truncate font-medium text-foreground" title={config.identifiantPublic ?? undefined}>
-              {config.identifiantPublic ?? '—'}
-            </dd>
+            <dd className="num font-medium text-foreground">{masquerIdentifiant(config.identifiantPublic)}</dd>
           </div>
           <div className="flex items-center justify-between gap-3">
             <dt className="text-muted-foreground">{t('parametres.paiement.secret')}</dt>

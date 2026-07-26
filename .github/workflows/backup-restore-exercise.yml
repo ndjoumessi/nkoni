@@ -25,9 +25,9 @@ jobs:
           npm install -g @railway/cli
           railway --version
 
-      - name: Authenticate with Railway
+      - name: Link to Railway project
         run: |
-          railway login --token "$RAILWAY_TOKEN"
+          # RAILWAY_TOKEN is set as environment variable, no explicit login needed
           railway link --project 8bef03d7-fc53-40bc-a9b6-55cd61140ad9 || echo "Already linked"
 
       - name: Verify server version

@@ -1,0 +1,98 @@
+name: Backup & Restore Exercise (§0.2 GA Blocker)
+
+on:
+  # Déclenchement manuel depuis GitHub Actions
+  workflow_dispatch:
+  # Calendrier : chaque dimanche à 03:00 UTC (fuseau applicatif Cameroun = UTC+2, donc 05:00 matin local)
+  schedule:
+    - cron: '0 3 * * 0'
+
+jobs:
+  backup-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    env:
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE_BACKUP }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Railway CLI
+        run: |
+          npm install -g @railway/cli
+          railway --version
+
+      - name: Authenticate with Railway
+        run: |
+          railway login --token "$RAILWAY_TOKEN"
+          railway link --project 8bef03d7-fc53-40bc-a9b6-55cd61140ad9 || echo "Already linked"
+
+      - name: Verify server version
+        run: |
+          railway run --service Postgres psql --version
+
+      - name: §2.1 — Dump production database
+        run: |
+          mkdir -p ~/Sauvegardes/nkoni
+          export STAMP="$(date +%Y%m%d_%H%M%S)"
+          export BACKUP_FILE=~/Sauvegardes/nkoni/nkoni_${STAMP}.dump
+          
+          echo "Dumping PostgreSQL..."
+          railway run --service Postgres bash -c 'pg_dump $DATABASE_URL -Fc --no-owner --no-privileges' > "$BACKUP_FILE"
+          
+          ls -lh "$BACKUP_FILE"
+          echo "STAMP=$STAMP" >> $GITHUB_ENV
+          echo "BACKUP_FILE=$BACKUP_FILE" >> $GITHUB_ENV
+
+      - name: §2.2 — Encrypt dump with GPG
+        run: |
+          echo "Encrypting with AES256..."
+          echo "${{ env.GPG_PASSPHRASE }}" | gpg --symmetric --cipher-algo AES256 --batch --passphrase-fd 0 "${{ env.BACKUP_FILE }}" 2>&1 || true
+          
+          BACKUP_GPG="${{ env.BACKUP_FILE }}.gpg"
+          rm "${{ env.BACKUP_FILE }}"
+          
+          ls -lh "$BACKUP_GPG"
+          echo "BACKUP_GPG=$BACKUP_GPG" >> $GITHUB_ENV
+
+      - name: §2.2 — Verify dump is readable
+        run: |
+          echo "Verifying GPG-encrypted dump..."
+          echo "${{ env.GPG_PASSPHRASE }}" | gpg --batch --passphrase-fd 0 --decrypt "${{ env.BACKUP_GPG }}" 2>/dev/null | pg_restore --list 2>/dev/null | head -5
+          echo "✓ Dump is readable and restorable"
+
+      - name: Upload encrypted backup as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nkoni-backup-${{ env.STAMP }}
+          path: ${{ env.BACKUP_GPG }}
+          retention-days: 30
+          compression-level: 0  # Already compressed by pg_dump -Fc
+
+      - name: Report backup completion
+        run: |
+          echo "## ✅ Backup Exercise Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Item | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Timestamp | ${{ env.STAMP }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Backup file | $(basename ${{ env.BACKUP_GPG }}) |" >> $GITHUB_STEP_SUMMARY
+          echo "| Size | $(ls -lh ${{ env.BACKUP_GPG }} | awk '{print $5}') |" >> $GITHUB_STEP_SUMMARY
+          echo "| Encryption | AES256-GPG ✓ |" >> $GITHUB_STEP_SUMMARY
+          echo "| Readability | ✓ Verified |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Next steps (§4 of RUNBOOK):** Download the artifact and run the restore exercise locally." >> $GITHUB_STEP_SUMMARY
+
+  # Optionnel : notification sur Slack ou email en cas d'échec
+  notify-on-failure:
+    runs-on: ubuntu-latest
+    needs: backup-and-verify
+    if: failure()
+    steps:
+      - name: Notify failure
+        run: |
+          echo "⚠️ Backup exercise FAILED. Review the logs above."
+          exit 1

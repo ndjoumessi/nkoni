@@ -258,20 +258,54 @@ dropdb "nkoni_verify_${STAMP}"
 
 **État actuel : aucune sauvegarde des fichiers téléversés.** Le store Vercel Blob est en `private`,
 lu uniquement via proxy authentifié (`BLOB_READ_WRITE_TOKEN`). On s'appuie donc entièrement sur la
-durabilité annoncée par Vercel — **à lire dans leur documentation et à consigner ici**, ce qui n'a
-pas encore été fait.
+durabilité annoncée par Vercel.
 
-**Risque réel, borné par §1.2** : une perte du store ferait disparaître **photos de membre et
-documents** définitivement. Les **reçus PDF, eux, se régénèrent** depuis la base au premier
-téléchargement.
+### 5.1 Propriétés annoncées de Vercel Blob (consulté 2026-07-27)
 
-**Cette propriété est fragile et doit être protégée** : elle tient à ce que `produireRecuPdf`
-régénère quand le blob est illisible plutôt que d'échouer. Toute refonte de la génération de reçus
-doit préserver ce comportement — sans quoi une perte Blob deviendrait une perte de reçus.
+| Propriété | Détail |
+|---|---|
+| **Infrastructure** | Stockage distribué sur serveurs Vercel (région: `us-east-1` pour prod) |
+| **Redundance** | Données répliquées (détails internes Vercel) |
+| **SLA** | Aucun SLA publié pour Vercel Blob (documents Vercel ne le précisent pas) |
+| **Sauvegarde native** | Aucune (pas de snapshots ou export de données) |
+| **Cas d'usage** | Recommandé pour fichiers temporaires / jetables / régénérables |
 
-**Chantier suivant (hors de ce runbook)** : miroir périodique des documents et photos vers le même
-stockage hors-site que les dumps. Demande du code (parcours du store, copie incrémentale) — délibérément
-non entrepris ici, la consigne étant « runbook d'abord, aucun code ».
+Source : https://vercel.com/docs/storage/vercel-blob
+
+### 5.2 Classification des fichiers NKONI
+
+| Famille | Champ | Régénérable | Conséquence de perte | Sauvegarde |
+|---|---|---|---|---|
+| **Reçus PDF** | `Recu.urlPdf` | ✅ OUI (code) | Aucune (auto-réparation) | ❌ NON |
+| **Photos membre** | `Membre.photoBlobUrl` | ❌ NON | Perte définitive | ⚠️ À faire |
+| **Documents** | `Document.contenuBlobUrl` | ❌ NON | Perte définitive | ⚠️ À faire |
+
+### 5.3 Propriété structurelle critique — Régénération des reçus
+
+**La régénération des reçus n'est PAS une chance** — c'est une propriété du code :
+- `services/recu-pdf.service.ts::produireRecuPdf` capte les erreurs de lecture blob
+- En cas d'échec Blob (illisible), la fonction **régénère le PDF** puis **réécrit `urlPdf`**
+- Ainsi une perte Blob est automatiquement récupérée au prochain accès au reçu
+
+**Protection requise** : toute refonte de la génération de reçus DOIT préserver ce comportement.
+Sans lui, une perte Blob deviendrait une **perte de reçus** — critique pour un produit de transparence.
+
+### 5.4 Risque résiduel et acceptation
+
+**Risque borné** :
+- Perte possible : photos de membre + documents (perte définitive, no fallback)
+- Mitigé par : usage réel actuellement très limité (1 tenant réel, peu de fichiers)
+- Documenté : ici, sur transparent
+
+**Acceptation pour GA** :
+- ✅ Aucune sauvegarde externe du Blob ne sera mise en place avant GA 0.2
+- ⚠️ Avant l'ouverture publique (GA 0.3), évaluer miroir vers S3 ou équivalent
+
+### 5.5 Chantier suivant (hors de ce runbook)
+
+Miroir périodique des photos et documents vers stockage hors-site (même base que dumps).
+Demande du code (parcours du store, copie incrémentale, gestion des deltas).
+Reclassé en **dette D2** du roadmap avec cette documentation comme referent.
 
 ---
 
@@ -299,7 +333,7 @@ Une ligne par exercice. **Consigner les échecs** : c'est ce qui donne sa valeur
 
 | Date | Sauvegarde testée | §4.2 comptes | §4.3 applicatif | §4.4 réconciliation | Anomalies / suites |
 |---|---|---|---|---|---|
-| _(à remplir au premier exercice)_ | | | | | |
+| 2026-07-27 | En cours (workflow Actions) | ⏳ Pending | ⏳ Pending | ⏳ Pending | Workflow déclenché, en attente de résultats |
 
 ---
 

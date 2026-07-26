@@ -13,26 +13,23 @@ jobs:
     timeout-minutes: 30
     
     env:
-      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
       GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE_BACKUP }}
     
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Railway CLI
+      - name: Install PostgreSQL client tools
         run: |
-          npm install -g @railway/cli
-          railway --version
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+          psql --version
 
-      - name: Link to Railway project
+      - name: Verify PostgreSQL connection
         run: |
-          # RAILWAY_TOKEN is set as environment variable, no explicit login needed
-          railway link --project 8bef03d7-fc53-40bc-a9b6-55cd61140ad9 || echo "Already linked"
-
-      - name: Verify server version
-        run: |
-          railway run --service Postgres psql --version
+          echo "Testing connection to production database..."
+          psql "$DATABASE_URL" -c "\version" 2>&1
 
       - name: §2.1 — Dump production database
         run: |
@@ -40,28 +37,31 @@ jobs:
           export STAMP="$(date +%Y%m%d_%H%M%S)"
           export BACKUP_FILE=~/Sauvegardes/nkoni/nkoni_${STAMP}.dump
           
-          echo "Dumping PostgreSQL..."
-          railway run --service Postgres bash -c 'pg_dump $DATABASE_URL -Fc --no-owner --no-privileges' > "$BACKUP_FILE"
+          echo "Dumping PostgreSQL database..."
+          pg_dump "$DATABASE_URL" -Fc --no-owner --no-privileges > "$BACKUP_FILE"
           
-          ls -lh "$BACKUP_FILE"
+          SIZE=$(ls -lh "$BACKUP_FILE" | awk '{print $5}')
+          echo "✅ Backup complete: $(basename $BACKUP_FILE) ($SIZE)"
+          
           echo "STAMP=$STAMP" >> $GITHUB_ENV
           echo "BACKUP_FILE=$BACKUP_FILE" >> $GITHUB_ENV
 
       - name: §2.2 — Encrypt dump with GPG
         run: |
           echo "Encrypting with AES256..."
-          echo "${{ env.GPG_PASSPHRASE }}" | gpg --symmetric --cipher-algo AES256 --batch --passphrase-fd 0 "${{ env.BACKUP_FILE }}" 2>&1 || true
+          echo "$GPG_PASSPHRASE" | gpg --symmetric --cipher-algo AES256 --batch --passphrase-fd 0 "$BACKUP_FILE"
           
-          BACKUP_GPG="${{ env.BACKUP_FILE }}.gpg"
-          rm "${{ env.BACKUP_FILE }}"
+          BACKUP_GPG="${BACKUP_FILE}.gpg"
+          rm "$BACKUP_FILE"
           
-          ls -lh "$BACKUP_GPG"
+          SIZE=$(ls -lh "$BACKUP_GPG" | awk '{print $5}')
+          echo "✅ Encrypted: $(basename $BACKUP_GPG) ($SIZE)"
           echo "BACKUP_GPG=$BACKUP_GPG" >> $GITHUB_ENV
 
       - name: §2.2 — Verify dump is readable
         run: |
           echo "Verifying GPG-encrypted dump..."
-          echo "${{ env.GPG_PASSPHRASE }}" | gpg --batch --passphrase-fd 0 --decrypt "${{ env.BACKUP_GPG }}" 2>/dev/null | pg_restore --list 2>/dev/null | head -5
+          echo "$GPG_PASSPHRASE" | gpg --batch --passphrase-fd 0 --decrypt "$BACKUP_GPG" 2>/dev/null | pg_restore --list 2>/dev/null | head -5
           echo "✓ Dump is readable and restorable"
 
       - name: Upload encrypted backup as artifact

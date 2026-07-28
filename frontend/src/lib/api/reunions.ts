@@ -7,6 +7,18 @@ import { request, rid } from './core'
 export type TypeReunion = 'ORDINAIRE' | 'EXTRAORDINAIRE'
 export type StatutReunion = 'PLANIFIEE' | 'TENUE' | 'ANNULEE'
 export type StatutResolution = 'ADOPTEE' | 'REJETEE' | 'REPORTEE'
+export type StatutPresence = 'PRESENT' | 'ABSENT' | 'EXCUSE'
+
+export interface PresenceLigne {
+  membreId: string
+  nom: string
+  prenom: string
+  statut: StatutPresence
+}
+export interface PresencesReunion {
+  presences: PresenceLigne[]
+  decompte: Record<StatutPresence, number>
+}
 
 export interface PointOrdreDuJour {
   id: string
@@ -130,4 +142,13 @@ export const reunionsApi = {
       json: { ordreIds },
       accessToken,
     }),
+  /** Présences/RSVP d'une réunion (vue dirigeant) : réponses des membres + décompte. */
+  presences: (reunionId: string, accessToken: string, signal?: AbortSignal) =>
+    request<PresencesReunion>(`/reunions/${rid(reunionId)}/presences`, { accessToken, signal }),
+  /** Le dirigeant fixe/ajuste la présence RÉELLE constatée d'un membre. */
+  setPresence: (reunionId: string, membreId: string, statut: StatutPresence, accessToken: string) =>
+    request<{ statut: StatutPresence }>(
+      `/reunions/${rid(reunionId)}/presences/${rid(membreId)}`,
+      { method: 'PUT', json: { statut }, accessToken },
+    ),
 }

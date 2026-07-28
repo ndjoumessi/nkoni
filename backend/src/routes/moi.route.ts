@@ -98,11 +98,20 @@ export const moiRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
     if (!membre) return []
     const debutJour = new Date()
     debutJour.setHours(0, 0, 0, 0)
-    return app.prisma.reunion.findMany({
+    const reunions = await app.prisma.reunion.findMany({
       where: { date: { gte: debutJour }, statut: { not: 'ANNULEE' } },
       orderBy: { date: 'asc' },
       select: { id: true, date: true, lieu: true, type: true, statut: true },
     })
+    if (reunions.length === 0) return []
+    // Statut RSVP du membre pour chacune (nouveau modèle → surface souple compile-avant-regen).
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const presences = (await (app.prisma.presenceReunion as any).findMany({
+      where: { membreId: membre.id, reunionId: { in: reunions.map((r) => r.id) } },
+      select: { reunionId: true, statut: true },
+    })) as { reunionId: string; statut: string }[]
+    const parReunion = new Map(presences.map((p) => [p.reunionId, p.statut]))
+    return reunions.map((r) => ({ ...r, monStatut: parReunion.get(r.id) ?? null }))
   })
 
   // GET /moi/recus — SES reçus (numéro, date, montant du versement, disponibilité du PDF).

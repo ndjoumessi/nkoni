@@ -11,6 +11,7 @@ import {
   MapPin,
   Plus,
   Trash2,
+  Users,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
 import {
@@ -22,6 +23,8 @@ import {
   type Resolution,
   type StatutReunion,
   type StatutResolution,
+  type PresencesReunion,
+  type StatutPresence,
 } from '@/lib/api'
 import {
   peutVoirReunions,
@@ -30,7 +33,8 @@ import {
   peutGererDocument,
 } from '@/lib/roles'
 import { DocumentsSection } from '@/components/documents/DocumentsSection'
-import { formatDate, focusPremierChampInvalide } from '@/lib/utils'
+import { cn, formatDate, focusPremierChampInvalide } from '@/lib/utils'
+import { cleI18n } from '@/lib/i18n'
 import { useToast } from '@/components/ui/Toast'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, Overline } from '@/components/ui/Card'
@@ -46,6 +50,14 @@ import {
 const STATUTS_REUNION: StatutReunion[] = ['PLANIFIEE', 'TENUE', 'ANNULEE']
 
 const STATUTS_RESOLUTION: StatutResolution[] = ['ADOPTEE', 'REJETEE', 'REPORTEE']
+
+/** Ordre d'affichage des présences + ton de couleur (jeton) par statut. */
+const PRESENCE_OPTIONS: StatutPresence[] = ['PRESENT', 'EXCUSE', 'ABSENT']
+const PRESENCE_TON: Record<StatutPresence, string> = {
+  PRESENT: '--jade',
+  EXCUSE: '--amber',
+  ABSENT: '--terra',
+}
 
 /** Détail d'une réunion (§5) : infos + statut, compte-rendu, ordre du jour, résolutions. */
 export function ReunionDetailPage() {
@@ -85,6 +97,10 @@ export function ReunionDetailPage() {
   const [errRes, setErrRes] = useState<string | undefined>(undefined)
   const resFormRef = useRef<HTMLFormElement>(null)
 
+  // Présences / RSVP (vue dirigeant).
+  const [presences, setPresences] = useState<PresencesReunion | null>(null)
+  const [presenceMaj, setPresenceMaj] = useState<string | null>(null)
+
   useEffect(() => {
     if (!accessToken || !id) return
     const controller = new AbortController()
@@ -98,6 +114,11 @@ export function ReunionDetailPage() {
           setReunion(data)
           setCompteRendu(data.compteRenduTexte ?? '')
         }
+        // Présences (best-effort : un échec ne bloque pas le reste de la page).
+        if (gestion) {
+          const pres = await reunionsApi.presences(id, accessToken, controller.signal).catch(() => null)
+          if (active && pres) setPresences(pres)
+        }
       } catch (e) {
         if (e instanceof DOMException && e.name === 'AbortError') return
         if (active) setError(messageErreur(e))
@@ -109,13 +130,35 @@ export function ReunionDetailPage() {
       active = false
       controller.abort()
     }
-  }, [accessToken, id])
+  }, [accessToken, id, gestion])
 
   const pointsLabel = useMemo(() => {
     const map = new Map<string, string>()
     reunion?.pointsOrdreDuJour.forEach((p, i) => map.set(p.id, `${i + 1}. ${p.titre}`))
     return map
   }, [reunion])
+
+  // Le dirigeant ajuste la présence RÉELLE constatée d'un membre (MAJ optimiste + décompte recalculé).
+  const ajusterPresence = async (membreId: string, statut: StatutPresence) => {
+    if (!accessToken || !reunion) return
+    const precedent = presences
+    setPresenceMaj(membreId)
+    setPresences((p) => {
+      if (!p) return p
+      const presences2 = p.presences.map((l) => (l.membreId === membreId ? { ...l, statut } : l))
+      const decompte: Record<StatutPresence, number> = { PRESENT: 0, ABSENT: 0, EXCUSE: 0 }
+      for (const l of presences2) decompte[l.statut] += 1
+      return { presences: presences2, decompte }
+    })
+    try {
+      await reunionsApi.setPresence(reunion.id, membreId, statut, accessToken)
+    } catch (e) {
+      setPresences(precedent) // rollback
+      toast.error(messageErreur(e))
+    } finally {
+      setPresenceMaj(null)
+    }
+  }
 
   if (!peutVoirReunions(user?.role)) {
     return <Navigate to="/dashboard" replace />
@@ -564,6 +607,78 @@ export function ReunionDetailPage() {
           </form>
         )}
       </Card>
+
+      {/* Présences / RSVP — vue dirigeant : réponses des membres + ajustement de la présence réelle */}
+      {gestion && (
+        <Card className="nk-reveal nk-d4 mt-6 p-6">
+          <div className="flex items-center gap-2">
+            <Users className="h-4 w-4 text-brass" aria-hidden="true" />
+            <Overline>{t('reunions.presences.titre')}</Overline>
+          </div>
+          {!presences || presences.presences.length === 0 ? (
+            <p className="mt-4 text-sm text-faint">{t('reunions.presences.aucune')}</p>
+          ) : (
+            <>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {PRESENCE_OPTIONS.map((s) => (
+                  <span
+                    key={s}
+                    className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium"
+                    style={{
+                      color: `var(${PRESENCE_TON[s]})`,
+                      borderColor: `color-mix(in oklch, var(${PRESENCE_TON[s]}) 40%, transparent)`,
+                      backgroundColor: `color-mix(in oklch, var(${PRESENCE_TON[s]}) 12%, transparent)`,
+                    }}
+                  >
+                    {t(cleI18n(`monEspace.reunions.rsvp.${s}`))} · {presences.decompte[s]}
+                  </span>
+                ))}
+              </div>
+              <ul className="mt-4 space-y-2">
+                {presences.presences.map((l) => (
+                  <li
+                    key={l.membreId}
+                    className="flex flex-wrap items-center gap-3 rounded-xl border border-hairline bg-surface-2/40 p-3"
+                  >
+                    <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
+                      {l.prenom} {l.nom}
+                    </span>
+                    <div className="flex gap-1.5" role="group" aria-label={`${l.prenom} ${l.nom}`}>
+                      {PRESENCE_OPTIONS.map((s) => {
+                        const actif = l.statut === s
+                        return (
+                          <button
+                            key={s}
+                            type="button"
+                            disabled={presenceMaj === l.membreId}
+                            aria-pressed={actif}
+                            onClick={() => void ajusterPresence(l.membreId, s)}
+                            className={cn(
+                              'rounded-full border px-2.5 py-1 text-xs font-medium transition-colors disabled:opacity-50',
+                              !actif && 'border-hairline text-faint hover:text-foreground',
+                            )}
+                            style={
+                              actif
+                                ? {
+                                    color: `var(${PRESENCE_TON[s]})`,
+                                    borderColor: `color-mix(in oklch, var(${PRESENCE_TON[s]}) 45%, transparent)`,
+                                    backgroundColor: `color-mix(in oklch, var(${PRESENCE_TON[s]}) 15%, transparent)`,
+                                  }
+                                : undefined
+                            }
+                          >
+                            {t(cleI18n(`monEspace.reunions.rsvp.${s}`))}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </Card>
+      )}
 
       {/* Documents rattachés à la réunion */}
       <DocumentsSection

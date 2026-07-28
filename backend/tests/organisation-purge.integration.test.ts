@@ -120,6 +120,12 @@ async function semer(orgId: string, actif: boolean): Promise<void> {
   await base.resolution.create({
     data: { organisationId: orgId, reunionId: reu.id, texte: 'Résolution' },
   })
+  // `presenceReunion` : nouveau modèle — accès souple car le client généré local peut être obsolète
+  // avant `migrate dev` (compile-avant-regen) ; typé normalement chez le PO après régénération.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await (base as any).presenceReunion.create({
+    data: { organisationId: orgId, reunionId: reu.id, membreId: m.id, statut: 'PRESENT' },
+  })
   const f = await base.fonctionFamiliale.create({ data: { organisationId: orgId, nom: 'Trésorier' } })
   await base.affectationFonction.create({
     data: { organisationId: orgId, fonctionId: f.id, membreId: m.id, dateDebut: new Date('2025-01-01T00:00:00Z') },
@@ -219,7 +225,7 @@ afterAll(async () => {
   await base.$disconnect()
 })
 
-describe('fixture — couverture des 28 modèles', () => {
+describe('fixture — couverture des 29 modèles', () => {
   it('peuple au moins une ligne de CHAQUE modèle scopé (sinon le test ne prouve rien)', async () => {
     const c = await compter(A)
     const vides = Object.entries(c).filter(([, n]) => n === 0).map(([m]) => m)

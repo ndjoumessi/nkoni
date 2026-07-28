@@ -15,7 +15,7 @@ import { Toggle } from '@/components/ui/Toggle'
 import { Skeleton } from '@/components/ui/Skeleton'
 
 /** Types de notification ; libellés résolus via `profil.notifications.types.*`. */
-const TYPES: TypeNotification[] = ['VERSEMENT_RECU', 'COTISATION_RETARD']
+const TYPES: TypeNotification[] = ['VERSEMENT_RECU', 'COTISATION_RETARD', 'REUNION_RAPPEL']
 
 /**
  * Préférences de notification (§5) — un interrupteur par type. Mise à jour optimiste avec

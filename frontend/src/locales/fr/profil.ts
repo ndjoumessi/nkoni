@@ -63,6 +63,10 @@ export default {
           titre: 'Cotisation en retard',
           desc: 'Rappel quand votre cotisation n’est pas à jour.',
         },
+        REUNION_RAPPEL: {
+          titre: 'Rappel de réunion',
+          desc: 'Rappel quand une réunion approche.',
+        },
       },
     },
     langue: {

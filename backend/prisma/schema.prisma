@@ -839,6 +839,7 @@ model AuditLog {
 enum TypeNotification {
   VERSEMENT_RECU
   COTISATION_RETARD
+  REUNION_RAPPEL
 }
 
 model Notification {

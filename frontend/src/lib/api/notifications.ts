@@ -4,7 +4,7 @@ import { request } from './core'
 /* Notifications (§5) — préférences par type                                  */
 /* -------------------------------------------------------------------------- */
 
-export type TypeNotification = 'VERSEMENT_RECU' | 'COTISATION_RETARD'
+export type TypeNotification = 'VERSEMENT_RECU' | 'COTISATION_RETARD' | 'REUNION_RAPPEL'
 export type PreferencesNotification = Record<TypeNotification, boolean>
 
 /** Notification in-app du destinataire (§5). */

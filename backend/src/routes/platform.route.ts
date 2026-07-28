@@ -290,9 +290,9 @@ export const platformRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
         })
       }
 
-      // TRACE HORS BASE — obligatoire : l'AuditLog de l'organisation vient d'être supprimé avec
-      // elle, cette purge n'est donc journalisée NULLE PART ailleurs. (Une table
-      // `PlatformAuditLog` non scopée serait la vraie réponse : dette assumée.)
+      // TRACE HORS BASE — complète (et ne remplace pas) l'entrée `PlatformAuditLog` écrite plus
+      // haut : l'AuditLog de l'organisation vient d'être supprimé avec elle, et les logs Railway
+      // doivent rester diagnostiquables même si la lecture du journal plateforme est indisponible.
       app.log.warn(
         {
           organisationId: id,

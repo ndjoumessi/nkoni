@@ -66,6 +66,9 @@ export const ORDRE_SUPPRESSION: readonly string[] = [
   'Amende',
   'AffectationFonction',
   'FonctionFamiliale',
+  // `PresenceReunion` : FK vers Reunion et Membre en Cascade (aucune contrainte d'ordre), FK org
+  // Restrict → n'importe où avant `Organisation`. Groupé ici avec le cluster réunions.
+  'PresenceReunion',
   'Resolution',
   'PointOrdreDuJour',
   'Reunion',

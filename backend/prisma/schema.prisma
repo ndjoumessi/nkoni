@@ -188,6 +188,7 @@ model Organisation {
   recus                Recu[]
   reunions             Reunion[]
   pointsOrdreDuJour    PointOrdreDuJour[]
+  presencesReunion     PresenceReunion[]
   resolutions          Resolution[]
   fonctions            FonctionFamiliale[]
   affectations         AffectationFonction[]
@@ -304,6 +305,7 @@ model Membre {
   donsCagnotte             DonCagnotte[]                  @relation("DonCagnotteMembre") // Dons faits par ce membre
   amendes                  Amende[]                      @relation("AmendeMembre") // Amendes/pénalités du membre
   paiements                Paiement[]                    @relation("PaiementMembre") // Paiements en ligne initiés par ce membre
+  presencesReunion         PresenceReunion[] // RSVP / présences aux réunions
   organisationsCommeChef   Organisation[]                @relation("ChefOrganisation") // Chef de l'organisation (inverse ; rare : 1)
   // Reçus dont ce membre est le SUJET (FK dénormalisée sur Recu, en Restrict) — c'est ce lien
   // qui garde un reçu ORPHELIN (versement supprimé) atteignable dans son historique.
@@ -499,6 +501,13 @@ enum StatutReunion {
   ANNULEE
 }
 
+// Réponse d'un membre à une réunion (RSVP) / présence réelle constatée.
+enum StatutPresence {
+  PRESENT
+  ABSENT
+  EXCUSE
+}
+
 enum StatutResolution {
   ADOPTEE
   REJETEE
@@ -518,7 +527,27 @@ model Reunion {
   updatedAt         DateTime           @updatedAt
   pointsOrdreDuJour PointOrdreDuJour[]
   resolutions       Resolution[]
+  presences         PresenceReunion[]
 
+  @@index([organisationId])
+}
+
+// RSVP / présence d'un membre à une réunion (§ vie associative). Le membre pose son intention
+// (PRESENT/ABSENT/EXCUSE) depuis son espace ; un dirigeant peut l'ajuster pour refléter la présence
+// réelle. UNE ligne par (réunion, membre). Scopé tenant.
+model PresenceReunion {
+  id             String         @id @default(uuid())
+  organisationId String
+  organisation   Organisation   @relation(fields: [organisationId], references: [id])
+  reunionId      String
+  reunion        Reunion        @relation(fields: [reunionId], references: [id], onDelete: Cascade)
+  membreId       String
+  membre         Membre         @relation(fields: [membreId], references: [id], onDelete: Cascade)
+  statut         StatutPresence
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@unique([reunionId, membreId])
   @@index([organisationId])
 }
 

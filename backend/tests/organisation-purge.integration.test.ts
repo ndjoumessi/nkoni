@@ -230,7 +230,7 @@ afterAll(async () => {
   await base.$disconnect()
 })
 
-describe('fixture — couverture des 30 modèles', () => {
+describe('fixture — couverture des 29 modèles', () => {
   it('peuple au moins une ligne de CHAQUE modèle scopé (sinon le test ne prouve rien)', async () => {
     const c = await compter(A)
     const vides = Object.entries(c).filter(([, n]) => n === 0).map(([m]) => m)

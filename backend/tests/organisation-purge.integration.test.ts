@@ -230,7 +230,10 @@ afterAll(async () => {
   await base.$disconnect()
 })
 
-describe('fixture — couverture des 29 modèles', () => {
+// Libellé DÉRIVÉ de `SCOPED_MODELS.size` et non écrit en dur : recopié à la main, ce compteur
+// dérivait en silence (il a annoncé 30 pour 29 modèles, l'écart s'étant installé sur plusieurs
+// ajouts successifs). Aucun test ne vérifiant la prose, seule la dérivation garantit qu'il dit vrai.
+describe(`fixture — couverture des ${SCOPED_MODELS.size} modèles`, () => {
   it('peuple au moins une ligne de CHAQUE modèle scopé (sinon le test ne prouve rien)', async () => {
     const c = await compter(A)
     const vides = Object.entries(c).filter(([, n]) => n === 0).map(([m]) => m)

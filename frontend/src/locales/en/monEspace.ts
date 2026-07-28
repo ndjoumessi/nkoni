@@ -62,6 +62,13 @@ export default {
       titre: 'Upcoming meetings',
       lieu: 'Location',
       aucune: 'No upcoming meeting.',
+      rsvpQuestion: 'Will you attend?',
+      rsvpEnregistre: 'Response saved.',
+      rsvp: {
+        PRESENT: 'Attending',
+        EXCUSE: 'Excused',
+        ABSENT: 'Absent',
+      },
     },
     recus: {
       titre: 'My receipts',

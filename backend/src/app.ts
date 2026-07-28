@@ -37,6 +37,7 @@ import { dashboardRoutes } from './routes/dashboard.route'
 import { exportsRoutes } from './routes/exports.route'
 import { utilisateursRoutes } from './routes/utilisateurs.route'
 import { reunionsRoutes } from './routes/reunions.route'
+import { reunionPresenceRoutes } from './routes/reunion-presence.route'
 import { resolutionsRoutes } from './routes/resolutions.route'
 import { fonctionsRoutes } from './routes/fonctions.route'
 import { affectationsRoutes } from './routes/affectations.route'
@@ -228,6 +229,7 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   await app.register(exportsRoutes)
   await app.register(utilisateursRoutes)
   await app.register(reunionsRoutes)
+  await app.register(reunionPresenceRoutes)
   await app.register(resolutionsRoutes)
   await app.register(fonctionsRoutes)
   await app.register(affectationsRoutes)

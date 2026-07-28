@@ -1,5 +1,6 @@
-import { API_URL, leverSiErreur, request } from './core'
+import { API_URL, leverSiErreur, request, rid } from './core'
 import type { StatutContribution } from './types'
+import type { StatutPresence } from './reunions'
 
 /* Espace membre self-service (§5) — routes /moi/* --------------------------- */
 
@@ -27,6 +28,8 @@ export interface ReunionAVenir {
   lieu: string
   type: string
   statut: string
+  /** Réponse RSVP du membre pour cette réunion — `null` s'il n'a pas encore répondu. */
+  monStatut: StatutPresence | null
 }
 /** Aperçu de la carte de membre pour un rendu VISUEL dans l'app (même QR signé que le PDF). */
 export interface CarteApercu {
@@ -62,6 +65,13 @@ export const moiApi = {
     request<ContributionMembre[]>('/moi/contributions', { accessToken, signal }),
   reunions: (accessToken: string, signal?: AbortSignal) =>
     request<ReunionAVenir[]>('/moi/reunions', { accessToken, signal }),
+  /** Pose/actualise SA réponse de présence (RSVP) à une réunion. */
+  rsvp: (reunionId: string, statut: StatutPresence, accessToken: string) =>
+    request<{ statut: StatutPresence }>(`/moi/reunions/${rid(reunionId)}/rsvp`, {
+      method: 'PUT',
+      json: { statut },
+      accessToken,
+    }),
   recus: (accessToken: string, signal?: AbortSignal) =>
     request<RecuMembre[]>('/moi/recus', { accessToken, signal }),
   /** Télécharge la carte de membre (PDF avec QR) du compte connecté — proxy authentifié. */

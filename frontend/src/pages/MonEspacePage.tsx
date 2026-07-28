@@ -23,12 +23,14 @@ import {
   type SituationMembre,
   type ContributionMembre,
   type ReunionAVenir,
+  type StatutPresence,
   type RecuMembre,
   type Notification,
   type CarteApercu,
 } from '@/lib/api'
 import { formatMontant, formatPourcent } from '@/lib/format'
 import { cn, formatDate, ouvrirBlobPdf } from '@/lib/utils'
+import { cleI18n } from '@/lib/i18n'
 import { useToast } from '@/components/ui/Toast'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, Overline } from '@/components/ui/Card'
@@ -45,6 +47,14 @@ import { StatutCotisationBadge, StatutMembreBadge } from '@/components/membres/S
 import { CarteMembre } from '@/components/membres/CarteMembre'
 import { TypeReunionBadge } from '@/components/reunions/StatutBadges'
 import type { StatutContribution, StatutMembre, TypeReunion } from '@/lib/api'
+
+/** Ordre d'affichage des réponses RSVP + ton de couleur (jeton) par statut. */
+const RSVP_OPTIONS: StatutPresence[] = ['PRESENT', 'EXCUSE', 'ABSENT']
+const RSVP_TON: Record<StatutPresence, string> = {
+  PRESENT: '--jade',
+  EXCUSE: '--amber',
+  ABSENT: '--terra',
+}
 
 export function MonEspacePage() {
   const { t } = useTranslation()
@@ -64,6 +74,7 @@ export function MonEspacePage() {
   const [carteEnCours, setCarteEnCours] = useState(false)
   const [annulesOuverts, setAnnulesOuverts] = useState(false)
   const [rappelsOuverts, setRappelsOuverts] = useState(false)
+  const [rsvpEnCours, setRsvpEnCours] = useState<string | null>(null)
   const [paiementActif, setPaiementActif] = useState(false)
   // Montant minimum d'un paiement, fourni par le SERVEUR (source unique = PAIEMENT_MONTANT_MIN). Évite
   // tout couplage build-time front/back : plus de variable VITE_ ni de rebuild Vercel à synchroniser.
@@ -171,6 +182,26 @@ export function MonEspacePage() {
       void sonder()
     },
     [accessToken, toast, t],
+  )
+
+  // RSVP : le membre pose SA réponse de présence à une réunion à venir (MAJ optimiste + toast).
+  const repondreRsvp = useCallback(
+    async (reunionId: string, statut: StatutPresence) => {
+      if (!accessToken) return
+      const precedent = reunions
+      setRsvpEnCours(reunionId)
+      setReunions((rs) => rs.map((r) => (r.id === reunionId ? { ...r, monStatut: statut } : r)))
+      try {
+        await moiApi.rsvp(reunionId, statut, accessToken)
+        toast.success(t('monEspace.reunions.rsvpEnregistre'))
+      } catch (e) {
+        setReunions(precedent) // rollback
+        toast.error(messageErreur(e))
+      } finally {
+        setRsvpEnCours(null)
+      }
+    },
+    [accessToken, reunions, toast, t],
   )
 
   // Retour de la page de paiement hébergée (Fapshi) : si un paiement était en cours (id mémorisé AVANT
@@ -549,13 +580,49 @@ export function MonEspacePage() {
         ) : (
           <ul className="mt-4 space-y-2">
             {reunions.map((r) => (
-              <li key={r.id} className="flex items-center gap-3 rounded-xl border border-hairline bg-surface-2/40 p-3.5">
-                <CalendarDays className="h-4 w-4 shrink-0 text-brass" aria-hidden="true" />
-                <div className="min-w-0 flex-1">
-                  <p className="font-medium text-foreground">{formatDate(r.date, { dateStyle: 'long' })}</p>
-                  <p className="mt-0.5 text-xs text-faint">{t('monEspace.reunions.lieu')} : {r.lieu}</p>
+              <li key={r.id} className="rounded-xl border border-hairline bg-surface-2/40 p-3.5">
+                <div className="flex items-center gap-3">
+                  <CalendarDays className="h-4 w-4 shrink-0 text-brass" aria-hidden="true" />
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-foreground">{formatDate(r.date, { dateStyle: 'long' })}</p>
+                    <p className="mt-0.5 text-xs text-faint">{t('monEspace.reunions.lieu')} : {r.lieu}</p>
+                  </div>
+                  <TypeReunionBadge type={r.type as TypeReunion} size="sm" />
                 </div>
-                <TypeReunionBadge type={r.type as TypeReunion} size="sm" />
+                {/* RSVP : le membre annonce sa présence. Pastilles colorées par ton de statut. */}
+                <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-hairline pt-3">
+                  <span className="text-xs text-faint">{t('monEspace.reunions.rsvpQuestion')}</span>
+                  <div className="flex gap-1.5" role="group" aria-label={t('monEspace.reunions.rsvpQuestion')}>
+                    {RSVP_OPTIONS.map((s) => {
+                      const actif = r.monStatut === s
+                      const ton = RSVP_TON[s]
+                      return (
+                        <button
+                          key={s}
+                          type="button"
+                          disabled={rsvpEnCours === r.id}
+                          aria-pressed={actif}
+                          onClick={() => void repondreRsvp(r.id, s)}
+                          className={cn(
+                            'rounded-full border px-3 py-1 text-xs font-medium transition-colors disabled:opacity-50',
+                            !actif && 'border-hairline text-faint hover:text-foreground',
+                          )}
+                          style={
+                            actif
+                              ? {
+                                  color: `var(${ton})`,
+                                  borderColor: `color-mix(in oklch, var(${ton}) 45%, transparent)`,
+                                  backgroundColor: `color-mix(in oklch, var(${ton}) 15%, transparent)`,
+                                }
+                              : undefined
+                          }
+                        >
+                          {t(cleI18n(`monEspace.reunions.rsvp.${s}`))}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
               </li>
             ))}
           </ul>

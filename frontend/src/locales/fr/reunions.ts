@@ -48,6 +48,10 @@ export default {
       crPlaceholder: 'Rédigez le compte-rendu de la séance…',
       crEnregistrer: 'Enregistrer le compte-rendu',
     },
+    presences: {
+      titre: 'Présences',
+      aucune: 'Aucune réponse de présence pour l’instant.',
+    },
     ordreDuJour: {
       titre: 'Ordre du jour',
       aucun: 'Aucun point à l’ordre du jour.',

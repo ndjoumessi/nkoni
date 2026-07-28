@@ -48,6 +48,10 @@ export default {
       crPlaceholder: 'Write the minutes of the session…',
       crEnregistrer: 'Save minutes',
     },
+    presences: {
+      titre: 'Attendance',
+      aucune: 'No attendance response yet.',
+    },
     ordreDuJour: {
       titre: 'Agenda',
       aucun: 'No agenda item.',

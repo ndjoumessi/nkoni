@@ -43,7 +43,13 @@ function buildMock(membre: any) {
     reunion: {
       findMany: async ({ where }: any) => {
         calls.reunionWhere = where
-        return []
+        return [{ id: 'r1', date: new Date(), lieu: 'Yaoundé', type: 'ORDINAIRE', statut: 'PLANIFIEE' }]
+      },
+    },
+    presenceReunion: {
+      findMany: async ({ where }: any) => {
+        calls.presenceWhere = where
+        return [{ reunionId: 'r1', statut: 'EXCUSE' }]
       },
     },
     versement: {
@@ -141,10 +147,14 @@ describe('Espace membre /moi/* — membre lié', () => {
     expect(calls.contributionWhere).toEqual({ membreId: 'm1' })
   })
 
-  it('GET /moi/reunions → réunions à venir (non annulées)', async () => {
+  it('GET /moi/reunions → réunions à venir (non annulées) + son statut RSVP fusionné', async () => {
     const res = await app.inject({ method: 'GET', url: '/moi/reunions', headers: auth() })
     expect(res.statusCode).toBe(200)
     expect(calls.reunionWhere).toMatchObject({ statut: { not: 'ANNULEE' } })
+    // La présence n'est lue QUE pour le membre résolu par le sub, bornée aux réunions listées.
+    expect(calls.presenceWhere).toMatchObject({ membreId: 'm1', reunionId: { in: ['r1'] } })
+    const body = res.json()
+    expect(body[0]).toMatchObject({ id: 'r1', monStatut: 'EXCUSE' })
   })
 })
 

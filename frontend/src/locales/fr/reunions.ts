@@ -47,6 +47,7 @@ export default {
       aucunCompteRendu: 'Aucun compte-rendu.',
       crPlaceholder: 'Rédigez le compte-rendu de la séance…',
       crEnregistrer: 'Enregistrer le compte-rendu',
+      crTelecharger: 'Télécharger le PDF',
     },
     presences: {
       titre: 'Présences',

@@ -1,4 +1,4 @@
-import { request, rid } from './core'
+import { API_URL, leverSiErreur, request, rid } from './core'
 
 /* -------------------------------------------------------------------------- */
 /* Réunions, Ordre du jour, Résolutions (V1.1 §5)                            */
@@ -151,4 +151,13 @@ export const reunionsApi = {
       `/reunions/${rid(reunionId)}/presences/${rid(membreId)}`,
       { method: 'PUT', json: { statut }, accessToken },
     ),
+  /** Télécharge le compte-rendu en PDF (régénéré à la volée, proxy authentifié) — Blob. */
+  compteRenduPdf: async (reunionId: string, accessToken: string): Promise<Blob> => {
+    const res = await fetch(`${API_URL}/reunions/${rid(reunionId)}/compte-rendu.pdf`, {
+      credentials: 'include',
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+    await leverSiErreur(res)
+    return res.blob()
+  },
 }

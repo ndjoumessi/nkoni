@@ -181,4 +181,34 @@ describe('Réunions (§5)', () => {
     })
     expect(res.statusCode).toBe(404)
   })
+
+  /* Compte-rendu PDF -------------------------------------------------------- */
+
+  it('GET /reunions/:id/compte-rendu.pdf → 200 + PDF (%PDF)', async () => {
+    const id = (
+      await creer({ ...reunionBase, compteRenduTexte: 'Séance ouverte à 10h.', pointsOrdreDuJour: [{ titre: 'Budget' }] })
+    ).json().id
+    const res = await app.inject({
+      method: 'GET',
+      url: `/reunions/${id}/compte-rendu.pdf`,
+      headers: auth('MEMBRE_SIMPLE'), // la LECTURE est ouverte à MEMBRE_SIMPLE
+    })
+    expect(res.statusCode).toBe(200)
+    expect(res.headers['content-type']).toBe('application/pdf')
+    expect(res.rawPayload.subarray(0, 4).toString()).toBe('%PDF')
+  })
+
+  it('compte-rendu PDF d’une réunion inconnue → 404', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: '/reunions/nope/compte-rendu.pdf',
+      headers: auth('ADMIN'),
+    })
+    expect(res.statusCode).toBe(404)
+  })
+
+  it('compte-rendu PDF sans authentification → 401', async () => {
+    const res = await app.inject({ method: 'GET', url: '/reunions/x/compte-rendu.pdf' })
+    expect(res.statusCode).toBe(401)
+  })
 })

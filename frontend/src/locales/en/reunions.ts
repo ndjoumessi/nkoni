@@ -47,6 +47,7 @@ export default {
       aucunCompteRendu: 'No minutes.',
       crPlaceholder: 'Write the minutes of the session…',
       crEnregistrer: 'Save minutes',
+      crTelecharger: 'Download PDF',
     },
     presences: {
       titre: 'Attendance',

@@ -16,6 +16,7 @@ import {
   PointIntrouvableError,
   ReordonnancementInvalideError,
 } from '../services/reunion.service'
+import { genererCompteRenduPdf } from '../services/compte-rendu-pdf.service'
 
 /**
  * V1.1 (§5) — Réunions + Ordre du jour.
@@ -138,6 +139,50 @@ export const reunionsRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
         if (reply4xxSiMetier(err, reply)) return
         throw err
       }
+    },
+  )
+
+  // GET /reunions/:id/compte-rendu.pdf — compte-rendu en PDF (régénéré à la volée, non stocké).
+  // Lecture (matrice `Reunion`/read) ; locale = langue de l'appelant. Scopé tenant → un id d'une
+  // autre org lève `ReunionIntrouvableError` → 404 (isolation, pas de fuite d'existence).
+  app.get<{ Params: { id: string } }>(
+    '/reunions/:id/compte-rendu.pdf',
+    { preHandler: [authenticate, perm('read')] },
+    async (req, reply) => {
+      let reunion
+      try {
+        reunion = await getReunion(app.prisma, req.params.id)
+      } catch (err) {
+        if (reply4xxSiMetier(err, reply)) return
+        throw err
+      }
+      const buffer = await genererCompteRenduPdf(
+        {
+          date: reunion.date,
+          lieu: reunion.lieu,
+          type: reunion.type,
+          statut: reunion.statut,
+          points: reunion.pointsOrdreDuJour.map((p: { titre: string; notes: string | null }) => ({
+            titre: p.titre,
+            notes: p.notes,
+          })),
+          resolutions: reunion.resolutions.map(
+            (r: { texte: string; statut: string; dateVote: Date | null }) => ({
+              texte: r.texte,
+              statut: r.statut,
+              dateVote: r.dateVote,
+            }),
+          ),
+          compteRenduTexte: reunion.compteRenduTexte,
+        },
+        langueDeRequete(req),
+      )
+      reply.header('Content-Type', 'application/pdf')
+      reply.header(
+        'Content-Disposition',
+        `inline; filename="compte-rendu-${req.params.id}.pdf"`,
+      )
+      return reply.send(buffer)
     },
   )
 

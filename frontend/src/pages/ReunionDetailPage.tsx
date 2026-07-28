@@ -5,6 +5,7 @@ import {
   ArrowDown,
   ArrowUp,
   CalendarRange,
+  Download,
   FileText,
   Gavel,
   ListChecks,
@@ -33,7 +34,7 @@ import {
   peutGererDocument,
 } from '@/lib/roles'
 import { DocumentsSection } from '@/components/documents/DocumentsSection'
-import { cn, formatDate, focusPremierChampInvalide } from '@/lib/utils'
+import { cn, formatDate, focusPremierChampInvalide, ouvrirBlobPdf } from '@/lib/utils'
 import { cleI18n } from '@/lib/i18n'
 import { useToast } from '@/components/ui/Toast'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -101,6 +102,9 @@ export function ReunionDetailPage() {
   const [presences, setPresences] = useState<PresencesReunion | null>(null)
   const [presenceMaj, setPresenceMaj] = useState<string | null>(null)
 
+  // Téléchargement du compte-rendu PDF.
+  const [crPdfEnCours, setCrPdfEnCours] = useState(false)
+
   useEffect(() => {
     if (!accessToken || !id) return
     const controller = new AbortController()
@@ -137,6 +141,20 @@ export function ReunionDetailPage() {
     reunion?.pointsOrdreDuJour.forEach((p, i) => map.set(p.id, `${i + 1}. ${p.titre}`))
     return map
   }, [reunion])
+
+  // Télécharge le compte-rendu en PDF (régénéré côté serveur) et l'ouvre.
+  const telechargerCompteRenduPdf = async () => {
+    if (!accessToken || !reunion) return
+    setCrPdfEnCours(true)
+    try {
+      const blob = await reunionsApi.compteRenduPdf(reunion.id, accessToken)
+      ouvrirBlobPdf(blob)
+    } catch (e) {
+      toast.error(messageErreur(e))
+    } finally {
+      setCrPdfEnCours(false)
+    }
+  }
 
   // Le dirigeant ajuste la présence RÉELLE constatée d'un membre (MAJ optimiste + décompte recalculé).
   const ajusterPresence = async (membreId: string, statut: StatutPresence) => {
@@ -382,9 +400,21 @@ export function ReunionDetailPage() {
 
       {/* Compte-rendu */}
       <Card className="nk-reveal nk-d2 mt-6 p-6">
-        <div className="flex items-center gap-2">
-          <FileText className="h-4 w-4 text-brass" aria-hidden="true" />
-          <Overline>{t('reunions.detail.compteRendu')}</Overline>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <FileText className="h-4 w-4 text-brass" aria-hidden="true" />
+            <Overline>{t('reunions.detail.compteRendu')}</Overline>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            icon={Download}
+            loading={crPdfEnCours}
+            onClick={telechargerCompteRenduPdf}
+          >
+            {t('reunions.detail.crTelecharger')}
+          </Button>
         </div>
         {crReadOnly ? (
           <p className="mt-4 whitespace-pre-wrap break-words text-pretty text-sm leading-relaxed text-muted-foreground">

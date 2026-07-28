@@ -117,14 +117,19 @@ async function semer(orgId: string, actif: boolean): Promise<void> {
   await base.pointOrdreDuJour.create({
     data: { organisationId: orgId, reunionId: reu.id, titre: 'Point 1', ordre: 1 },
   })
-  await base.resolution.create({
+  const reso = await base.resolution.create({
     data: { organisationId: orgId, reunionId: reu.id, texte: 'Résolution' },
   })
-  // `presenceReunion` : nouveau modèle — accès souple car le client généré local peut être obsolète
-  // avant `migrate dev` (compile-avant-regen) ; typé normalement chez le PO après régénération.
+  // `presenceReunion` / `vote` : nouveaux modèles — accès souple car le client généré local peut
+  // être obsolète avant `migrate dev` (compile-avant-regen) ; typé normalement chez le PO après
+  // régénération.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await (base as any).presenceReunion.create({
     data: { organisationId: orgId, reunionId: reu.id, membreId: m.id, statut: 'PRESENT' },
+  })
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await (base as any).vote.create({
+    data: { organisationId: orgId, resolutionId: reso.id, membreId: m.id, sens: 'POUR' },
   })
   const f = await base.fonctionFamiliale.create({ data: { organisationId: orgId, nom: 'Trésorier' } })
   await base.affectationFonction.create({
@@ -225,7 +230,10 @@ afterAll(async () => {
   await base.$disconnect()
 })
 
-describe('fixture — couverture des 29 modèles', () => {
+// Libellé DÉRIVÉ de `SCOPED_MODELS.size` et non écrit en dur : recopié à la main, ce compteur
+// dérivait en silence (il a annoncé 30 pour 29 modèles, l'écart s'étant installé sur plusieurs
+// ajouts successifs). Aucun test ne vérifiant la prose, seule la dérivation garantit qu'il dit vrai.
+describe(`fixture — couverture des ${SCOPED_MODELS.size} modèles`, () => {
   it('peuple au moins une ligne de CHAQUE modèle scopé (sinon le test ne prouve rien)', async () => {
     const c = await compter(A)
     const vides = Object.entries(c).filter(([, n]) => n === 0).map(([m]) => m)

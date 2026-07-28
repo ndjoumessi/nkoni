@@ -190,6 +190,7 @@ model Organisation {
   pointsOrdreDuJour    PointOrdreDuJour[]
   presencesReunion     PresenceReunion[]
   resolutions          Resolution[]
+  votes                Vote[]
   fonctions            FonctionFamiliale[]
   affectations         AffectationFonction[]
   conflits             Conflit[]
@@ -306,6 +307,7 @@ model Membre {
   amendes                  Amende[]                      @relation("AmendeMembre") // Amendes/pénalités du membre
   paiements                Paiement[]                    @relation("PaiementMembre") // Paiements en ligne initiés par ce membre
   presencesReunion         PresenceReunion[] // RSVP / présences aux réunions
+  votes                    Vote[] // Votes exprimés sur les résolutions (§ votes en ligne)
   organisationsCommeChef   Organisation[]                @relation("ChefOrganisation") // Chef de l'organisation (inverse ; rare : 1)
   // Reçus dont ce membre est le SUJET (FK dénormalisée sur Recu, en Restrict) — c'est ce lien
   // qui garde un reçu ORPHELIN (versement supprimé) atteignable dans son historique.
@@ -514,6 +516,13 @@ enum StatutResolution {
   REPORTEE
 }
 
+// Sens d'un vote de membre sur une résolution (§ vie associative — votes en ligne).
+enum SensVote {
+  POUR
+  CONTRE
+  ABSTENTION
+}
+
 model Reunion {
   id                String             @id @default(uuid())
   organisationId    String
@@ -582,7 +591,27 @@ model Resolution {
   dateVote           DateTime?
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
+  votes              Vote[]
 
+  @@index([organisationId])
+}
+
+// Vote d'un membre sur une résolution (§ vie associative — votes en ligne). Le membre exprime son
+// sens (POUR/CONTRE/ABSTENTION) depuis son espace ; UNE ligne par (résolution, membre) — revoter
+// écrase. Scopé tenant. Le dépouillement et la clôture (statut dérivé du tally) vivent en service.
+model Vote {
+  id             String       @id @default(uuid())
+  organisationId String
+  organisation   Organisation @relation(fields: [organisationId], references: [id])
+  resolutionId   String
+  resolution     Resolution   @relation(fields: [resolutionId], references: [id], onDelete: Cascade)
+  membreId       String
+  membre         Membre       @relation(fields: [membreId], references: [id], onDelete: Cascade)
+  sens           SensVote
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([resolutionId, membreId])
   @@index([organisationId])
 }
 

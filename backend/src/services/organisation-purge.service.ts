@@ -69,6 +69,9 @@ export const ORDRE_SUPPRESSION: readonly string[] = [
   // `PresenceReunion` : FK vers Reunion et Membre en Cascade (aucune contrainte d'ordre), FK org
   // Restrict → n'importe où avant `Organisation`. Groupé ici avec le cluster réunions.
   'PresenceReunion',
+  // `Vote` : FK vers Resolution et Membre en Cascade (aucune contrainte d'ordre), FK org Restrict
+  // → n'importe où avant `Organisation`. Placé avant `Resolution`, avec le cluster réunions.
+  'Vote',
   'Resolution',
   'PointOrdreDuJour',
   'Reunion',

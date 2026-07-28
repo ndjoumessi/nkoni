@@ -19,7 +19,7 @@ export default {
       AUTRE: 'Other',
     },
     statuts: { IMPAYEE: 'Unpaid', PAYEE: 'Paid', ANNULEE: 'Cancelled' },
-    modes: { ESPECES: 'Cash', TIERS: 'Third party', AUTRE: 'Other' },
+    modes: { ESPECES: 'Cash', TIERS: 'Third party', MOBILE_MONEY: 'Mobile Money', AUTRE: 'Other' },
     colonnes: {
       membre: 'Member',
       type: 'Type',

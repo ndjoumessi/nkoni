@@ -15,7 +15,7 @@ export interface RepartitionStatutContribution {
 
 /* Mode de versement (versements, cagnottes, amendes) ------------------------- */
 
-export type ModeVersement = 'ESPECES' | 'TIERS' | 'AUTRE'
+export type ModeVersement = 'ESPECES' | 'TIERS' | 'MOBILE_MONEY' | 'AUTRE'
 
 /* Pagination générique (miroir de `backend/src/lib/pagination.ts::PageResultat`) */
 

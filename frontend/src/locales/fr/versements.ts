@@ -4,6 +4,7 @@ export default {
     modes: {
       ESPECES: 'Espèces',
       TIERS: 'Tiers',
+      MOBILE_MONEY: 'Mobile Money',
       AUTRE: 'Autre',
     },
     resume: '{{montant}} · année {{annee}}',

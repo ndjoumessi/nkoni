@@ -28,7 +28,7 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { Badge } from '@/components/ui/Badge'
 import { anneeCouranteApp } from '@/lib/date-app'
 
-const MODES: ModeVersement[] = ['ESPECES', 'TIERS', 'AUTRE']
+const MODES: ModeVersement[] = ['ESPECES', 'TIERS', 'MOBILE_MONEY', 'AUTRE']
 
 const aujourdHui = (): string => new Date().toISOString().slice(0, 10)
 

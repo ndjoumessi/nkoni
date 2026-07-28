@@ -8,19 +8,22 @@ import {
   lirePreferences,
   majPreferences,
   NotificationIntrouvableError,
+  TYPES_NOTIFICATION,
+  type PreferencesNotification,
 } from '../services/notification.service'
 
+// Propriétés DÉRIVÉES de `TYPES_NOTIFICATION` (source unique) et non recopiées : avec
+// `additionalProperties: false`, une liste figée ici rejette en 400 tout type ajouté ailleurs —
+// l'interrupteur existe dans l'UI, le scheduler respecte la préférence, mais elle est
+// INENREGISTRABLE. C'était le cas de REUNION_RAPPEL. Dérivé, le trou ne peut plus se rouvrir.
 const preferencesSchema = {
   body: {
     type: 'object',
     additionalProperties: false,
     minProperties: 1,
-    properties: {
-      VERSEMENT_RECU: { type: 'boolean' },
-      COTISATION_RETARD: { type: 'boolean' },
-    },
+    properties: Object.fromEntries(TYPES_NOTIFICATION.map((t) => [t, { type: 'boolean' }])),
   },
-} as const
+}
 
 /**
  * Notifications in-app (§5) — chacun ne voit et ne modifie QUE les siennes.
@@ -54,7 +57,7 @@ export const notificationsRoutes: FastifyPluginAsync = async (app: FastifyInstan
     return lirePreferences(app.prisma, req.user.sub ?? '')
   })
 
-  app.patch<{ Body: { VERSEMENT_RECU?: boolean; COTISATION_RETARD?: boolean } }>(
+  app.patch<{ Body: Partial<PreferencesNotification> }>(
     '/notifications/preferences',
     { schema: preferencesSchema, preHandler: [authenticate] },
     async (req) => {

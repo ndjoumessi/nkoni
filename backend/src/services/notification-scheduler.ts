@@ -36,7 +36,7 @@ import {
   resoudreLangueDestinataire,
   type NotificationPrisma,
 } from './notification.service'
-import { t } from '../lib/i18n'
+import { t, formatDateHeure } from '../lib/i18n'
 import { orgContext } from '../lib/org-context'
 import { anneeCouranteApp } from '../lib/date-app'
 
@@ -60,6 +60,10 @@ export interface SchedulerPrisma extends NotificationPrisma {
   organisation: {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     findMany(args?: any): Promise<{ id: string }[]>
+  }
+  reunion: {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    findMany(args?: any): Promise<{ id: string; date: Date; lieu: string }[]>
   }
 }
 
@@ -177,6 +181,94 @@ export async function executerVerificationRetardsToutesOrgs(
   return resultats
 }
 
+/* -------------------------------------------------------------------------- */
+/* Rappels de réunion (REUNION_RAPPEL)                                        */
+/* -------------------------------------------------------------------------- */
+
+/** Fenêtre de rappel : on prévient pour les réunions à venir dans les 48 h. */
+const FENETRE_RAPPEL_JOURS = 2
+
+export interface RappelsReunionsResult {
+  /** Réunions dans la fenêtre examinées. */
+  reunions: number
+  /** Notifications REUNION_RAPPEL effectivement créées. */
+  notifies: number
+}
+
+/**
+ * Point d'entrée MANUEL (testable) des rappels de réunion pour l'organisation en contexte.
+ *
+ * Pour chaque réunion NON annulée dont la date tombe dans les `FENETRE_RAPPEL_JOURS` à venir,
+ * on prévient CHAQUE membre ACTIF ayant un compte lié (une réunion est collective — le rappel
+ * ne dépend PAS de la réponse RSVP). Dédoublonnage : une réunion déjà annoncée à ce membre
+ * (une notification REUNION_RAPPEL portant `entiteId = reunion.id`) n'en regénère pas —
+ * la tâche est quotidienne et la fenêtre de 48 h, donc sans ce garde une même réunion serait
+ * rappelée deux nuits de suite. Préférence utilisateur respectée (REUNION_RAPPEL désactivable).
+ *
+ * @param now horloge injectée (borne de la fenêtre) → déterministe, testable sans cron.
+ */
+export async function executerRappelsReunions(
+  prisma: SchedulerPrisma,
+  now: Date = new Date(),
+): Promise<RappelsReunionsResult> {
+  const borneHaute = new Date(now.getTime() + FENETRE_RAPPEL_JOURS * MS_PAR_JOUR)
+  const reunions = await prisma.reunion.findMany({
+    where: { date: { gte: now, lte: borneHaute }, statut: { not: 'ANNULEE' } },
+    select: { id: true, date: true, lieu: true },
+    orderBy: { date: 'asc' },
+  })
+  if (reunions.length === 0) return { reunions: 0, notifies: 0 }
+
+  const membres = await prisma.membre.findMany({
+    where: { statut: 'ACTIF', compteUtilisateurId: { not: null } },
+    select: { id: true, compteUtilisateurId: true },
+  })
+
+  let notifies = 0
+  for (const r of reunions) {
+    for (const m of membres) {
+      const destinataireId = m.compteUtilisateurId as string
+      if (!(await estTypeActifPour(prisma, destinataireId, 'REUNION_RAPPEL'))) continue
+      // Déjà annoncée à ce membre pour CETTE réunion ? (un rappel par réunion et par membre.)
+      const dejaAnnonce = await prisma.notification.findFirst({
+        where: { destinataireId, type: 'REUNION_RAPPEL', entiteType: 'Reunion', entiteId: r.id },
+      })
+      if (dejaAnnonce) continue
+
+      const langue = await resoudreLangueDestinataire(prisma, destinataireId)
+      await creerNotification(prisma, {
+        destinataireId,
+        type: 'REUNION_RAPPEL',
+        titre: t(langue, 'notifications.reunionRappel.titre'),
+        message: t(langue, 'notifications.reunionRappel.message', {
+          date: formatDateHeure(r.date, langue),
+          lieu: r.lieu,
+        }),
+        entiteType: 'Reunion',
+        entiteId: r.id,
+      })
+      notifies += 1
+    }
+  }
+  return { reunions: reunions.length, notifies }
+}
+
+/** Rappels de réunion POUR TOUTES LES ORGANISATIONS ACTIVES (même patron d'itération scopée). */
+export async function executerRappelsReunionsToutesOrgs(
+  prisma: SchedulerPrisma,
+  now: Date = new Date(),
+): Promise<(RappelsReunionsResult & { organisationId: string })[]> {
+  const orgs = await prisma.organisation.findMany({ where: { actif: true }, select: { id: true } })
+  const resultats: (RappelsReunionsResult & { organisationId: string })[] = []
+  for (const org of orgs) {
+    const r = await orgContext.run({ organisationId: org.id }, async () =>
+      executerRappelsReunions(prisma, now),
+    )
+    resultats.push({ organisationId: org.id, ...r })
+  }
+  return resultats
+}
+
 /**
  * Enregistre le cron quotidien (03:00, Africa/Douala). À appeler UNE FOIS depuis le
  * bootstrap serveur, après app.listen. N'est jamais appelé par buildApp (donc pas en test).
@@ -207,29 +299,42 @@ export function demarrerScheduler(app: FastifyInstance): void {
               app.log.info('Scheduler : verrou non obtenu (autre instance) → passage ignoré')
               return null
             }
-            return executerVerificationRetardsToutesOrgs(tx as SchedulerPrisma, anneeCourante)
+            // Deux tâches de nuit sous LE MÊME verrou : retards de cotisation + rappels de réunion.
+            const retards = await executerVerificationRetardsToutesOrgs(
+              tx as SchedulerPrisma,
+              anneeCourante,
+            )
+            const rappels = await executerRappelsReunionsToutesOrgs(tx as SchedulerPrisma)
+            return { retards, rappels }
           },
           { timeout: 10 * 60 * 1000 },
         )
         .then((resultats) => {
           if (!resultats) return
-          const verifies = resultats.reduce((s, r) => s + r.verifies, 0)
-          const notifies = resultats.reduce((s, r) => s + r.notifies, 0)
+          const { retards, rappels } = resultats
+          const verifies = retards.reduce((s, r) => s + r.verifies, 0)
+          const notifies = retards.reduce((s, r) => s + r.notifies, 0)
+          const rappelsNotifies = rappels.reduce((s, r) => s + r.notifies, 0)
           app.log.info(
-            { organisations: resultats.length, verifies, notifies },
-            'Vérification quotidienne des retards de cotisation terminée (toutes organisations)',
+            { organisations: retards.length, verifies, notifies, rappelsNotifies },
+            'Tâches de nuit terminées (retards de cotisation + rappels de réunion, toutes organisations)',
           )
         })
         .catch((err) => {
-          app.log.error({ err }, 'Vérification des retards de cotisation échouée')
+          app.log.error({ err }, 'Tâches de nuit (retards + rappels de réunion) échouées')
           // Observabilité (0.1) : un scheduler qui échoue est SILENCIEUX par nature — personne
           // n'attend sa sortie, et un `log.error` à 03:00 dans Railway ne réveille personne. Il
           // pourrait échouer toutes les nuits sans que quiconque le remarque, les relances de
           // cotisation cessant simplement de partir. C'est précisément le cas que 0.1 vise.
-          app.observabilite.signaler(err, { source: 'scheduler', tache: 'COTISATION_RETARD' })
+          app.observabilite.signaler(err, {
+            source: 'scheduler',
+            tache: 'COTISATION_RETARD+REUNION_RAPPEL',
+          })
         })
     },
     { timezone: 'Africa/Douala' },
   )
-  app.log.info('Scheduler notifications démarré (COTISATION_RETARD — 03:00 Africa/Douala)')
+  app.log.info(
+    'Scheduler notifications démarré (COTISATION_RETARD + REUNION_RAPPEL — 03:00 Africa/Douala)',
+  )
 }

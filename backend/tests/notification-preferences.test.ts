@@ -5,6 +5,7 @@ import {
   lirePreferences,
   majPreferences,
   typeActif,
+  TYPES_NOTIFICATION,
 } from '../src/services/notification.service'
 import { buildNotificationsMock } from './support/notifications-prisma-mock'
 
@@ -28,17 +29,19 @@ describe('lire / maj préférences (service)', () => {
     expect(await lirePreferences(prisma, 'u1')).toEqual({
       VERSEMENT_RECU: true,
       COTISATION_RETARD: true,
+      REUNION_RAPPEL: true,
     })
   })
 
   it('maj désactive un type et laisse l’autre actif', async () => {
     const { prisma } = buildNotificationsMock({ utilisateurs: [{ id: 'u1' }] })
     const apres = await majPreferences(prisma, 'u1', { COTISATION_RETARD: false })
-    expect(apres).toEqual({ VERSEMENT_RECU: true, COTISATION_RETARD: false })
+    expect(apres).toEqual({ VERSEMENT_RECU: true, COTISATION_RETARD: false, REUNION_RAPPEL: true })
     // Persisté : une relecture renvoie le même état.
     expect(await lirePreferences(prisma, 'u1')).toEqual({
       VERSEMENT_RECU: true,
       COTISATION_RETARD: false,
+      REUNION_RAPPEL: true,
     })
   })
 })
@@ -67,7 +70,7 @@ describe('Routes préférences', () => {
       headers: auth('u-a'),
     })
     expect(res.statusCode).toBe(200)
-    expect(res.json()).toEqual({ VERSEMENT_RECU: true, COTISATION_RETARD: true })
+    expect(res.json()).toEqual({ VERSEMENT_RECU: true, COTISATION_RETARD: true, REUNION_RAPPEL: true })
   })
 
   it('PATCH met à jour et GET reflète la désactivation', async () => {
@@ -78,14 +81,32 @@ describe('Routes préférences', () => {
       payload: { VERSEMENT_RECU: false },
     })
     expect(patch.statusCode).toBe(200)
-    expect(patch.json()).toEqual({ VERSEMENT_RECU: false, COTISATION_RETARD: true })
+    expect(patch.json()).toEqual({ VERSEMENT_RECU: false, COTISATION_RETARD: true, REUNION_RAPPEL: true })
 
     const get = await app.inject({
       method: 'GET',
       url: '/notifications/preferences',
       headers: auth('u-a'),
     })
-    expect(get.json()).toEqual({ VERSEMENT_RECU: false, COTISATION_RETARD: true })
+    expect(get.json()).toEqual({ VERSEMENT_RECU: false, COTISATION_RETARD: true, REUNION_RAPPEL: true })
+  })
+
+  // RÉGRESSION : le schéma ajv des préférences porte `additionalProperties: false`. Tant que ses
+  // propriétés étaient RECOPIÉES à la main, un type ajouté ailleurs (ici REUNION_RAPPEL) était
+  // rejeté en 400 — interrupteur présent dans l'UI, préférence respectée par le scheduler, mais
+  // INENREGISTRABLE. Les tests existants ne l'ont pas vu : ils affirmaient REUNION_RAPPEL dans la
+  // RÉPONSE (il est dans les défauts) sans jamais l'ENVOYER. Ce cas l'envoie.
+  it('PATCH accepte CHAQUE type de TYPES_NOTIFICATION (schéma dérivé, pas recopié)', async () => {
+    for (const type of TYPES_NOTIFICATION) {
+      const res = await app.inject({
+        method: 'PATCH',
+        url: '/notifications/preferences',
+        headers: auth('u-a'),
+        payload: { [type]: false },
+      })
+      expect(res.statusCode, `le type ${type} doit être enregistrable`).toBe(200)
+      expect(res.json()[type]).toBe(false)
+    }
   })
 
   it('isolation : la préférence de u-a n’affecte pas u-b', async () => {
@@ -100,6 +121,6 @@ describe('Routes préférences', () => {
       url: '/notifications/preferences',
       headers: auth('u-b'),
     })
-    expect(resB.json()).toEqual({ VERSEMENT_RECU: true, COTISATION_RETARD: true })
+    expect(resB.json()).toEqual({ VERSEMENT_RECU: true, COTISATION_RETARD: true, REUNION_RAPPEL: true })
   })
 })

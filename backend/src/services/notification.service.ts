@@ -13,10 +13,14 @@
 
 import { t, formatMontant, type Langue, type Devise } from '../lib/i18n'
 
-export type TypeNotification = 'VERSEMENT_RECU' | 'COTISATION_RETARD'
+export type TypeNotification = 'VERSEMENT_RECU' | 'COTISATION_RETARD' | 'REUNION_RAPPEL'
 
 /** Tous les types de notification (source unique pour les préférences). */
-export const TYPES_NOTIFICATION: TypeNotification[] = ['VERSEMENT_RECU', 'COTISATION_RETARD']
+export const TYPES_NOTIFICATION: TypeNotification[] = [
+  'VERSEMENT_RECU',
+  'COTISATION_RETARD',
+  'REUNION_RAPPEL',
+]
 
 /** Préférences normalisées : un booléen par type (true = activé). */
 export type PreferencesNotification = Record<TypeNotification, boolean>

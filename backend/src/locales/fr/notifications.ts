@@ -8,4 +8,6 @@ export const messages = {
     "Votre versement de {montant} pour l'année {annee} a été enregistré.",
   'notifications.cotisationRetard.titre': 'Cotisation en retard',
   'notifications.cotisationRetard.message': "Votre cotisation n'est pas à jour.",
+  'notifications.reunionRappel.titre': 'Réunion à venir',
+  'notifications.reunionRappel.message': 'Réunion le {date} à {lieu}.',
 } as const

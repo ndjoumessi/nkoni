@@ -5,4 +5,6 @@ export const messages = {
     'Your payment of {montant} for year {annee} has been recorded.',
   'notifications.cotisationRetard.titre': 'Contribution overdue',
   'notifications.cotisationRetard.message': 'Your contribution is not up to date.',
+  'notifications.reunionRappel.titre': 'Upcoming meeting',
+  'notifications.reunionRappel.message': 'Meeting on {date} at {lieu}.',
 }

@@ -51,6 +51,8 @@ export interface NotificationsMockOptions {
   utilisateurs?: UtilisateurSeed[]
   /** Organisations actives renvoyées par `organisation.findMany` (wrapper multi-org). */
   organisations?: { id: string }[]
+  /** Réunions renvoyées par `reunion.findMany` (rappels de réunion). */
+  reunions?: { id: string; date: Date; lieu: string; statut?: string }[]
 }
 
 function matchNotif(n: StoredNotif, where: any = {}): boolean {
@@ -58,6 +60,8 @@ function matchNotif(n: StoredNotif, where: any = {}): boolean {
   if (where.destinataireId !== undefined && n.destinataireId !== where.destinataireId) return false
   if (where.lu !== undefined && n.lu !== where.lu) return false
   if (where.type !== undefined && n.type !== where.type) return false
+  if (where.entiteType !== undefined && n.entiteType !== where.entiteType) return false
+  if (where.entiteId !== undefined && n.entiteId !== where.entiteId) return false
   if (where.dateCreation?.gte !== undefined && n.dateCreation < where.dateCreation.gte) return false
   return true
 }
@@ -153,6 +157,16 @@ export function buildNotificationsMock(options: NotificationsMockOptions = {}) {
     },
     organisation: {
       findMany: async () => (options.organisations ?? []).map((o) => ({ ...o })),
+    },
+    reunion: {
+      findMany: async ({ where = {} }: any = {}) => {
+        let res = (options.reunions ?? []).map((r) => ({ statut: 'PLANIFIEE', ...r }))
+        if (where.date?.gte !== undefined) res = res.filter((r) => r.date >= where.date.gte)
+        if (where.date?.lte !== undefined) res = res.filter((r) => r.date <= where.date.lte)
+        // statut: { not: 'ANNULEE' }
+        if (where.statut?.not !== undefined) res = res.filter((r) => r.statut !== where.statut.not)
+        return res.map((r) => ({ id: r.id, date: r.date, lieu: r.lieu }))
+      },
     },
     utilisateur: {
       findUnique: async ({ where }: any) => {

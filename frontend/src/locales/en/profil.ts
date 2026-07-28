@@ -62,6 +62,10 @@ export default {
           titre: 'Contribution overdue',
           desc: 'Reminder when your contribution is not up to date.',
         },
+        REUNION_RAPPEL: {
+          titre: 'Meeting reminder',
+          desc: 'Reminder when a meeting is coming up.',
+        },
       },
     },
     langue: {

@@ -25,7 +25,7 @@ import {
  */
 
 const TYPES = ['DEUIL', 'MARIAGE', 'NAISSANCE', 'AUTRE'] as const
-const MODES = ['ESPECES', 'TIERS', 'AUTRE'] as const
+const MODES = ['ESPECES', 'TIERS', 'MOBILE_MONEY', 'AUTRE'] as const
 const ROLES_ARGENT: readonly Role[] = ['ADMIN', 'PRESIDENT', 'TRESORIERE']
 
 

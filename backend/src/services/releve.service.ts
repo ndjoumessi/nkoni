@@ -28,7 +28,7 @@ export interface MouvementReleve {
   date: Date
   annee: number
   montant: number
-  mode: 'ESPECES' | 'TIERS' | 'AUTRE'
+  mode: 'ESPECES' | 'TIERS' | 'MOBILE_MONEY' | 'AUTRE'
 }
 
 export type StatutReleve = 'A_JOUR' | 'PARTIEL' | 'NON_A_JOUR'
@@ -79,7 +79,7 @@ function libelles(langue: Langue): LibellesReleve {
         syntheseReste: 'Outstanding',
         syntheseStatut: 'Status',
         statuts: { A_JOUR: 'Up to date', PARTIEL: 'Partial', NON_A_JOUR: 'Overdue' },
-        modes: { ESPECES: 'Cash', TIERS: 'Third party', AUTRE: 'Other' },
+        modes: { ESPECES: 'Cash', TIERS: 'Third party', MOBILE_MONEY: 'Mobile Money', AUTRE: 'Other' },
         sectionAnnees: 'By year',
         sectionMouvements: 'Movements',
         colAnnee: 'Year',
@@ -100,7 +100,7 @@ function libelles(langue: Langue): LibellesReleve {
         syntheseReste: 'Reste à payer',
         syntheseStatut: 'Statut',
         statuts: { A_JOUR: 'À jour', PARTIEL: 'Partiel', NON_A_JOUR: 'Non à jour' },
-        modes: { ESPECES: 'Espèces', TIERS: 'Tiers', AUTRE: 'Autre' },
+        modes: { ESPECES: 'Espèces', TIERS: 'Tiers', MOBILE_MONEY: 'Mobile Money', AUTRE: 'Autre' },
         sectionAnnees: 'Par année',
         sectionMouvements: 'Mouvements',
         colAnnee: 'Année',

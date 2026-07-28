@@ -198,7 +198,7 @@ export async function confirmerPaiement(deps: PaiementDeps, paiementId: string):
         contributionId: paiement.contributionId,
         montant: paiement.montant,
         dateVersement: new Date(),
-        mode: 'AUTRE',
+        mode: 'MOBILE_MONEY', // paiement en ligne PSP (CamPay/Fapshi) — reflété sur le reçu et le relevé
         note: 'Paiement en ligne',
         idempotenceKey: paiement.referenceExterne,
       })

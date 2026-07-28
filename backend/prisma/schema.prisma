@@ -36,6 +36,7 @@ enum StatutMembre {
 enum ModeVersement {
   ESPECES
   TIERS
+  MOBILE_MONEY
   AUTRE
 }
 

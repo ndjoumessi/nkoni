@@ -23,8 +23,8 @@ export interface DonneesRecuPdf {
 }
 
 function libelleMode(mode: string, langue: Langue): string {
-  const fr: Record<string, string> = { ESPECES: 'Espèces', TIERS: 'Par un tiers', AUTRE: 'Autre' }
-  const en: Record<string, string> = { ESPECES: 'Cash', TIERS: 'Third party', AUTRE: 'Other' }
+  const fr: Record<string, string> = { ESPECES: 'Espèces', TIERS: 'Par un tiers', MOBILE_MONEY: 'Mobile Money', AUTRE: 'Autre' }
+  const en: Record<string, string> = { ESPECES: 'Cash', TIERS: 'Third party', MOBILE_MONEY: 'Mobile Money', AUTRE: 'Other' }
   return (langue === 'EN' ? en : fr)[mode] ?? mode
 }
 

@@ -25,7 +25,7 @@ export default {
     },
     types: { DEUIL: 'Bereavement', MARIAGE: 'Wedding', NAISSANCE: 'Birth', AUTRE: 'Other' },
     statuts: { OUVERTE: 'Ongoing', CLOTUREE: 'Closed' },
-    modes: { ESPECES: 'Cash', TIERS: 'Third party', AUTRE: 'Other' },
+    modes: { ESPECES: 'Cash', TIERS: 'Third party', MOBILE_MONEY: 'Mobile Money', AUTRE: 'Other' },
     detail: {
       retour: 'Funds',
       erreurChargement: 'Could not load the fund.',

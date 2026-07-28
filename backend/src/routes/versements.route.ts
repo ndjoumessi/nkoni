@@ -31,7 +31,7 @@ import {
  *     versements de ses propres contributions.
  */
 
-type ModeVersement = 'ESPECES' | 'TIERS' | 'AUTRE'
+type ModeVersement = 'ESPECES' | 'TIERS' | 'MOBILE_MONEY' | 'AUTRE'
 
 interface VersementCreateBody {
   contributionId: string
@@ -47,7 +47,7 @@ interface VersementUpdateBody {
   note?: string
 }
 
-const MODE_ENUM = ['ESPECES', 'TIERS', 'AUTRE'] as const
+const MODE_ENUM = ['ESPECES', 'TIERS', 'MOBILE_MONEY', 'AUTRE'] as const
 
 const createVersementSchema = {
   body: {

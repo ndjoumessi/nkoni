@@ -26,7 +26,7 @@ import { SelecteurMembreUnique } from '@/components/membres/SelecteurMembreUniqu
 import { Modal } from '@/components/ui/Modal'
 import { useToast } from '@/components/ui/Toast'
 
-const MODES: ModeVersement[] = ['ESPECES', 'TIERS', 'AUTRE']
+const MODES: ModeVersement[] = ['ESPECES', 'TIERS', 'MOBILE_MONEY', 'AUTRE']
 
 function aujourdHui(): string {
   return new Date().toISOString().slice(0, 10)

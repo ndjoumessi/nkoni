@@ -34,7 +34,7 @@ import { useToast } from '@/components/ui/Toast'
 
 const TYPES: TypeAmende[] = ['RETARD_COTISATION', 'ABSENCE_REUNION', 'AUTRE']
 const STATUTS: StatutAmende[] = ['IMPAYEE', 'PAYEE', 'ANNULEE']
-const MODES: ModeVersement[] = ['ESPECES', 'TIERS', 'AUTRE']
+const MODES: ModeVersement[] = ['ESPECES', 'TIERS', 'MOBILE_MONEY', 'AUTRE']
 
 const TONE_STATUT: Record<StatutAmende, string> = {
   IMPAYEE: 'border-brass/30 bg-brass/[0.08] text-brass',

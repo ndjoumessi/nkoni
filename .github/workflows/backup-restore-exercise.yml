@@ -74,8 +74,32 @@ jobs:
 
       - name: §2.2 — Verify dump is readable
         run: |
+          set -o pipefail
           echo "Verifying GPG-encrypted dump..."
-          echo "$GPG_PASSPHRASE" | gpg --batch --passphrase-fd 0 --decrypt "$BACKUP_GPG" 2>/dev/null | pg_restore --list 2>/dev/null | head -5
+          # AUCUN tuyau entre gpg et pg_restore. `pg_restore --list` ne lit que la table des matières
+          # en tête d'archive puis SORT : il ferme le tuyau, gpg meurt en « broken pipe » (code 2) et
+          # — sous pipefail — fait échouer l'étape alors que le dump est parfaitement valide. C'est
+          # ce que masquait l'ancien `… | head` : sans pipefail il sortait 0 quoi qu'il arrive, donc
+          # la garde ne pouvait NI détecter un dump corrompu, NI signaler ce faux négatif.
+          # On déchiffre vers un fichier, puis on liste le fichier : le code de sortie de pg_restore
+          # devient enfin significatif. stderr non supprimé — une garde muette ne se diagnostique pas.
+          CLAIR="$(mktemp)"
+          trap 'rm -f "$CLAIR"' EXIT
+          echo "$GPG_PASSPHRASE" | gpg --batch --passphrase-fd 0 --decrypt "$BACKUP_GPG" > "$CLAIR"
+          # LA vérification, c'est CETTE affectation : pg_restore lit l'archive ENTIÈRE et son code
+          # de sortie est significatif (aucun tuyau pour le tronquer).
+          LISTING="$(pg_restore --list "$CLAIR")"
+          NB_ENTREES="$(printf '%s\n' "$LISTING" | grep -c '^[0-9]' || true)"
+          # AFFICHAGE seulement, `|| true` assumé : `head` ferme le tuyau après 5 lignes et
+          # provoquerait un broken pipe en amont — sous pipefail, l'affichage ferait alors échouer
+          # l'étape alors que le dump est valide. Piège déjà rencontré deux fois ici (gpg→pg_restore,
+          # puis pg_restore→head) : ne JAMAIS laisser le cosmétique décider du verdict.
+          printf '%s\n' "$LISTING" | head -5 || true
+          echo "  entrées dans l'archive : $NB_ENTREES"
+          if [ "$NB_ENTREES" -eq 0 ]; then
+            echo "::error::Archive lisible mais VIDE (0 entrée) — sauvegarde inexploitable."
+            exit 1
+          fi
           echo "✓ Dump is readable and restorable"
 
       - name: Upload encrypted backup as artifact
@@ -105,8 +129,32 @@ jobs:
     runs-on: ubuntu-latest
     needs: backup-and-verify
     if: failure()
+    # Droit d'écrire une issue avec le GITHUB_TOKEN du run (token en lecture seule par défaut).
+    permissions:
+      issues: write
     steps:
-      - name: Notify failure
+      - name: Ouvrir ou mettre à jour une issue d'échec
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # OBLIGATOIRE : ce job n'a pas d'étape `checkout`, donc le runner n'est pas dans un dépôt
+          # git et `gh` ne peut inférer le dépôt cible (« not a git repository »). Sans cette
+          # variable, les trois commandes gh ci-dessous échouent et AUCUNE issue n'est créée —
+          # l'alerte annoncée n'existerait pas.
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          echo "⚠️ Backup exercise FAILED. Review the logs above."
-          exit 1
+          # Une alerte VISIBLE : l'ancien job ne faisait qu'echo + exit 1, donc un échec du dimanche
+          # 03:00 restait invisible sauf à ouvrir l'onglet Actions — exactement le risque §0
+          # (dispositif qu'on croit actif et qui échoue en silence). On ouvre une issue GitHub, sans
+          # secret externe. Dédup : on commente l'issue ouverte existante plutôt que d'en créer une
+          # à chaque échec.
+          TITRE="⚠️ Échec de l'exercice de sauvegarde (§0.2 GA)"
+          CORPS=$(printf 'Le workflow **backup-restore-exercise** a échoué le %s.\n\nRun : %s\n\nAucune sauvegarde produite pour ce créneau. Consulter les logs, corriger, puis relancer :\n```\ngh workflow run backup-restore-exercise.yml\n```' "$(date -u '+%Y-%m-%d %H:%M UTC')" "$RUN_URL")
+          # Label idempotent (créé/à jour ; `create issue --label` échoue si le label n'existe pas).
+          gh label create backup-failure --color B60205 --description "Échec du workflow de sauvegarde" --force >/dev/null 2>&1 || true
+          EXISTANTE=$(gh issue list --state open --label backup-failure --json number --jq '.[0].number' 2>/dev/null || true)
+          if [ -n "$EXISTANTE" ]; then
+            gh issue comment "$EXISTANTE" --body "$CORPS"
+          else
+            gh issue create --title "$TITRE" --body "$CORPS" --label backup-failure
+          fi

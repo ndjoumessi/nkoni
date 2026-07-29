@@ -173,7 +173,12 @@ export async function getTontine(prisma: TontinePrisma, id: string) {
         orderBy: { numero: 'asc' },
         include: {
           participations: { orderBy: { ordre: 'asc' } },
-          tours: { orderBy: { numero: 'asc' } },
+          // Mises par tour (`{ membreId, montant }`) → le front dresse la checklist payé/non-payé
+          // par participant et le collecté à ce jour (le pot ATTENDU se calcule côté client).
+          tours: {
+            orderBy: { numero: 'asc' },
+            include: { mises: { select: { membreId: true, montant: true } } },
+          },
         },
       },
     },

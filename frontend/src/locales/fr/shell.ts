@@ -20,6 +20,7 @@ export default {
       conflits: 'Conflits',
       commemorations: 'Commémorations',
       cagnottes: 'Cagnottes',
+      tontines: 'Tontines',
       amendes: 'Amendes',
       baremeAnnuel: 'Barème annuel',
       rapports: 'Rapports',

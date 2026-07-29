@@ -49,6 +49,8 @@ const CommemorationFormPage = lazy(() => import('@/pages/CommemorationFormPage')
 const CommemorationDetailPage = lazy(() => import('@/pages/CommemorationDetailPage'))
 const AuditLogPage = lazy(() => import('@/pages/AuditLogPage'))
 const CagnottesPage = lazy(() => import('@/pages/CagnottesPage'))
+const TontinesPage = lazy(() => import('@/pages/TontinesPage'))
+const TontineDetailPage = lazy(() => import('@/pages/TontineDetailPage'))
 const CagnotteFormPage = lazy(() => import('@/pages/CagnotteFormPage'))
 const CagnotteDetailPage = lazy(() => import('@/pages/CagnotteDetailPage'))
 const AmendesPage = lazy(() => import('@/pages/AmendesPage'))
@@ -130,6 +132,8 @@ function App() {
         <Route path="/conflits" element={<ConflitsPage />} />
         <Route path="/conflits/nouveau" element={<ConflitFormPage />} />
         <Route path="/conflits/:id" element={<ConflitDetailPage />} />
+        <Route path="/tontines" element={<TontinesPage />} />
+        <Route path="/tontines/:id" element={<TontineDetailPage />} />
         <Route path="/cagnottes" element={<CagnottesPage />} />
         <Route path="/cagnottes/nouvelle" element={<CagnotteFormPage />} />
         <Route path="/cagnottes/:id/editer" element={<CagnotteFormPage />} />

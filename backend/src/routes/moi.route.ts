@@ -170,6 +170,117 @@ export const moiRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
       telechargeable: r.annuleLe === null,
     }))
   })
+
+  // GET /moi/amendes — SES amendes (§4.10), lecture seule. Montant, motif, statut (impayée/payée/
+  // annulée). Le membre voit ce qu'il doit ; la SAISIE et l'encaissement restent au bureau.
+  app.get('/moi/amendes', { preHandler: [authenticate] }, async (req) => {
+    const membre = await membreConnecte(app.prisma, req.user.sub)
+    if (!membre) return []
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (app.prisma.amende as any).findMany({
+      where: { membreId: membre.id },
+      orderBy: { dateAmende: 'desc' },
+      select: {
+        id: true,
+        type: true,
+        motif: true,
+        montant: true,
+        dateAmende: true,
+        statut: true,
+        datePaiement: true,
+      },
+    })
+  })
+
+  // GET /moi/cagnottes — cagnottes OUVERTES (§4.9) + ce que CE membre y a donné. Transparence :
+  // on montre la collecte collective (Σ dons) et le don personnel. Lecture seule (le membre ne gère
+  // pas la cagnotte). Somme calculée en JS sur un findMany (couvert par l'extension d'isolation) —
+  // pas de groupBy/aggregate sur un modèle scopé (non garanti couvert → risque OperationNonIsolee).
+  app.get('/moi/cagnottes', { preHandler: [authenticate] }, async (req) => {
+    const membre = await membreConnecte(app.prisma, req.user.sub)
+    if (!membre) return []
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const cagnottes = (await (app.prisma.cagnotteEvenement as any).findMany({
+      where: { statut: 'OUVERTE' },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, titre: true, type: true, objectif: true, dateEvenement: true },
+    })) as { id: string; titre: string; type: string; objectif: number | null; dateEvenement: Date | null }[]
+    if (cagnottes.length === 0) return []
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dons = (await (app.prisma.donCagnotte as any).findMany({
+      where: { cagnotteId: { in: cagnottes.map((c) => c.id) } },
+      select: { cagnotteId: true, montant: true, membreId: true },
+    })) as { cagnotteId: string; montant: number; membreId: string }[]
+    return cagnottes.map((c) => {
+      const siennes = dons.filter((d) => d.cagnotteId === c.id)
+      return {
+        id: c.id,
+        titre: c.titre,
+        type: c.type,
+        objectif: c.objectif,
+        dateEvenement: c.dateEvenement,
+        collecteTotal: siennes.reduce((s, d) => s + d.montant, 0),
+        monDon: siennes.filter((d) => d.membreId === membre.id).reduce((s, d) => s + d.montant, 0),
+      }
+    })
+  })
+
+  // GET /moi/tontines — MES participations (§ tontine), lecture seule. Par cycle : mon rang de
+  // rotation, ma mise due (parts × mise de base), et par tour : suis-je le bénéficiaire, ma mise
+  // est-elle payée. Vue « où j'en suis dans la tontine ». L'ENREGISTREMENT des mises reste au trésorier.
+  app.get('/moi/tontines', { preHandler: [authenticate] }, async (req) => {
+    const membre = await membreConnecte(app.prisma, req.user.sub)
+    if (!membre) return []
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const participations = (await (app.prisma.participationTontine as any).findMany({
+      where: { membreId: membre.id },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        parts: true,
+        ordre: true,
+        cycle: {
+          select: {
+            numero: true,
+            statut: true,
+            tontine: { select: { nom: true, montantBaseMise: true, modeRotation: true } },
+            tours: {
+              orderBy: { numero: 'asc' },
+              select: {
+                numero: true,
+                beneficiaireId: true,
+                montantPot: true,
+                statut: true,
+                // Filtré sur MA mise uniquement (nested where dans le select — pas une opération à part).
+                mises: { where: { membreId: membre.id }, select: { montant: true } },
+              },
+            },
+          },
+        },
+      },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    })) as any[]
+    return participations.map((p) => {
+      const miseDue = p.parts * p.cycle.tontine.montantBaseMise
+      return {
+        tontineNom: p.cycle.tontine.nom,
+        modeRotation: p.cycle.tontine.modeRotation,
+        cycleNumero: p.cycle.numero,
+        cycleStatut: p.cycle.statut,
+        maParts: p.parts,
+        monOrdre: p.ordre,
+        miseDue,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        tours: p.cycle.tours.map((t: any) => ({
+          numero: t.numero,
+          statut: t.statut,
+          jeSuisBeneficiaire: t.beneficiaireId === membre.id,
+          maMisePayee: t.mises.length > 0,
+          // Pot RÉEL seulement une fois reversé (figé) ; sinon null (le front affiche la mise due).
+          montantPot: t.statut === 'REVERSE' ? t.montantPot : null,
+        })),
+      }
+    })
+  })
 }
 
 export default moiRoutes

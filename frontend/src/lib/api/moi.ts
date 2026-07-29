@@ -67,6 +67,48 @@ export interface RecuMembre {
   telechargeable: boolean
 }
 
+/** Amende du membre (§4.10), lecture seule. `type`/`statut` = enums rendus via i18n. */
+export interface AmendeMembre {
+  id: string
+  type: string
+  motif: string
+  montant: number
+  dateAmende: string
+  statut: string
+  datePaiement: string | null
+}
+/** Cagnotte ouverte (§4.9) vue par le membre : progression collective + son don personnel. */
+export interface CagnotteMembre {
+  id: string
+  titre: string
+  type: string
+  objectif: number | null
+  dateEvenement: string | null
+  collecteTotal: number
+  monDon: number
+}
+/** Un tour d'un cycle de tontine, du point de vue du membre. */
+export interface TontineTourMembre {
+  numero: number
+  statut: string
+  jeSuisBeneficiaire: boolean
+  maMisePayee: boolean
+  /** Pot RÉEL figé, seulement une fois le tour reversé ; sinon `null` (mise due affichée à la place). */
+  montantPot: number | null
+}
+/** Participation du membre à un cycle de tontine (§ tontine), lecture seule. */
+export interface TontineMembre {
+  tontineNom: string
+  modeRotation: string
+  cycleNumero: number
+  cycleStatut: string
+  maParts: number
+  monOrdre: number
+  /** Mise due par tour = parts × mise de base. */
+  miseDue: number
+  tours: TontineTourMembre[]
+}
+
 export const moiApi = {
   situation: (accessToken: string, signal?: AbortSignal) =>
     request<SituationMembre>('/moi/situation', { accessToken, signal }),
@@ -93,6 +135,15 @@ export const moiApi = {
     }),
   recus: (accessToken: string, signal?: AbortSignal) =>
     request<RecuMembre[]>('/moi/recus', { accessToken, signal }),
+  /** SES amendes (lecture seule). */
+  amendes: (accessToken: string, signal?: AbortSignal) =>
+    request<AmendeMembre[]>('/moi/amendes', { accessToken, signal }),
+  /** Cagnottes ouvertes + son don personnel (lecture seule). */
+  cagnottes: (accessToken: string, signal?: AbortSignal) =>
+    request<CagnotteMembre[]>('/moi/cagnottes', { accessToken, signal }),
+  /** SES participations aux tontines (cycles, tours, mise due/payée) — lecture seule. */
+  tontines: (accessToken: string, signal?: AbortSignal) =>
+    request<TontineMembre[]>('/moi/tontines', { accessToken, signal }),
   /** Télécharge la carte de membre (PDF avec QR) du compte connecté — proxy authentifié. */
   carte: async (accessToken: string): Promise<Blob> => {
     const res = await fetch(`${API_URL}/moi/carte`, {

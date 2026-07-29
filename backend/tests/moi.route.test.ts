@@ -94,6 +94,49 @@ function buildMock(membre: any) {
         ]
       },
     },
+    amende: {
+      findMany: async ({ where }: any) => {
+        calls.amendeWhere = where
+        return membre
+          ? [{ id: 'am1', type: 'RETARD_COTISATION', motif: 'Retard', montant: 2_000, dateAmende: new Date('2024-02-01'), statut: 'IMPAYEE', datePaiement: null }]
+          : []
+      },
+    },
+    cagnotteEvenement: {
+      findMany: async ({ where }: any) => {
+        calls.cagnotteWhere = where
+        return [{ id: 'cg1', titre: 'Deuil', type: 'DEUIL', objectif: 100_000, dateEvenement: null }]
+      },
+    },
+    donCagnotte: {
+      findMany: async ({ where }: any) => {
+        calls.donWhere = where
+        return [
+          { cagnotteId: 'cg1', montant: 5_000, membreId: 'm1' },
+          { cagnotteId: 'cg1', montant: 3_000, membreId: 'm2' },
+        ]
+      },
+    },
+    participationTontine: {
+      findMany: async ({ where }: any) => {
+        calls.participationWhere = where
+        return [
+          {
+            parts: 2,
+            ordre: 1,
+            cycle: {
+              numero: 1,
+              statut: 'EN_COURS',
+              tontine: { nom: 'Femmes', montantBaseMise: 5_000, modeRotation: 'ORDRE_FIXE' },
+              tours: [
+                { numero: 1, beneficiaireId: 'm1', montantPot: 0, statut: 'A_VENIR', mises: [] },
+                { numero: 2, beneficiaireId: 'autre', montantPot: 10_000, statut: 'REVERSE', mises: [{ montant: 10_000 }] },
+              ],
+            },
+          },
+        ]
+      },
+    },
   }
   return { prisma, calls }
 }
@@ -179,6 +222,33 @@ describe('Espace membre /moi/* — membre lié', () => {
     const body = res.json()
     expect(body[0]).toMatchObject({ id: 'res1', texte: 'On adopte X', monVote: 'POUR' })
   })
+
+  it('GET /moi/amendes → SES amendes, filtrées par membreId', async () => {
+    const res = await app.inject({ method: 'GET', url: '/moi/amendes', headers: auth() })
+    expect(res.statusCode).toBe(200)
+    expect(calls.amendeWhere).toEqual({ membreId: 'm1' })
+    expect(res.json()[0]).toMatchObject({ id: 'am1', statut: 'IMPAYEE', montant: 2_000 })
+  })
+
+  it('GET /moi/cagnottes → collecte totale + don personnel (agrégés en JS, filtré membreId)', async () => {
+    const res = await app.inject({ method: 'GET', url: '/moi/cagnottes', headers: auth() })
+    expect(res.statusCode).toBe(200)
+    expect(res.json()).toEqual([
+      { id: 'cg1', titre: 'Deuil', type: 'DEUIL', objectif: 100_000, dateEvenement: null, collecteTotal: 8_000, monDon: 5_000 },
+    ])
+  })
+
+  it('GET /moi/tontines → rang, mise due, et par tour bénéficiaire/mise payée', async () => {
+    const res = await app.inject({ method: 'GET', url: '/moi/tontines', headers: auth() })
+    expect(res.statusCode).toBe(200)
+    expect(calls.participationWhere).toEqual({ membreId: 'm1' })
+    const body = res.json()
+    expect(body[0]).toMatchObject({ tontineNom: 'Femmes', cycleNumero: 1, maParts: 2, monOrdre: 1, miseDue: 10_000 })
+    // Tour où JE reçois le pot, mise non encore payée, pot pas encore figé (A_VENIR → null).
+    expect(body[0].tours[0]).toEqual({ numero: 1, statut: 'A_VENIR', jeSuisBeneficiaire: true, maMisePayee: false, montantPot: null })
+    // Tour reversé : ma mise est payée, le pot RÉEL est figé.
+    expect(body[0].tours[1]).toEqual({ numero: 2, statut: 'REVERSE', jeSuisBeneficiaire: false, maMisePayee: true, montantPot: 10_000 })
+  })
 })
 
 describe('Espace membre /moi/* — compte SANS fiche membre (ex. ADMIN)', () => {
@@ -199,7 +269,7 @@ describe('Espace membre /moi/* — compte SANS fiche membre (ex. ADMIN)', () => 
   })
 
   it('listes → tableaux vides (200)', async () => {
-    for (const url of ['/moi/contributions', '/moi/reunions', '/moi/recus', '/moi/resolutions']) {
+    for (const url of ['/moi/contributions', '/moi/reunions', '/moi/recus', '/moi/resolutions', '/moi/amendes', '/moi/cagnottes', '/moi/tontines']) {
       const res = await app.inject({ method: 'GET', url, headers: auth() })
       expect(res.statusCode).toBe(200)
       expect(res.json()).toEqual([])

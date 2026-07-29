@@ -109,12 +109,14 @@ function buildMock(membre: any) {
       },
     },
     donCagnotte: {
-      findMany: async ({ where }: any) => {
-        calls.donWhere = where
-        return [
-          { cagnotteId: 'cg1', montant: 5_000, membreId: 'm1' },
-          { cagnotteId: 'cg1', montant: 3_000, membreId: 'm2' },
-        ]
+      // Agrégation par Postgres : DEUX groupBy — collecte totale (sans membreId), puis MON don
+      // (avec membreId). Le mock distingue les deux sur la présence de `where.membreId`, et
+      // mémorise les deux `where` pour que le test verrouille le périmètre de chacun.
+      groupBy: async ({ where }: any) => {
+        calls.donWheres = [...((calls.donWheres as any[]) ?? []), where]
+        return where.membreId
+          ? [{ cagnotteId: 'cg1', _sum: { montant: 5_000 } }]
+          : [{ cagnotteId: 'cg1', _sum: { montant: 8_000 } }]
       },
     },
     participationTontine: {
@@ -232,7 +234,7 @@ describe('Espace membre /moi/* — membre lié', () => {
     expect(res.json()[0]).toMatchObject({ id: 'am1', statut: 'IMPAYEE', montant: 2_000 })
   })
 
-  it('GET /moi/cagnottes → collecte totale + don personnel (agrégés en JS, filtré membreId)', async () => {
+  it('GET /moi/cagnottes → collecte totale + don personnel (deux groupBy, filtré membreId)', async () => {
     const res = await app.inject({ method: 'GET', url: '/moi/cagnottes', headers: auth() })
     expect(res.statusCode).toBe(200)
     expect(res.json()).toEqual([
@@ -241,7 +243,13 @@ describe('Espace membre /moi/* — membre lié', () => {
     // On ne remonte QUE les cagnottes ouvertes, et les dons sont bornés aux cagnottes listées.
     // (Sans ces assertions, supprimer le filtre statut ne ferait tomber aucun test — fausse couverture.)
     expect(calls.cagnotteWhere).toEqual({ statut: 'OUVERTE' })
-    expect(calls.donWhere).toEqual({ cagnotteId: { in: ['cg1'] } })
+    // Le SECOND agrégat porte `membreId` : c'est lui qui garantit que `monDon` n'est pas la
+    // collecte de tout le monde. Sans cette assertion, oublier le filtre passerait inaperçu ici
+    // (les deux agrégats rendraient la même valeur et le test ne verrait qu'un total plausible).
+    expect(calls.donWheres).toEqual([
+      { cagnotteId: { in: ['cg1'] } },
+      { cagnotteId: { in: ['cg1'] }, membreId: 'm1' },
+    ])
   })
 
   it('GET /moi/tontines → rang, mise due, et par tour bénéficiaire/mise payée', async () => {

@@ -52,6 +52,18 @@ function buildMock(membre: any) {
         return [{ reunionId: 'r1', statut: 'EXCUSE' }]
       },
     },
+    resolution: {
+      findMany: async ({ where }: any) => {
+        calls.resolutionWhere = where
+        return [{ id: 'res1', texte: 'On adopte X', reunion: { date: new Date(), lieu: 'Yaoundé' } }]
+      },
+    },
+    vote: {
+      findMany: async ({ where }: any) => {
+        calls.voteWhere = where
+        return [{ resolutionId: 'res1', sens: 'POUR' }]
+      },
+    },
     versement: {
       findMany: async ({ where }: any) => {
         calls.versementWhere = where
@@ -156,6 +168,17 @@ describe('Espace membre /moi/* — membre lié', () => {
     const body = res.json()
     expect(body[0]).toMatchObject({ id: 'r1', monStatut: 'EXCUSE' })
   })
+
+  it('GET /moi/resolutions → résolutions ouvertes (dateVote null) + mon vote fusionné', async () => {
+    const res = await app.inject({ method: 'GET', url: '/moi/resolutions', headers: auth() })
+    expect(res.statusCode).toBe(200)
+    // Seules les résolutions OUVERTES au vote (dateVote null).
+    expect(calls.resolutionWhere).toMatchObject({ dateVote: null })
+    // Le vote n'est lu QUE pour le membre résolu par le sub, borné aux résolutions listées.
+    expect(calls.voteWhere).toMatchObject({ membreId: 'm1', resolutionId: { in: ['res1'] } })
+    const body = res.json()
+    expect(body[0]).toMatchObject({ id: 'res1', texte: 'On adopte X', monVote: 'POUR' })
+  })
 })
 
 describe('Espace membre /moi/* — compte SANS fiche membre (ex. ADMIN)', () => {
@@ -176,7 +199,7 @@ describe('Espace membre /moi/* — compte SANS fiche membre (ex. ADMIN)', () => 
   })
 
   it('listes → tableaux vides (200)', async () => {
-    for (const url of ['/moi/contributions', '/moi/reunions', '/moi/recus']) {
+    for (const url of ['/moi/contributions', '/moi/reunions', '/moi/recus', '/moi/resolutions']) {
       const res = await app.inject({ method: 'GET', url, headers: auth() })
       expect(res.statusCode).toBe(200)
       expect(res.json()).toEqual([])

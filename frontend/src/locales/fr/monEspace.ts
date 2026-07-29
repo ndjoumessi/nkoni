@@ -70,6 +70,17 @@ export default {
         ABSENT: 'Absent',
       },
     },
+    votes: {
+      titre: 'Votes en cours',
+      reunion: 'Réunion',
+      question: 'Votre vote :',
+      enregistre: 'Vote enregistré.',
+      sens: {
+        POUR: 'Pour',
+        CONTRE: 'Contre',
+        ABSTENTION: 'Abstention',
+      },
+    },
     recus: {
       titre: 'Mes reçus',
       numero: 'Numéro',

@@ -31,5 +31,18 @@ export default {
       ajoutImpossible: 'Ajout de la résolution impossible',
       suppressionImpossible: 'Suppression de la résolution impossible',
     },
+    votes: {
+      depouiller: 'Dépouiller',
+      masquer: 'Masquer le dépouillement',
+      cloturer: 'Clôturer le vote',
+      clotureOk: 'Vote clôturé',
+      close: 'Vote clôturé',
+      aucun: 'Aucun vote exprimé.',
+      sens: {
+        POUR: 'Pour',
+        CONTRE: 'Contre',
+        ABSTENTION: 'Abstention',
+      },
+    },
   },
 }

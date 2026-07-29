@@ -31,5 +31,18 @@ export default {
       ajoutImpossible: 'Unable to add resolution',
       suppressionImpossible: 'Unable to delete resolution',
     },
+    votes: {
+      depouiller: 'Show results',
+      masquer: 'Hide results',
+      cloturer: 'Close voting',
+      clotureOk: 'Voting closed',
+      close: 'Voting closed',
+      aucun: 'No vote cast.',
+      sens: {
+        POUR: 'For',
+        CONTRE: 'Against',
+        ABSTENTION: 'Abstain',
+      },
+    },
   },
 }

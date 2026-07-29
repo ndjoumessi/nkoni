@@ -1,6 +1,6 @@
 import { API_URL, leverSiErreur, request, rid } from './core'
 import type { StatutContribution } from './types'
-import type { StatutPresence } from './reunions'
+import type { StatutPresence, SensVote } from './reunions'
 
 /* Espace membre self-service (§5) — routes /moi/* --------------------------- */
 
@@ -46,6 +46,15 @@ export interface CarteApercu {
   /** QR (image data URL) rendu côté serveur → aucune lib QR côté client. */
   qrDataUrl: string
 }
+/** Résolution ouverte au vote, pour la carte « Votes en cours » de l'espace membre. */
+export interface ResolutionOuverte {
+  id: string
+  texte: string
+  reunionDate: string
+  reunionLieu: string
+  /** Sens déjà voté par le membre, ou `null` s'il n'a pas encore voté. */
+  monVote: SensVote | null
+}
 export interface RecuMembre {
   id: string
   numero: string
@@ -70,6 +79,16 @@ export const moiApi = {
     request<{ statut: StatutPresence }>(`/moi/reunions/${rid(reunionId)}/rsvp`, {
       method: 'PUT',
       json: { statut },
+      accessToken,
+    }),
+  /** Résolutions ouvertes au vote (avec le sens déjà exprimé par le membre). */
+  resolutionsOuvertes: (accessToken: string, signal?: AbortSignal) =>
+    request<ResolutionOuverte[]>('/moi/resolutions', { accessToken, signal }),
+  /** Pose/actualise SON vote sur une résolution ouverte. */
+  voterResolution: (resolutionId: string, sens: SensVote, accessToken: string) =>
+    request<{ sens: SensVote }>(`/moi/resolutions/${rid(resolutionId)}/vote`, {
+      method: 'PUT',
+      json: { sens },
       accessToken,
     }),
   recus: (accessToken: string, signal?: AbortSignal) =>

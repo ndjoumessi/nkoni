@@ -44,6 +44,7 @@ export type Entite =
   | 'Depense'
   | 'Cagnotte'
   | 'Amende'
+  | 'Tontine'
 
 export type Role =
   // Rôle PLATEFORME transverse (SaaS §2.3). Volontairement ABSENT de la matrice PERMISSIONS
@@ -269,6 +270,18 @@ export const PERMISSIONS: Record<Entite, Partial<Record<Role, Action[]>>> = {
     TRESORIERE: ['create', 'read', 'update', 'delete'],
     SECRETAIRE: ['create', 'read', 'update'],
     COMMISSAIRE_COMPTES: READ,
+    MEMBRE_SIMPLE: READ,
+  },
+  // Tontine (§ tontine) — configuration (tontine, cycle, participants) par le bureau ; les FLUX
+  // D'ARGENT (enregistrement d'une mise, reversement du pot) sont gardés séparément dans la route
+  // par requireRoles(['ADMIN','PRESIDENT','TRESORIERE']), comme Cagnottes/Amendes. Lecture pour tous.
+  Tontine: {
+    ADMIN: CRUD,
+    PRESIDENT: CRUD,
+    TRESORIERE: ['create', 'read', 'update', 'delete'],
+    SECRETAIRE: ['create', 'read', 'update'],
+    COMMISSAIRE_COMPTES: READ,
+    GUIDE_RELIGIEUX: READ,
     MEMBRE_SIMPLE: READ,
   },
 }

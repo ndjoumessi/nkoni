@@ -37,6 +37,7 @@ import { messages as cagnottesMsgs } from './cagnottes'
 import { messages as amendesMsgs } from './amendes'
 import { messages as photoMembreMsgs } from './photoMembre'
 import { messages as paiementMsgs } from './paiement'
+import { messages as tontinesMsgs } from './tontines'
 
 export const fr = {
   ...communMsgs,
@@ -71,6 +72,7 @@ export const fr = {
   ...amendesMsgs,
   ...photoMembreMsgs,
   ...paiementMsgs,
+  ...tontinesMsgs,
 } as const
 
 /** Clé de message valide (union dérivée du catalogue FR agrégé). */

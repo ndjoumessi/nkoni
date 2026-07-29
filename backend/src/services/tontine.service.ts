@@ -1,0 +1,332 @@
+/**
+ * Mécanique de TONTINE (§ tontine) — épargne rotative (ROSCA). Logique i18n-AGNOSTIQUE (erreurs
+ * typées, aucun texte) ; Prisma injecté (mockable). Cœurs déterministes : le tirage prend une
+ * source d'aléa injectable (`alea`) → testable sans hasard réel.
+ *
+ * MODÈLE : une `Tontine` (montant de base d'UNE part) → `CycleTontine` (rotation complète) →
+ * `TourTontine` (un bénéficiaire par tour). Chaque participant verse une `MiseTontine` par tour ;
+ * le pot est reversé au bénéficiaire. La mise d'un membre = `parts × montantBaseMise`.
+ *
+ * ROTATION :
+ *  - ORDRE_FIXE : les bénéficiaires sont assignés à l'OUVERTURE du cycle depuis l'ordre des
+ *    participants (tour k → participant d'ordre k).
+ *  - TIRAGE : bénéficiaire tiré au sort tour par tour (`tirerBeneficiaire`), parmi ceux qui n'ont
+ *    pas encore reçu dans le cycle.
+ *  - ENCHERE : schema-ready mais NON câblé — `ouvrirCycle` l'accepte, mais aucun bénéficiaire n'est
+ *    assigné automatiquement et `tirerBeneficiaire` le refuse (`ModeNonSupporteError`). À implémenter
+ *    ici (mise à prix, escompte) le jour venu.
+ *
+ * ADOSSEMENT TRÉSORERIE : délibérément AUTONOME. La tontine fait circuler l'argent des MEMBRES
+ * entre eux (mises collectées = pot reversé, net ≈ 0), ce n'est pas la trésorerie de l'association.
+ * L'inclure dans `calculerTresorerie` fausserait le solde de l'association. Les agrégats tontine
+ * (pot, mises) vivent donc dans les vues tontine, pas dans `GET /tresorerie`.
+ */
+
+export type ModeRotation = 'ORDRE_FIXE' | 'TIRAGE' | 'ENCHERE'
+
+/* -------------------------------------------------------------------------- */
+/* Erreurs métier (mappées en 4xx par la route)                               */
+/* -------------------------------------------------------------------------- */
+
+export class TontineIntrouvableError extends Error {
+  constructor() {
+    super('Tontine introuvable.')
+    this.name = 'TontineIntrouvableError'
+  }
+}
+export class CycleIntrouvableError extends Error {
+  constructor() {
+    super('Cycle de tontine introuvable.')
+    this.name = 'CycleIntrouvableError'
+  }
+}
+export class TourIntrouvableError extends Error {
+  constructor() {
+    super('Tour de tontine introuvable.')
+    this.name = 'TourIntrouvableError'
+  }
+}
+export class MembreIntrouvableError extends Error {
+  constructor() {
+    super('Membre introuvable.')
+    this.name = 'MembreIntrouvableError'
+  }
+}
+/** Moins de 2 participants : une tontine n'a pas de sens à un seul membre. → 400 */
+export class ParticipantsInsuffisantsError extends Error {
+  constructor() {
+    super('Au moins deux participants sont requis.')
+    this.name = 'ParticipantsInsuffisantsError'
+  }
+}
+/** Participant en double dans la liste d'ouverture. → 400 */
+export class ParticipantDupliqueError extends Error {
+  constructor() {
+    super('Un membre est présent plusieurs fois dans la liste.')
+    this.name = 'ParticipantDupliqueError'
+  }
+}
+/** Le tour n'a pas de bénéficiaire (reversement impossible). → 409 */
+export class TourNonAttribueError extends Error {
+  constructor() {
+    super("Le tour n'a pas de bénéficiaire.")
+    this.name = 'TourNonAttribueError'
+  }
+}
+/** Le tour est déjà reversé (non rejouable). → 409 */
+export class TourDejaReverseError extends Error {
+  constructor() {
+    super('Le tour est déjà reversé.')
+    this.name = 'TourDejaReverseError'
+  }
+}
+/** Le tour a déjà un bénéficiaire (tirage/attribution non rejouable). → 409 */
+export class TourDejaAttribueError extends Error {
+  constructor() {
+    super('Le tour a déjà un bénéficiaire.')
+    this.name = 'TourDejaAttribueError'
+  }
+}
+/** Opération non disponible pour ce mode de rotation (ex. tirage en ENCHERE). → 409 */
+export class ModeNonSupporteError extends Error {
+  constructor(public mode: string) {
+    super(`Opération non supportée pour le mode ${mode}.`)
+    this.name = 'ModeNonSupporteError'
+  }
+}
+/** Plus aucun participant éligible à tirer (tous ont déjà reçu). → 409 */
+export class AucunEligibleError extends Error {
+  constructor() {
+    super('Aucun participant éligible au tirage.')
+    this.name = 'AucunEligibleError'
+  }
+}
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+export interface TontinePrisma {
+  tontine: {
+    create(args: any): Promise<any>
+    findMany(args?: any): Promise<any[]>
+    findFirst(args: any): Promise<any>
+  }
+  cycleTontine: {
+    create(args: any): Promise<any>
+    findFirst(args: any): Promise<any>
+    aggregate(args: any): Promise<any>
+  }
+  participationTontine: {
+    createMany?(args: any): Promise<any>
+    create(args: any): Promise<any>
+    findMany(args: any): Promise<any[]>
+  }
+  tourTontine: {
+    create(args: any): Promise<any>
+    findFirst(args: any): Promise<any>
+    findMany(args: any): Promise<any[]>
+    update(args: any): Promise<any>
+  }
+  miseTontine: {
+    upsert(args: any): Promise<any>
+    aggregate(args: any): Promise<any>
+  }
+  membre: {
+    findFirst(args: any): Promise<any>
+  }
+  $transaction<T>(fn: (tx: any) => Promise<T>): Promise<T>
+}
+/* eslint-enable @typescript-eslint/no-explicit-any */
+
+export interface CreerTontineParams {
+  nom: string
+  montantBaseMise: number
+  modeRotation?: ModeRotation
+}
+
+/** Crée une tontine (configuration ; aucun cycle encore). */
+export async function creerTontine(prisma: TontinePrisma, params: CreerTontineParams) {
+  return prisma.tontine.create({
+    data: {
+      nom: params.nom,
+      montantBaseMise: params.montantBaseMise,
+      ...(params.modeRotation ? { modeRotation: params.modeRotation } : {}),
+    },
+  })
+}
+
+/** Liste les tontines de l'org (avec un décompte de cycles). */
+export function listerTontines(prisma: TontinePrisma) {
+  return prisma.tontine.findMany({
+    orderBy: { createdAt: 'desc' },
+    include: { _count: { select: { cycles: true } } },
+  })
+}
+
+/** Détail d'une tontine : cycles, tours (ordonnés), participations. */
+export async function getTontine(prisma: TontinePrisma, id: string) {
+  const tontine = await prisma.tontine.findFirst({
+    where: { id },
+    include: {
+      cycles: {
+        orderBy: { numero: 'asc' },
+        include: {
+          participations: { orderBy: { ordre: 'asc' } },
+          tours: { orderBy: { numero: 'asc' } },
+        },
+      },
+    },
+  })
+  if (!tontine) throw new TontineIntrouvableError()
+  return tontine
+}
+
+export interface ParticipantInput {
+  membreId: string
+  parts?: number
+}
+
+/**
+ * Ouvre un CYCLE : crée les participations (ordre = position dans la liste), génère un tour par
+ * participant, et — en ORDRE_FIXE — assigne le bénéficiaire de chaque tour depuis l'ordre. Tout
+ * dans une transaction. `numero` = max(numéro des cycles de la tontine) + 1.
+ */
+export async function ouvrirCycle(
+  prisma: TontinePrisma,
+  tontineId: string,
+  participants: ParticipantInput[],
+) {
+  const tontine = await prisma.tontine.findFirst({
+    where: { id: tontineId },
+    select: { id: true, modeRotation: true },
+  })
+  if (!tontine) throw new TontineIntrouvableError()
+  if (participants.length < 2) throw new ParticipantsInsuffisantsError()
+  const ids = participants.map((p) => p.membreId)
+  if (new Set(ids).size !== ids.length) throw new ParticipantDupliqueError()
+
+  const agg = await prisma.cycleTontine.aggregate({
+    where: { tontineId },
+    _max: { numero: true },
+  })
+  const numero = (agg?._max?.numero ?? 0) + 1
+  const ordreFixe = tontine.modeRotation === 'ORDRE_FIXE'
+
+  return prisma.$transaction(async (tx: TontinePrisma) => {
+    const cycle = await tx.cycleTontine.create({ data: { tontineId, numero } })
+    for (const [i, p] of participants.entries()) {
+      await tx.participationTontine.create({
+        data: { cycleId: cycle.id, membreId: p.membreId, parts: p.parts ?? 1, ordre: i + 1 },
+      })
+    }
+    for (const [i, p] of participants.entries()) {
+      await tx.tourTontine.create({
+        data: {
+          cycleId: cycle.id,
+          numero: i + 1,
+          // ORDRE_FIXE : bénéficiaire connu d'avance (tour k → participant d'ordre k). Sinon null
+          // (TIRAGE : tiré plus tard ; ENCHERE : attribué par l'enchère, non câblée).
+          ...(ordreFixe ? { beneficiaireId: p.membreId } : {}),
+        },
+      })
+    }
+    return cycle.id
+  })
+}
+
+/** Charge un tour SCOPÉ + le mode de sa tontine (pour les règles de rotation). */
+async function chargerTour(prisma: TontinePrisma, tourId: string) {
+  const tour = await prisma.tourTontine.findFirst({
+    where: { id: tourId },
+    select: {
+      id: true,
+      cycleId: true,
+      beneficiaireId: true,
+      statut: true,
+      cycle: { select: { tontine: { select: { modeRotation: true, montantBaseMise: true } } } },
+    },
+  })
+  if (!tour) throw new TourIntrouvableError()
+  return tour
+}
+
+/**
+ * TIRAGE : attribue au tour un bénéficiaire tiré parmi les participants du cycle qui n'ont pas
+ * encore reçu. `alea` injectable (défaut Math.random) → déterministe en test. Refus si le mode
+ * n'est pas TIRAGE, si le tour a déjà un bénéficiaire, ou s'il n'y a plus d'éligible.
+ */
+export async function tirerBeneficiaire(
+  prisma: TontinePrisma,
+  tourId: string,
+  alea: () => number = Math.random,
+): Promise<{ tourId: string; beneficiaireId: string }> {
+  const tour = await chargerTour(prisma, tourId)
+  const mode = tour.cycle.tontine.modeRotation
+  if (mode !== 'TIRAGE') throw new ModeNonSupporteError(mode)
+  if (tour.beneficiaireId) throw new TourDejaAttribueError()
+
+  const participations = await prisma.participationTontine.findMany({
+    where: { cycleId: tour.cycleId },
+    select: { membreId: true },
+  })
+  const dejaBeneficiaires = await prisma.tourTontine.findMany({
+    where: { cycleId: tour.cycleId, beneficiaireId: { not: null } },
+    select: { beneficiaireId: true },
+  })
+  const recus = new Set(dejaBeneficiaires.map((t) => t.beneficiaireId))
+  const eligibles = participations.map((p) => p.membreId).filter((id) => !recus.has(id))
+  if (eligibles.length === 0) throw new AucunEligibleError()
+
+  const choisi = eligibles[Math.floor(alea() * eligibles.length) % eligibles.length]
+  await prisma.tourTontine.update({ where: { id: tourId }, data: { beneficiaireId: choisi } })
+  return { tourId, beneficiaireId: choisi }
+}
+
+/**
+ * Enregistre (ou corrige) la MISE d'un membre pour un tour. Montant par défaut = `parts ×
+ * montantBaseMise` (calculé depuis la participation) si non fourni. Upsert sur (tour, membre) →
+ * jamais de doublon. Le membre doit participer au cycle (lecture scopée + appartenance).
+ */
+export async function enregistrerMise(
+  prisma: TontinePrisma,
+  tourId: string,
+  membreId: string,
+  montant?: number,
+): Promise<{ tourId: string; membreId: string; montant: number }> {
+  const tour = await chargerTour(prisma, tourId)
+  if (tour.statut === 'REVERSE') throw new TourDejaReverseError()
+  const participation = await prisma.participationTontine.findMany({
+    where: { cycleId: tour.cycleId, membreId },
+    select: { parts: true },
+  })
+  if (participation.length === 0) throw new MembreIntrouvableError()
+  const montantFinal = montant ?? participation[0].parts * tour.cycle.tontine.montantBaseMise
+  await prisma.miseTontine.upsert({
+    where: { tourId_membreId: { tourId, membreId } },
+    create: { tourId, membreId, montant: montantFinal },
+    update: { montant: montantFinal },
+  })
+  return { tourId, membreId, montant: montantFinal }
+}
+
+/**
+ * REVERSE le pot au bénéficiaire : fige `montantPot` = Σ des mises encaissées, passe le tour en
+ * REVERSE et horodate. Refus si pas de bénéficiaire, ou déjà reversé (non rejouable).
+ */
+export async function reverserTour(
+  prisma: TontinePrisma,
+  tourId: string,
+  now: Date = new Date(),
+): Promise<{ tourId: string; montantPot: number; beneficiaireId: string }> {
+  const tour = await chargerTour(prisma, tourId)
+  if (tour.statut === 'REVERSE') throw new TourDejaReverseError()
+  if (!tour.beneficiaireId) throw new TourNonAttribueError()
+  const agg = await prisma.miseTontine.aggregate({
+    where: { tourId },
+    _sum: { montant: true },
+  })
+  const montantPot = agg?._sum?.montant ?? 0
+  await prisma.tourTontine.update({
+    where: { id: tourId },
+    data: { montantPot, statut: 'REVERSE', dateReversement: now },
+  })
+  return { tourId, montantPot, beneficiaireId: tour.beneficiaireId }
+}

@@ -11,7 +11,12 @@ jobs:
   backup-and-verify:
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    
+
+    # Le STAMP du dump est exposé en sortie de job pour que `restore-verify` télécharge le BON
+    # artefact (`nkoni-backup-<stamp>`) — les variables $GITHUB_ENV ne traversent pas les jobs.
+    outputs:
+      stamp: ${{ steps.dump.outputs.stamp }}
+
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
       GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE_BACKUP }}
@@ -46,19 +51,22 @@ jobs:
           psql "$DATABASE_URL" -c "SELECT version();" 2>&1
 
       - name: §2.1 — Dump production database
+        id: dump
         run: |
           mkdir -p ~/Sauvegardes/nkoni
           export STAMP="$(date +%Y%m%d_%H%M%S)"
           export BACKUP_FILE=~/Sauvegardes/nkoni/nkoni_${STAMP}.dump
-          
+
           echo "Dumping PostgreSQL database..."
           pg_dump "$DATABASE_URL" -Fc --no-owner --no-privileges > "$BACKUP_FILE"
-          
+
           SIZE=$(ls -lh "$BACKUP_FILE" | awk '{print $5}')
           echo "✅ Backup complete: $(basename $BACKUP_FILE) ($SIZE)"
-          
+
           echo "STAMP=$STAMP" >> $GITHUB_ENV
           echo "BACKUP_FILE=$BACKUP_FILE" >> $GITHUB_ENV
+          # Sortie de job (traverse vers restore-verify), contrairement à $GITHUB_ENV.
+          echo "stamp=$STAMP" >> "$GITHUB_OUTPUT"
 
       - name: §2.2 — Encrypt dump with GPG
         run: |
@@ -144,10 +152,227 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Next steps (§4 of RUNBOOK):** Download the artifact and run the restore exercise locally." >> $GITHUB_STEP_SUMMARY
 
+  # ─────────────────────────────────────────────────────────────────────────────────────────
+  # Contrôle de restauration FONCTIONNELLE (§0.2 RUNBOOK)
+  #
+  # Le job `backup-and-verify` prouve qu'un dump est LISIBLE (pg_restore --list). Ça ne prouve
+  # PAS qu'il est UTILISABLE : « les comptes de lignes ne prouvent pas qu'une base est utilisable ;
+  # on démarre le backend dessus, on se connecte, on vérifie GET /tresorerie/reconciliation »
+  # (RUNBOOK). C'est ce que fait ce job, en AUTONOME dans la CI (plus seulement le script local) :
+  #   1. restaure l'artefact chiffré dans une base Postgres ÉPHÉMÈRE du runner (jamais la prod) ;
+  #   2. DÉMARRE le vrai backend compilé (`node dist/app.js`) contre cette base ;
+  #   3. /ready → 200 (le process répond ET la base restaurée est joignable, SELECT 1) ;
+  #   4. signe un access token de contrôle pour un ADMIN réel de la base restaurée, puis
+  #      GET /tresorerie/reconciliation → 200 (auth + contexte tenant + lecture financière réelle).
+  #
+  # La prod n'est JAMAIS touchée : on lit l'artefact déjà produit, on écrit dans une base jetable.
+  restore-verify:
+    name: Contrôle de restauration fonctionnelle
+    runs-on: ubuntu-latest
+    needs: backup-and-verify
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: nkoni
+          POSTGRES_PASSWORD: nkoni
+          POSTGRES_DB: nkoni_restore
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U nkoni"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    env:
+      GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE_BACKUP }}
+      # Base ÉPHÉMÈRE du runner — la restauration écrit ICI, jamais dans la prod.
+      RESTORE_DATABASE_URL: postgresql://nkoni:nkoni@localhost:5432/nkoni_restore
+      # Secrets JWT FACTICES : le boot fail-fast les EXIGE (lib/env), mais aucune session réelle
+      # n'est en jeu. Le token de contrôle est signé avec CE même JWT_ACCESS_SECRET → il vérifie.
+      JWT_ACCESS_SECRET: ci-restore-verify-access-secret-not-real
+      JWT_REFRESH_SECRET: ci-restore-verify-refresh-secret-not-real
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Install PostgreSQL client tools (pg_restore 18)
+        run: |
+          # Même exigence que le job de dump : le client par défaut d'Ubuntu (16) ne peut PAS
+          # restaurer une archive produite par pg_dump 18. On épingle -18 et on met son bin en PATH.
+          sudo apt-get update
+          sudo apt-get install -y curl ca-certificates
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+            | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/pgdg.gpg
+          echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-18
+          echo "/usr/lib/postgresql/18/bin" >> "$GITHUB_PATH"
+          /usr/lib/postgresql/18/bin/pg_restore --version
+
+      - name: Télécharger l'artefact de sauvegarde
+        uses: actions/download-artifact@v4
+        with:
+          name: nkoni-backup-${{ needs.backup-and-verify.outputs.stamp }}
+          path: ./restore
+
+      - name: Déchiffrer + restaurer dans la base éphémère
+        run: |
+          set -o pipefail
+          GPG_FILE="$(ls ./restore/*.dump.gpg)"
+          echo "Archive : $GPG_FILE"
+          CLAIR="$(mktemp --suffix=.dump)"
+          trap 'rm -f "$CLAIR"' EXIT
+          echo "$GPG_PASSPHRASE" | gpg --batch --passphrase-fd 0 --decrypt "$GPG_FILE" > "$CLAIR"
+          # --no-owner/--no-privileges : le dump prod porte des rôles absents du runner. pg_restore
+          # rend un code ≠ 0 sur ces erreurs NON fatales (rôles/privilèges/commentaires) : on ne fait
+          # PAS échouer l'étape ici — la VRAIE preuve est le boot + la requête applicative plus bas.
+          pg_restore --no-owner --no-privileges -d "$RESTORE_DATABASE_URL" "$CLAIR" \
+            || echo "⚠️ pg_restore a signalé des avertissements (rôles/privilèges) — attendu, non bloquant."
+          NB_TABLES="$(psql "$RESTORE_DATABASE_URL" -At -c "SELECT count(*) FROM information_schema.tables WHERE table_schema='public';")"
+          echo "Tables restaurées : $NB_TABLES"
+          if [ "$NB_TABLES" -eq 0 ]; then
+            echo "::error::Restauration vide (0 table) — l'archive n'est pas exploitable."
+            exit 1
+          fi
+          # Le compte de TABLES ne prouve que le SCHÉMA. Un dump où le schéma est présent mais les
+          # DONNÉES manquent (dump partiel, --schema-only par erreur, données tronquées) passerait
+          # au vert : `reconciliation` sur une org sans mouvements rend trivialement `coherent:true`.
+          # On EXIGE donc des données réelles — Membre et Versement sont les tables cœur du produit.
+          NB_MEMBRES="$(psql "$RESTORE_DATABASE_URL" -At -c "SELECT count(*) FROM \"Membre\";")"
+          NB_VERSEMENTS="$(psql "$RESTORE_DATABASE_URL" -At -c "SELECT count(*) FROM \"Versement\";")"
+          echo "Membres : $NB_MEMBRES · Versements : $NB_VERSEMENTS"
+          if [ "$NB_MEMBRES" -eq 0 ]; then
+            echo "::error::Schéma restauré mais AUCUN membre — restauration partielle (données manquantes)."
+            exit 1
+          fi
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Installer les dépendances + compiler le backend
+        working-directory: backend
+        env:
+          # `npm ci` déclenche `postinstall: prisma generate` (schéma local, aucune DB requise).
+          DATABASE_URL: ${{ env.RESTORE_DATABASE_URL }}
+        run: |
+          npm ci
+          npm run build
+
+      - name: Démarrer le backend sur la base restaurée + contrôle applicatif
+        working-directory: backend
+        env:
+          # Le backend compilé se connecte à la base ÉPHÉMÈRE restaurée (comme `npm run start` en prod).
+          DATABASE_URL: ${{ env.RESTORE_DATABASE_URL }}
+          PORT: 3000
+          # NODE_ENV=test : désactive le rate-limit (cf. app.ts) — pas d'interférence sur nos curl.
+          NODE_ENV: test
+        run: |
+          set -o pipefail
+
+          # DÉMARRER le vrai artefact compilé contre la base restaurée.
+          node dist/app.js &
+          APP_PID=$!
+          trap 'kill "$APP_PID" 2>/dev/null || true' EXIT
+
+          # 1) /ready — prouve que le process répond ET que la base restaurée est joignable (SELECT 1).
+          echo "Attente de /ready…"
+          PRET=0
+          for _ in $(seq 1 30); do
+            CODE="$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/ready || true)"
+            if [ "$CODE" = "200" ]; then echo "✓ /ready = 200"; PRET=1; break; fi
+            sleep 2
+          done
+          if [ "$PRET" -ne 1 ]; then
+            echo "::error::/ready n'a jamais répondu 200 (dernier code : ${CODE:-aucun})."
+            exit 1
+          fi
+
+          # 2) Un ADMIN RÉEL de la base restaurée = sujet du contrôle scopé. On le prend dans l'org
+          #    qui a LE PLUS de versements (ORDER BY count DESC), pas au hasard : un `LIMIT 1` nu
+          #    pouvait tomber sur une org sans mouvements, où `coherent:true` est vrai trivialement.
+          #    Cibler l'org la plus active rend la réconciliation NON vacante.
+          LIGNE="$(psql "$DATABASE_URL" -At -F '|' -c "
+            SELECT u.id, u.role, u.\"organisationId\"
+            FROM \"Utilisateur\" u
+            JOIN (SELECT \"organisationId\", count(*) AS n FROM \"Versement\" GROUP BY \"organisationId\") v
+              ON v.\"organisationId\" = u.\"organisationId\"
+            WHERE u.role='ADMIN' AND u.\"organisationId\" IS NOT NULL
+            ORDER BY v.n DESC LIMIT 1;")"
+          # Repli : aucune org n'a à la fois des versements ET un ADMIN → n'importe quel ADMIN rattaché.
+          if [ -z "$LIGNE" ]; then
+            LIGNE="$(psql "$DATABASE_URL" -At -F '|' \
+              -c "SELECT id, role, \"organisationId\" FROM \"Utilisateur\" WHERE role='ADMIN' AND \"organisationId\" IS NOT NULL LIMIT 1;")"
+          fi
+          if [ -z "$LIGNE" ]; then
+            echo "::error::Aucun ADMIN rattaché à une organisation dans la base restaurée."
+            exit 1
+          fi
+          SUB="${LIGNE%%|*}"; RESTE="${LIGNE#*|}"; ROLE="${RESTE%%|*}"; ORG="${RESTE##*|}"
+          # Dépôt PUBLIC ⇒ logs Actions PUBLICS. On ne journalise que des préfixes : de quoi
+          # corréler deux étapes d'un même run sans publier les identifiants réels d'un compte
+          # administrateur et de son organisation.
+          echo "Contrôle au nom de : role=$ROLE (sub ${SUB:0:8}…, org ${ORG:0:8}…)"
+
+          # 3) Signer un access token de CONTRÔLE (HS256, MÊME secret que le boot → il vérifie).
+          #    Payload minimal attendu par `authenticate` : { sub, role, organisationId }.
+          TOKEN="$(node -e '
+            const c = require("crypto");
+            const [sub, role, org, secret] = process.argv.slice(1);
+            const b64 = (o) => Buffer.from(JSON.stringify(o)).toString("base64url");
+            const now = Math.floor(Date.now() / 1000);
+            const h = b64({ alg: "HS256", typ: "JWT" });
+            const p = b64({ sub, role, organisationId: org, iat: now, exp: now + 300 });
+            const s = c.createHmac("sha256", secret).update(h + "." + p).digest("base64url");
+            process.stdout.write(h + "." + p + "." + s);
+          ' "$SUB" "$ROLE" "$ORG" "$JWT_ACCESS_SECRET")"
+
+          # 4) LE contrôle applicatif du RUNBOOK : GET /tresorerie/reconciliation, authentifié + scopé.
+          #    200 = auth OK + contexte tenant établi + lecture financière réelle sur la base restaurée.
+          echo "GET /tresorerie/reconciliation…"
+          REP="$(curl -s -w $'\n%{http_code}' -H "Authorization: Bearer $TOKEN" \
+            http://localhost:3000/tresorerie/reconciliation)"
+          CODE="$(printf '%s' "$REP" | tail -1)"
+          CORPS="$(printf '%s' "$REP" | sed '$d')"
+          echo "HTTP $CODE"
+          # ⚠️ NE JAMAIS journaliser $CORPS tel quel : le dépôt est PUBLIC, donc ces logs le sont.
+          # `ecarts[]` porte des `membreId` et des MONTANTS RÉELS — et précisément quand quelque
+          # chose ne va pas (une base saine rend `ecarts: []`, donc le jour où la fuite serait la
+          # plus embarrassante est exactement celui où elle se produirait). On n'extrait que les
+          # deux champs STRUCTURELS, qui suffisent au diagnostic sans identifier personne.
+          if [ "$CODE" = "200" ]; then
+            printf '%s' "$CORPS" | jq -c '{coherent, nbEcarts}'
+          else
+            # Corps d'erreur Fastify = { error, message } : des libellés, pas des lignes de données.
+            printf '%s' "$CORPS" | jq -c '{error, message}' 2>/dev/null || echo "(corps non journalisé)"
+          fi
+          if [ "$CODE" != "200" ]; then
+            echo "::error::/tresorerie/reconciliation a rendu $CODE (attendu 200) — base restaurée NON utilisable par l'app."
+            exit 1
+          fi
+          echo "✓ Contrôle applicatif OK — la base restaurée est UTILISABLE par l'application."
+
+      - name: Rapport de contrôle de restauration
+        if: always()
+        run: |
+          echo "## Contrôle de restauration fonctionnelle (§0.2)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Artefact restauré dans une base éphémère, backend démarré dessus, endpoints vérifiés." >> $GITHUB_STEP_SUMMARY
+          echo "Statut du job : **${{ job.status }}**." >> $GITHUB_STEP_SUMMARY
+
   # Optionnel : notification sur Slack ou email en cas d'échec
   notify-on-failure:
     runs-on: ubuntu-latest
-    needs: backup-and-verify
+    needs: [backup-and-verify, restore-verify]
     if: failure()
     # Droit d'écrire une issue avec le GITHUB_TOKEN du run (token en lecture seule par défaut).
     permissions:
@@ -169,7 +394,10 @@ jobs:
           # secret externe. Dédup : on commente l'issue ouverte existante plutôt que d'en créer une
           # à chaque échec.
           TITRE="⚠️ Échec de l'exercice de sauvegarde (§0.2 GA)"
-          CORPS=$(printf 'Le workflow **backup-restore-exercise** a échoué le %s.\n\nRun : %s\n\nAucune sauvegarde produite pour ce créneau. Consulter les logs, corriger, puis relancer :\n```\ngh workflow run backup-restore-exercise.yml\n```' "$(date -u '+%Y-%m-%d %H:%M UTC')" "$RUN_URL")
+          # Deux jobs peuvent échouer (dump/chiffrement/copie R2, OU contrôle de restauration) —
+          # le message ne présume donc PAS qu'aucune sauvegarde n'existe (elle peut avoir été
+          # produite et copiée avant qu'un échec de restauration ne survienne). Les logs tranchent.
+          CORPS=$(printf 'Le workflow **backup-restore-exercise** a échoué le %s (sauvegarde et/ou contrôle de restauration).\n\nRun : %s\n\nNe PAS présumer qu'"'"'une sauvegarde existe pour ce créneau tant que les logs ne le confirment pas. Consulter les logs, corriger, puis relancer :\n```\ngh workflow run backup-restore-exercise.yml\n```' "$(date -u '+%Y-%m-%d %H:%M UTC')" "$RUN_URL")
           # Label idempotent (créé/à jour ; `create issue --label` échoue si le label n'existe pas).
           gh label create backup-failure --color B60205 --description "Échec du workflow de sauvegarde" --force >/dev/null 2>&1 || true
           EXISTANTE=$(gh issue list --state open --label backup-failure --json number --jq '.[0].number' 2>/dev/null || true)

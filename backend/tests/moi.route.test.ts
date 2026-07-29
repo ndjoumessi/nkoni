@@ -172,8 +172,8 @@ describe('Espace membre /moi/* — membre lié', () => {
   it('GET /moi/resolutions → résolutions ouvertes (dateVote null) + mon vote fusionné', async () => {
     const res = await app.inject({ method: 'GET', url: '/moi/resolutions', headers: auth() })
     expect(res.statusCode).toBe(200)
-    // Seules les résolutions OUVERTES au vote (dateVote null).
-    expect(calls.resolutionWhere).toMatchObject({ dateVote: null })
+    // Seules les résolutions EXPLICITEMENT mises au vote et non clôturées.
+    expect(calls.resolutionWhere).toMatchObject({ ouvertAuVote: true, dateVote: null })
     // Le vote n'est lu QUE pour le membre résolu par le sub, borné aux résolutions listées.
     expect(calls.voteWhere).toMatchObject({ membreId: 'm1', resolutionId: { in: ['res1'] } })
     const body = res.json()

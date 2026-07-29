@@ -34,6 +34,8 @@ export default {
     votes: {
       depouiller: 'Dépouiller',
       masquer: 'Masquer le dépouillement',
+      ouvrir: 'Ouvrir le vote',
+      ouvertOk: 'Résolution mise au vote',
       cloturer: 'Clôturer le vote',
       clotureOk: 'Vote clôturé',
       close: 'Vote clôturé',

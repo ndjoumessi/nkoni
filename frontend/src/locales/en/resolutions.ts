@@ -34,6 +34,8 @@ export default {
     votes: {
       depouiller: 'Show results',
       masquer: 'Hide results',
+      ouvrir: 'Open voting',
+      ouvertOk: 'Resolution opened for voting',
       cloturer: 'Close voting',
       clotureOk: 'Voting closed',
       close: 'Voting closed',

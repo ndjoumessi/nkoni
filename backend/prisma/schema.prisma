@@ -588,6 +588,10 @@ model Resolution {
   pointOrdreDuJour   PointOrdreDuJour? @relation(fields: [pointOrdreDuJourId], references: [id], onDelete: SetNull)
   texte              String
   statut             StatutResolution  @default(ADOPTEE)
+  // Mise au vote EXPLICITE (§ votes en ligne) : une résolution n'est votable que si un dirigeant
+  // l'a ouverte. Défaut `false` → les résolutions documentaires (résultat déjà acté) ne sont jamais
+  // proposées au vote ni écrasables par une clôture. « En vote » = `ouvertAuVote && dateVote == null`.
+  ouvertAuVote       Boolean           @default(false)
   dateVote           DateTime?
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt

@@ -23,7 +23,13 @@ export interface VoteLigne {
   sens: SensVote
 }
 export interface DepouillementResultat {
-  resolution: { id: string; statut: StatutResolution; dateVote: string | null; ouvert: boolean }
+  resolution: {
+    id: string
+    statut: StatutResolution
+    ouvertAuVote: boolean
+    dateVote: string | null
+    ouvert: boolean
+  }
   depouillement: Depouillement
   votes: VoteLigne[]
 }
@@ -60,6 +66,8 @@ export interface Resolution {
   pointOrdreDuJourId: string | null
   texte: string
   statut: StatutResolution
+  /** `true` si un dirigeant a mis la résolution au vote. « En vote » = ouvertAuVote && dateVote null. */
+  ouvertAuVote: boolean
   dateVote: string | null
   createdAt: string
   updatedAt: string
@@ -176,6 +184,12 @@ export const reunionsApi = {
       `/reunions/${rid(reunionId)}/presences/${rid(membreId)}`,
       { method: 'PUT', json: { statut }, accessToken },
     ),
+  /** Met une résolution au vote (dirigeant) → les membres peuvent alors voter. */
+  ouvrirVote: (resolutionId: string, accessToken: string) =>
+    request<{ id: string; ouvertAuVote: true }>(`/resolutions/${rid(resolutionId)}/ouvrir-vote`, {
+      method: 'POST',
+      accessToken,
+    }),
   /** Dépouillement d'une résolution (vue bureau) : tally + votes nominatifs. */
   depouiller: (resolutionId: string, accessToken: string, signal?: AbortSignal) =>
     request<DepouillementResultat>(`/resolutions/${rid(resolutionId)}/votes`, { accessToken, signal }),

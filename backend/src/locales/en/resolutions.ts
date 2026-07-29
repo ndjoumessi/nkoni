@@ -5,4 +5,5 @@ export const messages = {
   'resolutions.pointIntrouvable': 'Agenda item not found.',
   'resolutions.pointHorsReunion': 'The agenda item does not belong to this meeting.',
   'resolutions.cloturee': 'Resolution closed: voting is over.',
+  'resolutions.nonOuverte': 'The resolution is not open for voting.',
 }

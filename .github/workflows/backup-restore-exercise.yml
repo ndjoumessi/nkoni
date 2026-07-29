@@ -110,6 +110,26 @@ jobs:
           retention-days: 30
           compression-level: 0  # Already compressed by pg_dump -Fc
 
+      - name: §2.3 — Copie hors-site vers Cloudflare R2
+        env:
+          # R2 est S3-compatible : le client aws (préinstallé sur le runner) parle à R2 via
+          # --endpoint-url. Copie sur une infra INDÉPENDANTE de GitHub/Vercel/Railway → vraie
+          # résilience DR (un incident sur une infra ne touche pas la sauvegarde). La RÉTENTION
+          # longue est une règle de cycle de vie du bucket R2 (dashboard), pas ici.
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          R2_ENDPOINT: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: |
+          set -o pipefail
+          # Fail-closed délibéré : si la copie hors-site échoue (secret absent, R2 indisponible),
+          # le job échoue et l'issue d'alerte se déclenche. Un échec silencieux de la copie DR
+          # serait exactement le « dispositif qu'on croit en place et qui ne l'est pas » (§0).
+          DEST="s3://$R2_BUCKET/nkoni/$(basename "$BACKUP_GPG")"
+          aws s3 cp "$BACKUP_GPG" "$DEST" --endpoint-url "$R2_ENDPOINT" --only-show-errors
+          echo "✅ Copie hors-site : $DEST"
+
       - name: Report backup completion
         run: |
           echo "## ✅ Backup Exercise Complete" >> $GITHUB_STEP_SUMMARY

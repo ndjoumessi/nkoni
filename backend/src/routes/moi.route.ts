@@ -15,6 +15,12 @@ import { anneeCouranteApp } from '../lib/date-app'
 
 const anneeCourante = (): number => anneeCouranteApp()
 
+/** Ligne d'agrégat `groupBy` (typée localement — indépendante du client généré), cf. cagnottes.route.ts. */
+interface SommeDons {
+  cagnotteId: string
+  _sum: { montant: number | null }
+}
+
 /** Résout le Membre lié au compte connecté (ou null). `findFirst` → organisationId injecté (scopé). */
 /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
 async function membreConnecte(prisma: any, sub: string | undefined) {
@@ -194,8 +200,15 @@ export const moiRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
 
   // GET /moi/cagnottes — cagnottes OUVERTES (§4.9) + ce que CE membre y a donné. Transparence :
   // on montre la collecte collective (Σ dons) et le don personnel. Lecture seule (le membre ne gère
-  // pas la cagnotte). Somme calculée en JS sur un findMany (couvert par l'extension d'isolation) —
-  // pas de groupBy/aggregate sur un modèle scopé (non garanti couvert → risque OperationNonIsolee).
+  // pas la cagnotte).
+  //
+  // Agrégation par POSTGRES via `groupBy`, comme `GET /cagnottes` (cagnottes.route.ts). `groupBy`
+  // et `aggregate` SONT couverts par l'extension d'isolation — ils figurent dans `READ_WHERE_OPS`
+  // au même titre que `findMany`/`count`, donc `organisationId` y est injecté de la même façon.
+  // (Une version antérieure de ce commentaire prétendait l'inverse et justifiait une somme en JS ;
+  // c'était faux, et la route sœur agrège déjà `donCagnotte` par `groupBy` en production.)
+  // Deux agrégats plutôt qu'un `findMany` : on ne rapatrie plus toutes les lignes de dons de toutes
+  // les cagnottes ouvertes pour les sommer côté Node.
   app.get('/moi/cagnottes', { preHandler: [authenticate] }, async (req) => {
     const membre = await membreConnecte(app.prisma, req.user.sub)
     if (!membre) return []
@@ -206,25 +219,32 @@ export const moiRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
       select: { id: true, titre: true, type: true, objectif: true, dateEvenement: true },
     })) as { id: string; titre: string; type: string; objectif: number | null; dateEvenement: Date | null }[]
     if (cagnottes.length === 0) return []
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const dons = (await (app.prisma.donCagnotte as any).findMany({
-      where: { cagnotteId: { in: cagnottes.map((c) => c.id) } },
-      select: { cagnotteId: true, montant: true, membreId: true },
-    })) as { cagnotteId: string; montant: number; membreId: string }[]
-    return cagnottes.map((c) => {
-      // TOUS les dons de CETTE cagnotte (pas seulement ceux du membre) : `collecteTotal` somme
-      // l'ensemble (transparence collective), `monDon` refiltre sur membre.id.
-      const donsCagnotte = dons.filter((d) => d.cagnotteId === c.id)
-      return {
-        id: c.id,
-        titre: c.titre,
-        type: c.type,
-        objectif: c.objectif,
-        dateEvenement: c.dateEvenement,
-        collecteTotal: donsCagnotte.reduce((s, d) => s + d.montant, 0),
-        monDon: donsCagnotte.filter((d) => d.membreId === membre.id).reduce((s, d) => s + d.montant, 0),
-      }
-    })
+    const ids = cagnottes.map((c) => c.id)
+    // `collectes` = TOUS les dons (transparence collective) ; `miens` = les seuls dons du membre.
+    // Une cagnotte sans don n'a AUCUNE ligne d'agrégat → défaut 0 côté lecture de la Map.
+    const [collectes, miens] = (await Promise.all([
+      app.prisma.donCagnotte.groupBy({
+        by: ['cagnotteId'],
+        where: { cagnotteId: { in: ids } },
+        _sum: { montant: true },
+      }),
+      app.prisma.donCagnotte.groupBy({
+        by: ['cagnotteId'],
+        where: { cagnotteId: { in: ids }, membreId: membre.id },
+        _sum: { montant: true },
+      }),
+    ])) as unknown as [SommeDons[], SommeDons[]]
+    const total = new Map(collectes.map((s) => [s.cagnotteId, s._sum.montant ?? 0]))
+    const perso = new Map(miens.map((s) => [s.cagnotteId, s._sum.montant ?? 0]))
+    return cagnottes.map((c) => ({
+      id: c.id,
+      titre: c.titre,
+      type: c.type,
+      objectif: c.objectif,
+      dateEvenement: c.dateEvenement,
+      collecteTotal: total.get(c.id) ?? 0,
+      monDon: perso.get(c.id) ?? 0,
+    }))
   })
 
   // GET /moi/tontines — MES participations (§ tontine), lecture seule. Par cycle : mon rang de

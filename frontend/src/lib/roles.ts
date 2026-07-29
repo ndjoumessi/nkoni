@@ -94,12 +94,19 @@ const GESTION_DEPENSE = ['ADMIN', 'PRESIDENT', 'TRESORIERE']
 const APPROBATION_DEPENSE = ['ADMIN', 'PRESIDENT', 'COMMISSAIRE_COMPTES']
 const PAIEMENT_DEPENSE = ['ADMIN', 'PRESIDENT', 'TRESORIERE']
 
+/**
+ * FLUX D'ARGENT — miroir de `ROLES_ARGENT` (`backend/src/middlewares/permissions.ts`), source
+ * UNIQUE côté front comme côté serveur. Encaisser, reverser, saisir un don, enregistrer une mise :
+ * toutes ces actions sont gardées serveur par la MÊME liste, hors matrice par entité. Une copie
+ * par domaine (il y en avait deux) est la façon habituelle dont ces listes divergent en silence.
+ */
+const ROLES_ARGENT = ['ADMIN', 'PRESIDENT', 'TRESORIERE']
+
 /** Cagnottes d'événement (§4.9) — miroir matrice « Cagnotte » + gardes de flux d'argent. */
 const LECTURE_CAGNOTTE = [
   'ADMIN', 'PRESIDENT', 'TRESORIERE', 'SECRETAIRE', 'COMMISSAIRE_COMPTES', 'GUIDE_RELIGIEUX', 'MEMBRE_SIMPLE',
 ]
 const GESTION_CAGNOTTE = ['ADMIN', 'PRESIDENT', 'TRESORIERE', 'SECRETAIRE'] // créer / éditer
-const ARGENT_CAGNOTTE = ['ADMIN', 'PRESIDENT', 'TRESORIERE'] // dons, reversement, clôture, suppression
 
 /** Peut consulter les cagnottes (nav + pages). Tous les rôles d'organisation. */
 export function peutVoirCagnottes(role: string | undefined): boolean {
@@ -111,13 +118,12 @@ export function peutGererCagnotte(role: string | undefined): boolean {
 }
 /** Peut saisir un don, reverser, clôturer, supprimer (flux d'argent : ADMIN/PRESIDENT/TRESORIERE). */
 export function peutSaisirDon(role: string | undefined): boolean {
-  return role !== undefined && ARGENT_CAGNOTTE.includes(role)
+  return role !== undefined && ROLES_ARGENT.includes(role)
 }
 
 /** Amendes / pénalités (§4.10) — miroir matrice « Amende » + garde d'encaissement. */
 const LECTURE_AMENDE = ['ADMIN', 'PRESIDENT', 'TRESORIERE', 'SECRETAIRE', 'COMMISSAIRE_COMPTES', 'MEMBRE_SIMPLE']
 const GESTION_AMENDE = ['ADMIN', 'PRESIDENT', 'TRESORIERE', 'SECRETAIRE'] // saisir / éditer / supprimer
-const ARGENT_AMENDE = ['ADMIN', 'PRESIDENT', 'TRESORIERE'] // encaisser / annuler
 
 /** Peut consulter les amendes (nav + page). MEMBRE_SIMPLE = les siennes (filtrées en route). */
 export function peutVoirAmendes(role: string | undefined): boolean {
@@ -129,7 +135,33 @@ export function peutGererAmende(role: string | undefined): boolean {
 }
 /** Peut encaisser (payer) ou annuler une amende (ADMIN/PRESIDENT/TRESORIERE). */
 export function peutEncaisserAmende(role: string | undefined): boolean {
-  return role !== undefined && ARGENT_AMENDE.includes(role)
+  return role !== undefined && ROLES_ARGENT.includes(role)
+}
+
+/**
+ * Tontine (§ tontine) — miroir matrice « Tontine » + garde de flux d'argent.
+ *
+ * DEUX gardes serveur distinctes, donc deux helpers : la CONFIGURATION (créer une tontine, ouvrir
+ * un cycle, tirer un bénéficiaire) passe par la matrice, tandis que les FLUX D'ARGENT (enregistrer
+ * une mise, reverser le pot) sont gardés à part par `ROLES_ARGENT`. Les confondre donnerait au
+ * SECRETAIRE des boutons qui répondent 403.
+ */
+const LECTURE_TONTINE = [
+  'ADMIN', 'PRESIDENT', 'TRESORIERE', 'SECRETAIRE', 'COMMISSAIRE_COMPTES', 'GUIDE_RELIGIEUX', 'MEMBRE_SIMPLE',
+]
+const GESTION_TONTINE = ['ADMIN', 'PRESIDENT', 'TRESORIERE', 'SECRETAIRE']
+
+/** Peut consulter les tontines (nav + pages). Tous les rôles d'organisation. */
+export function peutVoirTontines(role: string | undefined): boolean {
+  return role !== undefined && LECTURE_TONTINE.includes(role)
+}
+/** Peut créer une tontine, ouvrir un cycle, tirer un bénéficiaire (configuration). */
+export function peutGererTontines(role: string | undefined): boolean {
+  return role !== undefined && GESTION_TONTINE.includes(role)
+}
+/** Peut enregistrer une mise ou reverser le pot (flux d'argent : ADMIN/PRESIDENT/TRESORIERE). */
+export function peutFluxArgentTontine(role: string | undefined): boolean {
+  return role !== undefined && ROLES_ARGENT.includes(role)
 }
 
 export function peutVoirTresorerie(role: string | undefined): boolean {

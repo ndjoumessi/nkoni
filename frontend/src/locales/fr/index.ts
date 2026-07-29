@@ -34,6 +34,7 @@ import audit from './audit'
 import superAdmin from './superAdmin'
 import parametres from './parametres'
 import cagnottes from './cagnottes'
+import tontines from './tontines'
 import amendes from './amendes'
 import statut from './statut'
 
@@ -68,6 +69,7 @@ const fr = {
   ...superAdmin,
   ...parametres,
   ...cagnottes,
+  ...tontines,
   ...amendes,
   ...statut,
 }

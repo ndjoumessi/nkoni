@@ -13,6 +13,7 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
+  RefreshCw,
   ScrollText,
   Search,
   Settings,
@@ -35,6 +36,7 @@ import {
   peutVoirConflits,
   peutVoirCommemorations,
   peutVoirCagnottes,
+  peutVoirTontines,
   peutVoirAmendes,
   peutVoirRapports,
   peutVoirTresorerie,
@@ -82,6 +84,7 @@ function useNavGroups(): NavGroup[] {
   if (peutVoirBareme(role)) finances.push({ to: '/bareme', label: t('shell.nav.baremeAnnuel'), icon: CalendarRange })
   if (peutVoirTresorerie(role)) finances.push({ to: '/tresorerie', label: t('shell.nav.tresorerie'), icon: Wallet })
   if (peutVoirCagnottes(role)) finances.push({ to: '/cagnottes', label: t('shell.nav.cagnottes'), icon: HeartHandshake })
+  if (peutVoirTontines(role)) finances.push({ to: '/tontines', label: t('shell.nav.tontines'), icon: RefreshCw })
   if (peutVoirAmendes(role)) finances.push({ to: '/amendes', label: t('shell.nav.amendes'), icon: Scale })
   if (peutVoirRapports(role)) finances.push({ to: '/rapports', label: t('shell.nav.rapports'), icon: BarChart3 })
 

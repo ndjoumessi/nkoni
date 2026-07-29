@@ -36,6 +36,14 @@ export class ResolutionClotureeError extends Error {
   }
 }
 
+/** La résolution n'a pas été mise au vote (pas de scrutin ouvert). → 409 */
+export class ResolutionNonOuverteError extends Error {
+  constructor() {
+    super("La résolution n'est pas ouverte au vote.")
+    this.name = 'ResolutionNonOuverteError'
+  }
+}
+
 /** Tally d'un dépouillement — comptes par sens + total exprimé. */
 export interface Depouillement {
   POUR: number
@@ -84,13 +92,29 @@ export interface VotePrisma {
 async function chargerResolution(
   prisma: VotePrisma,
   resolutionId: string,
-): Promise<{ id: string; statut: string; dateVote: Date | null }> {
+): Promise<{ id: string; statut: string; ouvertAuVote: boolean; dateVote: Date | null }> {
   const r = await prisma.resolution.findFirst({
     where: { id: resolutionId },
-    select: { id: true, statut: true, dateVote: true },
+    select: { id: true, statut: true, ouvertAuVote: true, dateVote: true },
   })
   if (!r) throw new ResolutionIntrouvableError()
   return r
+}
+
+/**
+ * Ouvre EXPLICITEMENT une résolution au vote (dirigeant). Sans cette étape, une résolution reste
+ * documentaire et n'est jamais votable — c'est ce qui empêche un vote fortuit d'écraser, à la
+ * clôture, le statut d'une décision déjà actée. Refus si déjà clôturée (`dateVote` posé) → 409.
+ * Idempotent sur une résolution déjà ouverte (réécrit `true`).
+ */
+export async function ouvrirVoteResolution(
+  prisma: VotePrisma,
+  resolutionId: string,
+): Promise<{ id: string; ouvertAuVote: true }> {
+  const resolution = await chargerResolution(prisma, resolutionId)
+  if (resolution.dateVote !== null) throw new ResolutionClotureeError()
+  await prisma.resolution.update({ where: { id: resolutionId }, data: { ouvertAuVote: true } })
+  return { id: resolutionId, ouvertAuVote: true }
 }
 
 /**
@@ -114,6 +138,7 @@ export async function voterResolution(
 ): Promise<{ sens: SensVote }> {
   const resolution = await chargerResolution(prisma, resolutionId)
   if (resolution.dateVote !== null) throw new ResolutionClotureeError()
+  if (!resolution.ouvertAuVote) throw new ResolutionNonOuverteError()
   // Lecture SCOPÉE : un membre d'une autre org renvoie `null` → 404 (pas de fuite d'existence).
   const membre = await prisma.membre.findFirst({ where: { id: membreId }, select: { id: true } })
   if (!membre) throw new MembreIntrouvableError()
@@ -126,7 +151,7 @@ export async function voterResolution(
 }
 
 export interface DepouillementResultat {
-  resolution: { id: string; statut: string; dateVote: Date | null; ouvert: boolean }
+  resolution: { id: string; statut: string; ouvertAuVote: boolean; dateVote: Date | null; ouvert: boolean }
   depouillement: Depouillement
   votes: { membreId: string; nom: string; prenom: string; sens: string }[]
 }
@@ -146,8 +171,10 @@ export async function depouillerResolution(
     resolution: {
       id: resolution.id,
       statut: resolution.statut,
+      ouvertAuVote: resolution.ouvertAuVote,
       dateVote: resolution.dateVote,
-      ouvert: resolution.dateVote === null,
+      // « en vote » = ouvert ET non clôturé. Une résolution jamais mise au vote n'est pas « ouverte ».
+      ouvert: resolution.ouvertAuVote && resolution.dateVote === null,
     },
     depouillement: compterTally(lignes),
     votes: lignes.map((l) => ({ membreId: l.membreId, nom: l.membre.nom, prenom: l.membre.prenom, sens: l.sens })),
@@ -165,6 +192,7 @@ export async function cloturerResolution(
 ): Promise<{ id: string; statut: 'ADOPTEE' | 'REJETEE'; dateVote: Date; depouillement: Depouillement }> {
   const resolution = await chargerResolution(prisma, resolutionId)
   if (resolution.dateVote !== null) throw new ResolutionClotureeError()
+  if (!resolution.ouvertAuVote) throw new ResolutionNonOuverteError()
   const votes = (await prisma.vote.findMany({
     where: { resolutionId },
     select: { sens: true },

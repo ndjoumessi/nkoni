@@ -70,7 +70,7 @@ describe('PUT /moi/resolutions/:id/vote (membre self-service)', () => {
         findFirst: async ({ where }: any) =>
           where.compteUtilisateurId === 'u1' || where.id === 'm1' ? { id: 'm1' } : null,
       },
-      resolution: { findFirst: async () => ({ id: 'r1', statut: 'ADOPTEE', dateVote: null }) },
+      resolution: { findFirst: async () => ({ id: 'r1', statut: 'ADOPTEE', ouvertAuVote: true, dateVote: null }) },
       vote: { upsert: async ({ where }: any) => { whereRecu = where; return {} } },
     }
     const app = await appAvec(prisma)
@@ -96,7 +96,7 @@ describe('PUT /moi/resolutions/:id/vote (membre self-service)', () => {
       membre: {
         findFirst: async ({ where }: any) => (where.compteUtilisateurId === 'u1' ? { id: 'm-autre-org' } : null),
       },
-      resolution: { findFirst: async () => ({ id: 'r1', statut: 'ADOPTEE', dateVote: null }) },
+      resolution: { findFirst: async () => ({ id: 'r1', statut: 'ADOPTEE', ouvertAuVote: true, dateVote: null }) },
       vote: { upsert: async () => { upsertAppele = true; return {} } },
     }
     const app = await appAvec(prisma)
@@ -125,6 +125,24 @@ describe('PUT /moi/resolutions/:id/vote (membre self-service)', () => {
     expect(res.statusCode).toBe(400)
     await app.close()
   })
+
+  // RÉGRESSION (bruit documentaire + intégrité) : une résolution documentaire (jamais mise au vote,
+  // `ouvertAuVote` false) n'est PAS votable — sinon un vote fortuit écraserait son statut à la
+  // clôture. Refus 409, aucune écriture.
+  it('résolution non ouverte au vote (ouvertAuVote false) → 409, aucun vote écrit', async () => {
+    let upsertAppele = false
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const prisma: any = {
+      membre: { findFirst: async () => ({ id: 'm1' }) },
+      resolution: { findFirst: async () => ({ id: 'r1', statut: 'ADOPTEE', ouvertAuVote: false, dateVote: null }) },
+      vote: { upsert: async () => { upsertAppele = true; return {} } },
+    }
+    const app = await appAvec(prisma)
+    const res = await app.inject({ method: 'PUT', url: '/moi/resolutions/r1/vote', headers: authMembre(app), payload: { sens: 'POUR' } })
+    expect(res.statusCode).toBe(409)
+    expect(upsertAppele).toBe(false)
+    await app.close()
+  })
 })
 
 describe('dépouillement & clôture côté dirigeant', () => {
@@ -142,7 +160,7 @@ describe('dépouillement & clôture côté dirigeant', () => {
   it('GET votes par un MEMBRE_SIMPLE → 403 (scrutin réservé au bureau)', async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const prisma: any = {
-      resolution: { findFirst: async () => ({ id: 'r1', statut: 'ADOPTEE', dateVote: null }) },
+      resolution: { findFirst: async () => ({ id: 'r1', statut: 'ADOPTEE', ouvertAuVote: true, dateVote: null }) },
       vote: { findMany: async () => [{ membreId: 'm1', sens: 'POUR', membre: { nom: 'A', prenom: 'x' } }] },
     }
     const app = await appAvec(prisma)
@@ -156,7 +174,7 @@ describe('dépouillement & clôture côté dirigeant', () => {
   it('GET votes → tally + votes nominatifs + drapeau ouvert', async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const prisma: any = {
-      resolution: { findFirst: async () => ({ id: 'r1', statut: 'ADOPTEE', dateVote: null }) },
+      resolution: { findFirst: async () => ({ id: 'r1', statut: 'ADOPTEE', ouvertAuVote: true, dateVote: null }) },
       vote: {
         findMany: async () => [
           { membreId: 'm1', sens: 'POUR', membre: { nom: 'A', prenom: 'x' } },
@@ -180,7 +198,7 @@ describe('dépouillement & clôture côté dirigeant', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const prisma: any = {
       resolution: {
-        findFirst: async () => ({ id: 'r1', statut: 'ADOPTEE', dateVote: null }),
+        findFirst: async () => ({ id: 'r1', statut: 'ADOPTEE', ouvertAuVote: true, dateVote: null }),
         update: async ({ data }: any) => { dataRecu = data; return {} },
       },
       vote: {
@@ -202,13 +220,59 @@ describe('dépouillement & clôture côté dirigeant', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const prisma: any = {
       resolution: {
-        findFirst: async () => ({ id: 'r1', statut: 'REJETEE', dateVote: new Date() }),
+        findFirst: async () => ({ id: 'r1', statut: 'REJETEE', ouvertAuVote: true, dateVote: new Date() }),
         update: async () => { throw new Error('ne doit pas être appelé') },
       },
       vote: { findMany: async () => [] },
     }
     const app = await appAvec(prisma)
     const res = await app.inject({ method: 'POST', url: '/resolutions/r1/cloturer', headers: authAdmin(app) })
+    expect(res.statusCode).toBe(409)
+    await app.close()
+  })
+
+  it('POST cloturer sur une résolution jamais mise au vote → 409', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const prisma: any = {
+      resolution: {
+        findFirst: async () => ({ id: 'r1', statut: 'ADOPTEE', ouvertAuVote: false, dateVote: null }),
+        update: async () => { throw new Error('ne doit pas être appelé') },
+      },
+      vote: { findMany: async () => [] },
+    }
+    const app = await appAvec(prisma)
+    const res = await app.inject({ method: 'POST', url: '/resolutions/r1/cloturer', headers: authAdmin(app) })
+    expect(res.statusCode).toBe(409)
+    await app.close()
+  })
+
+  it('POST ouvrir-vote (ADMIN) met ouvertAuVote à true', async () => {
+    let dataRecu: unknown = null
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const prisma: any = {
+      resolution: {
+        findFirst: async () => ({ id: 'r1', statut: 'ADOPTEE', ouvertAuVote: false, dateVote: null }),
+        update: async ({ data }: any) => { dataRecu = data; return {} },
+      },
+    }
+    const app = await appAvec(prisma)
+    const res = await app.inject({ method: 'POST', url: '/resolutions/r1/ouvrir-vote', headers: authAdmin(app) })
+    expect(res.statusCode).toBe(200)
+    expect(res.json()).toEqual({ id: 'r1', ouvertAuVote: true })
+    expect((dataRecu as { ouvertAuVote: boolean }).ouvertAuVote).toBe(true)
+    await app.close()
+  })
+
+  it('POST ouvrir-vote sur une résolution déjà clôturée → 409', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const prisma: any = {
+      resolution: {
+        findFirst: async () => ({ id: 'r1', statut: 'ADOPTEE', ouvertAuVote: true, dateVote: new Date() }),
+        update: async () => { throw new Error('ne doit pas être appelé') },
+      },
+    }
+    const app = await appAvec(prisma)
+    const res = await app.inject({ method: 'POST', url: '/resolutions/r1/ouvrir-vote', headers: authAdmin(app) })
     expect(res.statusCode).toBe(409)
     await app.close()
   })

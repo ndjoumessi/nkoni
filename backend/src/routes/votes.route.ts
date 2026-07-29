@@ -7,7 +7,9 @@ import {
   voterResolution,
   depouillerResolution,
   cloturerResolution,
+  ouvrirVoteResolution,
   ResolutionClotureeError,
+  ResolutionNonOuverteError,
   MembreIntrouvableError,
   SENS_VOTE,
 } from '../services/vote.service'
@@ -40,6 +42,10 @@ function reply4xxSiMetier(err: unknown, reply: FastifyReply): boolean {
   }
   if (err instanceof ResolutionClotureeError) {
     reply.code(409).send({ error: 'Conflict', message: t(langue, 'resolutions.cloturee') })
+    return true
+  }
+  if (err instanceof ResolutionNonOuverteError) {
+    reply.code(409).send({ error: 'Conflict', message: t(langue, 'resolutions.nonOuverte') })
     return true
   }
   // Sans ce mappage, le refus métier remonterait en 500 opaque (défaut déjà vécu sur
@@ -87,6 +93,21 @@ export const votesRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
     async (req, reply) => {
       try {
         return await depouillerResolution(app.prisma, req.params.id)
+      } catch (err) {
+        if (reply4xxSiMetier(err, reply)) return
+        throw err
+      }
+    },
+  )
+
+  // POST /resolutions/:id/ouvrir-vote — met EXPLICITEMENT la résolution au vote (dirigeant).
+  // Sans cette étape, une résolution reste documentaire : non votable, non écrasable par clôture.
+  app.post<{ Params: { id: string } }>(
+    '/resolutions/:id/ouvrir-vote',
+    { preHandler: [authenticate, requirePermission('Reunion', 'update')] },
+    async (req, reply) => {
+      try {
+        return await ouvrirVoteResolution(app.prisma, req.params.id)
       } catch (err) {
         if (reply4xxSiMetier(err, reply)) return
         throw err

@@ -120,7 +120,9 @@ export const moiRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
     const membre = await membreConnecte(app.prisma, req.user.sub)
     if (!membre) return []
     const resolutions = await app.prisma.resolution.findMany({
-      where: { dateVote: null },
+      // Seules les résolutions EXPLICITEMENT mises au vote et non encore clôturées. Le défaut
+      // `ouvertAuVote: false` exclut les résolutions documentaires (résultat déjà acté).
+      where: { ouvertAuVote: true, dateVote: null },
       orderBy: { createdAt: 'desc' },
       select: { id: true, texte: true, reunion: { select: { date: true, lieu: true } } },
     })

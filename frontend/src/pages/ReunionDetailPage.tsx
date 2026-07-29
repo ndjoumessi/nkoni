@@ -122,6 +122,7 @@ export function ReunionDetailPage() {
   const [depouillements, setDepouillements] = useState<Record<string, DepouillementResultat>>({})
   const [depouilleEnCours, setDepouilleEnCours] = useState<string | null>(null)
   const [clotureEnCours, setClotureEnCours] = useState<string | null>(null)
+  const [ouvertureEnCours, setOuvertureEnCours] = useState<string | null>(null)
 
   useEffect(() => {
     if (!accessToken || !id) return
@@ -214,6 +215,30 @@ export function ReunionDetailPage() {
       toast.error(messageErreur(e))
     } finally {
       setDepouilleEnCours(null)
+    }
+  }
+
+  // Ouvre EXPLICITEMENT une résolution au vote → les membres peuvent alors voter (MAJ en place).
+  const ouvrirVote = async (resolutionId: string) => {
+    if (!accessToken) return
+    setOuvertureEnCours(resolutionId)
+    try {
+      await reunionsApi.ouvrirVote(resolutionId, accessToken)
+      setReunion((prev) =>
+        prev
+          ? {
+              ...prev,
+              resolutions: prev.resolutions.map((r) =>
+                r.id === resolutionId ? { ...r, ouvertAuVote: true } : r,
+              ),
+            }
+          : prev,
+      )
+      toast.success(t('resolutions.votes.ouvertOk'))
+    } catch (e) {
+      toast.error(messageErreur(e))
+    } finally {
+      setOuvertureEnCours(null)
     }
   }
 
@@ -668,7 +693,11 @@ export function ReunionDetailPage() {
                           ? t('resolutions.votes.masquer')
                           : t('resolutions.votes.depouiller')}
                       </Button>
-                      {!gestion ? null : r.dateVote === null ? (
+                      {/* Trois états : documentaire (jamais mise au vote) → « Ouvrir » ; en vote →
+                          « Clôturer » ; clôturée → libellé. Seuls les rôles de gestion agissent. */}
+                      {!gestion ? null : r.dateVote !== null ? (
+                        <span className="text-xs text-faint">{t('resolutions.votes.close')}</span>
+                      ) : r.ouvertAuVote ? (
                         <Button
                           type="button"
                           size="sm"
@@ -678,7 +707,15 @@ export function ReunionDetailPage() {
                           {t('resolutions.votes.cloturer')}
                         </Button>
                       ) : (
-                        <span className="text-xs text-faint">{t('resolutions.votes.close')}</span>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          loading={ouvertureEnCours === r.id}
+                          onClick={() => void ouvrirVote(r.id)}
+                        >
+                          {t('resolutions.votes.ouvrir')}
+                        </Button>
                       )}
                     </div>
                     {depouillements[r.id] && (

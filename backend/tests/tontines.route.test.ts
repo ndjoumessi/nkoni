@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import type { FastifyInstance } from 'fastify'
 import { buildApp } from '../src/app'
+import { tirerBeneficiaire } from '../src/services/tontine.service'
 
 /**
  * Tontine (§ tontine). Prisma mocké. Verrouille : gardes (config = matrice `Tontine` ; flux d'argent
@@ -58,6 +59,9 @@ describe('Tontine — configuration (matrice)', () => {
     const prisma: any = {
       tontine: { findFirst: async () => ({ id: 't1', modeRotation: 'ORDRE_FIXE' }) },
       cycleTontine: { aggregate: async () => ({ _max: { numero: null } }) },
+      // Lecture SCOPÉE d'appartenance des participants (garde d'isolation) : ici tous sont de l'org.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      membre: { findMany: async ({ where }: any) => (where.id.in as string[]).map((id) => ({ id })) },
       $transaction: async (fn: (t: unknown) => unknown) => fn(tx),
     }
     const app = await appAvec(prisma)
@@ -230,6 +234,110 @@ describe('Tontine — flux d’argent (requireRoles)', () => {
     expect(dataRecu?.montantPot).toBe(15_000)
     expect(dataRecu?.statut).toBe('REVERSE')
     expect(dataRecu?.dateReversement).toBeInstanceOf(Date)
+    await app.close()
+  })
+})
+
+/**
+ * TIRAGE — le sélecteur d'index (CSPRNG `randomInt` en production, injecté ici pour être
+ * déterministe). Le test de route ci-dessus n'a qu'UN éligible : il passe donc quelle que soit la
+ * source d'aléa et n'exerce pas le sélecteur. Ces cas-ci le font au niveau SERVICE, seul endroit où
+ * l'injection est possible (la route n'injecte rien — c'est justement ce qui garantit le CSPRNG).
+ */
+describe('Tontine — tirage : contrat du sélecteur d’index', () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const prismaAvec = (participants: string[], dejaServis: string[], sortie: { ecrit: string | null }): any => ({
+    tourTontine: {
+      findFirst: async () => ({
+        id: 'tourX',
+        cycleId: 'c1',
+        beneficiaireId: null,
+        statut: 'A_VENIR',
+        cycle: { tontine: { modeRotation: 'TIRAGE', montantBaseMise: 5000 } },
+      }),
+      findMany: async () => dejaServis.map((id) => ({ beneficiaireId: id })),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      update: async ({ data }: any) => { sortie.ecrit = data.beneficiaireId; return {} },
+    },
+    participationTontine: { findMany: async () => participants.map((membreId) => ({ membreId })) },
+  })
+
+  it('borne le tirage sur les ÉLIGIBLES, pas sur tous les participants', async () => {
+    const sortie = { ecrit: null as string | null }
+    const bornesVues: number[] = []
+    // 4 participants, 2 ont déjà reçu → 2 éligibles (m3, m4).
+    await tirerBeneficiaire(
+      prismaAvec(['m1', 'm2', 'm3', 'm4'], ['m1', 'm2'], sortie),
+      'tourX',
+      (n) => { bornesVues.push(n); return 0 },
+    )
+    // La borne DOIT être 2 : la passer à 4 tirerait un index hors de la liste filtrée (undefined
+    // écrit en base) et biaiserait la distribution vers les premiers éligibles.
+    expect(bornesVues).toEqual([2])
+    expect(sortie.ecrit).toBe('m3')
+  })
+
+  it('l’index choisi désigne bien le n-ième éligible', async () => {
+    const sortie = { ecrit: null as string | null }
+    await tirerBeneficiaire(prismaAvec(['m1', 'm2', 'm3', 'm4'], ['m1'], sortie), 'tourX', () => 2)
+    expect(sortie.ecrit).toBe('m4') // éligibles = [m2, m3, m4] → index 2
+  })
+})
+
+/**
+ * RÉGRESSION (isolation tenant) — `ouvrirCycle` recevait les `membreId` du CORPS de la requête et
+ * créait les participations sans vérifier leur appartenance. L'extension tenant ne rattrape pas ce
+ * cas : elle force `organisationId` sur le `create` mais laisse `membreId` tel quel, et la clé
+ * étrangère vers `Membre` est satisfaite quelle que soit l'org. En ORDRE_FIXE, un membre étranger
+ * serait devenu BÉNÉFICIAIRE d'un tour — donc destinataire du pot.
+ */
+describe('Tontine — appartenance des participants au cycle', () => {
+  const prismaAvec = (membresVus: string[], creations: string[]) => ({
+    tontine: { findFirst: async () => ({ id: 't1', modeRotation: 'ORDRE_FIXE' }) },
+    cycleTontine: { aggregate: async () => ({ _max: { numero: 0 } }), create: async () => ({ id: 'c1' }) },
+    // Lecture SCOPÉE simulée : ne renvoie QUE les membres de l'org courante.
+    membre: {
+      findFirst: async () => null,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      findMany: async ({ where }: any) =>
+        (where.id.in as string[]).filter((id) => membresVus.includes(id)).map((id) => ({ id })),
+    },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    participationTontine: { create: async ({ data }: any) => { creations.push(data.membreId); return {} } },
+    tourTontine: { create: async () => ({}) },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    $transaction: async (fn: (tx: any) => Promise<unknown>) => fn(prismaCourant),
+  })
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let prismaCourant: any
+
+  it('un membreId hors organisation → 404, AUCUNE participation créée', async () => {
+    const creations: string[] = []
+    prismaCourant = prismaAvec(['m1', 'm2'], creations) // m-etranger absent de l'org
+    const app = await appAvec(prismaCourant)
+    const res = await app.inject({
+      method: 'POST',
+      url: '/tontines/t1/cycles',
+      headers: auth(app, 'ADMIN'),
+      payload: { participants: [{ membreId: 'm1' }, { membreId: 'm-etranger' }] },
+    })
+    expect(res.statusCode).toBe(404)
+    expect(creations, 'aucune écriture avant l’échec de la garde').toEqual([])
+    await app.close()
+  })
+
+  it('tous les membres de l’org → cycle créé normalement', async () => {
+    const creations: string[] = []
+    prismaCourant = prismaAvec(['m1', 'm2'], creations)
+    const app = await appAvec(prismaCourant)
+    const res = await app.inject({
+      method: 'POST',
+      url: '/tontines/t1/cycles',
+      headers: auth(app, 'ADMIN'),
+      payload: { participants: [{ membreId: 'm1' }, { membreId: 'm2' }] },
+    })
+    expect(res.statusCode).toBe(201)
+    expect(creations).toEqual(['m1', 'm2'])
     await app.close()
   })
 })

@@ -1,7 +1,9 @@
+import { randomInt } from 'node:crypto'
+
 /**
  * Mécanique de TONTINE (§ tontine) — épargne rotative (ROSCA). Logique i18n-AGNOSTIQUE (erreurs
- * typées, aucun texte) ; Prisma injecté (mockable). Cœurs déterministes : le tirage prend une
- * source d'aléa injectable (`alea`) → testable sans hasard réel.
+ * typées, aucun texte) ; Prisma injecté (mockable). Cœurs déterministes : le tirage prend un
+ * sélecteur d'index injectable → testable sans hasard réel, mais CSPRNG par défaut (cf. TIRAGE).
  *
  * MODÈLE : une `Tontine` (montant de base d'UNE part) → `CycleTontine` (rotation complète) →
  * `TourTontine` (un bénéficiaire par tour). Chaque participant verse une `MiseTontine` par tour ;
@@ -131,6 +133,7 @@ export interface TontinePrisma {
   }
   membre: {
     findFirst(args: any): Promise<any>
+    findMany(args: any): Promise<any[]>
   }
   $transaction<T>(fn: (tx: any) => Promise<T>): Promise<T>
 }
@@ -203,6 +206,16 @@ export async function ouvrirCycle(
   const ids = participants.map((p) => p.membreId)
   if (new Set(ids).size !== ids.length) throw new ParticipantDupliqueError()
 
+  // APPARTENANCE DES PARTICIPANTS — lecture SCOPÉE, une seule requête. Sans elle, un `membreId`
+  // d'une AUTRE organisation entrerait dans le cycle : l'extension tenant force `organisationId`
+  // sur le `create` d'une participation mais laisse `membreId` tel quel, et la clé étrangère vers
+  // `Membre` est satisfaite quelle que soit l'org — rien ne l'arrête au niveau base. En ORDRE_FIXE
+  // ce membre étranger devient de surcroît BÉNÉFICIAIRE d'un tour, donc destinataire du pot.
+  // Ce n'est pas théorique : les `membreId` viennent du CORPS de la requête (`POST
+  // /tontines/:id/cycles`), ils ne sont dérivés d'aucune identité authentifiée.
+  const membresOrg = await prisma.membre.findMany({ where: { id: { in: ids } }, select: { id: true } })
+  if (membresOrg.length !== ids.length) throw new MembreIntrouvableError()
+
   const agg = await prisma.cycleTontine.aggregate({
     where: { tontineId },
     _max: { numero: true },
@@ -250,13 +263,25 @@ async function chargerTour(prisma: TontinePrisma, tourId: string) {
 
 /**
  * TIRAGE : attribue au tour un bénéficiaire tiré parmi les participants du cycle qui n'ont pas
- * encore reçu. `alea` injectable (défaut Math.random) → déterministe en test. Refus si le mode
- * n'est pas TIRAGE, si le tour a déjà un bénéficiaire, ou s'il n'y a plus d'éligible.
+ * encore reçu. Refus si le mode n'est pas TIRAGE, si le tour a déjà un bénéficiaire, ou s'il n'y a
+ * plus d'éligible.
+ *
+ * **Aléa CRYPTOGRAPHIQUE (`randomInt`), jamais `Math.random`.** Ce tirage décide QUI touche le
+ * pot, et dans une tontine recevoir tôt vaut strictement mieux que tard : valeur temporelle de
+ * l'argent, et surtout risque que le cycle s'effondre avant son terme — auquel cas les derniers
+ * bénéficiaires ont cotisé sans jamais recevoir. Le tirage alloue donc de l'argent réel. Or
+ * `Math.random` (xorshift128+ en V8) est un PRNG dont l'état interne se reconstitue depuis les
+ * sorties observées, et les résultats des tirages sont publics au sein du groupe — sur un produit
+ * qui vend la transparence financière, l'équité du tirage doit pouvoir s'affirmer sans réserve.
+ * `randomInt(n)` tire directement un entier de `[0, n)` sans biais de modulo.
+ *
+ * Le sélecteur reste injectable, mais UNIQUEMENT pour rendre les tests déterministes : la valeur
+ * par défaut n'est jamais un repli non sûr.
  */
 export async function tirerBeneficiaire(
   prisma: TontinePrisma,
   tourId: string,
-  alea: () => number = Math.random,
+  choisirIndex: (bornesup: number) => number = (n) => randomInt(n),
 ): Promise<{ tourId: string; beneficiaireId: string }> {
   const tour = await chargerTour(prisma, tourId)
   const mode = tour.cycle.tontine.modeRotation
@@ -275,7 +300,9 @@ export async function tirerBeneficiaire(
   const eligibles = participations.map((p) => p.membreId).filter((id) => !recus.has(id))
   if (eligibles.length === 0) throw new AucunEligibleError()
 
-  const choisi = eligibles[Math.floor(alea() * eligibles.length) % eligibles.length]
+  // `randomInt` renvoie déjà un entier dans [0, n) : pas de `Math.floor(x*n) % n`, dont le modulo
+  // était redondant et masquait la vraie source d'aléa.
+  const choisi = eligibles[choisirIndex(eligibles.length)]
   await prisma.tourTontine.update({ where: { id: tourId }, data: { beneficiaireId: choisi } })
   return { tourId, beneficiaireId: choisi }
 }

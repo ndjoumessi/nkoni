@@ -13,6 +13,11 @@ import {
   Bell,
   ChevronDown,
   Vote,
+  RefreshCw,
+  Gavel,
+  HandHeart,
+  Trophy,
+  Check,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
 import {
@@ -30,6 +35,9 @@ import {
   type RecuMembre,
   type Notification,
   type CarteApercu,
+  type AmendeMembre,
+  type CagnotteMembre,
+  type TontineMembre,
 } from '@/lib/api'
 import { formatMontant, formatPourcent } from '@/lib/format'
 import { cn, formatDate, ouvrirBlobPdf } from '@/lib/utils'
@@ -77,6 +85,9 @@ export function MonEspacePage() {
   const [reunions, setReunions] = useState<ReunionAVenir[]>([])
   const [resolutions, setResolutions] = useState<ResolutionOuverte[]>([])
   const [recus, setRecus] = useState<RecuMembre[]>([])
+  const [amendes, setAmendes] = useState<AmendeMembre[]>([])
+  const [cagnottes, setCagnottes] = useState<CagnotteMembre[]>([])
+  const [tontines, setTontines] = useState<TontineMembre[]>([])
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [carteApercu, setCarteApercu] = useState<CarteApercu | null>(null)
   const [photoUrl, setPhotoUrl] = useState<string | null>(null)
@@ -119,7 +130,7 @@ export function MonEspacePage() {
         return
       }
       // Listes + aperçu carte + disponibilité paiement (best-effort, chargés en parallèle).
-      const [c, r, rc, n, ca, pd, ro] = await Promise.all([
+      const [c, r, rc, n, ca, pd, ro, am, cg, tn] = await Promise.all([
         moiApi.contributions(accessToken, controller.signal).catch(() => []),
         moiApi.reunions(accessToken, controller.signal).catch(() => []),
         moiApi.recus(accessToken, controller.signal).catch(() => []),
@@ -127,12 +138,18 @@ export function MonEspacePage() {
         moiApi.carteApercu(accessToken, controller.signal).catch(() => null),
         moiApi.paiementDisponible(accessToken, controller.signal).catch(() => ({ actif: false, montantMin: 100 })),
         moiApi.resolutionsOuvertes(accessToken, controller.signal).catch(() => []),
+        moiApi.amendes(accessToken, controller.signal).catch(() => []),
+        moiApi.cagnottes(accessToken, controller.signal).catch(() => []),
+        moiApi.tontines(accessToken, controller.signal).catch(() => []),
       ])
       if (!actif) return
       setContributions(c)
       setReunions(r)
       setResolutions(ro)
       setRecus(rc)
+      setAmendes(am)
+      setCagnottes(cg)
+      setTontines(tn)
       setNotifications(n)
       setCarteApercu(ca)
       setPaiementActif(pd.actif)
@@ -711,6 +728,126 @@ export function MonEspacePage() {
                     })}
                   </div>
                 </div>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
+
+      {/* Mes tontines — participations du membre (lecture seule) : rang de rotation, mise due, et
+          par tour bénéficiaire/mise payée. N'apparaît que si le membre participe à une tontine. */}
+      {tontines.length > 0 && (
+        <Card className="nk-reveal mt-4 p-6">
+          <div className="flex items-center gap-2">
+            <RefreshCw className="h-4 w-4 text-brass" aria-hidden="true" />
+            <Overline>{t('monEspace.tontines.titre')}</Overline>
+          </div>
+          <ul className="mt-4 space-y-3">
+            {tontines.map((tn, i) => (
+              <li
+                key={`${tn.tontineNom}-${tn.cycleNumero}-${i}`}
+                className="rounded-xl border border-hairline bg-surface-2/40 p-4"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="font-medium text-foreground">{tn.tontineNom}</p>
+                  <Badge tone="neutral" size="sm">{t('monEspace.tontines.cycle', { numero: tn.cycleNumero })}</Badge>
+                </div>
+                <p className="mt-1 text-xs text-faint">
+                  {t('monEspace.tontines.monRang')} : <span className="num">{tn.monOrdre}</span> ·{' '}
+                  {t('monEspace.tontines.maMise')} : <span className="num">{formatMontant(tn.miseDue)}</span> ·{' '}
+                  {t(cleI18n(`tontines.modes.${tn.modeRotation}`))}
+                </p>
+                <ul className="mt-3 space-y-1.5 border-t border-hairline pt-3">
+                  {tn.tours.map((tr) => (
+                    <li key={tr.numero} className="flex flex-wrap items-center gap-2 text-sm">
+                      <span className="text-muted-foreground">{t('monEspace.tontines.tour', { numero: tr.numero })}</span>
+                      {tr.jeSuisBeneficiaire && (
+                        <Badge tone="brass" size="sm">
+                          <Trophy className="h-3 w-3" aria-hidden="true" />
+                          {t('monEspace.tontines.beneficiaire')}
+                        </Badge>
+                      )}
+                      {tr.maMisePayee ? (
+                        <Badge tone="jade" size="sm">
+                          <Check className="h-3 w-3" aria-hidden="true" />
+                          {t('monEspace.tontines.misePayee')}
+                        </Badge>
+                      ) : tr.monMontantMise > 0 ? (
+                        <Badge tone="amber" size="sm">
+                          {t('monEspace.tontines.misePartielle', { montant: formatMontant(tr.monMontantMise) })}
+                        </Badge>
+                      ) : (
+                        <Badge tone="neutral" size="sm">{t('monEspace.tontines.miseDue')}</Badge>
+                      )}
+                      <span className="ml-auto text-xs text-faint">
+                        {t(cleI18n(`tontines.statutsTour.${tr.statut}`))}
+                        {tr.montantPot !== null ? ` · ${t('monEspace.tontines.pot')} ${formatMontant(tr.montantPot)}` : ''}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
+
+      {/* Mes amendes — sanctions émises au membre (lecture seule). N'apparaît que s'il en a. */}
+      {amendes.length > 0 && (
+        <Card className="nk-reveal mt-4 p-6">
+          <div className="flex items-center gap-2">
+            <Gavel className="h-4 w-4 text-brass" aria-hidden="true" />
+            <Overline>{t('monEspace.amendes.titre')}</Overline>
+          </div>
+          <ul className="mt-4 space-y-2">
+            {amendes.map((a) => (
+              <li key={a.id} className="rounded-xl border border-hairline bg-surface-2/40 p-3.5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm font-medium text-foreground">{a.motif}</p>
+                  <Badge tone={a.statut === 'PAYEE' ? 'jade' : a.statut === 'IMPAYEE' ? 'terra' : 'neutral'} size="sm">
+                    {t(cleI18n(`amendes.statuts.${a.statut}`))}
+                  </Badge>
+                </div>
+                <p className="mt-0.5 text-xs text-faint">
+                  {t(cleI18n(`amendes.types.${a.type}`))} · {formatDate(a.dateAmende, { dateStyle: 'long' })}
+                  {a.datePaiement ? ` · ${t('monEspace.amendes.payeeLe', { date: formatDate(a.datePaiement) })}` : ''}
+                </p>
+                <p className="mt-1">
+                  <Montant value={a.montant} className="font-medium" />
+                </p>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
+
+      {/* Mes cagnottes — cagnottes ouvertes + don personnel (lecture seule, transparence collective). */}
+      {cagnottes.length > 0 && (
+        <Card className="nk-reveal mt-4 p-6">
+          <div className="flex items-center gap-2">
+            <HandHeart className="h-4 w-4 text-brass" aria-hidden="true" />
+            <Overline>{t('monEspace.cagnottes.titre')}</Overline>
+          </div>
+          <ul className="mt-4 space-y-2">
+            {cagnottes.map((c) => (
+              <li key={c.id} className="rounded-xl border border-hairline bg-surface-2/40 p-3.5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm font-medium text-foreground">{c.titre}</p>
+                  <Badge tone="neutral" size="sm">{t(cleI18n(`cagnottes.types.${c.type}`))}</Badge>
+                </div>
+                <p className="mt-1 text-xs text-faint">
+                  {t('monEspace.cagnottes.collecte')} : <span className="num">{formatMontant(c.collecteTotal)}</span>
+                  {c.objectif ? ` / ${formatMontant(c.objectif)}` : ''}
+                  {c.dateEvenement ? ` · ${formatDate(c.dateEvenement, { dateStyle: 'long' })}` : ''}
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {t('monEspace.cagnottes.monDon')} :{' '}
+                  {c.monDon > 0 ? (
+                    <span className="text-jade">{formatMontant(c.monDon)}</span>
+                  ) : (
+                    <span className="text-faint">{t('monEspace.cagnottes.aucunDon')}</span>
+                  )}
+                </p>
               </li>
             ))}
           </ul>

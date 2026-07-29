@@ -103,6 +103,7 @@ export default {
       tour: 'Round {{numero}}',
       beneficiaire: 'I receive the pot',
       misePayee: 'Stake paid',
+      misePartielle: 'Partial: {{montant}}',
       miseDue: 'Stake due',
       pot: 'Pot',
     },

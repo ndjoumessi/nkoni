@@ -131,6 +131,8 @@ function buildMock(membre: any) {
               tours: [
                 { numero: 1, beneficiaireId: 'm1', montantPot: 0, statut: 'A_VENIR', mises: [] },
                 { numero: 2, beneficiaireId: 'autre', montantPot: 10_000, statut: 'REVERSE', mises: [{ montant: 10_000 }] },
+                // Mise PARTIELLE (2 000 sur 10 000 dus) → ne doit PAS s'afficher « payée ».
+                { numero: 3, beneficiaireId: 'autre', montantPot: 0, statut: 'A_VENIR', mises: [{ montant: 2_000 }] },
               ],
             },
           },
@@ -236,6 +238,10 @@ describe('Espace membre /moi/* — membre lié', () => {
     expect(res.json()).toEqual([
       { id: 'cg1', titre: 'Deuil', type: 'DEUIL', objectif: 100_000, dateEvenement: null, collecteTotal: 8_000, monDon: 5_000 },
     ])
+    // On ne remonte QUE les cagnottes ouvertes, et les dons sont bornés aux cagnottes listées.
+    // (Sans ces assertions, supprimer le filtre statut ne ferait tomber aucun test — fausse couverture.)
+    expect(calls.cagnotteWhere).toEqual({ statut: 'OUVERTE' })
+    expect(calls.donWhere).toEqual({ cagnotteId: { in: ['cg1'] } })
   })
 
   it('GET /moi/tontines → rang, mise due, et par tour bénéficiaire/mise payée', async () => {
@@ -244,10 +250,12 @@ describe('Espace membre /moi/* — membre lié', () => {
     expect(calls.participationWhere).toEqual({ membreId: 'm1' })
     const body = res.json()
     expect(body[0]).toMatchObject({ tontineNom: 'Femmes', cycleNumero: 1, maParts: 2, monOrdre: 1, miseDue: 10_000 })
-    // Tour où JE reçois le pot, mise non encore payée, pot pas encore figé (A_VENIR → null).
-    expect(body[0].tours[0]).toEqual({ numero: 1, statut: 'A_VENIR', jeSuisBeneficiaire: true, maMisePayee: false, montantPot: null })
-    // Tour reversé : ma mise est payée, le pot RÉEL est figé.
-    expect(body[0].tours[1]).toEqual({ numero: 2, statut: 'REVERSE', jeSuisBeneficiaire: false, maMisePayee: true, montantPot: 10_000 })
+    // Tour où JE reçois le pot, rien versé, pot pas encore figé (A_VENIR → null).
+    expect(body[0].tours[0]).toEqual({ numero: 1, statut: 'A_VENIR', jeSuisBeneficiaire: true, maMisePayee: false, monMontantMise: 0, montantPot: null })
+    // Tour reversé : ma mise COUVRE le dû → payée, le pot RÉEL est figé.
+    expect(body[0].tours[1]).toEqual({ numero: 2, statut: 'REVERSE', jeSuisBeneficiaire: false, maMisePayee: true, monMontantMise: 10_000, montantPot: 10_000 })
+    // Versement PARTIEL (2 000 < 10 000 dus) → PAS « payée », mais le montant versé est exposé.
+    expect(body[0].tours[2]).toEqual({ numero: 3, statut: 'A_VENIR', jeSuisBeneficiaire: false, maMisePayee: false, monMontantMise: 2_000, montantPot: null })
   })
 })
 

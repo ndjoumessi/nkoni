@@ -772,6 +772,10 @@ export function MonEspacePage() {
                           <Check className="h-3 w-3" aria-hidden="true" />
                           {t('monEspace.tontines.misePayee')}
                         </Badge>
+                      ) : tr.monMontantMise > 0 ? (
+                        <Badge tone="amber" size="sm">
+                          {t('monEspace.tontines.misePartielle', { montant: formatMontant(tr.monMontantMise) })}
+                        </Badge>
                       ) : (
                         <Badge tone="neutral" size="sm">{t('monEspace.tontines.miseDue')}</Badge>
                       )}

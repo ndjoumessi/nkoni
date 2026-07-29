@@ -92,7 +92,10 @@ export interface TontineTourMembre {
   numero: number
   statut: string
   jeSuisBeneficiaire: boolean
+  /** `true` seulement si la mise versée COUVRE la mise due (un versement partiel reste `false`). */
   maMisePayee: boolean
+  /** Montant réellement versé pour ce tour (0 = rien ; entre 0 et la mise due = partiel). */
+  monMontantMise: number
   /** Pot RÉEL figé, seulement une fois le tour reversé ; sinon `null` (mise due affichée à la place). */
   montantPot: number | null
 }

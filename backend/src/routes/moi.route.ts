@@ -212,15 +212,17 @@ export const moiRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
       select: { cagnotteId: true, montant: true, membreId: true },
     })) as { cagnotteId: string; montant: number; membreId: string }[]
     return cagnottes.map((c) => {
-      const siennes = dons.filter((d) => d.cagnotteId === c.id)
+      // TOUS les dons de CETTE cagnotte (pas seulement ceux du membre) : `collecteTotal` somme
+      // l'ensemble (transparence collective), `monDon` refiltre sur membre.id.
+      const donsCagnotte = dons.filter((d) => d.cagnotteId === c.id)
       return {
         id: c.id,
         titre: c.titre,
         type: c.type,
         objectif: c.objectif,
         dateEvenement: c.dateEvenement,
-        collecteTotal: siennes.reduce((s, d) => s + d.montant, 0),
-        monDon: siennes.filter((d) => d.membreId === membre.id).reduce((s, d) => s + d.montant, 0),
+        collecteTotal: donsCagnotte.reduce((s, d) => s + d.montant, 0),
+        monDon: donsCagnotte.filter((d) => d.membreId === membre.id).reduce((s, d) => s + d.montant, 0),
       }
     })
   })
@@ -270,14 +272,23 @@ export const moiRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
         monOrdre: p.ordre,
         miseDue,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        tours: p.cycle.tours.map((t: any) => ({
-          numero: t.numero,
-          statut: t.statut,
-          jeSuisBeneficiaire: t.beneficiaireId === membre.id,
-          maMisePayee: t.mises.length > 0,
-          // Pot RÉEL seulement une fois reversé (figé) ; sinon null (le front affiche la mise due).
-          montantPot: t.statut === 'REVERSE' ? t.montantPot : null,
-        })),
+        tours: p.cycle.tours.map((t: any) => {
+          // Une seule ligne de mise par (tour, membre) — @@unique — mais on somme par prudence.
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const monMontantMise = t.mises.reduce((s: number, m: any) => s + m.montant, 0)
+          return {
+            numero: t.numero,
+            statut: t.statut,
+            jeSuisBeneficiaire: t.beneficiaireId === membre.id,
+            // « Payée » = la mise COUVRE la mise due, pas seulement « a commencé à verser » : un
+            // versement partiel (2 000 sur 10 000) ne doit pas s'afficher « payé ». Le front
+            // distingue partiel (0 < versé < dû) de non commencé grâce à `monMontantMise`.
+            maMisePayee: monMontantMise >= miseDue,
+            monMontantMise,
+            // Pot RÉEL seulement une fois reversé (figé) ; sinon null (le front affiche la mise due).
+            montantPot: t.statut === 'REVERSE' ? t.montantPot : null,
+          }
+        }),
       }
     })
   })

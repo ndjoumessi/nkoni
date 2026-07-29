@@ -18,18 +18,32 @@ jobs:
     
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install PostgreSQL client tools
         run: |
+          # Dépôt PGDG : le postgresql-client par défaut d'Ubuntu (16.x) est trop ancien pour
+          # dumper le serveur Railway (18.x) — pg_dump refuse un serveur d'une majeure supérieure.
+          # Épinglé sur -18 = la majeure du serveur ; à relever si Railway passe à 19 (le run
+          # hebdomadaire échouera alors visiblement, servant de canari).
           sudo apt-get update
-          sudo apt-get install -y postgresql-client
-          psql --version
+          sudo apt-get install -y curl ca-certificates
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+            | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/pgdg.gpg
+          echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-18
+          # /usr/bin/pg_dump est pg_wrapper (postgresql-common), qui résout vers la version par
+          # DÉFAUT du runner (16) même une fois la 18 installée. On met le répertoire versionné en
+          # tête de PATH pour toutes les étapes suivantes (le dump est dans une autre étape).
+          echo "/usr/lib/postgresql/18/bin" >> "$GITHUB_PATH"
+          /usr/lib/postgresql/18/bin/pg_dump --version
 
       - name: Verify PostgreSQL connection
         run: |
           echo "Testing connection to production database..."
-          psql "$DATABASE_URL" -c "\version" 2>&1
+          psql "$DATABASE_URL" -c "SELECT version();" 2>&1
 
       - name: §2.1 — Dump production database
         run: |

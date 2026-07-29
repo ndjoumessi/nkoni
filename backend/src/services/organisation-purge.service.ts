@@ -75,6 +75,13 @@ export const ORDRE_SUPPRESSION: readonly string[] = [
   'Resolution',
   'PointOrdreDuJour',
   'Reunion',
+  // Cluster TONTINE : toutes les FK inter-modèles sont en Cascade (aucune contrainte d'ordre), les
+  // FK org sont en Restrict → n'importe où avant `Organisation`. Ordre enfants→parents par prudence.
+  'MiseTontine',
+  'TourTontine',
+  'ParticipationTontine',
+  'CycleTontine',
+  'Tontine',
   'ConflitMembreConcerne',
   'Conflit',
   'CommemorationMembreConcerne',

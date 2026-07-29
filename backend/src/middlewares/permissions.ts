@@ -341,6 +341,23 @@ export const requireSuperAdmin: preHandlerHookHandler = async function requireSu
 }
 
 /**
+ * Le BUREAU : tous les rôles d'organisation SAUF `MEMBRE_SIMPLE` (et `GUIDE_RELIGIEUX`, sans droit
+ * dans le MVP). Défini ICI plutôt que dans une route, parce qu'il gouverne désormais deux surfaces
+ * sans rapport — cartes de membre et dépouillement des votes — et qu'une troisième copie serait la
+ * façon habituelle dont ces listes divergent en silence.
+ *
+ * À employer quand la matrice par entité ne dit PAS ce qu'on veut : `Reunion`/`read` inclut
+ * `MEMBRE_SIMPLE`, ce qui convient pour lire un ordre du jour mais PAS pour lire qui a voté quoi.
+ */
+export const ROLES_BUREAU: Role[] = [
+  'ADMIN',
+  'PRESIDENT',
+  'SECRETAIRE',
+  'TRESORIERE',
+  'COMMISSAIRE_COMPTES',
+]
+
+/**
  * Garde par LISTE DE RÔLES — pour une action mutable qui ne relève PAS de la matrice par entité
  * (ex. « désigner le chef de l'organisation » : action distincte des paramètres immuables §5,
  * réservée ADMIN/PRESIDENT). À brancher APRÈS `authenticate`. 403 si le rôle n'est pas dans la liste.

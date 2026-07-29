@@ -4,4 +4,5 @@ export const messages = {
   'resolutions.reunionIntrouvable': 'Meeting not found.',
   'resolutions.pointIntrouvable': 'Agenda item not found.',
   'resolutions.pointHorsReunion': 'The agenda item does not belong to this meeting.',
+  'resolutions.cloturee': 'Resolution closed: voting is over.',
 }

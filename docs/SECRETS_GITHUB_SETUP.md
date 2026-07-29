@@ -1,117 +1,158 @@
 # Configuration des secrets GitHub pour le backup automatisé
 
-Ce document énumère les **GitHub Secrets** à configurer pour que le workflow `backup-restore-exercise.yml` fonctionne.
+Ce document énumère les **GitHub Secrets** à configurer pour que le workflow
+`backup-restore-exercise.yml` fonctionne de bout en bout (dump → chiffrement → artefact →
+copie hors-site R2 → contrôle de restauration fonctionnelle).
 
-## Secrets requis
+> ⚠️ **Fail-closed.** L'étape de copie hors-site (§2.3) et le job de contrôle de restauration
+> font **échouer tout le run** si leurs secrets manquent (c'est délibéré : une sauvegarde
+> hors-site qu'on croit en place et qui ne l'est pas est le pire des cas). Poser **tous** les
+> secrets ci-dessous AVANT de lancer le workflow — sinon il échoue et ouvre une issue d'alerte.
 
-### 1. `RAILWAY_TOKEN`
+## Secrets requis (6)
 
-**Description** : Token d'authentification Railway, requis pour accéder à l'API Railway via le CLI.
+| Secret | Rôle | Utilisé par |
+|--------|------|-------------|
+| `DATABASE_URL` | Connexion PostgreSQL de prod (dump) | §2.1 dump |
+| `GPG_PASSPHRASE_BACKUP` | Passphrase de chiffrement AES256 | §2.2 chiffrement + déchiffrement du contrôle |
+| `R2_ACCOUNT_ID` | Account ID Cloudflare (endpoint R2) | §2.3 copie hors-site |
+| `R2_ACCESS_KEY_ID` | Access Key du jeton R2 | §2.3 copie hors-site |
+| `R2_SECRET_ACCESS_KEY` | Secret Key du jeton R2 | §2.3 copie hors-site |
+| `R2_BUCKET` | Nom du bucket R2 (ex. `nkoni-backups`) | §2.3 copie hors-site |
 
-**Où le trouver** :
-1. Ouvre [Railway Dashboard](https://railway.app/dashboard)
-2. Accès → **Tokens** (en bas à gauche)
-3. Crée un nouveau token : clic **Create** → copie la valeur complète
+### 1. `DATABASE_URL`
 
-**Où le poser** :
-1. Ouvre le dépôt GitHub `ndjoumessi/nkoni`
-2. **Settings** → **Secrets and variables** → **Actions**
-3. **New repository secret**
-   - Name: `RAILWAY_TOKEN`
-   - Value: `<token copié>`
-4. Sauvegarde
+**Description** : URL de connexion PostgreSQL de la prod, lue directement par `pg_dump`/`psql`
+(le workflow n'utilise **pas** le CLI Railway).
 
-**Rotation** : aucune fréquence définie, c'est un token permanent. À rouler si une clé est compromise ou si le token sort du dépôt.
+**⚠️ Prendre l'URL PUBLIQUE, utilisateur `postgres`.** Le `DATABASE_URL` du service *backend*
+pointe sur `postgres.railway.internal` — hostname **privé au réseau Railway**, non résolvable
+depuis un runner GitHub. Il faut la variable **`DATABASE_PUBLIC_URL` du service _Postgres_**
+(proxy TCP public), et l'utilisateur doit être `postgres` (pas `railway`, sinon
+`password authentication failed`).
+
+**Où la poser (sans jamais la retaper à la main)** :
+```bash
+gh secret set DATABASE_URL \
+  --body "$(railway variables --service Postgres --kv | grep '^DATABASE_PUBLIC_URL=' | cut -d= -f2-)"
+```
+
+**Format** : `postgresql://postgres:<mot-de-passe>@<host-public>:<port>/railway`
 
 ### 2. `GPG_PASSPHRASE_BACKUP`
 
-**Description** : Phrase de passe GPG utilisée pour chiffrer les dumps. Doit être **robuste** et **secrète**.
+**Description** : phrase de passe GPG utilisée pour chiffrer (et déchiffrer, lors du contrôle de
+restauration) les dumps. Doit être **robuste** et **secrète**.
 
 **Comment la générer** :
 ```bash
-openssl rand -base64 32  # Génère une passphrase aléatoire de ~44 caractères
+openssl rand -base64 32  # ~44 caractères aléatoires
 ```
 
-Exemple : `eJ8rXq2pKvM9nLq4sRw7tYz0aB3cDeFgHiJkLmNoPqRst==`
-
 **Où la poser** :
-1. Dépôt GitHub → **Settings** → **Secrets and variables** → **Actions**
-2. **New repository secret**
-   - Name: `GPG_PASSPHRASE_BACKUP`
-   - Value: `<passphrase générée>`
-3. Sauvegarde
+```bash
+gh secret set GPG_PASSPHRASE_BACKUP --body "<passphrase générée>"
+```
 
 **⚠️ Sécurité** :
-- Cette passphrase est **stockée chez GitHub** — elle s'affiche EN CLAIR dans les logs Actions (elle n'est pas masquée automatiquement)
-- La garder **secrète et longue** (32+ caractères)
-- La conserver dans un gestionnaire de mots de passe **distinct de GitHub**
-- En cas de compromission, la rouler immédiatement (cf. ci-dessous)
-- **Ne jamais la commiter** dans le dépôt
+- La conserver dans un gestionnaire de mots de passe **distinct de GitHub**.
+- Sans elle, aucun dump chiffré ne peut être relu : **la perdre = perdre l'accès à toutes les
+  sauvegardes**. C'est le secret le plus critique du dispositif.
+- En cas de compromission, la rouler (cf. Rotation ci-dessous).
 
-### 3. `PROD_DATABASE_URL` (optionnel)
+### 3–6. Secrets Cloudflare R2 (copie hors-site, §2.3)
 
-**Description** : URL de connexion PostgreSQL de prod, utilisée par le script de restauration local pour comparer les comptes (§4.2).
+La copie hors-site vise une infra **indépendante** de GitHub/Vercel/Railway (vraie résilience :
+un incident sur l'une ne touche pas la sauvegarde). R2 est S3-compatible → le client `aws`
+préinstallé sur le runner suffit.
 
-**Format** : `postgresql://user:password@host:port/database?sslmode=require`
+**Provisionnement côté Cloudflare** :
+1. **R2** → créer un bucket (ex. `nkoni-backups`).
+2. **R2** → **Manage R2 API Tokens** → créer un jeton **« Object Read & Write »** scopé au bucket
+   (pas besoin des droits admin). Copier **Access Key ID** et **Secret Access Key** (le secret
+   n'est montré **qu'une fois**).
+3. Récupérer l'**Account ID** (R2 → Overview, ou dans l'URL du dashboard).
+4. **Poser une règle de cycle de vie** sur le bucket (Settings → Object lifecycle rules) pour la
+   rétention longue (ex. suppression après 365 j). ⚠️ Cette règle vit **dans le dashboard R2**,
+   pas dans le dépôt : elle n'est **ni versionnée ni vérifiée par la CI**. Sans elle, les objets
+   s'accumulent indéfiniment ; mal réglée, elle supprimerait des dumps sans que rien ne le signale.
 
-**Où le poser** :
-- **Optionnel** : le workflow n'en a pas besoin ; c'est pour le script local `restore-exercise.sh`
-- Si tu veux le stocker : Settings → Secrets → `PROD_DATABASE_URL`
+**Poser les 4 secrets** :
+```bash
+gh secret set R2_ACCOUNT_ID --body "<account-id>"
+gh secret set R2_ACCESS_KEY_ID --body "<access-key-id>"
+gh secret set R2_SECRET_ACCESS_KEY --body "<secret-access-key>"
+gh secret set R2_BUCKET --body "nkoni-backups"
+```
+
+## Secret optionnel
+
+### `PROD_DATABASE_URL` (local uniquement)
+
+**Description** : URL de prod utilisée par le **script local** `restore-exercise.sh` pour comparer
+les comptes de lignes (§4.2 du RUNBOOK). **Le workflow n'en a pas besoin** — le contrôle de
+restauration en CI restaure dans une base éphémère du runner, jamais contre la prod.
 
 **Alternative** : la passer en variable d'env locale au lieu de la poser en secret GitHub.
 
 ## Vérification
 
-Une fois les secrets posés :
+Une fois les 6 secrets posés :
+```bash
+gh secret list        # doit lister DATABASE_URL, GPG_PASSPHRASE_BACKUP et les 4 R2_*
+gh workflow run backup-restore-exercise.yml
+gh run watch $(gh run list --workflow=backup-restore-exercise.yml --limit 1 --json databaseId -q '.[0].databaseId')
+```
 
-1. Ouvre [Actions → Backup & Restore Exercise](https://github.com/ndjoumessi/nkoni/actions/workflows/backup-restore-exercise.yml)
-2. **Run workflow** → **Run** (déclenche manuellement)
-3. Attends la fin du job
-4. Consulte les logs :
-   - ✓ **Dump de production** : pas d'erreur d'authentification Railway
-   - ✓ **Chiffrement GPG** : pas de "bad passphrase"
-   - ✓ **Upload artifact** : taille > 0
+Attendu, toutes vertes :
+- **§2.1 Dump** : pas d'erreur d'authentification (`DATABASE_URL` public + user `postgres`).
+- **§2.2 Chiffrement / Vérification** : archive lisible, > 0 entrée.
+- **§2.3 Copie R2** : `✅ Copie hors-site : s3://…` (l'objet apparaît dans le bucket).
+- **Contrôle de restauration** : `/ready` = 200 et `/tresorerie/reconciliation` = 200 sur la base
+  restaurée éphémère.
 
 ## Rotation des secrets
 
-### Rotation du `RAILWAY_TOKEN`
+### `DATABASE_URL`
+Change quand le mot de passe Postgres de prod est réinitialisé. Reposer le secret avec la commande
+de la §1.
 
-1. Railway Dashboard → **Tokens** → révoque l'ancien token
-2. Génère un nouveau token
-3. GitHub → Settings → Secrets → mets à jour `RAILWAY_TOKEN`
-4. Teste : **Run workflow** une fois
+### `GPG_PASSPHRASE_BACKUP`
+1. Générer une nouvelle passphrase (`openssl rand -base64 32`).
+2. **Garder l'ancienne** tant que des dumps chiffrés avec elle doivent rester lisibles (les
+   anciens artefacts restent chiffrés avec l'ancienne passphrase).
+3. `gh secret set GPG_PASSPHRASE_BACKUP --body "<nouvelle>"`.
 
-### Rotation du `GPG_PASSPHRASE_BACKUP`
-
-1. Génère une nouvelle passphrase :
-   ```bash
-   openssl rand -base64 32
-   ```
-2. Garde l'**ancienne** et la **nouvelle** temporairement (les dumps anciens restent chiffrés avec l'ancienne)
-3. GitHub → Settings → Secrets → mets à jour `GPG_PASSPHRASE_BACKUP`
-4. Optionnel : re-chiffre les anciens dumps avec la nouvelle passphrase
+### Jeton R2
+1. Cloudflare R2 → **Manage R2 API Tokens** → révoquer l'ancien, en créer un nouveau.
+2. Reposer `R2_ACCESS_KEY_ID` et `R2_SECRET_ACCESS_KEY`.
+3. Si le jeton avait une expiration, le renouveler **avant** échéance — sinon la copie hors-site
+   s'arrête et le run échoue (fail-closed → issue d'alerte).
 
 ## Dépannage
 
-### Erreur : « Unexpected argument '--project' »
+### §2.1 : `could not translate host name "postgres.railway.internal"`
+`DATABASE_URL` pointe sur le hostname **privé**. Prendre `DATABASE_PUBLIC_URL` du service Postgres
+(cf. §1).
 
-Ton `RAILWAY_TOKEN` est peut-être invalide ou expiré.  
-**Solution** :
-1. Regenerates un nouveau token sur Railway
-2. Mets à jour le secret GitHub
+### §2.1 : `password authentication failed for user "railway"`
+L'utilisateur dans l'URL est `railway` au lieu de `postgres`. Reposer avec la commande de la §1.
 
-### Erreur : « Unexpected GPG error »
+### §2.3 : échec de la copie R2
+Vérifier les 4 secrets `R2_*` (l'`R2_ACCOUNT_ID` est le plus souvent oublié → endpoint
+`https://.r2.cloudflarestorage.com` invalide). Vérifier que le jeton a bien le droit
+**Object Read & Write** sur le bon bucket.
 
-La passphrase est incorrecte ou vide.  
-**Solution** : vérifier que `GPG_PASSPHRASE_BACKUP` est défini dans GitHub Secrets et non vide.
+### `bad passphrase` (chiffrement ou contrôle de restauration)
+`GPG_PASSPHRASE_BACKUP` absent, vide, ou différent entre chiffrement et déchiffrement.
 
-### Job timed out (30 min)
-
-Le dump prend trop longtemps.  
-**Solution** : considérer une augmentation de la limite `timeout-minutes` dans le workflow (cf. `.github/workflows/backup-restore-exercise.yml`, actuellement 30 min).
+### Job timed out
+Le dump ou la restauration prend trop longtemps — augmenter `timeout-minutes` dans le workflow.
 
 ## Liens
 
 - Workflow : [`.github/workflows/backup-restore-exercise.yml`](../.github/workflows/backup-restore-exercise.yml)
 - Guide local : [`docs/EXERCICE_RESTAURATION_LOCAL.md`](./EXERCICE_RESTAURATION_LOCAL.md)
 - RUNBOOK : [`docs/RUNBOOK_sauvegardes_restauration.md`](./RUNBOOK_sauvegardes_restauration.md)
+</content>
+</invoke>

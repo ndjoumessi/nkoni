@@ -2,7 +2,7 @@ import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
 import { Prisma } from '../generated/prisma/client'
 import type { CreationScopee } from '../lib/tenant-extension'
 import { authenticate } from '../middlewares/authenticate'
-import { requirePermission, requireRoles, type Role } from '../middlewares/permissions'
+import { requirePermission, requireRoles, ROLES_ARGENT } from '../middlewares/permissions'
 import { t, langueDeRequete } from '../lib/i18n'
 import {
   collecteCagnotte,
@@ -26,7 +26,6 @@ import {
 
 const TYPES = ['DEUIL', 'MARIAGE', 'NAISSANCE', 'AUTRE'] as const
 const MODES = ['ESPECES', 'TIERS', 'MOBILE_MONEY', 'AUTRE'] as const
-const ROLES_ARGENT: readonly Role[] = ['ADMIN', 'PRESIDENT', 'TRESORIERE']
 
 
 interface CreateBody {
@@ -282,7 +281,7 @@ export const cagnottesRoutes: FastifyPluginAsync = async (app: FastifyInstance) 
   // POST /cagnottes/:id/dons — enregistre un don d'un membre (flux d'argent → rôles dédiés).
   app.post<{ Params: { id: string }; Body: DonBody }>(
     '/cagnottes/:id/dons',
-    { schema: donSchema, preHandler: [authenticate, requireRoles([...ROLES_ARGENT])] },
+    { schema: donSchema, preHandler: [authenticate, requireRoles(ROLES_ARGENT)] },
     async (req, reply) => {
       const c = await charger(req.params.id)
       if (!c) return reply.code(404).send({ error: 'Not Found', message: t(langueDeRequete(req), 'cagnottes.introuvable') })
@@ -312,7 +311,7 @@ export const cagnottesRoutes: FastifyPluginAsync = async (app: FastifyInstance) 
   // DELETE /cagnottes/:id/dons/:donId — retire un don (seulement si cagnotte OUVERTE).
   app.delete<{ Params: { id: string; donId: string } }>(
     '/cagnottes/:id/dons/:donId',
-    { preHandler: [authenticate, requireRoles([...ROLES_ARGENT])] },
+    { preHandler: [authenticate, requireRoles(ROLES_ARGENT)] },
     async (req, reply) => {
       const c = await charger(req.params.id)
       if (!c) return reply.code(404).send({ error: 'Not Found', message: t(langueDeRequete(req), 'cagnottes.introuvable') })
@@ -334,7 +333,7 @@ export const cagnottesRoutes: FastifyPluginAsync = async (app: FastifyInstance) 
   // POST /cagnottes/:id/cloturer — enregistre le reversement au bénéficiaire + clôt la cagnotte.
   app.post<{ Params: { id: string }; Body: ClotureBody }>(
     '/cagnottes/:id/cloturer',
-    { schema: clotureSchema, preHandler: [authenticate, requireRoles([...ROLES_ARGENT])] },
+    { schema: clotureSchema, preHandler: [authenticate, requireRoles(ROLES_ARGENT)] },
     async (req, reply) => {
       const c = await charger(req.params.id)
       if (!c) return reply.code(404).send({ error: 'Not Found', message: t(langueDeRequete(req), 'cagnottes.introuvable') })
@@ -369,7 +368,7 @@ export const cagnottesRoutes: FastifyPluginAsync = async (app: FastifyInstance) 
   // POST /cagnottes/:id/rouvrir — rouvre une cagnotte clôturée (réinitialise le reversement).
   app.post<{ Params: { id: string } }>(
     '/cagnottes/:id/rouvrir',
-    { preHandler: [authenticate, requireRoles([...ROLES_ARGENT])] },
+    { preHandler: [authenticate, requireRoles(ROLES_ARGENT)] },
     async (req, reply) => {
       const c = await charger(req.params.id)
       if (!c) return reply.code(404).send({ error: 'Not Found', message: t(langueDeRequete(req), 'cagnottes.introuvable') })

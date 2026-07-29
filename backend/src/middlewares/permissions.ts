@@ -44,6 +44,7 @@ export type Entite =
   | 'Depense'
   | 'Cagnotte'
   | 'Amende'
+  | 'Tontine'
 
 export type Role =
   // Rôle PLATEFORME transverse (SaaS §2.3). Volontairement ABSENT de la matrice PERMISSIONS
@@ -271,6 +272,18 @@ export const PERMISSIONS: Record<Entite, Partial<Record<Role, Action[]>>> = {
     COMMISSAIRE_COMPTES: READ,
     MEMBRE_SIMPLE: READ,
   },
+  // Tontine (§ tontine) — configuration (tontine, cycle, participants) par le bureau ; les FLUX
+  // D'ARGENT (enregistrement d'une mise, reversement du pot) sont gardés séparément dans la route
+  // par requireRoles(['ADMIN','PRESIDENT','TRESORIERE']), comme Cagnottes/Amendes. Lecture pour tous.
+  Tontine: {
+    ADMIN: CRUD,
+    PRESIDENT: CRUD,
+    TRESORIERE: ['create', 'read', 'update', 'delete'],
+    SECRETAIRE: ['create', 'read', 'update'],
+    COMMISSAIRE_COMPTES: READ,
+    GUIDE_RELIGIEUX: READ,
+    MEMBRE_SIMPLE: READ,
+  },
 }
 
 /**
@@ -356,6 +369,16 @@ export const ROLES_BUREAU: Role[] = [
   'TRESORIERE',
   'COMMISSAIRE_COMPTES',
 ]
+
+/**
+ * Les rôles autorisés à toucher aux FLUX D'ARGENT (encaissement, reversement, don, paiement,
+ * annulation comptable) : ADMIN, PRESIDENT, TRESORIERE. Gardé À PART de la matrice par entité
+ * (pattern « séparation gestion/argent » : le CRUD passe par `requirePermission`, l'argent par
+ * cette liste). Défini ICI en source UNIQUE — il gouvernait cinq surfaces (dépenses, reçus,
+ * cagnottes, amendes, tontines) sous trois noms recopiés, et une copie de plus est la façon
+ * habituelle dont ces listes divergent en silence.
+ */
+export const ROLES_ARGENT: Role[] = ['ADMIN', 'PRESIDENT', 'TRESORIERE']
 
 /**
  * Garde par LISTE DE RÔLES — pour une action mutable qui ne relève PAS de la matrice par entité

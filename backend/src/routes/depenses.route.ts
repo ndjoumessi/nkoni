@@ -2,7 +2,7 @@ import type { FastifyInstance, FastifyPluginAsync, FastifyReply, FastifyRequest 
 import { Prisma } from '../generated/prisma/client'
 import type { CreationScopee } from '../lib/tenant-extension'
 import { authenticate } from '../middlewares/authenticate'
-import { requirePermission, type Role } from '../middlewares/permissions'
+import { requirePermission, ROLES_ARGENT, type Role } from '../middlewares/permissions'
 import { t, langueDeRequete } from '../lib/i18n'
 import { reconcilierVersements } from '../services/versement.service'
 import { resoudrePagination, PAGINATION_PROPS } from '../lib/pagination'
@@ -27,7 +27,8 @@ const CATEGORIES = ['AIDE_MEMBRE', 'FUNERAILLES', 'EVENEMENT', 'FONCTIONNEMENT',
 const STATUTS = ['BROUILLON', 'EN_ATTENTE', 'APPROUVEE', 'REJETEE', 'PAYEE'] as const
 
 const ROLES_APPROBATION: readonly Role[] = ['ADMIN', 'PRESIDENT', 'COMMISSAIRE_COMPTES']
-const ROLES_PAIEMENT: readonly Role[] = ['ADMIN', 'PRESIDENT', 'TRESORIERE']
+// Paiement d'une dépense = flux d'argent → source unique `ROLES_ARGENT` (permissions.ts).
+const ROLES_PAIEMENT: readonly Role[] = ROLES_ARGENT
 
 const depenseProps = {
   montant: { type: 'integer', minimum: 1 },

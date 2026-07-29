@@ -240,6 +240,17 @@ jobs:
             echo "::error::Restauration vide (0 table) — l'archive n'est pas exploitable."
             exit 1
           fi
+          # Le compte de TABLES ne prouve que le SCHÉMA. Un dump où le schéma est présent mais les
+          # DONNÉES manquent (dump partiel, --schema-only par erreur, données tronquées) passerait
+          # au vert : `reconciliation` sur une org sans mouvements rend trivialement `coherent:true`.
+          # On EXIGE donc des données réelles — Membre et Versement sont les tables cœur du produit.
+          NB_MEMBRES="$(psql "$RESTORE_DATABASE_URL" -At -c "SELECT count(*) FROM \"Membre\";")"
+          NB_VERSEMENTS="$(psql "$RESTORE_DATABASE_URL" -At -c "SELECT count(*) FROM \"Versement\";")"
+          echo "Membres : $NB_MEMBRES · Versements : $NB_VERSEMENTS"
+          if [ "$NB_MEMBRES" -eq 0 ]; then
+            echo "::error::Schéma restauré mais AUCUN membre — restauration partielle (données manquantes)."
+            exit 1
+          fi
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -286,9 +297,22 @@ jobs:
             exit 1
           fi
 
-          # 2) Un ADMIN RÉEL de la base restaurée (avec organisation) = sujet du contrôle scopé.
-          LIGNE="$(psql "$DATABASE_URL" -At -F '|' \
-            -c "SELECT id, role, \"organisationId\" FROM \"Utilisateur\" WHERE role='ADMIN' AND \"organisationId\" IS NOT NULL LIMIT 1;")"
+          # 2) Un ADMIN RÉEL de la base restaurée = sujet du contrôle scopé. On le prend dans l'org
+          #    qui a LE PLUS de versements (ORDER BY count DESC), pas au hasard : un `LIMIT 1` nu
+          #    pouvait tomber sur une org sans mouvements, où `coherent:true` est vrai trivialement.
+          #    Cibler l'org la plus active rend la réconciliation NON vacante.
+          LIGNE="$(psql "$DATABASE_URL" -At -F '|' -c "
+            SELECT u.id, u.role, u.\"organisationId\"
+            FROM \"Utilisateur\" u
+            JOIN (SELECT \"organisationId\", count(*) AS n FROM \"Versement\" GROUP BY \"organisationId\") v
+              ON v.\"organisationId\" = u.\"organisationId\"
+            WHERE u.role='ADMIN' AND u.\"organisationId\" IS NOT NULL
+            ORDER BY v.n DESC LIMIT 1;")"
+          # Repli : aucune org n'a à la fois des versements ET un ADMIN → n'importe quel ADMIN rattaché.
+          if [ -z "$LIGNE" ]; then
+            LIGNE="$(psql "$DATABASE_URL" -At -F '|' \
+              -c "SELECT id, role, \"organisationId\" FROM \"Utilisateur\" WHERE role='ADMIN' AND \"organisationId\" IS NOT NULL LIMIT 1;")"
+          fi
           if [ -z "$LIGNE" ]; then
             echo "::error::Aucun ADMIN rattaché à une organisation dans la base restaurée."
             exit 1

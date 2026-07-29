@@ -4,4 +4,5 @@ export const messages = {
   'resolutions.reunionIntrouvable': 'Réunion introuvable.',
   'resolutions.pointIntrouvable': "Point d'ordre du jour introuvable.",
   'resolutions.pointHorsReunion': "Le point d'ordre du jour n'appartient pas à cette réunion.",
+  'resolutions.cloturee': 'Résolution clôturée : le vote est fermé.',
 } as const

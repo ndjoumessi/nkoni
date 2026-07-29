@@ -114,6 +114,33 @@ export const moiRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
     return reunions.map((r) => ({ ...r, monStatut: parReunion.get(r.id) ?? null }))
   })
 
+  // GET /moi/resolutions — résolutions OUVERTES au vote (`dateVote` null) de son organisation, avec
+  // le sens déjà exprimé par le membre s'il y en a un. « Votes en cours » de l'espace membre.
+  app.get('/moi/resolutions', { preHandler: [authenticate] }, async (req) => {
+    const membre = await membreConnecte(app.prisma, req.user.sub)
+    if (!membre) return []
+    const resolutions = await app.prisma.resolution.findMany({
+      where: { dateVote: null },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, texte: true, reunion: { select: { date: true, lieu: true } } },
+    })
+    if (resolutions.length === 0) return []
+    // Sens déjà voté par CE membre (nouveau modèle → surface souple compile-avant-regen).
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const votes = (await (app.prisma.vote as any).findMany({
+      where: { membreId: membre.id, resolutionId: { in: resolutions.map((r) => r.id) } },
+      select: { resolutionId: true, sens: true },
+    })) as { resolutionId: string; sens: string }[]
+    const parResolution = new Map(votes.map((v) => [v.resolutionId, v.sens]))
+    return resolutions.map((r) => ({
+      id: r.id,
+      texte: r.texte,
+      reunionDate: r.reunion.date,
+      reunionLieu: r.reunion.lieu,
+      monVote: parResolution.get(r.id) ?? null,
+    }))
+  })
+
   // GET /moi/recus — SES reçus (numéro, date, montant du versement, disponibilité du PDF).
   app.get('/moi/recus', { preHandler: [authenticate] }, async (req) => {
     const membre = await membreConnecte(app.prisma, req.user.sub)

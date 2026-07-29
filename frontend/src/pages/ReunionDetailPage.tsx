@@ -4,6 +4,7 @@ import { Navigate, useParams } from 'react-router-dom'
 import {
   ArrowDown,
   ArrowUp,
+  BarChart3,
   CalendarRange,
   Download,
   FileText,
@@ -26,11 +27,14 @@ import {
   type StatutResolution,
   type PresencesReunion,
   type StatutPresence,
+  type DepouillementResultat,
+  type SensVote,
 } from '@/lib/api'
 import {
   peutVoirReunions,
   peutGererReunions,
   peutSupprimerReunion,
+  peutDepouillerVotes,
   peutGererDocument,
 } from '@/lib/roles'
 import { DocumentsSection } from '@/components/documents/DocumentsSection'
@@ -60,6 +64,14 @@ const PRESENCE_TON: Record<StatutPresence, string> = {
   ABSENT: '--terra',
 }
 
+/** Sens de vote (ordre + ton de couleur par jeton) pour le dépouillement. */
+const VOTE_OPTIONS: SensVote[] = ['POUR', 'CONTRE', 'ABSTENTION']
+const VOTE_TON: Record<SensVote, string> = {
+  POUR: '--jade',
+  CONTRE: '--terra',
+  ABSTENTION: '--amber',
+}
+
 /** Détail d'une réunion (§5) : infos + statut, compte-rendu, ordre du jour, résolutions. */
 export function ReunionDetailPage() {
   const { id = '' } = useParams()
@@ -69,6 +81,7 @@ export function ReunionDetailPage() {
 
   const gestion = peutGererReunions(user?.role)
   const peutSupprimer = peutSupprimerReunion(user?.role)
+  const peutDepouiller = peutDepouillerVotes(user?.role)
 
   const [reunion, setReunion] = useState<ReunionDetail | null>(null)
   const [loading, setLoading] = useState(true)
@@ -104,6 +117,11 @@ export function ReunionDetailPage() {
 
   // Téléchargement du compte-rendu PDF.
   const [crPdfEnCours, setCrPdfEnCours] = useState(false)
+
+  // Dépouillement / clôture des votes par résolution (vue bureau).
+  const [depouillements, setDepouillements] = useState<Record<string, DepouillementResultat>>({})
+  const [depouilleEnCours, setDepouilleEnCours] = useState<string | null>(null)
+  const [clotureEnCours, setClotureEnCours] = useState<string | null>(null)
 
   useEffect(() => {
     if (!accessToken || !id) return
@@ -175,6 +193,56 @@ export function ReunionDetailPage() {
       toast.error(messageErreur(e))
     } finally {
       setPresenceMaj(null)
+    }
+  }
+
+  // Charge (ou masque) le dépouillement d'une résolution — tally + votes nominatifs.
+  const basculerDepouillement = async (resolutionId: string) => {
+    if (!accessToken) return
+    if (depouillements[resolutionId]) {
+      setDepouillements((d) => {
+        const { [resolutionId]: _retire, ...reste } = d
+        return reste
+      })
+      return
+    }
+    setDepouilleEnCours(resolutionId)
+    try {
+      const res = await reunionsApi.depouiller(resolutionId, accessToken)
+      setDepouillements((d) => ({ ...d, [resolutionId]: res }))
+    } catch (e) {
+      toast.error(messageErreur(e))
+    } finally {
+      setDepouilleEnCours(null)
+    }
+  }
+
+  // Clôt le vote d'une résolution : fige le statut dérivé + horodate (met à jour la fiche en place).
+  const cloturerVote = async (resolutionId: string) => {
+    if (!accessToken) return
+    setClotureEnCours(resolutionId)
+    try {
+      const res = await reunionsApi.cloturerResolution(resolutionId, accessToken)
+      setReunion((prev) =>
+        prev
+          ? {
+              ...prev,
+              resolutions: prev.resolutions.map((r) =>
+                r.id === resolutionId ? { ...r, statut: res.statut, dateVote: res.dateVote } : r,
+              ),
+            }
+          : prev,
+      )
+      // Rafraîchit le dépouillement affiché s'il est ouvert (le drapeau ouvert bascule à false).
+      if (depouillements[resolutionId]) {
+        const maj = await reunionsApi.depouiller(resolutionId, accessToken).catch(() => null)
+        if (maj) setDepouillements((d) => ({ ...d, [resolutionId]: maj }))
+      }
+      toast.success(t('resolutions.votes.clotureOk'))
+    } catch (e) {
+      toast.error(messageErreur(e))
+    } finally {
+      setClotureEnCours(null)
     }
   }
 
@@ -580,6 +648,78 @@ export function ReunionDetailPage() {
                     <ListChecks className="h-3.5 w-3.5" aria-hidden="true" />
                     {pointsLabel.get(r.pointOrdreDuJourId)}
                   </p>
+                )}
+                {/* Scrutin. DEUX gardes distinctes, miroir du serveur : le dépouillement est
+                    ouvert au BUREAU (dont trésorière et commissaire aux comptes), la clôture aux
+                    seuls rôles de gestion. Les confondre masquerait le tally à des rôles que le
+                    serveur autorise. */}
+                {peutDepouiller && (
+                  <div className="mt-3 border-t border-hairline pt-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        icon={BarChart3}
+                        loading={depouilleEnCours === r.id}
+                        onClick={() => void basculerDepouillement(r.id)}
+                      >
+                        {depouillements[r.id]
+                          ? t('resolutions.votes.masquer')
+                          : t('resolutions.votes.depouiller')}
+                      </Button>
+                      {!gestion ? null : r.dateVote === null ? (
+                        <Button
+                          type="button"
+                          size="sm"
+                          loading={clotureEnCours === r.id}
+                          onClick={() => void cloturerVote(r.id)}
+                        >
+                          {t('resolutions.votes.cloturer')}
+                        </Button>
+                      ) : (
+                        <span className="text-xs text-faint">{t('resolutions.votes.close')}</span>
+                      )}
+                    </div>
+                    {depouillements[r.id] && (
+                      <div className="mt-3">
+                        <div className="flex flex-wrap gap-2">
+                          {VOTE_OPTIONS.map((s) => (
+                            <span
+                              key={s}
+                              className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium"
+                              style={{
+                                color: `var(${VOTE_TON[s]})`,
+                                borderColor: `color-mix(in oklch, var(${VOTE_TON[s]}) 40%, transparent)`,
+                                backgroundColor: `color-mix(in oklch, var(${VOTE_TON[s]}) 12%, transparent)`,
+                              }}
+                            >
+                              {t(cleI18n(`resolutions.votes.sens.${s}`))} · {depouillements[r.id].depouillement[s]}
+                            </span>
+                          ))}
+                        </div>
+                        {depouillements[r.id].votes.length === 0 ? (
+                          <p className="mt-3 text-xs text-faint">{t('resolutions.votes.aucun')}</p>
+                        ) : (
+                          <ul className="mt-3 space-y-1.5">
+                            {depouillements[r.id].votes.map((v) => (
+                              <li
+                                key={v.membreId}
+                                className="flex items-center justify-between gap-3 text-sm"
+                              >
+                                <span className="min-w-0 truncate text-foreground">
+                                  {v.prenom} {v.nom}
+                                </span>
+                                <span className="text-xs font-medium" style={{ color: `var(${VOTE_TON[v.sens]})` }}>
+                                  {t(cleI18n(`resolutions.votes.sens.${v.sens}`))}
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 )}
               </li>
             ))}

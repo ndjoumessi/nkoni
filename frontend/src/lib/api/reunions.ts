@@ -8,6 +8,31 @@ export type TypeReunion = 'ORDINAIRE' | 'EXTRAORDINAIRE'
 export type StatutReunion = 'PLANIFIEE' | 'TENUE' | 'ANNULEE'
 export type StatutResolution = 'ADOPTEE' | 'REJETEE' | 'REPORTEE'
 export type StatutPresence = 'PRESENT' | 'ABSENT' | 'EXCUSE'
+export type SensVote = 'POUR' | 'CONTRE' | 'ABSTENTION'
+
+export interface Depouillement {
+  POUR: number
+  CONTRE: number
+  ABSTENTION: number
+  total: number
+}
+export interface VoteLigne {
+  membreId: string
+  nom: string
+  prenom: string
+  sens: SensVote
+}
+export interface DepouillementResultat {
+  resolution: { id: string; statut: StatutResolution; dateVote: string | null; ouvert: boolean }
+  depouillement: Depouillement
+  votes: VoteLigne[]
+}
+export interface ClotureResultat {
+  id: string
+  statut: 'ADOPTEE' | 'REJETEE'
+  dateVote: string
+  depouillement: Depouillement
+}
 
 export interface PresenceLigne {
   membreId: string
@@ -151,6 +176,15 @@ export const reunionsApi = {
       `/reunions/${rid(reunionId)}/presences/${rid(membreId)}`,
       { method: 'PUT', json: { statut }, accessToken },
     ),
+  /** Dépouillement d'une résolution (vue bureau) : tally + votes nominatifs. */
+  depouiller: (resolutionId: string, accessToken: string, signal?: AbortSignal) =>
+    request<DepouillementResultat>(`/resolutions/${rid(resolutionId)}/votes`, { accessToken, signal }),
+  /** Clôt une résolution : fige le statut dérivé du tally + horodate. */
+  cloturerResolution: (resolutionId: string, accessToken: string) =>
+    request<ClotureResultat>(`/resolutions/${rid(resolutionId)}/cloturer`, {
+      method: 'POST',
+      accessToken,
+    }),
   /** Télécharge le compte-rendu en PDF (régénéré à la volée, proxy authentifié) — Blob. */
   compteRenduPdf: async (reunionId: string, accessToken: string): Promise<Blob> => {
     const res = await fetch(`${API_URL}/reunions/${rid(reunionId)}/compte-rendu.pdf`, {

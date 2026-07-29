@@ -207,6 +207,21 @@ export function peutGererReunions(role: string | undefined): boolean {
   return role !== undefined && GESTION_REUNIONS.includes(role)
 }
 
+/**
+ * Miroir de `ROLES_BUREAU` (`backend/src/middlewares/permissions.ts`) : le DÉPOUILLEMENT d'un
+ * scrutin est nominatif et gardé hors matrice côté serveur, donc il ne suit PAS
+ * `peutGererReunions` — plus étroit — sous peine de rendre la vue inatteignable à la trésorière et
+ * au commissaire aux comptes, que le serveur autorise pourtant. La CLÔTURE, elle, reste sur
+ * `peutGererReunions` (matrice `Reunion`/update côté serveur) : deux gardes distinctes, deux
+ * helpers distincts.
+ */
+const DEPOUILLEMENT_VOTES = ['ADMIN', 'PRESIDENT', 'SECRETAIRE', 'TRESORIERE', 'COMMISSAIRE_COMPTES']
+
+/** Peut consulter le dépouillement nominatif d'une résolution (bureau). */
+export function peutDepouillerVotes(role: string | undefined): boolean {
+  return role !== undefined && DEPOUILLEMENT_VOTES.includes(role)
+}
+
 /** Peut supprimer une réunion / une résolution (delete réservé ADMIN, PRESIDENT). */
 const SUPPRESSION_REUNIONS = ['ADMIN', 'PRESIDENT']
 export function peutSupprimerReunion(role: string | undefined): boolean {

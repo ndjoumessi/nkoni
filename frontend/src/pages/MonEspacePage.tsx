@@ -12,6 +12,7 @@ import {
   CreditCard,
   Bell,
   ChevronDown,
+  Vote,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
 import {
@@ -24,6 +25,8 @@ import {
   type ContributionMembre,
   type ReunionAVenir,
   type StatutPresence,
+  type ResolutionOuverte,
+  type SensVote,
   type RecuMembre,
   type Notification,
   type CarteApercu,
@@ -56,6 +59,14 @@ const RSVP_TON: Record<StatutPresence, string> = {
   ABSENT: '--terra',
 }
 
+/** Ordre d'affichage des sens de vote + ton de couleur (jeton) par sens. */
+const VOTE_OPTIONS: SensVote[] = ['POUR', 'CONTRE', 'ABSTENTION']
+const VOTE_TON: Record<SensVote, string> = {
+  POUR: '--jade',
+  CONTRE: '--terra',
+  ABSTENTION: '--amber',
+}
+
 export function MonEspacePage() {
   const { t } = useTranslation()
   const { accessToken } = useAuth()
@@ -64,6 +75,7 @@ export function MonEspacePage() {
   const [situation, setSituation] = useState<SituationMembre | null>(null)
   const [contributions, setContributions] = useState<ContributionMembre[]>([])
   const [reunions, setReunions] = useState<ReunionAVenir[]>([])
+  const [resolutions, setResolutions] = useState<ResolutionOuverte[]>([])
   const [recus, setRecus] = useState<RecuMembre[]>([])
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [carteApercu, setCarteApercu] = useState<CarteApercu | null>(null)
@@ -75,6 +87,7 @@ export function MonEspacePage() {
   const [annulesOuverts, setAnnulesOuverts] = useState(false)
   const [rappelsOuverts, setRappelsOuverts] = useState(false)
   const [rsvpEnCours, setRsvpEnCours] = useState<string | null>(null)
+  const [voteEnCours, setVoteEnCours] = useState<string | null>(null)
   const [paiementActif, setPaiementActif] = useState(false)
   // Montant minimum d'un paiement, fourni par le SERVEUR (source unique = PAIEMENT_MONTANT_MIN). Évite
   // tout couplage build-time front/back : plus de variable VITE_ ni de rebuild Vercel à synchroniser.
@@ -106,17 +119,19 @@ export function MonEspacePage() {
         return
       }
       // Listes + aperçu carte + disponibilité paiement (best-effort, chargés en parallèle).
-      const [c, r, rc, n, ca, pd] = await Promise.all([
+      const [c, r, rc, n, ca, pd, ro] = await Promise.all([
         moiApi.contributions(accessToken, controller.signal).catch(() => []),
         moiApi.reunions(accessToken, controller.signal).catch(() => []),
         moiApi.recus(accessToken, controller.signal).catch(() => []),
         notificationsApi.list(accessToken, controller.signal).catch(() => []),
         moiApi.carteApercu(accessToken, controller.signal).catch(() => null),
         moiApi.paiementDisponible(accessToken, controller.signal).catch(() => ({ actif: false, montantMin: 100 })),
+        moiApi.resolutionsOuvertes(accessToken, controller.signal).catch(() => []),
       ])
       if (!actif) return
       setContributions(c)
       setReunions(r)
+      setResolutions(ro)
       setRecus(rc)
       setNotifications(n)
       setCarteApercu(ca)
@@ -202,6 +217,26 @@ export function MonEspacePage() {
       }
     },
     [accessToken, reunions, toast, t],
+  )
+
+  // Vote : le membre exprime son sens sur une résolution ouverte (MAJ optimiste + toast).
+  const voter = useCallback(
+    async (resolutionId: string, sens: SensVote) => {
+      if (!accessToken) return
+      const precedent = resolutions
+      setVoteEnCours(resolutionId)
+      setResolutions((rs) => rs.map((r) => (r.id === resolutionId ? { ...r, monVote: sens } : r)))
+      try {
+        await moiApi.voterResolution(resolutionId, sens, accessToken)
+        toast.success(t('monEspace.votes.enregistre'))
+      } catch (e) {
+        setResolutions(precedent) // rollback
+        toast.error(messageErreur(e))
+      } finally {
+        setVoteEnCours(null)
+      }
+    },
+    [accessToken, resolutions, toast, t],
   )
 
   // Retour de la page de paiement hébergée (Fapshi) : si un paiement était en cours (id mémorisé AVANT
@@ -628,6 +663,59 @@ export function MonEspacePage() {
           </ul>
         )}
       </Card>
+
+      {/* Votes en cours — résolutions ouvertes au vote */}
+      {resolutions.length > 0 && (
+        <Card className="nk-reveal nk-d4 mt-4 p-6">
+          <div className="flex items-center gap-2">
+            <Vote className="h-4 w-4 text-brass" aria-hidden="true" />
+            <Overline>{t('monEspace.votes.titre')}</Overline>
+          </div>
+          <ul className="mt-4 space-y-2">
+            {resolutions.map((r) => (
+              <li key={r.id} className="rounded-xl border border-hairline bg-surface-2/40 p-3.5">
+                <p className="text-sm text-foreground">{r.texte}</p>
+                <p className="mt-0.5 text-xs text-faint">
+                  {t('monEspace.votes.reunion')} : {formatDate(r.reunionDate, { dateStyle: 'long' })} · {r.reunionLieu}
+                </p>
+                <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-hairline pt-3">
+                  <span className="text-xs text-faint">{t('monEspace.votes.question')}</span>
+                  <div className="flex gap-1.5" role="group" aria-label={t('monEspace.votes.question')}>
+                    {VOTE_OPTIONS.map((s) => {
+                      const actif = r.monVote === s
+                      const ton = VOTE_TON[s]
+                      return (
+                        <button
+                          key={s}
+                          type="button"
+                          disabled={voteEnCours === r.id}
+                          aria-pressed={actif}
+                          onClick={() => void voter(r.id, s)}
+                          className={cn(
+                            'rounded-full border px-3 py-1 text-xs font-medium transition-colors disabled:opacity-50',
+                            !actif && 'border-hairline text-faint hover:text-foreground',
+                          )}
+                          style={
+                            actif
+                              ? {
+                                  color: `var(${ton})`,
+                                  borderColor: `color-mix(in oklch, var(${ton}) 45%, transparent)`,
+                                  backgroundColor: `color-mix(in oklch, var(${ton}) 15%, transparent)`,
+                                }
+                              : undefined
+                          }
+                        >
+                          {t(cleI18n(`monEspace.votes.sens.${s}`))}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
 
       {/* Mes reçus */}
       <Card className="nk-reveal nk-d5 mt-4 p-6">

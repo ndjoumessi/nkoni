@@ -70,6 +70,17 @@ export default {
         ABSENT: 'Absent',
       },
     },
+    votes: {
+      titre: 'Open votes',
+      reunion: 'Meeting',
+      question: 'Your vote:',
+      enregistre: 'Vote saved.',
+      sens: {
+        POUR: 'For',
+        CONTRE: 'Against',
+        ABSTENTION: 'Abstain',
+      },
+    },
     recus: {
       titre: 'My receipts',
       numero: 'Number',

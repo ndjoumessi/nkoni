@@ -2,7 +2,7 @@ import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
 import { Prisma } from '../generated/prisma/client'
 import { t, langueDeRequete } from '../lib/i18n'
 import { authenticate } from '../middlewares/authenticate'
-import { requirePermission, requireRoles } from '../middlewares/permissions'
+import { requirePermission, requireRoles, ROLES_ARGENT } from '../middlewares/permissions'
 import {
   genererRecu,
   annulerRecu,
@@ -353,7 +353,7 @@ export const recusRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
           properties: { motif: { type: 'string', maxLength: 500 } },
         },
       },
-      preHandler: [authenticate, requireRoles(['ADMIN', 'PRESIDENT', 'TRESORIERE'])],
+      preHandler: [authenticate, requireRoles(ROLES_ARGENT)],
     },
     async (req, reply) => {
       try {

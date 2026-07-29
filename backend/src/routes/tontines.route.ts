@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyPluginAsync, FastifyReply } from 'fastify'
 import { authenticate } from '../middlewares/authenticate'
-import { requirePermission, requireRoles } from '../middlewares/permissions'
+import { requirePermission, requireRoles, ROLES_ARGENT } from '../middlewares/permissions'
 import { t, langueDeRequete } from '../lib/i18n'
 import {
   creerTontine,
@@ -26,13 +26,11 @@ import {
 /**
  * Tontine (§ tontine) — épargne rotative. Deux régimes de garde, comme Cagnottes/Amendes :
  *  - CONFIGURATION (créer tontine, ouvrir un cycle, tirer un bénéficiaire) → matrice `Tontine`.
- *  - FLUX D'ARGENT (enregistrer une mise, reverser le pot) → `requireRoles(FLUX_ARGENT)`,
- *    strictement ADMIN/PRESIDENT/TRESORIERE, gardé À PART dans la route.
+ *  - FLUX D'ARGENT (enregistrer une mise, reverser le pot) → `requireRoles(ROLES_ARGENT)`
+ *    (source unique dans `permissions.ts`), gardé À PART dans la route.
  *
  * Le service porte les erreurs typées ; la route les mappe en 4xx (i18n à la frontière HTTP).
  */
-
-const FLUX_ARGENT = ['ADMIN', 'PRESIDENT', 'TRESORIERE'] as const
 
 const MODES = ['ORDRE_FIXE', 'TIRAGE', 'ENCHERE'] as const
 
@@ -159,13 +157,13 @@ export const tontinesRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
   // Flux d'argent -----------------------------------------------------------
   app.post<{ Params: { id: string }; Body: { membreId: string; montant?: number } }>(
     '/tours/:id/mises',
-    { preHandler: [authenticate, requireRoles([...FLUX_ARGENT])], schema: miseSchema },
+    { preHandler: [authenticate, requireRoles(ROLES_ARGENT)], schema: miseSchema },
     async (req, reply) => gerer(reply, () => enregistrerMise(p(), req.params.id, req.body.membreId, req.body.montant)),
   )
 
   app.post<{ Params: { id: string } }>(
     '/tours/:id/reverser',
-    { preHandler: [authenticate, requireRoles([...FLUX_ARGENT])] },
+    { preHandler: [authenticate, requireRoles(ROLES_ARGENT)] },
     async (req, reply) => gerer(reply, () => reverserTour(p(), req.params.id)),
   )
 }

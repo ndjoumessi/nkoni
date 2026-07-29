@@ -2,7 +2,7 @@ import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
 import { Prisma } from '../generated/prisma/client'
 import type { CreationScopee } from '../lib/tenant-extension'
 import { authenticate } from '../middlewares/authenticate'
-import { requirePermission, requireRoles, type Role } from '../middlewares/permissions'
+import { requirePermission, requireRoles, ROLES_ARGENT } from '../middlewares/permissions'
 import { t, langueDeRequete } from '../lib/i18n'
 import {
   estEditableAmende,
@@ -25,7 +25,6 @@ import {
 const TYPES = ['RETARD_COTISATION', 'ABSENCE_REUNION', 'AUTRE'] as const
 const STATUTS = ['IMPAYEE', 'PAYEE', 'ANNULEE'] as const
 const MODES = ['ESPECES', 'TIERS', 'MOBILE_MONEY', 'AUTRE'] as const
-const ROLES_ARGENT: readonly Role[] = ['ADMIN', 'PRESIDENT', 'TRESORIERE']
 
 interface CreateBody {
   membreId: string
@@ -191,7 +190,7 @@ export const amendesRoutes: FastifyPluginAsync = async (app: FastifyInstance) =>
   // POST /amendes/:id/payer — encaissement (flux d'argent → rôles dédiés).
   app.post<{ Params: { id: string }; Body: PayerBody }>(
     '/amendes/:id/payer',
-    { schema: payerSchema, preHandler: [authenticate, requireRoles([...ROLES_ARGENT])] },
+    { schema: payerSchema, preHandler: [authenticate, requireRoles(ROLES_ARGENT)] },
     async (req, reply) => {
       const a = await charger(req.params.id)
       if (!a) return reply.code(404).send({ error: 'Not Found', message: t(langueDeRequete(req), 'amendes.introuvable') })
@@ -218,7 +217,7 @@ export const amendesRoutes: FastifyPluginAsync = async (app: FastifyInstance) =>
   // POST /amendes/:id/annuler — annulation (amende levée / erreur de saisie).
   app.post<{ Params: { id: string } }>(
     '/amendes/:id/annuler',
-    { preHandler: [authenticate, requireRoles([...ROLES_ARGENT])] },
+    { preHandler: [authenticate, requireRoles(ROLES_ARGENT)] },
     async (req, reply) => {
       const a = await charger(req.params.id)
       if (!a) return reply.code(404).send({ error: 'Not Found', message: t(langueDeRequete(req), 'amendes.introuvable') })

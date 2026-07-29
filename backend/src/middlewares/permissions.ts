@@ -371,6 +371,16 @@ export const ROLES_BUREAU: Role[] = [
 ]
 
 /**
+ * Les rôles autorisés à toucher aux FLUX D'ARGENT (encaissement, reversement, don, paiement,
+ * annulation comptable) : ADMIN, PRESIDENT, TRESORIERE. Gardé À PART de la matrice par entité
+ * (pattern « séparation gestion/argent » : le CRUD passe par `requirePermission`, l'argent par
+ * cette liste). Défini ICI en source UNIQUE — il gouvernait cinq surfaces (dépenses, reçus,
+ * cagnottes, amendes, tontines) sous trois noms recopiés, et une copie de plus est la façon
+ * habituelle dont ces listes divergent en silence.
+ */
+export const ROLES_ARGENT: Role[] = ['ADMIN', 'PRESIDENT', 'TRESORIERE']
+
+/**
  * Garde par LISTE DE RÔLES — pour une action mutable qui ne relève PAS de la matrice par entité
  * (ex. « désigner le chef de l'organisation » : action distincte des paramètres immuables §5,
  * réservée ADMIN/PRESIDENT). À brancher APRÈS `authenticate`. 403 si le rôle n'est pas dans la liste.

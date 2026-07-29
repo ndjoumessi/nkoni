@@ -131,6 +131,27 @@ async function semer(orgId: string, actif: boolean): Promise<void> {
   await (base as any).vote.create({
     data: { organisationId: orgId, resolutionId: reso.id, membreId: m.id, sens: 'POUR' },
   })
+  // Cluster tontine (nouveaux modèles — accès souple, cf. ci-dessus).
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const tontine = await (base as any).tontine.create({
+    data: { organisationId: orgId, nom: 'Tontine A', montantBaseMise: 5_000 },
+  })
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const cycle = await (base as any).cycleTontine.create({
+    data: { organisationId: orgId, tontineId: tontine.id, numero: 1 },
+  })
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await (base as any).participationTontine.create({
+    data: { organisationId: orgId, cycleId: cycle.id, membreId: m.id, parts: 1, ordre: 1 },
+  })
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const tour = await (base as any).tourTontine.create({
+    data: { organisationId: orgId, cycleId: cycle.id, numero: 1, beneficiaireId: m.id },
+  })
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await (base as any).miseTontine.create({
+    data: { organisationId: orgId, tourId: tour.id, membreId: m.id, montant: 5_000 },
+  })
   const f = await base.fonctionFamiliale.create({ data: { organisationId: orgId, nom: 'Trésorier' } })
   await base.affectationFonction.create({
     data: { organisationId: orgId, fonctionId: f.id, membreId: m.id, dateDebut: new Date('2025-01-01T00:00:00Z') },

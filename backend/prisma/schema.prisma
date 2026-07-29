@@ -191,6 +191,11 @@ model Organisation {
   presencesReunion     PresenceReunion[]
   resolutions          Resolution[]
   votes                Vote[]
+  tontines             Tontine[]
+  cyclesTontine        CycleTontine[]
+  participationsTontine ParticipationTontine[]
+  toursTontine         TourTontine[]
+  misesTontine         MiseTontine[]
   fonctions            FonctionFamiliale[]
   affectations         AffectationFonction[]
   conflits             Conflit[]
@@ -308,6 +313,9 @@ model Membre {
   paiements                Paiement[]                    @relation("PaiementMembre") // Paiements en ligne initiés par ce membre
   presencesReunion         PresenceReunion[] // RSVP / présences aux réunions
   votes                    Vote[] // Votes exprimés sur les résolutions (§ votes en ligne)
+  participationsTontine    ParticipationTontine[] // Participations aux cycles de tontine
+  misesTontine             MiseTontine[] // Mises versées dans les tours de tontine
+  toursTontineBeneficiaire TourTontine[] // Tours dont ce membre est le bénéficiaire
   organisationsCommeChef   Organisation[]                @relation("ChefOrganisation") // Chef de l'organisation (inverse ; rare : 1)
   // Reçus dont ce membre est le SUJET (FK dénormalisée sur Recu, en Restrict) — c'est ce lien
   // qui garde un reçu ORPHELIN (versement supprimé) atteignable dans son historique.
@@ -616,6 +624,124 @@ model Vote {
   updatedAt      DateTime     @updatedAt
 
   @@unique([resolutionId, membreId])
+  @@index([organisationId])
+}
+
+// ---------------------------------------------------------------------------
+// Mécanique de TONTINE (§ vie associative) — épargne rotative (ROSCA).
+//
+// Une `Tontine` (groupe tontinier de l'org) déroule des `CycleTontine` (rotations complètes) ;
+// chaque cycle a des `TourTontine` (un bénéficiaire par tour) et des `ParticipationTontine`
+// (membre ↔ cycle, avec `parts` et `ordre`). À chaque tour, chaque participant verse une
+// `MiseTontine` ; le pot est reversé au bénéficiaire du tour. Modèles AUTONOMES : l'adossement
+// à la trésorerie (mises/reversements dans le solde de caisse) est un calcul de lecture au niveau
+// service, PAS un couplage structurel — cela évite de contaminer les totaux de cotisation.
+//
+// `ModeRotation` porte les TROIS modes ; ORDRE_FIXE + TIRAGE sont câblés, ENCHERE est
+// schema-ready mais sa logique (mise à prix, escompte) est différée.
+// ---------------------------------------------------------------------------
+
+enum ModeRotation {
+  ORDRE_FIXE
+  TIRAGE
+  ENCHERE
+}
+
+enum StatutCycleTontine {
+  EN_COURS
+  TERMINE
+  ANNULE
+}
+
+enum StatutTourTontine {
+  A_VENIR
+  REVERSE
+}
+
+model Tontine {
+  id              String         @id @default(uuid())
+  organisationId  String
+  organisation    Organisation   @relation(fields: [organisationId], references: [id])
+  nom             String
+  montantBaseMise Int // mise d'UNE part par tour ; mise d'un membre = parts × ce montant
+  modeRotation    ModeRotation   @default(ORDRE_FIXE)
+  actif           Boolean        @default(true)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  cycles          CycleTontine[]
+
+  @@index([organisationId])
+}
+
+model CycleTontine {
+  id             String                 @id @default(uuid())
+  organisationId String
+  organisation   Organisation           @relation(fields: [organisationId], references: [id])
+  tontineId      String
+  tontine        Tontine                @relation(fields: [tontineId], references: [id], onDelete: Cascade)
+  numero         Int
+  statut         StatutCycleTontine     @default(EN_COURS)
+  dateDebut      DateTime               @default(now())
+  dateFin        DateTime?
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+  participations ParticipationTontine[]
+  tours          TourTontine[]
+
+  @@unique([tontineId, numero])
+  @@index([organisationId])
+}
+
+model ParticipationTontine {
+  id             String       @id @default(uuid())
+  organisationId String
+  organisation   Organisation @relation(fields: [organisationId], references: [id])
+  cycleId        String
+  cycle          CycleTontine @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  membreId       String
+  membre         Membre       @relation(fields: [membreId], references: [id], onDelete: Cascade)
+  parts          Int          @default(1) // >1 = contribution renforcée (mise = parts × montantBaseMise)
+  ordre          Int // position dans la rotation (utilisée par ORDRE_FIXE)
+  createdAt      DateTime     @default(now())
+
+  @@unique([cycleId, membreId])
+  @@index([organisationId])
+}
+
+model TourTontine {
+  id                  String            @id @default(uuid())
+  organisationId      String
+  organisation        Organisation      @relation(fields: [organisationId], references: [id])
+  cycleId             String
+  cycle               CycleTontine      @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  numero              Int
+  // Bénéficiaire du tour — nullable tant que non attribué (tirage) ; SetNull si le membre part.
+  beneficiaireId      String?
+  beneficiaire        Membre?           @relation(fields: [beneficiaireId], references: [id], onDelete: SetNull)
+  montantPot          Int               @default(0) // figé au reversement (Σ des mises encaissées)
+  statut              StatutTourTontine @default(A_VENIR)
+  dateReversement     DateTime?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  mises               MiseTontine[]
+
+  @@unique([cycleId, numero])
+  @@index([organisationId])
+}
+
+model MiseTontine {
+  id             String       @id @default(uuid())
+  organisationId String
+  organisation   Organisation @relation(fields: [organisationId], references: [id])
+  tourId         String
+  tour           TourTontine  @relation(fields: [tourId], references: [id], onDelete: Cascade)
+  membreId       String
+  membre         Membre       @relation(fields: [membreId], references: [id], onDelete: Cascade)
+  montant        Int
+  dateMise       DateTime     @default(now())
+  createdAt      DateTime     @default(now())
+
+  @@unique([tourId, membreId])
   @@index([organisationId])
 }
 

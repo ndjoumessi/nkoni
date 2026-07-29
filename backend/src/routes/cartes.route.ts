@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
 import { authenticate } from '../middlewares/authenticate'
-import { requireRoles } from '../middlewares/permissions'
+import { requireRoles, ROLES_BUREAU } from '../middlewares/permissions'
 import { orgContext } from '../lib/org-context'
 import { env } from '../lib/env'
 import { signerStatutMembre, verifierStatutMembre } from '../lib/recu-lien'
@@ -15,8 +15,6 @@ import QRCode from 'qrcode'
  * vérification de statut ouverte par le QR de la carte (signée, sans auth, isolation tenant
  * préservée). Aucun montant n'est jamais exposé sur la page publique.
  */
-
-const ROLES_BUREAU = ['ADMIN', 'PRESIDENT', 'SECRETAIRE', 'TRESORIERE', 'COMMISSAIRE_COMPTES'] as const
 
 /** URL absolue publique de vérification de statut, encodée dans le QR de la carte. */
 function urlStatut(membreId: string): string {

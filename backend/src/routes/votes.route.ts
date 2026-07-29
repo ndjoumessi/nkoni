@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyPluginAsync, FastifyReply } from 'fastify'
 import { authenticate } from '../middlewares/authenticate'
-import { requirePermission } from '../middlewares/permissions'
+import { requirePermission, requireRoles, ROLES_BUREAU } from '../middlewares/permissions'
 import { t, langueDeRequete } from '../lib/i18n'
 import { ResolutionIntrouvableError } from '../services/resolution.service'
 import {
@@ -8,6 +8,7 @@ import {
   depouillerResolution,
   cloturerResolution,
   ResolutionClotureeError,
+  MembreIntrouvableError,
   SENS_VOTE,
 } from '../services/vote.service'
 
@@ -15,8 +16,10 @@ import {
  * Votes en ligne sur les résolutions (§ vie associative). Deux publics :
  *  - MEMBRE self-service : `PUT /moi/resolutions/:id/vote` pose SON vote (POUR/CONTRE/ABSTENTION) —
  *    résolu depuis `req.user.sub`, hors matrice (comme /moi/*). Refusé si la résolution est clôturée.
- *  - DIRIGEANT : `GET /resolutions/:id/votes` (matrice `Reunion`/read) = dépouillement + tally ;
- *    `POST /resolutions/:id/cloturer` (matrice `Reunion`/update) fige le statut dérivé du tally.
+ *  - BUREAU : `GET /resolutions/:id/votes` (garde `requireRoles(ROLES_BUREAU)` — PAS la matrice,
+ *    qui donnerait `read` à MEMBRE_SIMPLE) = dépouillement + tally nominatifs ;
+ *    `POST /resolutions/:id/cloturer` (matrice `Reunion`/update : ADMIN, PRESIDENT, SECRETAIRE)
+ *    fige le statut dérivé du tally — déjà plus restrictif que le bureau, laissé tel quel.
  *
  * Le service porte les erreurs typées ; la route les mappe en 4xx (i18n à la frontière HTTP).
  * Les lectures de résolution/membre sont SCOPÉES → un id d'une autre org renvoie `null` → 404.
@@ -37,6 +40,12 @@ function reply4xxSiMetier(err: unknown, reply: FastifyReply): boolean {
   }
   if (err instanceof ResolutionClotureeError) {
     reply.code(409).send({ error: 'Conflict', message: t(langue, 'resolutions.cloturee') })
+    return true
+  }
+  // Sans ce mappage, le refus métier remonterait en 500 opaque (défaut déjà vécu sur
+  // `versements.modificationRecuActif` : garde posée dans le service, jamais traduite en HTTP).
+  if (err instanceof MembreIntrouvableError) {
+    reply.code(404).send({ error: 'Not Found', message: t(langue, 'membres.introuvable') })
     return true
   }
   return false
@@ -66,10 +75,15 @@ export const votesRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
     },
   )
 
-  // GET /resolutions/:id/votes — dépouillement dirigeant (tally + votes nominatifs).
+  // GET /resolutions/:id/votes — dépouillement (tally + votes NOMINATIFS).
+  //
+  // Gardé par `requireRoles(ROLES_BUREAU)` et NON par la matrice : `Reunion`/`read` inclut
+  // `MEMBRE_SIMPLE`, ce qui exposerait à TOUT membre de l'organisation qui a voté quoi — sur des
+  // résolutions pouvant porter sur un conflit, une exclusion ou de l'argent. Le scrutin est
+  // nominatif côté bureau, pas public : c'est le sens de « dépouillement ».
   app.get<{ Params: { id: string } }>(
     '/resolutions/:id/votes',
-    { preHandler: [authenticate, requirePermission('Reunion', 'read')] },
+    { preHandler: [authenticate, requireRoles(ROLES_BUREAU)] },
     async (req, reply) => {
       try {
         return await depouillerResolution(app.prisma, req.params.id)

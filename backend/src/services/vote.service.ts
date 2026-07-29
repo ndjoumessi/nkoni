@@ -20,6 +20,14 @@ import { ResolutionIntrouvableError } from './resolution.service'
 export type SensVote = 'POUR' | 'CONTRE' | 'ABSTENTION'
 export const SENS_VOTE: SensVote[] = ['POUR', 'CONTRE', 'ABSTENTION']
 
+/** Le membre visé n'existe pas DANS l'organisation courante (lecture scopée). → 404 */
+export class MembreIntrouvableError extends Error {
+  constructor() {
+    super('Membre introuvable.')
+    this.name = 'MembreIntrouvableError'
+  }
+}
+
 /** La résolution est clôturée : elle n'accepte plus de vote. → 409 */
 export class ResolutionClotureeError extends Error {
   constructor() {
@@ -62,6 +70,9 @@ export interface VotePrisma {
     findFirst(args: any): Promise<any>
     update(args: any): Promise<any>
   }
+  membre: {
+    findFirst(args: any): Promise<any>
+  }
   vote: {
     upsert(args: any): Promise<any>
     findMany(args: any): Promise<any[]>
@@ -85,6 +96,15 @@ async function chargerResolution(
 /**
  * Le membre pose/actualise SON vote. Refus si la résolution est clôturée (`dateVote` posé).
  * Upsert sur la clé unique (resolutionId, membreId) → revoter écrase, jamais de doublon.
+ *
+ * `membreId` est VÉRIFIÉ ici par une lecture SCOPÉE, et pas seulement par l'appelant. L'extension
+ * tenant ne peut pas s'en charger : sur un `upsert` dont la cible n'existe pas, elle force
+ * `organisationId` dans le `create` puis laisse passer les autres FK telles quelles — un `membreId`
+ * d'une AUTRE organisation produirait donc une ligne `Vote` de l'org courante pointant vers un
+ * membre étranger, la contrainte de clé étrangère étant satisfaite au niveau base. Le seul appelant
+ * actuel résout déjà le membre depuis `req.user.sub` en lecture scopée (donc rien d'exploitable
+ * aujourd'hui) ; la garde est ici pour que ça reste vrai du prochain appelant — un endpoint
+ * « voter pour un membre » prenant l'id dans l'URL, comme en a déjà un `reunion-presence.route`.
  */
 export async function voterResolution(
   prisma: VotePrisma,
@@ -94,6 +114,9 @@ export async function voterResolution(
 ): Promise<{ sens: SensVote }> {
   const resolution = await chargerResolution(prisma, resolutionId)
   if (resolution.dateVote !== null) throw new ResolutionClotureeError()
+  // Lecture SCOPÉE : un membre d'une autre org renvoie `null` → 404 (pas de fuite d'existence).
+  const membre = await prisma.membre.findFirst({ where: { id: membreId }, select: { id: true } })
+  if (!membre) throw new MembreIntrouvableError()
   await prisma.vote.upsert({
     where: { resolutionId_membreId: { resolutionId, membreId } },
     create: { resolutionId, membreId, sens },

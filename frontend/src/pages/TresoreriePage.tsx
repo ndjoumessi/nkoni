@@ -27,7 +27,6 @@ import { DatePicker } from '@/components/ui/DatePicker'
 import { Modal } from '@/components/ui/Modal'
 import { DataTable, type Column } from '@/components/ui/DataTable'
 import { Pagination } from '@/components/ui/Pagination'
-import { RowsSkeleton } from '@/components/ui/Skeleton'
 
 const CATEGORIES: CategorieDepense[] = ['AIDE_MEMBRE', 'FUNERAILLES', 'EVENEMENT', 'FONCTIONNEMENT', 'AUTRE']
 const STATUTS: StatutDepense[] = ['BROUILLON', 'EN_ATTENTE', 'APPROUVEE', 'REJETEE', 'PAYEE']
@@ -252,17 +251,16 @@ export function TresoreriePage() {
             </Select>
           </div>
         </div>
-        {loading ? (
-          <div className="mt-4 overflow-hidden rounded-xl border border-hairline">
-            <RowsSkeleton rows={4} />
-          </div>
-        ) : depenses.length === 0 ? (
-          <p className="mt-4 text-sm text-faint">{t('tresorerie.liste.aucune')}</p>
-        ) : (
-          <div className="mt-4">
-            <DataTable columns={colonnes} rows={depenses} rowKey={(d) => d.id} />
-          </div>
-        )}
+        <div className="mt-4">
+          <DataTable
+            columns={colonnes}
+            rows={depenses}
+            rowKey={(d) => d.id}
+            loading={loading}
+            skeletonRows={4}
+            empty={t('tresorerie.liste.aucune')}
+          />
+        </div>
         {!loading && <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPageChange={setPage} />}
       </Card>
 

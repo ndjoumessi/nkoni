@@ -54,6 +54,8 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { DataTable, type Column } from '@/components/ui/DataTable'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { Badge } from '@/components/ui/Badge'
+import { Tabs, type TabOption } from '@/components/ui/Tabs'
+import { tabId, panelId } from '@/components/ui/tabs-ids'
 import { StatutCotisationBadge, StatutMembreBadge } from '@/components/membres/StatutBadges'
 import { CarteMembre } from '@/components/membres/CarteMembre'
 import { TypeReunionBadge } from '@/components/reunions/StatutBadges'
@@ -74,6 +76,9 @@ const VOTE_TON: Record<SensVote, string> = {
   CONTRE: '--terra',
   ABSTENTION: '--amber',
 }
+
+/** Namespace d'id pour la paire onglet ↔ panneau (aria-controls ↔ aria-labelledby). */
+const TABS_ID = 'monEspace'
 
 export function MonEspacePage() {
   const { t } = useTranslation()
@@ -100,6 +105,8 @@ export function MonEspacePage() {
   const [rsvpEnCours, setRsvpEnCours] = useState<string | null>(null)
   const [voteEnCours, setVoteEnCours] = useState<string | null>(null)
   const [paiementActif, setPaiementActif] = useState(false)
+  // Onglet actif de la page (segmentation §3b). Défaut « aperçu ».
+  const [tab, setTab] = useState('apercu')
   // Montant minimum d'un paiement, fourni par le SERVEUR (source unique = PAIEMENT_MONTANT_MIN). Évite
   // tout couplage build-time front/back : plus de variable VITE_ ni de rebuild Vercel à synchroniser.
   const [montantMin, setMontantMin] = useState(100)
@@ -345,19 +352,19 @@ export function MonEspacePage() {
   // Permet les paiements PARTIELS (on verse ce qu'on a — usage courant en tontine). La borne haute est
   // le reste dû, la borne basse le minimum ; le serveur re-vérifie les deux (jamais confiance au client).
   const ouvrirPaiement = (c: ContributionMembre) => {
-    const reste = Math.max(0, c.montantAttendu - c.montantValorise)
-    if (reste < montantMin) return
+    const resteC = Math.max(0, c.montantAttendu - c.montantValorise)
+    if (resteC < montantMin) return
     setPaiementCible(c)
-    setMontantSaisi(String(reste)) // défaut : tout régler
+    setMontantSaisi(String(resteC)) // défaut : tout régler
     setErreurMontant(null)
   }
 
   // Valide le montant saisi puis lance la collecte. Bornes : [montantMin (serveur) .. reste dû].
   const confirmerMontant = () => {
     if (!paiementCible) return
-    const reste = Math.max(0, paiementCible.montantAttendu - paiementCible.montantValorise)
+    const resteC = Math.max(0, paiementCible.montantAttendu - paiementCible.montantValorise)
     const montant = Number(montantSaisi)
-    if (!Number.isInteger(montant) || montant < montantMin || montant > reste) {
+    if (!Number.isInteger(montant) || montant < montantMin || montant > resteC) {
       setErreurMontant(t('monEspace.paiement.montantInvalide'))
       return
     }
@@ -407,6 +414,10 @@ export function MonEspacePage() {
   const recusActifs = recus.filter((r) => r.annuleLe === null)
   const recusAnnules = recus.filter((r) => r.annuleLe !== null)
   const notifsNonLues = notifications.filter((n) => !n.lu).length
+  // Le paiement en ligne peut-il régler le reste dû global ? (CTA principal « Payer le reste »).
+  const peutPayerReste = paiementActif && reste >= montantMin
+  // 1re contribution encore due (cible du CTA global) : on ouvre la modale dessus.
+  const contribAPayer = contributions.find((c) => c.montantAttendu - c.montantValorise >= montantMin)
 
   const colContributions: Column<ContributionMembre>[] = [
     { key: 'annee', header: t('monEspace.contributions.annee'), numeric: true, cell: (c) => c.annee },
@@ -485,422 +496,460 @@ export function MonEspacePage() {
     },
   ]
 
-  return (
-    <div className="mx-auto max-w-4xl">
-      <PageHeader
-        title={t('monEspace.titre')}
-        description={t('monEspace.sousTitre')}
-      />
+  // Onglets : Tontines n'apparaît que si le membre participe à au moins une tontine (bar plus propre
+  // pour les nombreux membres qui n'en ont pas). Amendes/cagnottes vivent dans « Aperçu ».
+  const tabsOptions: TabOption[] = [
+    { value: 'apercu', label: t('monEspace.tabs.apercu') },
+    { value: 'contributions', label: t('monEspace.tabs.contributions') },
+    ...(tontines.length > 0 ? [{ value: 'tontines', label: t('monEspace.tabs.tontines') }] : []),
+    { value: 'recus', label: t('monEspace.tabs.recus') },
+  ]
+  // L'onglet actif peut disparaître (ex. Tontines vidé) → repli sur « aperçu ».
+  const tabActif = tabsOptions.some((o) => o.value === tab) ? tab : 'apercu'
 
-      {/* Ma situation */}
-      <Card className="nk-reveal nk-d2 mt-6 p-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <Overline>{t('monEspace.situation.titre')}</Overline>
-          <div className="flex flex-wrap items-center gap-2">
-            <StatutMembreBadge statut={membre.statut as StatutMembre} size="sm" />
-            <StatutCotisationBadge statut={cotisation.statut as StatutContribution} size="sm" />
-          </div>
+  /* ---- Sections (assignées à des consts pour composer les panneaux d'onglets) ---- */
+
+  const blocSituation = (
+    <Card className="nk-reveal nk-d2 p-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Overline>{t('monEspace.situation.titre')}</Overline>
+        <div className="flex flex-wrap items-center gap-2">
+          <StatutMembreBadge statut={membre.statut as StatutMembre} size="sm" />
+          <StatutCotisationBadge statut={cotisation.statut as StatutContribution} size="sm" />
         </div>
-        <p className="mt-1 text-lg font-medium text-foreground">
-          {membre.nom} <span className="text-muted-foreground">{membre.prenom}</span>
-        </p>
-        <p className="mt-0.5 text-sm text-faint">
-          {t('monEspace.situation.branche')} : {membre.branche ?? '—'} ·{' '}
-          {t('monEspace.situation.anneeAdhesion')} : <span className="num">{membre.anneeAdhesion}</span>
-        </p>
-        <div className="mt-4 grid gap-3 sm:grid-cols-3">
-          <StatCard label={t('monEspace.situation.totalDu')} value={<Montant value={cotisation.totalDu} />} icon={CircleDollarSign} />
-          <StatCard label={t('monEspace.situation.totalVerse')} value={<Montant value={cotisation.totalVerse} />} tone="jade" icon={ArrowDownCircle} />
-          <StatCard label={t('monEspace.situation.reste')} value={<Montant value={reste} />} tone={reste > 0 ? 'brass' : 'jade'} icon={Wallet} />
-        </div>
+      </div>
+      <p className="mt-1 text-lg font-medium text-foreground">
+        {membre.nom} <span className="text-muted-foreground">{membre.prenom}</span>
+      </p>
+      <p className="mt-0.5 text-sm text-faint">
+        {t('monEspace.situation.branche')} : {membre.branche ?? '—'} ·{' '}
+        {t('monEspace.situation.anneeAdhesion')} : <span className="num">{membre.anneeAdhesion}</span>
+      </p>
+      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+        <StatCard label={t('monEspace.situation.totalDu')} value={<Montant value={cotisation.totalDu} />} icon={CircleDollarSign} />
+        <StatCard label={t('monEspace.situation.totalVerse')} value={<Montant value={cotisation.totalVerse} />} tone="jade" icon={ArrowDownCircle} />
+        <StatCard label={t('monEspace.situation.reste')} value={<Montant value={reste} />} tone={reste > 0 ? 'brass' : 'jade'} icon={Wallet} />
+      </div>
 
-        {/* Progression versé/dû — transforme les trois chiffres en un sens visuel de complétion,
-            célébré quand le membre est à jour (barre + compteur jade + remerciement). */}
-        {cotisation.totalDu > 0 && (
-          <div className="mt-5">
-            <div className="mb-1.5 flex items-center justify-between text-xs">
-              <span className="text-muted-foreground">{t('monEspace.situation.progression')}</span>
-              <span className={cn('num font-medium', reste === 0 ? 'text-jade' : 'text-foreground')}>
-                {formatPourcent(pct)}
-              </span>
-            </div>
-            <div
-              className="h-2 w-full overflow-hidden rounded-full bg-surface-2"
-              role="progressbar"
-              aria-valuenow={cotisation.totalVerse}
-              aria-valuemin={0}
-              aria-valuemax={cotisation.totalDu}
-              aria-label={t('monEspace.situation.progression')}
-            >
-              <div
-                className={cn('h-full rounded-full transition-all', reste === 0 ? 'bg-jade' : 'bg-brass')}
-                style={{ width: `${pct}%` }}
-              />
-            </div>
-            {reste === 0 && (
-              <p className="mt-2 text-xs font-medium text-jade">{t('monEspace.situation.aJourMerci')}</p>
-            )}
+      {/* Progression versé/dû — transforme les trois chiffres en un sens visuel de complétion,
+          célébré quand le membre est à jour (barre + compteur jade + remerciement). */}
+      {cotisation.totalDu > 0 && (
+        <div className="mt-5">
+          <div className="mb-1.5 flex items-center justify-between text-xs">
+            <span className="text-muted-foreground">{t('monEspace.situation.progression')}</span>
+            <span className={cn('num font-medium', reste === 0 ? 'text-jade' : 'text-foreground')}>
+              {formatPourcent(pct)}
+            </span>
           </div>
-        )}
-      </Card>
-
-      {/* Ma carte de membre — rendu visuel (« voir sa carte ») + téléchargement PDF. */}
-      {carteApercu && (
-        <Card className="nk-reveal mt-4 p-6">
-          <div className="flex items-center gap-2">
-            <CreditCard className="h-4 w-4 text-brass" aria-hidden="true" />
-            <Overline>{t('monEspace.carte.titre')}</Overline>
-          </div>
-          <div className="mt-4 max-w-md">
-            <CarteMembre
-              apercu={carteApercu}
-              photoUrl={photoUrl}
-              onTelecharger={telechargerCarte}
-              telechargement={carteEnCours}
-            />
-          </div>
-        </Card>
-      )}
-
-      {/* Mes contributions */}
-      <Card className="nk-reveal nk-d3 mt-4 p-6">
-        <Overline>{t('monEspace.contributions.titre')}</Overline>
-        {contributions.length === 0 ? (
-          <p className="mt-4 text-sm text-faint">{t('monEspace.contributions.aucune')}</p>
-        ) : (
-          <div className="mt-4">
-            <DataTable columns={colContributions} rows={contributions} rowKey={(c) => c.id} />
-          </div>
-        )}
-      </Card>
-
-      {/* Mes notifications — repliées par défaut (le mur de confirmations n'a pas sa place sur
-          l'accueil) ; l'en-tête porte le compteur de non-lus et déplie la liste. */}
-      {notifications.length > 0 && (
-        <Card className="nk-reveal mt-4 p-6">
-          <button
-            type="button"
-            onClick={basculerRappels}
-            aria-expanded={rappelsOuverts}
-            className="flex w-full items-center gap-2 rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass"
+          <div
+            className="h-2 w-full overflow-hidden rounded-full bg-surface-2"
+            role="progressbar"
+            aria-valuenow={cotisation.totalVerse}
+            aria-valuemin={0}
+            aria-valuemax={cotisation.totalDu}
+            aria-label={t('monEspace.situation.progression')}
           >
-            <Bell className="h-4 w-4 text-brass" aria-hidden="true" />
-            <Overline>{t('monEspace.rappels.titre')}</Overline>
-            {notifsNonLues > 0 && (
-              <Badge tone="brass" size="sm">
-                {t('monEspace.rappels.nonLus', { count: notifsNonLues })}
-              </Badge>
-            )}
-            <ChevronDown
-              className={cn('ml-auto h-4 w-4 text-faint transition-transform', rappelsOuverts && 'rotate-180')}
-              aria-hidden="true"
+            <div
+              className={cn('h-full rounded-full transition-all', reste === 0 ? 'bg-jade' : 'bg-brass')}
+              style={{ width: `${pct}%` }}
             />
-          </button>
-          {rappelsOuverts && (
-          <ul className="mt-4 space-y-2">
-            {notifications.slice(0, 8).map((n) => (
-              <li
-                key={n.id}
-                className={cn(
-                  'rounded-xl border bg-surface-2/40 p-3.5',
-                  n.lu ? 'border-hairline' : 'border-brass/30',
-                )}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <p className="text-sm font-medium text-foreground">{n.titre}</p>
-                  {!n.lu && (
-                    <span
-                      className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-brass"
-                      aria-label={t('monEspace.rappels.nonLu')}
-                    />
-                  )}
-                </div>
-                <p className="mt-0.5 text-sm text-muted-foreground">{n.message}</p>
-                <p className="mt-1 text-xs text-faint">{formatDate(n.dateCreation, { dateStyle: 'long' })}</p>
-              </li>
-            ))}
-          </ul>
-          )}
-        </Card>
-      )}
-
-      {/* Réunions à venir */}
-      <Card className="nk-reveal nk-d4 mt-4 p-6">
-        <Overline>{t('monEspace.reunions.titre')}</Overline>
-        {reunions.length === 0 ? (
-          <p className="mt-4 text-sm text-faint">{t('monEspace.reunions.aucune')}</p>
-        ) : (
-          <ul className="mt-4 space-y-2">
-            {reunions.map((r) => (
-              <li key={r.id} className="rounded-xl border border-hairline bg-surface-2/40 p-3.5">
-                <div className="flex items-center gap-3">
-                  <CalendarDays className="h-4 w-4 shrink-0 text-brass" aria-hidden="true" />
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium text-foreground">{formatDate(r.date, { dateStyle: 'long' })}</p>
-                    <p className="mt-0.5 text-xs text-faint">{t('monEspace.reunions.lieu')} : {r.lieu}</p>
-                  </div>
-                  <TypeReunionBadge type={r.type as TypeReunion} size="sm" />
-                </div>
-                {/* RSVP : le membre annonce sa présence. Pastilles colorées par ton de statut. */}
-                <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-hairline pt-3">
-                  <span className="text-xs text-faint">{t('monEspace.reunions.rsvpQuestion')}</span>
-                  <div className="flex gap-1.5" role="group" aria-label={t('monEspace.reunions.rsvpQuestion')}>
-                    {RSVP_OPTIONS.map((s) => {
-                      const actif = r.monStatut === s
-                      const ton = RSVP_TON[s]
-                      return (
-                        <button
-                          key={s}
-                          type="button"
-                          disabled={rsvpEnCours === r.id}
-                          aria-pressed={actif}
-                          onClick={() => void repondreRsvp(r.id, s)}
-                          className={cn(
-                            'rounded-full border px-3 py-1 text-xs font-medium transition-colors disabled:opacity-50',
-                            !actif && 'border-hairline text-faint hover:text-foreground',
-                          )}
-                          style={
-                            actif
-                              ? {
-                                  color: `var(${ton})`,
-                                  borderColor: `color-mix(in oklch, var(${ton}) 45%, transparent)`,
-                                  backgroundColor: `color-mix(in oklch, var(${ton}) 15%, transparent)`,
-                                }
-                              : undefined
-                          }
-                        >
-                          {t(cleI18n(`monEspace.reunions.rsvp.${s}`))}
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Card>
-
-      {/* Votes en cours — résolutions ouvertes au vote */}
-      {resolutions.length > 0 && (
-        <Card className="nk-reveal nk-d4 mt-4 p-6">
-          <div className="flex items-center gap-2">
-            <Vote className="h-4 w-4 text-brass" aria-hidden="true" />
-            <Overline>{t('monEspace.votes.titre')}</Overline>
           </div>
-          <ul className="mt-4 space-y-2">
-            {resolutions.map((r) => (
-              <li key={r.id} className="rounded-xl border border-hairline bg-surface-2/40 p-3.5">
-                <p className="text-sm text-foreground">{r.texte}</p>
-                <p className="mt-0.5 text-xs text-faint">
-                  {t('monEspace.votes.reunion')} : {formatDate(r.reunionDate, { dateStyle: 'long' })} · {r.reunionLieu}
-                </p>
-                <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-hairline pt-3">
-                  <span className="text-xs text-faint">{t('monEspace.votes.question')}</span>
-                  <div className="flex gap-1.5" role="group" aria-label={t('monEspace.votes.question')}>
-                    {VOTE_OPTIONS.map((s) => {
-                      const actif = r.monVote === s
-                      const ton = VOTE_TON[s]
-                      return (
-                        <button
-                          key={s}
-                          type="button"
-                          disabled={voteEnCours === r.id}
-                          aria-pressed={actif}
-                          onClick={() => void voter(r.id, s)}
-                          className={cn(
-                            'rounded-full border px-3 py-1 text-xs font-medium transition-colors disabled:opacity-50',
-                            !actif && 'border-hairline text-faint hover:text-foreground',
-                          )}
-                          style={
-                            actif
-                              ? {
-                                  color: `var(${ton})`,
-                                  borderColor: `color-mix(in oklch, var(${ton}) 45%, transparent)`,
-                                  backgroundColor: `color-mix(in oklch, var(${ton}) 15%, transparent)`,
-                                }
-                              : undefined
-                          }
-                        >
-                          {t(cleI18n(`monEspace.votes.sens.${s}`))}
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </Card>
-      )}
-
-      {/* Mes tontines — participations du membre (lecture seule) : rang de rotation, mise due, et
-          par tour bénéficiaire/mise payée. N'apparaît que si le membre participe à une tontine. */}
-      {tontines.length > 0 && (
-        <Card className="nk-reveal mt-4 p-6">
-          <div className="flex items-center gap-2">
-            <RefreshCw className="h-4 w-4 text-brass" aria-hidden="true" />
-            <Overline>{t('monEspace.tontines.titre')}</Overline>
-          </div>
-          <ul className="mt-4 space-y-3">
-            {tontines.map((tn, i) => (
-              <li
-                key={`${tn.tontineNom}-${tn.cycleNumero}-${i}`}
-                className="rounded-xl border border-hairline bg-surface-2/40 p-4"
-              >
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="font-medium text-foreground">{tn.tontineNom}</p>
-                  <Badge tone="neutral" size="sm">{t('monEspace.tontines.cycle', { numero: tn.cycleNumero })}</Badge>
-                </div>
-                <p className="mt-1 text-xs text-faint">
-                  {t('monEspace.tontines.monRang')} : <span className="num">{tn.monOrdre}</span> ·{' '}
-                  {t('monEspace.tontines.maMise')} : <span className="num">{formatMontant(tn.miseDue)}</span> ·{' '}
-                  {t(cleI18n(`tontines.modes.${tn.modeRotation}`))}
-                </p>
-                <ul className="mt-3 space-y-1.5 border-t border-hairline pt-3">
-                  {tn.tours.map((tr) => (
-                    <li key={tr.numero} className="flex flex-wrap items-center gap-2 text-sm">
-                      <span className="text-muted-foreground">{t('monEspace.tontines.tour', { numero: tr.numero })}</span>
-                      {tr.jeSuisBeneficiaire && (
-                        <Badge tone="brass" size="sm">
-                          <Trophy className="h-3 w-3" aria-hidden="true" />
-                          {t('monEspace.tontines.beneficiaire')}
-                        </Badge>
-                      )}
-                      {tr.maMisePayee ? (
-                        <Badge tone="jade" size="sm">
-                          <Check className="h-3 w-3" aria-hidden="true" />
-                          {t('monEspace.tontines.misePayee')}
-                        </Badge>
-                      ) : tr.monMontantMise > 0 ? (
-                        <Badge tone="amber" size="sm">
-                          {t('monEspace.tontines.misePartielle', { montant: formatMontant(tr.monMontantMise) })}
-                        </Badge>
-                      ) : (
-                        <Badge tone="neutral" size="sm">{t('monEspace.tontines.miseDue')}</Badge>
-                      )}
-                      <span className="ml-auto text-xs text-faint">
-                        {t(cleI18n(`tontines.statutsTour.${tr.statut}`))}
-                        {tr.montantPot !== null ? ` · ${t('monEspace.tontines.pot')} ${formatMontant(tr.montantPot)}` : ''}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </li>
-            ))}
-          </ul>
-        </Card>
-      )}
-
-      {/* Mes amendes — sanctions émises au membre (lecture seule). N'apparaît que s'il en a. */}
-      {amendes.length > 0 && (
-        <Card className="nk-reveal mt-4 p-6">
-          <div className="flex items-center gap-2">
-            <Gavel className="h-4 w-4 text-brass" aria-hidden="true" />
-            <Overline>{t('monEspace.amendes.titre')}</Overline>
-          </div>
-          <ul className="mt-4 space-y-2">
-            {amendes.map((a) => (
-              <li key={a.id} className="rounded-xl border border-hairline bg-surface-2/40 p-3.5">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-sm font-medium text-foreground">{a.motif}</p>
-                  <Badge tone={a.statut === 'PAYEE' ? 'jade' : a.statut === 'IMPAYEE' ? 'terra' : 'neutral'} size="sm">
-                    {t(cleI18n(`amendes.statuts.${a.statut}`))}
-                  </Badge>
-                </div>
-                <p className="mt-0.5 text-xs text-faint">
-                  {t(cleI18n(`amendes.types.${a.type}`))} · {formatDate(a.dateAmende, { dateStyle: 'long' })}
-                  {a.datePaiement ? ` · ${t('monEspace.amendes.payeeLe', { date: formatDate(a.datePaiement) })}` : ''}
-                </p>
-                <p className="mt-1">
-                  <Montant value={a.montant} className="font-medium" />
-                </p>
-              </li>
-            ))}
-          </ul>
-        </Card>
-      )}
-
-      {/* Mes cagnottes — cagnottes ouvertes + don personnel (lecture seule, transparence collective). */}
-      {cagnottes.length > 0 && (
-        <Card className="nk-reveal mt-4 p-6">
-          <div className="flex items-center gap-2">
-            <HandHeart className="h-4 w-4 text-brass" aria-hidden="true" />
-            <Overline>{t('monEspace.cagnottes.titre')}</Overline>
-          </div>
-          <ul className="mt-4 space-y-2">
-            {cagnottes.map((c) => (
-              <li key={c.id} className="rounded-xl border border-hairline bg-surface-2/40 p-3.5">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-sm font-medium text-foreground">{c.titre}</p>
-                  <Badge tone="neutral" size="sm">{t(cleI18n(`cagnottes.types.${c.type}`))}</Badge>
-                </div>
-                <p className="mt-1 text-xs text-faint">
-                  {t('monEspace.cagnottes.collecte')} : <span className="num">{formatMontant(c.collecteTotal)}</span>
-                  {c.objectif ? ` / ${formatMontant(c.objectif)}` : ''}
-                  {c.dateEvenement ? ` · ${formatDate(c.dateEvenement, { dateStyle: 'long' })}` : ''}
-                </p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {t('monEspace.cagnottes.monDon')} :{' '}
-                  {c.monDon > 0 ? (
-                    <span className="text-jade">{formatMontant(c.monDon)}</span>
-                  ) : (
-                    <span className="text-faint">{t('monEspace.cagnottes.aucunDon')}</span>
-                  )}
-                </p>
-              </li>
-            ))}
-          </ul>
-        </Card>
-      )}
-
-      {/* Mes reçus */}
-      <Card className="nk-reveal nk-d5 mt-4 p-6">
-        <div className="flex items-center gap-2">
-          <FileText className="h-4 w-4 text-brass" aria-hidden="true" />
-          <Overline>{t('monEspace.recus.titre')}</Overline>
-        </div>
-        {recus.length === 0 ? (
-          <p className="mt-4 text-sm text-faint">{t('monEspace.recus.aucun')}</p>
-        ) : (
-          <div className="mt-4 space-y-3">
-            {recusActifs.length > 0 ? (
-              <DataTable columns={colRecus} rows={recusActifs} rowKey={(r) => r.id} />
-            ) : (
-              <p className="text-sm text-faint">{t('monEspace.recus.aucunActif')}</p>
-            )}
-
-            {/* Reçus annulés : repliés par défaut (trace, pas d'action possible) pour que les reçus
-                téléchargeables restent au premier plan. */}
-            {recusAnnules.length > 0 && (
-              <div className="overflow-hidden rounded-xl border border-hairline">
-                <button
+          {reste === 0 ? (
+            <p className="mt-2 text-xs font-medium text-jade">{t('monEspace.situation.aJourMerci')}</p>
+          ) : (
+            // CTA PRINCIPAL du membre : régler le reste dû. Dégradé émeraude→or (variante `brass`),
+            // ouvre la modale sur la 1re contribution due. N'apparaît que si le paiement est actif.
+            peutPayerReste &&
+            contribAPayer && (
+              <div className="mt-4">
+                <Button
                   type="button"
-                  onClick={() => setAnnulesOuverts((o) => !o)}
-                  aria-expanded={annulesOuverts}
-                  className="flex w-full items-center justify-between gap-2 px-4 py-3 text-sm text-muted-foreground transition-colors hover:bg-surface-2/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brass"
+                  icon={CreditCard}
+                  loading={paiementEnCours === contribAPayer.id}
+                  onClick={() => ouvrirPaiement(contribAPayer)}
                 >
-                  <span>{t('monEspace.recus.annulesGroupe', { count: recusAnnules.length })}</span>
-                  <ChevronDown
-                    className={cn('h-4 w-4 transition-transform', annulesOuverts && 'rotate-180')}
-                    aria-hidden="true"
-                  />
-                </button>
-                {annulesOuverts && (
-                  <div className="border-t border-hairline">
-                    <DataTable
-                      columns={colRecus}
-                      rows={recusAnnules}
-                      rowKey={(r) => r.id}
-                      rowClassName={() => 'text-muted-foreground'}
-                    />
-                  </div>
+                  {t('monEspace.paiement.payerReste', { montant: formatMontant(reste) })}
+                </Button>
+              </div>
+            )
+          )}
+        </div>
+      )}
+    </Card>
+  )
+
+  const blocCarte = carteApercu && (
+    <Card className="nk-reveal p-6">
+      <div className="flex items-center gap-2">
+        <CreditCard className="h-4 w-4 text-brass" aria-hidden="true" />
+        <Overline>{t('monEspace.carte.titre')}</Overline>
+      </div>
+      <div className="mt-4 max-w-md">
+        <CarteMembre apercu={carteApercu} photoUrl={photoUrl} onTelecharger={telechargerCarte} telechargement={carteEnCours} />
+      </div>
+    </Card>
+  )
+
+  const blocNotifications = notifications.length > 0 && (
+    <Card className="nk-reveal p-6">
+      <button
+        type="button"
+        onClick={basculerRappels}
+        aria-expanded={rappelsOuverts}
+        className="flex w-full items-center gap-2 rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass"
+      >
+        <Bell className="h-4 w-4 text-brass" aria-hidden="true" />
+        <Overline>{t('monEspace.rappels.titre')}</Overline>
+        {notifsNonLues > 0 && (
+          <Badge tone="brass" size="sm">
+            {t('monEspace.rappels.nonLus', { count: notifsNonLues })}
+          </Badge>
+        )}
+        <ChevronDown
+          className={cn('ml-auto h-4 w-4 text-faint transition-transform', rappelsOuverts && 'rotate-180')}
+          aria-hidden="true"
+        />
+      </button>
+      {rappelsOuverts && (
+        <ul className="mt-4 space-y-2">
+          {notifications.slice(0, 8).map((n) => (
+            <li
+              key={n.id}
+              className={cn('rounded-xl border bg-surface-2/40 p-3.5', n.lu ? 'border-hairline' : 'border-brass/30')}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <p className="text-sm font-medium text-foreground">{n.titre}</p>
+                {!n.lu && (
+                  <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-brass" aria-label={t('monEspace.rappels.nonLu')} />
                 )}
               </div>
-            )}
-          </div>
+              <p className="mt-0.5 text-sm text-muted-foreground">{n.message}</p>
+              <p className="mt-1 text-xs text-faint">{formatDate(n.dateCreation, { dateStyle: 'long' })}</p>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
+  )
+
+  const blocReunions = (
+    <Card className="nk-reveal nk-d4 p-6">
+      <Overline>{t('monEspace.reunions.titre')}</Overline>
+      {reunions.length === 0 ? (
+        <p className="mt-4 text-sm text-faint">{t('monEspace.reunions.aucune')}</p>
+      ) : (
+        <ul className="mt-4 space-y-2">
+          {reunions.map((r) => (
+            <li key={r.id} className="rounded-xl border border-hairline bg-surface-2/40 p-3.5">
+              <div className="flex items-center gap-3">
+                <CalendarDays className="h-4 w-4 shrink-0 text-brass" aria-hidden="true" />
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-foreground">{formatDate(r.date, { dateStyle: 'long' })}</p>
+                  <p className="mt-0.5 text-xs text-faint">{t('monEspace.reunions.lieu')} : {r.lieu}</p>
+                </div>
+                <TypeReunionBadge type={r.type as TypeReunion} size="sm" />
+              </div>
+              {/* RSVP : le membre annonce sa présence. Pastilles colorées par ton de statut. */}
+              <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-hairline pt-3">
+                <span className="text-xs text-faint">{t('monEspace.reunions.rsvpQuestion')}</span>
+                <div className="flex gap-1.5" role="group" aria-label={t('monEspace.reunions.rsvpQuestion')}>
+                  {RSVP_OPTIONS.map((s) => {
+                    const actif = r.monStatut === s
+                    const ton = RSVP_TON[s]
+                    return (
+                      <button
+                        key={s}
+                        type="button"
+                        disabled={rsvpEnCours === r.id}
+                        aria-pressed={actif}
+                        onClick={() => void repondreRsvp(r.id, s)}
+                        className={cn(
+                          'rounded-full border px-3 py-1 text-xs font-medium transition-colors disabled:opacity-50',
+                          !actif && 'border-hairline text-faint hover:text-foreground',
+                        )}
+                        style={
+                          actif
+                            ? {
+                                color: `var(${ton})`,
+                                borderColor: `color-mix(in oklch, var(${ton}) 45%, transparent)`,
+                                backgroundColor: `color-mix(in oklch, var(${ton}) 15%, transparent)`,
+                              }
+                            : undefined
+                        }
+                      >
+                        {t(cleI18n(`monEspace.reunions.rsvp.${s}`))}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
+  )
+
+  const blocVotes = resolutions.length > 0 && (
+    <Card className="nk-reveal nk-d4 p-6">
+      <div className="flex items-center gap-2">
+        <Vote className="h-4 w-4 text-brass" aria-hidden="true" />
+        <Overline>{t('monEspace.votes.titre')}</Overline>
+      </div>
+      <ul className="mt-4 space-y-2">
+        {resolutions.map((r) => (
+          <li key={r.id} className="rounded-xl border border-hairline bg-surface-2/40 p-3.5">
+            <p className="text-sm text-foreground">{r.texte}</p>
+            <p className="mt-0.5 text-xs text-faint">
+              {t('monEspace.votes.reunion')} : {formatDate(r.reunionDate, { dateStyle: 'long' })} · {r.reunionLieu}
+            </p>
+            <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-hairline pt-3">
+              <span className="text-xs text-faint">{t('monEspace.votes.question')}</span>
+              <div className="flex gap-1.5" role="group" aria-label={t('monEspace.votes.question')}>
+                {VOTE_OPTIONS.map((s) => {
+                  const actif = r.monVote === s
+                  const ton = VOTE_TON[s]
+                  return (
+                    <button
+                      key={s}
+                      type="button"
+                      disabled={voteEnCours === r.id}
+                      aria-pressed={actif}
+                      onClick={() => void voter(r.id, s)}
+                      className={cn(
+                        'rounded-full border px-3 py-1 text-xs font-medium transition-colors disabled:opacity-50',
+                        !actif && 'border-hairline text-faint hover:text-foreground',
+                      )}
+                      style={
+                        actif
+                          ? {
+                              color: `var(${ton})`,
+                              borderColor: `color-mix(in oklch, var(${ton}) 45%, transparent)`,
+                              backgroundColor: `color-mix(in oklch, var(${ton}) 15%, transparent)`,
+                            }
+                          : undefined
+                      }
+                    >
+                      {t(cleI18n(`monEspace.votes.sens.${s}`))}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </Card>
+  )
+
+  const blocAmendes = amendes.length > 0 && (
+    <Card className="nk-reveal p-6">
+      <div className="flex items-center gap-2">
+        <Gavel className="h-4 w-4 text-brass" aria-hidden="true" />
+        <Overline>{t('monEspace.amendes.titre')}</Overline>
+      </div>
+      <ul className="mt-4 space-y-2">
+        {amendes.map((a) => (
+          <li key={a.id} className="rounded-xl border border-hairline bg-surface-2/40 p-3.5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm font-medium text-foreground">{a.motif}</p>
+              <Badge tone={a.statut === 'PAYEE' ? 'jade' : a.statut === 'IMPAYEE' ? 'terra' : 'neutral'} size="sm">
+                {t(cleI18n(`amendes.statuts.${a.statut}`))}
+              </Badge>
+            </div>
+            <p className="mt-0.5 text-xs text-faint">
+              {t(cleI18n(`amendes.types.${a.type}`))} · {formatDate(a.dateAmende, { dateStyle: 'long' })}
+              {a.datePaiement ? ` · ${t('monEspace.amendes.payeeLe', { date: formatDate(a.datePaiement) })}` : ''}
+            </p>
+            <p className="mt-1">
+              <Montant value={a.montant} className="font-medium" />
+            </p>
+          </li>
+        ))}
+      </ul>
+    </Card>
+  )
+
+  const blocCagnottes = cagnottes.length > 0 && (
+    <Card className="nk-reveal p-6">
+      <div className="flex items-center gap-2">
+        <HandHeart className="h-4 w-4 text-brass" aria-hidden="true" />
+        <Overline>{t('monEspace.cagnottes.titre')}</Overline>
+      </div>
+      <ul className="mt-4 space-y-2">
+        {cagnottes.map((c) => (
+          <li key={c.id} className="rounded-xl border border-hairline bg-surface-2/40 p-3.5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm font-medium text-foreground">{c.titre}</p>
+              <Badge tone="neutral" size="sm">{t(cleI18n(`cagnottes.types.${c.type}`))}</Badge>
+            </div>
+            <p className="mt-1 text-xs text-faint">
+              {t('monEspace.cagnottes.collecte')} : <span className="num">{formatMontant(c.collecteTotal)}</span>
+              {c.objectif ? ` / ${formatMontant(c.objectif)}` : ''}
+              {c.dateEvenement ? ` · ${formatDate(c.dateEvenement, { dateStyle: 'long' })}` : ''}
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {t('monEspace.cagnottes.monDon')} :{' '}
+              {c.monDon > 0 ? (
+                <span className="text-jade">{formatMontant(c.monDon)}</span>
+              ) : (
+                <span className="text-faint">{t('monEspace.cagnottes.aucunDon')}</span>
+              )}
+            </p>
+          </li>
+        ))}
+      </ul>
+    </Card>
+  )
+
+  const blocContributions = (
+    <Card className="nk-reveal nk-d3 p-6">
+      <Overline>{t('monEspace.contributions.titre')}</Overline>
+      {contributions.length === 0 ? (
+        <p className="mt-4 text-sm text-faint">{t('monEspace.contributions.aucune')}</p>
+      ) : (
+        <div className="mt-4">
+          <DataTable columns={colContributions} rows={contributions} rowKey={(c) => c.id} />
+        </div>
+      )}
+    </Card>
+  )
+
+  const blocTontines = tontines.length > 0 && (
+    <Card className="nk-reveal p-6">
+      <div className="flex items-center gap-2">
+        <RefreshCw className="h-4 w-4 text-brass" aria-hidden="true" />
+        <Overline>{t('monEspace.tontines.titre')}</Overline>
+      </div>
+      <ul className="mt-4 space-y-3">
+        {tontines.map((tn, i) => (
+          <li key={`${tn.tontineNom}-${tn.cycleNumero}-${i}`} className="rounded-xl border border-hairline bg-surface-2/40 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="font-medium text-foreground">{tn.tontineNom}</p>
+              <Badge tone="neutral" size="sm">{t('monEspace.tontines.cycle', { numero: tn.cycleNumero })}</Badge>
+            </div>
+            <p className="mt-1 text-xs text-faint">
+              {t('monEspace.tontines.monRang')} : <span className="num">{tn.monOrdre}</span> ·{' '}
+              {t('monEspace.tontines.maMise')} : <span className="num">{formatMontant(tn.miseDue)}</span> ·{' '}
+              {t(cleI18n(`tontines.modes.${tn.modeRotation}`))}
+            </p>
+            <ul className="mt-3 space-y-1.5 border-t border-hairline pt-3">
+              {tn.tours.map((tr) => (
+                <li key={tr.numero} className="flex flex-wrap items-center gap-2 text-sm">
+                  <span className="text-muted-foreground">{t('monEspace.tontines.tour', { numero: tr.numero })}</span>
+                  {tr.jeSuisBeneficiaire && (
+                    <Badge tone="brass" size="sm">
+                      <Trophy className="h-3 w-3" aria-hidden="true" />
+                      {t('monEspace.tontines.beneficiaire')}
+                    </Badge>
+                  )}
+                  {tr.maMisePayee ? (
+                    <Badge tone="jade" size="sm">
+                      <Check className="h-3 w-3" aria-hidden="true" />
+                      {t('monEspace.tontines.misePayee')}
+                    </Badge>
+                  ) : tr.monMontantMise > 0 ? (
+                    <Badge tone="amber" size="sm">
+                      {t('monEspace.tontines.misePartielle', { montant: formatMontant(tr.monMontantMise) })}
+                    </Badge>
+                  ) : (
+                    <Badge tone="neutral" size="sm">{t('monEspace.tontines.miseDue')}</Badge>
+                  )}
+                  <span className="ml-auto text-xs text-faint">
+                    {t(cleI18n(`tontines.statutsTour.${tr.statut}`))}
+                    {tr.montantPot !== null ? ` · ${t('monEspace.tontines.pot')} ${formatMontant(tr.montantPot)}` : ''}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </li>
+        ))}
+      </ul>
+    </Card>
+  )
+
+  const blocRecus = (
+    <Card className="nk-reveal nk-d5 p-6">
+      <div className="flex items-center gap-2">
+        <FileText className="h-4 w-4 text-brass" aria-hidden="true" />
+        <Overline>{t('monEspace.recus.titre')}</Overline>
+      </div>
+      {recus.length === 0 ? (
+        <p className="mt-4 text-sm text-faint">{t('monEspace.recus.aucun')}</p>
+      ) : (
+        <div className="mt-4 space-y-3">
+          {recusActifs.length > 0 ? (
+            <DataTable columns={colRecus} rows={recusActifs} rowKey={(r) => r.id} />
+          ) : (
+            <p className="text-sm text-faint">{t('monEspace.recus.aucunActif')}</p>
+          )}
+
+          {/* Reçus annulés : repliés par défaut (trace, pas d'action possible) pour que les reçus
+              téléchargeables restent au premier plan. */}
+          {recusAnnules.length > 0 && (
+            <div className="overflow-hidden rounded-xl border border-hairline">
+              <button
+                type="button"
+                onClick={() => setAnnulesOuverts((o) => !o)}
+                aria-expanded={annulesOuverts}
+                className="flex w-full items-center justify-between gap-2 px-4 py-3 text-sm text-muted-foreground transition-colors hover:bg-surface-2/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brass"
+              >
+                <span>{t('monEspace.recus.annulesGroupe', { count: recusAnnules.length })}</span>
+                <ChevronDown
+                  className={cn('h-4 w-4 transition-transform', annulesOuverts && 'rotate-180')}
+                  aria-hidden="true"
+                />
+              </button>
+              {annulesOuverts && (
+                <div className="border-t border-hairline">
+                  <DataTable columns={colRecus} rows={recusAnnules} rowKey={(r) => r.id} rowClassName={() => 'text-muted-foreground'} />
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </Card>
+  )
+
+  return (
+    <div className="mx-auto max-w-4xl">
+      <PageHeader title={t('monEspace.titre')} description={t('monEspace.sousTitre')} />
+
+      {/* Onglets unifiés (§3b) : segmentation de la page. Scrollable en mobile si les libellés débordent. */}
+      <div className="mt-6 -mx-1 overflow-x-auto px-1">
+        <Tabs
+          value={tabActif}
+          onValueChange={setTab}
+          options={tabsOptions}
+          idBase={TABS_ID}
+          ariaLabel={t('monEspace.tabs.aria')}
+        />
+      </div>
+
+      {/* Panneau unique réutilisé : son id/labelledby suivent l'onglet actif (paire APG fermée). */}
+      <div
+        role="tabpanel"
+        id={panelId(TABS_ID, tabActif)}
+        aria-labelledby={tabId(TABS_ID, tabActif)}
+        tabIndex={0}
+        className="mt-4 space-y-4 focus-visible:outline-none"
+      >
+        {tabActif === 'apercu' && (
+          <>
+            {blocSituation}
+            {blocCarte}
+            {blocNotifications}
+            {blocReunions}
+            {blocVotes}
+            {blocAmendes}
+            {blocCagnottes}
+          </>
         )}
-      </Card>
+        {tabActif === 'contributions' && blocContributions}
+        {tabActif === 'tontines' && blocTontines}
+        {tabActif === 'recus' && blocRecus}
+      </div>
 
       {/* Modale de paiement — le membre CHOISIT le montant (défaut = reste dû, borné minimum..reste).
           Autorise les paiements partiels ; le serveur re-vérifie les deux bornes (jamais le client). */}
@@ -913,10 +962,7 @@ export function MonEspacePage() {
           <div className="space-y-4">
             <div className="flex items-center justify-between rounded-xl border border-hairline bg-surface-2/40 px-4 py-3 text-sm">
               <span className="text-muted-foreground">{t('monEspace.paiement.resteDu')}</span>
-              <Montant
-                value={Math.max(0, paiementCible.montantAttendu - paiementCible.montantValorise)}
-                className="font-medium"
-              />
+              <Montant value={Math.max(0, paiementCible.montantAttendu - paiementCible.montantValorise)} className="font-medium" />
             </div>
             <Field label={t('monEspace.paiement.montantLabel')} hint={t('monEspace.paiement.montantAide')}>
               <Input

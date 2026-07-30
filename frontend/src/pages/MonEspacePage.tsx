@@ -963,10 +963,9 @@ export function MonEspacePage() {
                     {c.versements.map((v) => (
                       <li key={v.id} className="flex items-center gap-3 text-sm">
                         <span className="text-muted-foreground">{formatDate(v.dateVersement)}</span>
-                        {/* `versements.modes.*` — même table de libellés que `cagnottes.modes`/
-                            `amendes.modes` (triplication connue), mais c'est ICI le namespace
-                            sémantiquement juste : on qualifie le mode d'un VERSEMENT. */}
-                        <span className="text-xs text-faint">{t(cleI18n(`versements.modes.${v.mode}`))}</span>
+                        {/* Libellé de mode via la source unique `commun.modesVersement`
+                            (cf. lib/modes-versement.ts backend + garde de parité). */}
+                        <span className="text-xs text-faint">{t(cleI18n(`commun.modesVersement.${v.mode}`))}</span>
                         <span className="num ml-auto text-foreground">{formatMontant(v.montant)}</span>
                       </li>
                     ))}
@@ -1217,7 +1216,7 @@ export function MonEspacePage() {
                   </div>
                   <div className="flex items-center justify-between py-2.5">
                     <dt className="text-faint">{t('monEspace.recus.mode')}</dt>
-                    <dd className="text-foreground">{t(cleI18n(`cagnottes.modes.${recuDetail.mode}`))}</dd>
+                    <dd className="text-foreground">{t(cleI18n(`commun.modesVersement.${recuDetail.mode}`))}</dd>
                   </div>
                   <div className="flex items-center justify-between py-3">
                     <dt className="text-faint">{t('monEspace.recus.montant')}</dt>

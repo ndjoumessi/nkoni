@@ -3,6 +3,9 @@ export default {
   commun: {
     langue: { fr: 'Français', en: 'English', selecteur: 'Choisir la langue' },
     forfaits: { GRATUIT: 'Gratuit', PRO: 'Pro', ENTREPRISE: 'Entreprise' },
+    // Modes de versement — SOURCE UNIQUE des libellés (miroir de `backend/lib/modes-versement.ts`).
+    // Autrefois recopiés dans versements/cagnottes/amendes ; consommés via `commun.modesVersement.<mode>`.
+    modesVersement: { ESPECES: 'Espèces', TIERS: 'Tiers', MOBILE_MONEY: 'Mobile Money', AUTRE: 'Autre' },
     surnom: '« {{surnom}} »',
     pagination: {
       label: 'Pagination',

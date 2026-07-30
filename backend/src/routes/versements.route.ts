@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
 import { Prisma } from '../generated/prisma/client'
 import { t, langueDeRequete } from '../lib/i18n'
 import { estConflitIdempotence } from '../lib/idempotence'
+import { MODES_VERSEMENT, type ModeVersement } from '../lib/modes-versement'
 import type { CreationScopee } from '../lib/tenant-extension'
 import { authenticate } from '../middlewares/authenticate'
 import { requirePermission } from '../middlewares/permissions'
@@ -31,7 +32,6 @@ import {
  *     versements de ses propres contributions.
  */
 
-type ModeVersement = 'ESPECES' | 'TIERS' | 'MOBILE_MONEY' | 'AUTRE'
 
 interface VersementCreateBody {
   contributionId: string
@@ -47,7 +47,6 @@ interface VersementUpdateBody {
   note?: string
 }
 
-const MODE_ENUM = ['ESPECES', 'TIERS', 'MOBILE_MONEY', 'AUTRE'] as const
 
 const createVersementSchema = {
   body: {
@@ -58,7 +57,7 @@ const createVersementSchema = {
       contributionId: { type: 'string' },
       montant: { type: 'integer', minimum: 1 },
       dateVersement: { type: 'string', maxLength: 40 },
-      mode: { type: 'string', enum: MODE_ENUM },
+      mode: { type: 'string', enum: MODES_VERSEMENT },
       note: { type: 'string', maxLength: 1000 },
     },
   },
@@ -72,7 +71,7 @@ const updateVersementSchema = {
     properties: {
       montant: { type: 'integer', minimum: 1 },
       dateVersement: { type: 'string', maxLength: 40 },
-      mode: { type: 'string', enum: MODE_ENUM },
+      mode: { type: 'string', enum: MODES_VERSEMENT },
       note: { type: 'string', maxLength: 1000 },
     },
   },

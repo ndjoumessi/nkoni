@@ -1,12 +1,6 @@
 /** Chaînes FR du domaine « versements » (§4 i18n). */
 export default {
   versements: {
-    modes: {
-      ESPECES: 'Espèces',
-      TIERS: 'Tiers',
-      MOBILE_MONEY: 'Mobile Money',
-      AUTRE: 'Autre',
-    },
     resume: '{{montant}} · année {{annee}}',
     form: {
       header: {

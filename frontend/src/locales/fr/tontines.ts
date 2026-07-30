@@ -68,6 +68,7 @@ export default {
       enregistrerMise: 'Enregistrer une mise',
       miseSucces: 'Mise enregistrée.',
       reverser: 'Reverser',
+      reverserVide: 'Aucune mise collectée pour ce tour.',
       reverserSucces: 'Pot reversé.',
       reverseLe: 'Reversé le {{date}}',
     },

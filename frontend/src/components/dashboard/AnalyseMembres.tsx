@@ -90,6 +90,11 @@ export function AnalyseMembres() {
       })
   }, [membres])
 
+  // Vraies branches vs seul bucket « Sans branche » (id sentinelle '—') : quand aucune branche
+  // réelle n'existe, la carte « par branche » ne ferait que RÉPÉTER le hero (mêmes 18 % / totaux)
+  // → on la masque et « À relancer » prend toute la largeur. (Doublon signalé en revue UX.)
+  const aDesVraiesBranches = branches.some((b) => b.id !== '—')
+
   // Best-effort : en cas d'échec (droit d'accès), on n'affiche rien.
   if (failed) return null
 
@@ -110,8 +115,8 @@ export function AnalyseMembres() {
 
   return (
     <div className="grid gap-4 lg:grid-cols-2">
-      {/* Recouvrement par branche */}
-      {branches.length > 0 && (
+      {/* Recouvrement par branche — seulement s'il existe de VRAIES branches (sinon doublon du hero) */}
+      {aDesVraiesBranches && (
         <Card className="p-5">
           <div className="flex items-center gap-2">
             <GitBranch className="h-4 w-4 text-brass" aria-hidden="true" />
@@ -146,8 +151,8 @@ export function AnalyseMembres() {
         </Card>
       )}
 
-      {/* Membres à relancer */}
-      <Card className={cn('p-5', branches.length === 0 && 'lg:col-span-2')}>
+      {/* Membres à relancer — pleine largeur quand la carte branche est masquée */}
+      <Card className={cn('p-5', !aDesVraiesBranches && 'lg:col-span-2')}>
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <BellRing className="h-4 w-4 text-terra" aria-hidden="true" />

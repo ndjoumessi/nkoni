@@ -253,6 +253,9 @@ function VueComplet({ d, canManage }: { d: DashboardComplet; canManage: boolean 
               />
             )}
           </div>
+          {/* « À relancer » remonté ICI : c'est le bloc le plus ACTIONNABLE (avec 0 à jour, il porte
+              le vrai travail). Les répartitions/anniversaires sont du contexte → sous l'action. */}
+          <AnalyseMembres />
           {d.financesConsolidees && <FinancesConsolideesCard data={d.financesConsolidees} />}
           <EvolutionMensuelleCard annee={d.anneeCourante} data={d.evolutionMensuelle} />
           <div className="grid gap-4 lg:grid-cols-2">
@@ -260,7 +263,6 @@ function VueComplet({ d, canManage }: { d: DashboardComplet; canManage: boolean 
             <StatutMembreRepartition data={d.membresParStatutMembre} />
           </div>
           <AnniversairesCard anniversaires={d.anniversaires} />
-          <AnalyseMembres />
           <ExportButtons />
         </>
       )}

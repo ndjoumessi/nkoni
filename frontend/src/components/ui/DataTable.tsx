@@ -51,6 +51,8 @@ export interface DataTableProps<T> {
   skeletonRows?: number
   /** Contenu rendu quand `rows` est vide et non chargé (défaut : message muet i18n). */
   empty?: ReactNode
+  /** Zébrure (1 ligne sur 2 teintée) — repère de lecture pour les tables LONGUES (ex. audit). */
+  zebra?: boolean
 }
 
 function alignClass(col: { numeric?: boolean; align?: 'left' | 'right' | 'center' }): string {
@@ -72,6 +74,7 @@ export function DataTable<T>({
   loading,
   skeletonRows = 5,
   empty,
+  zebra,
 }: DataTableProps<T>) {
   const { t } = useTranslation()
   const navigate = useNavigate()
@@ -166,7 +169,7 @@ export function DataTable<T>({
               </td>
             </tr>
           ) : (
-            rows.map((row) => {
+            rows.map((row, idx) => {
             const k = rowKey(row)
             const href = rowHref?.(row)
             const detail = expandable?.(row)
@@ -177,6 +180,9 @@ export function DataTable<T>({
                   onClick={href ? () => navigate(href) : undefined}
                   className={cn(
                     'border-b border-hairline transition-colors',
+                    // Zébrure calculée sur l'INDEX (pas nth-child : les lignes dépliées s'intercalent
+                    // et fausseraient la parité CSS). Teinte discrète sous le hover.
+                    zebra && idx % 2 === 1 && 'bg-surface/40',
                     href && 'cursor-pointer',
                     'hover:bg-surface-2/60',
                     rowClassName?.(row),

@@ -67,17 +67,24 @@ function DeltaN1({ delta, anneeN1 }: { delta: number; anneeN1: number }) {
   const { t } = useTranslation()
   const positif = delta >= 0
   const Fleche = positif ? TrendingUp : TrendingDown
+  const valeur = `${positif ? '+' : ''}${formatPourcent(Math.round(delta))}`
+  // Le contexte (« vs 2025, même période ») porté par aria-label ET title : un lecteur d'écran
+  // annoncerait sinon « +12 % » sans référent, et le title (survol) n'existe pas au tactile.
+  const contexte = `${valeur} ${t('dashboard.hero.vsN1', { annee: anneeN1 })}`
   return (
     <span
       className={cn(
         'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-2xs font-medium',
         positif ? 'bg-jade/10 text-jade' : 'bg-terra/10 text-terra',
       )}
-      title={t('dashboard.hero.vsN1', { annee: anneeN1 })}
+      // `role="img"` : un aria-label sur un span SANS rôle n'est pas exposé de façon fiable
+      // (role générique). Même motif que `GrapheEvolution` — le libellé remplace alors le contenu.
+      role="img"
+      title={contexte}
+      aria-label={contexte}
     >
       <Fleche className="h-3 w-3" aria-hidden="true" />
-      {positif ? '+' : ''}
-      {formatPourcent(Math.round(delta))}
+      {valeur}
     </span>
   )
 }

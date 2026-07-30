@@ -25,6 +25,7 @@ export default {
       decroissant: ', décroissant',
       afficherDetails: 'Afficher les détails',
       masquerDetails: 'Masquer les détails',
+      vide: 'Aucune donnée.',
     },
     datePicker: {
       placeholder: 'Choisir une date',

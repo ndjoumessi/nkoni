@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { ArrowDown, ArrowUp, ChevronDown, ChevronsUpDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { Skeleton } from './Skeleton'
 
 /**
  * Table de données dense (guideline ui-ux-pro-max §10 « Data-Dense Dashboard ») :
@@ -44,6 +45,12 @@ export interface DataTableProps<T> {
   /** Légende lue par les lecteurs d'écran. */
   caption?: string
   className?: string
+  /** Affiche des lignes de squelette pendant un chargement (au lieu des lignes réelles). */
+  loading?: boolean
+  /** Nombre de lignes de squelette (défaut 5). */
+  skeletonRows?: number
+  /** Contenu rendu quand `rows` est vide et non chargé (défaut : message muet i18n). */
+  empty?: ReactNode
 }
 
 function alignClass(col: { numeric?: boolean; align?: 'left' | 'right' | 'center' }): string {
@@ -62,6 +69,9 @@ export function DataTable<T>({
   rowClassName,
   caption,
   className,
+  loading,
+  skeletonRows = 5,
+  empty,
 }: DataTableProps<T>) {
   const { t } = useTranslation()
   const navigate = useNavigate()
@@ -135,8 +145,28 @@ export function DataTable<T>({
             {expandable && <th scope="col" className="w-10 border-b border-hairline-strong" />}
           </tr>
         </thead>
-        <tbody>
-          {rows.map((row) => {
+        <tbody aria-busy={loading || undefined}>
+          {loading ? (
+            // Squelette : N lignes, une cellule Skeleton par colonne (aria-hidden via Skeleton).
+            Array.from({ length: skeletonRows }).map((_, i) => (
+              <tr key={`sk-${i}`} className="border-b border-hairline">
+                {columns.map((col) => (
+                  <td key={col.key} className={cn('px-4 py-2.5', alignClass(col))}>
+                    <Skeleton className="h-4 w-full" />
+                  </td>
+                ))}
+                {expandable && <td className="px-2 py-2.5" />}
+              </tr>
+            ))
+          ) : rows.length === 0 ? (
+            // État vide : une cellule pleine largeur, message muet (prop `empty` ou défaut i18n).
+            <tr>
+              <td colSpan={nbCols} className="px-4 py-10 text-center text-sm text-faint">
+                {empty ?? t('ui.table.vide')}
+              </td>
+            </tr>
+          ) : (
+            rows.map((row) => {
             const k = rowKey(row)
             const href = rowHref?.(row)
             const detail = expandable?.(row)
@@ -210,7 +240,8 @@ export function DataTable<T>({
                 )}
               </Fragment>
             )
-          })}
+            })
+          )}
         </tbody>
       </table>
     </div>

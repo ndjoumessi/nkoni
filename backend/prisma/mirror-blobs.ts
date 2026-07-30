@@ -14,9 +14,15 @@ import { construireCibles } from '../src/lib/blob-mirror'
  * Multi-tenant : maintenance globale sans requête HTTP → `runUnscoped` (toutes organisations d'un
  * coup, comme la purge/backfill ; les modèles scopés `Document`/`Membre` sont lus sans filtre d'org).
  *
- * DRY-RUN PAR DÉFAUT : sans `--apply`, liste ce qui SERAIT copié et n'écrit rien. Idempotent et
- * incrémental : un fichier déjà présent (pathname Blob immuable) est sauté — seuls les nouveaux
- * blobs sont téléchargés. La sortie console est la trace (comme le backfill).
+ * DRY-RUN PAR DÉFAUT : sans `--apply`, liste ce qui SERAIT copié et n'écrit rien. La sortie console
+ * est la trace (comme le backfill).
+ *
+ * INCRÉMENTALITÉ — où elle vit VRAIMENT : le garde `existe(dest)` ci-dessous ne saute un fichier que
+ * s'il est DÉJÀ sur le disque local ; il ne sert donc qu'à un re-run local, PAS en CI (le runner est
+ * éphémère, `blob-mirror/` repart vide → tout est re-téléchargé). L'incrémental de TRANSFERT est
+ * assuré par `aws s3 sync` (workflow) : seuls les objets absents de R2 sont poussés. À l'échelle
+ * (milliers de photos), le download intégral depuis Blob à chaque run deviendra le coût à optimiser —
+ * parade : lister R2 (`aws s3 ls`) et sauter le téléchargement des `cheminLocal` déjà présents.
  *
  *   Dry-run  : npx tsx prisma/mirror-blobs.ts
  *   Appliquer : DATABASE_URL="…" BLOB_READ_WRITE_TOKEN="…" npx tsx prisma/mirror-blobs.ts --apply
@@ -57,7 +63,9 @@ async function main(): Promise<void> {
   let manquants = 0
   for (const c of cibles) {
     const dest = join(DEST, c.cheminLocal)
-    // Incrémental : blob immuable (suffixe aléatoire) → s'il est déjà là, c'est le même fichier.
+    // Saute si DÉJÀ sur le disque local (blob immuable → même fichier). N'aide qu'en re-run local ;
+    // en CI le runner est éphémère (cf. docstring), donc ce garde ne joue pas et le download est
+    // intégral — l'incrémental de transfert est côté `aws s3 sync`.
     if (await existe(dest)) {
       ignores++
       continue

@@ -11,6 +11,7 @@ import {
   versementsApi,
   recusApi,
   ApiError,
+  MODES_VERSEMENT,
   type Contribution,
   type ModeVersement,
   type Recu,
@@ -27,8 +28,6 @@ import { DatePicker } from '@/components/ui/DatePicker'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { Badge } from '@/components/ui/Badge'
 import { anneeCouranteApp } from '@/lib/date-app'
-
-const MODES: ModeVersement[] = ['ESPECES', 'TIERS', 'MOBILE_MONEY', 'AUTRE']
 
 const aujourdHui = (): string => new Date().toISOString().slice(0, 10)
 
@@ -379,7 +378,7 @@ export function VersementFormPage() {
                   </Field>
                   <Field label={t('versements.form.mode')} required>
                     <Select value={mode} onChange={(e) => setMode(e.target.value as ModeVersement)}>
-                      {MODES.map((m) => (
+                      {MODES_VERSEMENT.map((m) => (
                         <option key={m} value={m}>
                           {t(`commun.modesVersement.${m}`)}
                         </option>

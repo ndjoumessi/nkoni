@@ -6,6 +6,7 @@ import {
   versementsApi,
   recusApi,
   ApiError,
+  MODES_VERSEMENT,
   type Versement,
   type Recu,
   type ModeVersement,
@@ -24,7 +25,9 @@ import { DatePicker } from '@/components/ui/DatePicker'
 /** Format numérique court (jj/mm/aaaa) selon la langue courante. */
 const DATE_COURTE = { day: '2-digit', month: '2-digit', year: 'numeric' } as const
 
-const MODES: ModeVersement[] = ['ESPECES', 'TIERS', 'AUTRE']
+// Édition MANUELLE d'un versement : on retire MOBILE_MONEY (posé uniquement par la confirmation
+// PSP, jamais saisi à la main). Dérivé de la source unique pour ne pas pouvoir dériver d'elle.
+const MODES: ModeVersement[] = MODES_VERSEMENT.filter((m) => m !== 'MOBILE_MONEY')
 
 /** ISO (…T…Z) → `yyyy-mm-dd` attendu par le DatePicker. */
 const versISODate = (iso: string): string => iso.slice(0, 10)

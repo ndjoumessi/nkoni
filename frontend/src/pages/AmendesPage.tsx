@@ -8,6 +8,7 @@ import {
   membresApi,
   ApiError,
   messageErreur,
+  MODES_VERSEMENT,
   type Amende,
   type AmendesReponse,
   type MembreStatut,
@@ -34,7 +35,6 @@ import { useToast } from '@/components/ui/Toast'
 
 const TYPES: TypeAmende[] = ['RETARD_COTISATION', 'ABSENCE_REUNION', 'AUTRE']
 const STATUTS: StatutAmende[] = ['IMPAYEE', 'PAYEE', 'ANNULEE']
-const MODES: ModeVersement[] = ['ESPECES', 'TIERS', 'MOBILE_MONEY', 'AUTRE']
 
 const TONE_STATUT: Record<StatutAmende, string> = {
   IMPAYEE: 'border-brass/30 bg-brass/[0.08] text-brass',
@@ -437,7 +437,7 @@ export function AmendesPage() {
             </Field>
             <Field label={t('amendes.payer.mode')}>
               <Select value={payMode} onChange={(e) => setPayMode(e.target.value as ModeVersement)}>
-                {MODES.map((m) => (
+                {MODES_VERSEMENT.map((m) => (
                   <option key={m} value={m}>
                     {t(`commun.modesVersement.${m}`)}
                   </option>

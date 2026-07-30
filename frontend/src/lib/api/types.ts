@@ -15,7 +15,15 @@ export interface RepartitionStatutContribution {
 
 /* Mode de versement (versements, cagnottes, amendes) ------------------------- */
 
-export type ModeVersement = 'ESPECES' | 'TIERS' | 'MOBILE_MONEY' | 'AUTRE'
+/**
+ * SOURCE UNIQUE côté front des modes de versement (miroir de `backend/src/lib/modes-versement.ts` —
+ * le front ne peut pas importer le backend). Valeur RUNTIME (`as const`) pour que les listes
+ * déroulantes la consomment au lieu de recopier le tableau ; le type en DÉRIVE. La cohérence avec
+ * les libellés `commun.modesVersement` (fr + en) est gardée par `lib/modes-versement.test.ts`.
+ */
+export const MODES_VERSEMENT = ['ESPECES', 'TIERS', 'MOBILE_MONEY', 'AUTRE'] as const
+
+export type ModeVersement = (typeof MODES_VERSEMENT)[number]
 
 /* Pagination générique (miroir de `backend/src/lib/pagination.ts::PageResultat`) */
 

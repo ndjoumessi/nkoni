@@ -46,41 +46,42 @@ export function CarteMembre({
           )}
         </div>
 
-        {/* Corps : avatar · identité · QR (repli sous l'identité si l'espace manque). */}
-        <div className="flex flex-wrap items-start gap-4 p-5">
-          <div className="h-20 w-16 shrink-0 overflow-hidden rounded-xl border border-hairline bg-brass/15">
-            {photoUrl ? (
-              <img src={photoUrl} alt="" className="h-full w-full object-cover" />
-            ) : (
-              <div className="flex h-full w-full items-center justify-center text-xl font-bold text-brass">
-                {initiales}
+        {/* Corps en DEUX zones (positionnement stable en rail étroit, plus de flex-wrap aléatoire) :
+            1) identité (avatar + texte) ; 2) QR + légende, séparés par un filet. */}
+        <div className="p-5">
+          <div className="flex items-start gap-4">
+            <div className="h-20 w-16 shrink-0 overflow-hidden rounded-xl border border-hairline bg-brass/15">
+              {photoUrl ? (
+                <img src={photoUrl} alt="" className="h-full w-full object-cover" />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center text-xl font-bold text-brass">
+                  {initiales}
+                </div>
+              )}
+            </div>
+
+            <div className="min-w-0 flex-1">
+              <p className="text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-amber">
+                {t('monEspace.carte.membreLabel')}
+              </p>
+              <p className="mt-1 truncate text-lg font-bold text-foreground">{apercu.nom.toUpperCase()}</p>
+              <p className="truncate text-sm text-muted-foreground">{apercu.prenom}</p>
+              <p className="mt-2 text-xs text-faint">
+                {apercu.branche ? `${t('monEspace.carte.branche')} : ${apercu.branche} · ` : ''}
+                {t('monEspace.carte.depuis')} <span className="num">{apercu.anneeAdhesion}</span>
+              </p>
+              <div className="mt-2">
+                <StatutCotisationBadge statut={apercu.statutCotisation} size="sm" />
               </div>
-            )}
-          </div>
-
-          <div className="min-w-[8rem] flex-1">
-            <p className="text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-amber">
-              {t('monEspace.carte.membreLabel')}
-            </p>
-            <p className="mt-1 truncate text-lg font-bold text-foreground">{apercu.nom.toUpperCase()}</p>
-            <p className="truncate text-sm text-muted-foreground">{apercu.prenom}</p>
-            <p className="mt-2 text-xs text-faint">
-              {apercu.branche ? `${t('monEspace.carte.branche')} : ${apercu.branche} · ` : ''}
-              {t('monEspace.carte.depuis')} <span className="num">{apercu.anneeAdhesion}</span>
-            </p>
-            <div className="mt-2">
-              <StatutCotisationBadge statut={apercu.statutCotisation} size="sm" />
             </div>
           </div>
 
-          <div className="shrink-0 text-center">
+          <div className="mt-4 flex items-center gap-4 border-t border-hairline pt-4">
             {/* Pastille blanche : scannabilité garantie même sur fond teinté. */}
-            <div className="inline-block rounded-lg bg-white p-1.5">
-              <img src={apercu.qrDataUrl} alt="" className="h-20 w-20" />
+            <div className="shrink-0 rounded-lg bg-white p-1.5">
+              <img src={apercu.qrDataUrl} alt="" className="h-[4.5rem] w-[4.5rem]" />
             </div>
-            <p className="mx-auto mt-1 w-24 text-[0.6rem] leading-tight text-faint">
-              {t('monEspace.carte.scanner')}
-            </p>
+            <p className="text-xs leading-snug text-faint">{t('monEspace.carte.scanner')}</p>
           </div>
         </div>
       </div>

@@ -94,6 +94,7 @@ export default {
       numero: 'Numéro',
       date: 'Date',
       montant: 'Montant',
+      voir: 'Voir',
       telecharger: 'Télécharger',
       indisponible: 'PDF indisponible',
       annule: 'Annulé',

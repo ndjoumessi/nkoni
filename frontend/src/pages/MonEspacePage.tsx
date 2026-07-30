@@ -7,6 +7,7 @@ import {
   CalendarDays,
   FileText,
   Download,
+  Eye,
   UserX,
   Ban,
   CreditCard,
@@ -320,12 +321,31 @@ export function MonEspacePage() {
   const statutAnnee = (c: ContributionMembre): StatutContribution =>
     c.montantValorise >= c.montantAttendu ? 'A_JOUR' : c.montantValorise > 0 ? 'PARTIEL' : 'NON_A_JOUR'
 
-  const telechargerRecu = async (recuId: string) => {
+  // APERÇU : ouvre le PDF du reçu dans un nouvel onglet (lecture, sans forcer l'enregistrement).
+  const voirRecu = async (recuId: string) => {
     if (!accessToken) return
     try {
       const blob = await recusApi.telecharger(recuId, accessToken)
       const url = URL.createObjectURL(blob)
       window.open(url, '_blank', 'noopener')
+      setTimeout(() => URL.revokeObjectURL(url), 60_000)
+    } catch (e) {
+      toast.error(t('monEspace.recus.indisponible'), e instanceof ApiError ? e.message : '')
+    }
+  }
+
+  // TÉLÉCHARGEMENT : force l'enregistrement du fichier (attribut `download`), distinct de l'aperçu.
+  const telechargerRecu = async (recu: RecuMembre) => {
+    if (!accessToken) return
+    try {
+      const blob = await recusApi.telecharger(recu.id, accessToken)
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${recu.numero}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
       setTimeout(() => URL.revokeObjectURL(url), 60_000)
     } catch (e) {
       toast.error(t('monEspace.recus.indisponible'), e instanceof ApiError ? e.message : '')
@@ -487,9 +507,14 @@ export function MonEspacePage() {
       align: 'right',
       cell: (r) =>
         r.telechargeable ? (
-          <Button type="button" variant="ghost" size="sm" icon={Download} onClick={() => telechargerRecu(r.id)}>
-            {t('monEspace.recus.telecharger')}
-          </Button>
+          <div className="flex items-center justify-end gap-1">
+            <Button type="button" variant="ghost" size="sm" icon={Eye} onClick={() => voirRecu(r.id)}>
+              {t('monEspace.recus.voir')}
+            </Button>
+            <Button type="button" variant="ghost" size="sm" icon={Download} onClick={() => telechargerRecu(r)}>
+              {t('monEspace.recus.telecharger')}
+            </Button>
+          </div>
         ) : (
           <span className="text-xs text-faint">{t('monEspace.recus.indisponible')}</span>
         ),

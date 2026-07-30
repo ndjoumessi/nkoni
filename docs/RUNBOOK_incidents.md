@@ -17,28 +17,30 @@ pas dissimulés.
 
 ## 0. ⚠️ État réel de la détection — à lire avant tout le reste
 
-**Les alertes d'ERREUR sont armées ; la détection de PANNE ne l'est pas encore.** Ce n'est pas une
-opinion, c'est vérifiable :
+**La détection automatique est en place — erreur ET panne.** Ce n'est pas une opinion, c'est
+vérifiable :
 
 | Dispositif | État constaté (2026-07-30) | Conséquence |
 |---|---|---|
-| Sentry backend (`SENTRY_DSN`) | **✅ Posé sur Railway** (warning de boot disparu) | Les 5xx, les échecs d'écriture d'audit et les échecs du scheduler remontent dans le projet `nkoni-backend`. |
-| Sentry frontend (`VITE_SENTRY_DSN`) | **✅ Posé sur Vercel** (rebuild) | Une erreur de rendu est captée par l'`ErrorBoundary` et signalée dans le projet `nkoni-frontend`. |
-| Sonde externe (uptime) | **Inexistante** | Personne ne sait que le service est TOMBÉ tant qu'un utilisateur n'écrit pas — les alertes Sentry ne se déclenchent que si le process tourne ENCORE assez pour émettre. C'est le trou qui reste. |
+| Sentry backend (`SENTRY_DSN`) | **✅ Posé sur Railway** (warning de boot disparu) | Les 5xx, les échecs d'écriture d'audit et les échecs du scheduler remontent dans le projet `nkoni-api`. |
+| Sentry frontend (`VITE_SENTRY_DSN`) | **✅ Posé sur Vercel** (rebuild) | Une erreur de rendu est captée par l'`ErrorBoundary` et signalée dans le projet `nkoni-web`. |
+| Sonde externe (uptime) | **✅ En place (2026-07-30)** — moniteur Sentry Uptime sur `/api/ready`, 5 min, 2xx-only | Un `503 degraded` ou un process mort comptent « down » → une issue de downtime est ouverte après 3 échecs (~15 min) et alerte par email. Détection de PANNE couverte, plus seulement d'erreur. |
 | `/health` (liveness) | Répond `{"status":"ok"}` **sans toucher la base** — **par conception** | Ne prouve que la vie du process. C'est le healthcheck Railway : lui ajouter une dépendance à la base interdirait de déployer pendant un hoquet DB. |
 | `/ready` (readiness) | **✅ Livré (§8.3)** — `SELECT 1`, 200 ou **503 `degraded`** | C'est LUI qui prouve que la base répond. `/statut` et toute sonde externe doivent l'interroger, **jamais** `/health`. |
 
-**Aujourd'hui, une ERREUR applicative est alertée (Sentry) ; une PANNE — backend à terre — ne l'est
-pas.** Une panne se détecte encore quand un utilisateur se plaint : délai non mesurable, jusqu'à
-plusieurs jours (typiquement une panne nocturne un week-end).
+**Aujourd'hui, une ERREUR applicative est alertée (Sentry) ET une PANNE — backend à terre — l'est
+aussi** (moniteur Sentry Uptime sur `/api/ready`, 5 min). La détection ne repose plus sur la plainte
+d'un utilisateur.
 
-`/ready` (§8.3, livré) dit la vérité sur l'état de la base (200 / 503), mais tant que **rien ne
-l'interroge périodiquement**, il ne se déclenche que lorsqu'un humain ouvre `/statut`. C'est
-exactement pourquoi §8.2 (la sonde externe sur `/api/ready`) reste le chantier qui compte.
+`/ready` (§8.3) dit la vérité sur l'état de la base (200 / 503) ; la sonde Uptime l'interroge toutes
+les 5 min depuis plusieurs régions et ouvre une issue de downtime après 3 échecs (~15 min), qui
+alerte par email. Un `503 degraded` (base injoignable) comme un timeout (process mort) comptent tous
+deux « down ».
 
-> **Le geste qui reste est en §8.2** — la sonde externe (§8.1, poser les DSN, est **FAIT**). Tant
-> qu'elle n'est pas branchée, tout engagement de disponibilité (cf. `SLA_disponibilite.md`) est **déclaratif et
-> non mesuré** — c'est écrit noir sur blanc dans ce document.
+> **§8 est FAIT** : §8.1 (DSN posés) et §8.2 (sonde externe). L'engagement de disponibilité
+> (`SLA_disponibilite.md`) est désormais **instrumenté** — la cible est mesurée, plus seulement
+> déclarée. Réserve de quota : le plan Sentry n'autorise qu'UN moniteur uptime, `habashop-web` a été
+> désactivé pour libérer le créneau (surveiller les deux = augmenter le quota ou UptimeRobot).
 
 ---
 
@@ -310,7 +312,7 @@ railway redeploy   # OBLIGATOIRE : un simple --set est SKIPPED par le watch-path
 | `/ready` **503 `degraded`** (ou tout échoue en 500) | Postgres injoignable ou saturée | `curl .../api/ready` · `psql "$PROD_DATABASE_URL" -tAc 'SELECT 1;'` · Railway → Postgres → Metrics | Vérifier le service Postgres Railway. Si la base est perdue → §4.7. |
 | Déploiement `FAILED` au boot | `migrate deploy` en échec (migration invalide, `DATABASE_URL` cassée → `P1000`) | `railway logs --deployment <id>` | Corriger la migration et redéployer. Le service **reste debout** sur l'ancienne version. |
 | Déploiement `SKIPPED` | Watch path `/backend/**` : le push ne touchait que `frontend/` | — | **Normal, ce n'est pas un incident.** Vérifier Vercel à la place. |
-| Écran blanc côté front | Erreur de rendu React | L'`ErrorBoundary` affiche un fallback lisible (plus d'écran blanc) et **signale dans Sentry `nkoni-frontend`** (`VITE_SENTRY_DSN` posé, §0) | §4.2 rollback Vercel si récurrent. |
+| Écran blanc côté front | Erreur de rendu React | L'`ErrorBoundary` affiche un fallback lisible (plus d'écran blanc) et **signale dans Sentry `nkoni-web`** (`VITE_SENTRY_DSN` posé, §0) | §4.2 rollback Vercel si récurrent. |
 | Un seul tenant en erreur | Donnée incohérente propre à l'organisation | `GET /tresorerie/reconciliation` sur ce tenant | §4.4 suspendre le temps de corriger. |
 | Reçus/relances non envoyés | Canal non configuré ou en panne | Variables `RESEND_*` / `WHATSAPP_*` sur Railway | **Best-effort par conception** : l'envoi n'échoue jamais l'opération métier. P2, pas P1 — l'argent est encaissé, la preuve est régénérable. |
 | Relances nocturnes muettes | Scheduler in-process : le process était down à 03:00 (Africa/Douala) | `railway logs` autour de 03:00 | Aucun rattrapage automatique. Les retards seront générés la nuit suivante. |
@@ -448,8 +450,8 @@ réaction sans déclencheur.
 
 | # | Chantier | Pourquoi c'est bloquant | Effort |
 |---|---|---|---|
-| **8.1** | ✅ **FAIT (2026-07-30)** — `SENTRY_DSN` (Railway) et `VITE_SENTRY_DSN` (Vercel) posés, projets **distincts** `nkoni-backend`/`nkoni-frontend` | Alertes d'erreur armées (warning de boot disparu). Reste 8.2. | — |
-| **8.2** | **Sonde externe** sur `https://nkoni.vercel.app/api/ready`, toutes les 5 min, alerte email | Sans sonde, la disponibilité n'est **pas mesurable** — donc le SLA n'est pas vérifiable, et une panne nocturne dure jusqu'au matin. Sonder **`/ready`** et non `/health` : c'est le seul des deux qui tombe quand la base tombe. | ~1 h |
+| **8.1** | ✅ **FAIT (2026-07-30)** — `SENTRY_DSN` (Railway) et `VITE_SENTRY_DSN` (Vercel) posés, projets **distincts** `nkoni-api`/`nkoni-web` | Alertes d'erreur armées (warning de boot disparu), ingestion prouvée e2e. | — |
+| **8.2** | ✅ **FAIT (2026-07-30)** — moniteur **Sentry Uptime** sur `https://nkoni.vercel.app/api/ready`, 5 min, 2xx-only, alerte email | Disponibilité désormais mesurée : un 503 (base à terre) ou un timeout (process mort) ouvre une issue de downtime après ~15 min. Quota : 1 moniteur uptime sur le plan → `habashop-web` désactivé pour libérer le créneau. | — |
 | ~~8.3~~ | ~~**Faire de `/health` un vrai healthcheck**~~ → **✅ FAIT** (2026-07-23) : endpoint **`/ready`** SÉPARÉ (`SELECT 1`, 200 / **503 `degraded`**, course contre un délai de 3 s), consommé par `/statut`. **`/health` reste intact et sans dépendance** — c'est le healthcheck Railway (`railway.json`), et le coupler à la base interdirait de déployer pendant un hoquet DB, donc exactement au moment où l'on a besoin de la reprise. Régression : `backend/tests/ready.route.test.ts`. | — | Fait |
 
 Chantiers de second rang, à inscrire après les trois précédents :

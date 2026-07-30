@@ -14,3 +14,9 @@ dist/
 .env
 .env.local
 .env.*.local
+
+# Graphify (graphify.net) — graphe de connaissance du dépôt pour l'assistant IA. Outil de
+# WORKFLOW, PAS une dépendance de l'app : ses sorties sont RÉGÉNÉRABLES (`/graphify .`) et
+# volumineuses (graph.html/json), donc jamais commitées.
+graphify-out/
+.graphify/

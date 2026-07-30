@@ -1,0 +1,78 @@
+name: Miroir hors-site des fichiers Blob (dette GA D2)
+
+# Sauvegarde des fichiers TÉLÉVERSÉS (documents + photos de membres + avatars de compte) vers
+# Cloudflare R2. Les reçus PDF ne sont PAS concernés : ils se régénèrent depuis la base
+# (`produireRecuPdf`). La base est la source d'appartenance (le store Blob n'a pas de `list()`),
+# donc le script énumère les URLs référencées puis télécharge, et `aws s3 sync` pousse en incrémental.
+#
+# Complément du dump DB (`backup-restore-exercise.yml`, dimanche 03:00) — décalé à 04:00.
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 4 * * 0' # chaque dimanche 04:00 UTC (après le dump DB de 03:00)
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install + generate Prisma
+        working-directory: backend
+        run: |
+          npm ci
+          npx prisma generate
+
+      - name: Télécharger les blobs référencés en base
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
+        # --apply : télécharge réellement vers ./backend/blob-mirror/. Le script sort en code ≠ 0
+        # si un blob référencé est illisible (fichier manquant côté store) → le job échoue et alerte.
+        run: npm run mirror:blobs -- --apply
+
+      - name: Sync incrémental vers Cloudflare R2
+        working-directory: backend
+        env:
+          # R2 est S3-compatible (mêmes secrets que le dump DB). `aws` est préinstallé sur le runner.
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          R2_ENDPOINT: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        # `sync` ne pousse que les nouveaux fichiers (pathnames Blob immuables) → transfert minimal.
+        run: aws s3 sync blob-mirror "s3://$R2_BUCKET/nkoni-blobs/" --endpoint-url "$R2_ENDPOINT" --only-show-errors
+
+  # Alerte VISIBLE si le miroir échoue (secret absent, R2 indisponible, blob manquant) — même
+  # dispositif que le workflow de sauvegarde : une issue GitHub, pas un simple exit 1 invisible.
+  notify-on-failure:
+    needs: mirror
+    if: failure()
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Ouvrir ou mettre à jour une issue d'échec
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          TITRE="⚠️ Échec du miroir Blob hors-site (GA D2)"
+          CORPS=$(printf 'Le workflow **blob-mirror** a échoué le %s : les documents et photos ne sont peut-être PAS sauvegardés pour ce créneau.\n\nRun : %s\n\nConsulter les logs, corriger, puis relancer :\n```\ngh workflow run blob-mirror.yml\n```' "$(date -u '+%Y-%m-%d %H:%M UTC')" "$RUN_URL")
+          gh label create blob-mirror-failure --color B60205 --description "Échec du miroir Blob hors-site" --force >/dev/null 2>&1 || true
+          EXISTANTE=$(gh issue list --state open --label blob-mirror-failure --json number --jq '.[0].number' 2>/dev/null || true)
+          if [ -n "$EXISTANTE" ]; then
+            gh issue comment "$EXISTANTE" --body "$CORPS"
+          else
+            gh issue create --title "$TITRE" --body "$CORPS" --label blob-mirror-failure
+          fi

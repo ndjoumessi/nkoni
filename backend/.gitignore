@@ -4,3 +4,7 @@ dist
 .env
 
 /src/generated/prisma
+
+# Miroir Blob local (dette GA D2) — sortie de `npm run mirror:blobs --apply`, poussée vers R2 par
+# le workflow. Fichiers téléversés (documents/photos), JAMAIS commités.
+blob-mirror/

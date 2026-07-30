@@ -8,6 +8,7 @@ import {
   FileText,
   Download,
   Eye,
+  ExternalLink,
   UserX,
   Ban,
   CreditCard,
@@ -19,6 +20,7 @@ import {
   HandHeart,
   Trophy,
   Check,
+  Clock,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
 import {
@@ -39,6 +41,7 @@ import {
   type AmendeMembre,
   type CagnotteMembre,
   type TontineMembre,
+  type TypeNotification,
 } from '@/lib/api'
 import { formatMontant, formatPourcent } from '@/lib/format'
 import { cn, formatDate, ouvrirBlobPdf } from '@/lib/utils'
@@ -78,6 +81,18 @@ const VOTE_TON: Record<SensVote, string> = {
   ABSTENTION: '--amber',
 }
 
+/** Icône + ton (jeton) par TYPE de notification → rendu visuel différencié dans la liste. */
+const NOTIF_ICONE: Record<TypeNotification, typeof Bell> = {
+  VERSEMENT_RECU: ArrowDownCircle,
+  COTISATION_RETARD: Clock,
+  REUNION_RAPPEL: CalendarDays,
+}
+const NOTIF_TON: Record<TypeNotification, string> = {
+  VERSEMENT_RECU: '--jade',
+  COTISATION_RETARD: '--terra',
+  REUNION_RAPPEL: '--brass',
+}
+
 /** Namespace d'id pour la paire onglet ↔ panneau (aria-controls ↔ aria-labelledby). */
 const TABS_ID = 'monEspace'
 
@@ -115,6 +130,9 @@ export function MonEspacePage() {
   const [paiementCible, setPaiementCible] = useState<ContributionMembre | null>(null)
   const [montantSaisi, setMontantSaisi] = useState('')
   const [erreurMontant, setErreurMontant] = useState<string | null>(null)
+  // Aperçu d'un reçu en modale : le reçu ciblé + l'object URL du PDF (null tant qu'il charge).
+  const [recuApercu, setRecuApercu] = useState<RecuMembre | null>(null)
+  const [recuApercuUrl, setRecuApercuUrl] = useState<string | null>(null)
 
   useEffect(() => {
     if (!accessToken) return
@@ -321,17 +339,30 @@ export function MonEspacePage() {
   const statutAnnee = (c: ContributionMembre): StatutContribution =>
     c.montantValorise >= c.montantAttendu ? 'A_JOUR' : c.montantValorise > 0 ? 'PARTIEL' : 'NON_A_JOUR'
 
-  // APERÇU : ouvre le PDF du reçu dans un nouvel onglet (lecture, sans forcer l'enregistrement).
-  const voirRecu = async (recuId: string) => {
+  // APERÇU en MODALE : ouvre le reçu (infos + PDF embarqué) sans quitter la page. Le PDF est servi
+  // par un proxy authentifié (Bearer), donc on récupère le blob et on l'affiche via object URL.
+  const voirRecu = async (recu: RecuMembre) => {
     if (!accessToken) return
+    setRecuApercu(recu)
+    setRecuApercuUrl(null)
     try {
-      const blob = await recusApi.telecharger(recuId, accessToken)
-      const url = URL.createObjectURL(blob)
-      window.open(url, '_blank', 'noopener')
-      setTimeout(() => URL.revokeObjectURL(url), 60_000)
+      const blob = await recusApi.telecharger(recu.id, accessToken)
+      setRecuApercuUrl(URL.createObjectURL(blob))
     } catch (e) {
       toast.error(t('monEspace.recus.indisponible'), e instanceof ApiError ? e.message : '')
+      setRecuApercu(null)
     }
+  }
+  const fermerApercuRecu = () => {
+    // Révocation DIFFÉRÉE (même motif que `telechargerRecu` ci-dessous) : « Ouvrir dans un onglet »
+    // confie CETTE object URL à un autre onglet. La révoquer à la fermeture de la modale casserait
+    // le PDF qu'on vient d'y ouvrir. Le délai laisse l'autre onglet finir de charger.
+    if (recuApercuUrl) {
+      const url = recuApercuUrl
+      setTimeout(() => URL.revokeObjectURL(url), 60_000)
+    }
+    setRecuApercuUrl(null)
+    setRecuApercu(null)
   }
 
   // TÉLÉCHARGEMENT : force l'enregistrement du fichier (attribut `download`), distinct de l'aperçu.
@@ -508,7 +539,7 @@ export function MonEspacePage() {
       cell: (r) =>
         r.telechargeable ? (
           <div className="flex items-center justify-end gap-1">
-            <Button type="button" variant="ghost" size="sm" icon={Eye} onClick={() => voirRecu(r.id)}>
+            <Button type="button" variant="ghost" size="sm" icon={Eye} onClick={() => voirRecu(r)}>
               {t('monEspace.recus.voir')}
             </Button>
             <Button type="button" variant="ghost" size="sm" icon={Download} onClick={() => telechargerRecu(r)}>
@@ -635,23 +666,46 @@ export function MonEspacePage() {
         />
       </button>
       {rappelsOuverts && (
-        <ul className="mt-4 space-y-2">
-          {notifications.slice(0, 8).map((n) => (
-            <li
-              key={n.id}
-              className={cn('rounded-xl border bg-surface-2/40 p-3.5', n.lu ? 'border-hairline' : 'border-brass/30')}
-            >
-              <div className="flex items-start justify-between gap-3">
-                <p className="text-sm font-medium text-foreground">{n.titre}</p>
-                {!n.lu && (
-                  <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-brass" aria-label={t('monEspace.rappels.nonLu')} />
-                )}
-              </div>
-              <p className="mt-0.5 text-sm text-muted-foreground">{n.message}</p>
-              <p className="mt-1 text-xs text-faint">{formatDate(n.dateCreation, { dateStyle: 'long' })}</p>
-            </li>
-          ))}
-        </ul>
+        <>
+          <ul className="mt-4 space-y-2">
+            {notifications.slice(0, 8).map((n) => {
+              const Icone = NOTIF_ICONE[n.type] ?? Bell
+              const ton = NOTIF_TON[n.type] ?? '--brass'
+              return (
+                <li
+                  key={n.id}
+                  className={cn('flex gap-3 rounded-xl border bg-surface-2/40 p-3.5', n.lu ? 'border-hairline' : 'border-brass/30')}
+                >
+                  {/* Pastille d'icône teintée par TYPE (versement/retard/rappel) — repère visuel rapide. */}
+                  <span
+                    className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
+                    style={{
+                      color: `var(${ton})`,
+                      backgroundColor: `color-mix(in oklch, var(${ton}) 14%, transparent)`,
+                    }}
+                  >
+                    <Icone className="h-4 w-4" aria-hidden="true" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-3">
+                      <p className="text-sm font-medium text-foreground">{n.titre}</p>
+                      {!n.lu && (
+                        <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-brass" aria-label={t('monEspace.rappels.nonLu')} />
+                      )}
+                    </div>
+                    <p className="mt-0.5 text-sm text-muted-foreground">{n.message}</p>
+                    <p className="mt-1 text-xs text-faint">{formatDate(n.dateCreation, { dateStyle: 'long' })}</p>
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
+          {notifications.length > 8 && (
+            <p className="mt-2 text-center text-xs text-faint">
+              {t('monEspace.rappels.autres', { count: notifications.length - 8 })}
+            </p>
+          )}
+        </>
       )}
     </Card>
   )
@@ -1034,6 +1088,56 @@ export function MonEspacePage() {
               </Button>
               <Button type="button" icon={CreditCard} onClick={confirmerMontant}>
                 {t('monEspace.paiement.confirmer')}
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Aperçu d'un reçu — infos + PDF embarqué, sans quitter la page. Repli mobile : « Ouvrir
+          dans un onglet » (les PDF en iframe sont peu fiables sur navigateur mobile). */}
+      <Modal
+        open={recuApercu !== null}
+        onClose={fermerApercuRecu}
+        title={recuApercu ? t('monEspace.recus.apercuTitre', { numero: recuApercu.numero }) : ''}
+        className="max-w-2xl"
+      >
+        {recuApercu && (
+          <div className="space-y-4">
+            <dl className="grid grid-cols-2 gap-3 rounded-xl border border-hairline bg-surface-2/40 px-4 py-3 text-sm">
+              <div>
+                <dt className="text-xs text-faint">{t('monEspace.recus.date')}</dt>
+                <dd className="mt-0.5 text-foreground">{formatDate(recuApercu.date, { dateStyle: 'long' })}</dd>
+              </div>
+              <div className="text-right">
+                <dt className="text-xs text-faint">{t('monEspace.recus.montant')}</dt>
+                <dd className="mt-0.5"><Montant value={recuApercu.montant} className="font-medium" /></dd>
+              </div>
+            </dl>
+
+            {recuApercuUrl ? (
+              <iframe
+                title={t('monEspace.recus.apercuTitre', { numero: recuApercu.numero })}
+                src={recuApercuUrl}
+                className="h-[55vh] w-full rounded-xl border border-hairline bg-white"
+              />
+            ) : (
+              <Skeleton className="h-[55vh] w-full" />
+            )}
+
+            <div className="flex flex-wrap justify-end gap-2">
+              {recuApercuUrl && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  icon={ExternalLink}
+                  onClick={() => window.open(recuApercuUrl, '_blank', 'noopener')}
+                >
+                  {t('monEspace.recus.ouvrirOnglet')}
+                </Button>
+              )}
+              <Button type="button" icon={Download} onClick={() => telechargerRecu(recuApercu)}>
+                {t('monEspace.recus.telecharger')}
               </Button>
             </div>
           </div>

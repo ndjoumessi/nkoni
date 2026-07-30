@@ -40,6 +40,8 @@ export default {
       nonLu: 'Unread',
       nonLus_one: '{{count}} unread',
       nonLus_other: '{{count}} unread',
+      autres_one: '+{{count}} more notification',
+      autres_other: '+{{count}} more notifications',
     },
     paiement: {
       payer: 'Pay',
@@ -95,6 +97,8 @@ export default {
       date: 'Date',
       montant: 'Amount',
       voir: 'View',
+      apercuTitre: 'Receipt {{numero}}',
+      ouvrirOnglet: 'Open in a new tab',
       telecharger: 'Download',
       indisponible: 'PDF unavailable',
       annule: 'Cancelled',

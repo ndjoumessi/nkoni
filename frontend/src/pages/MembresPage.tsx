@@ -198,7 +198,7 @@ export function MembresPage() {
     )
   }
 
-  const colonnes: Column<MembreStatut>[] = [
+  const colonnesToutes: Column<MembreStatut>[] = [
     {
       key: 'nom',
       header: t('membres.liste.colonnes.membre'),
@@ -247,6 +247,9 @@ export function MembresPage() {
       cell: (m) => m.anneeAdhesion,
     },
   ]
+  // Colonne BRANCHE masquée quand aucune branche n'existe : sinon une colonne entière de « — »
+  // (bruit pur, même principe que la carte « par branche » du dashboard).
+  const colonnes = colonnesToutes.filter((c) => c.key !== 'branche' || branches.length > 0)
 
   // `resume.total` = effectif RÉEL de l'org (indépendant de la page/filtre) ; `total` = après filtres.
   const orgAvecMembres = resume.total > 0
@@ -294,15 +297,24 @@ export function MembresPage() {
       {orgAvecMembres && (
         <div className="nk-reveal nk-d2 mt-7 grid grid-cols-2 gap-3 lg:grid-cols-4">
           <StatCard label={t('membres.liste.resume.membres')} value={String(resume.total)} icon={Users} />
+          {/* Cartes À jour / Non à jour cliquables → posent le filtre de cotisation SUR PLACE (la liste
+              en dessous se met à jour). Tonalité signal sur « À jour » : 0 n'est pas « bon » (terra). */}
           <StatCard
             label={t('membres.liste.resume.aJour')}
             value={String(resume.aJour)}
-            tone="jade"
+            tone={resume.aJour > 0 ? 'jade' : 'terra'}
             icon={CheckCircle2}
+            onClick={() => setFiltreCotisation('A_JOUR')}
             // % à jour PARMI les membres actifs (dénominateur = population éligible, pas l'effectif total).
             hint={resume.actifs ? formatPourcent(Math.round((resume.aJour / resume.actifs) * 100)) : undefined}
           />
-          <StatCard label={t('membres.liste.resume.nonAJour')} value={String(resume.nonAJour)} tone="brass" icon={AlertTriangle} />
+          <StatCard
+            label={t('membres.liste.resume.nonAJour')}
+            value={String(resume.nonAJour)}
+            tone="brass"
+            icon={AlertTriangle}
+            onClick={() => setFiltreCotisation('NON_A_JOUR')}
+          />
           <StatCard label={t('membres.liste.resume.inactifsDecedes')} value={String(resume.inactifs)} icon={Users} />
         </div>
       )}
@@ -411,6 +423,7 @@ export function MembresPage() {
                   rowHref={(m) => `/membres/${m.id}`}
                   sort={{ col: triCol, dir: triDir }}
                   onSort={(c) => trierPar(c as ColonneTri)}
+                  zebra
                 />
               ) : (
                 <div className="flex flex-col items-center gap-3 px-5 py-12 text-center">

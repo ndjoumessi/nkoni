@@ -22,10 +22,10 @@ export const buttonVariants = cva(
         jade: 'border border-jade/30 bg-jade/10 text-jade hover:bg-jade/15',
       },
       size: {
-        sm: 'h-8 px-3.5 text-xs',
+        sm: 'h-9 px-3.5 text-xs',
         md: 'h-10 px-5 text-sm',
         lg: 'h-12 px-7 text-base',
-        icon: 'h-10 w-10',
+        icon: 'h-11 w-11',
       },
     },
     defaultVariants: { variant: 'brass', size: 'md' },

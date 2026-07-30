@@ -419,7 +419,7 @@ export function BaremePage() {
                             setEditId(null)
                             setErrEdit(undefined)
                           }}
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-hairline-strong text-muted-foreground transition-colors hover:text-foreground"
+                          className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-hairline-strong text-muted-foreground transition-colors hover:text-foreground"
                           aria-label={t('bareme.annulerAria')}
                         >
                           <X className="h-4 w-4" aria-hidden="true" />

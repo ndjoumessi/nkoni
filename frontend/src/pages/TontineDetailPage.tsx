@@ -243,6 +243,10 @@ export function TontineDetailPage() {
     const reverse = tour.statut === 'REVERSE'
     const peutTirer =
       gestion && tontine?.modeRotation === 'TIRAGE' && tour.beneficiaireId === null && !reverse
+    // Suivi de collecte du tour : collecté vs pot attendu → barre de progression + garde du reversement.
+    const colleTour = collecte(tour)
+    const attTour = potAttendu(cycle)
+    const pctTour = attTour > 0 ? Math.min(100, (colleTour / attTour) * 100) : 0
     return (
       <li key={tour.id} className="rounded-xl border border-hairline bg-surface/40 p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -289,6 +293,20 @@ export function TontineDetailPage() {
             </span>
           )}
         </div>
+
+        {/* Barre de progression de la collecte (le ratio parle plus en visuel qu'en texte). */}
+        {!reverse && (
+          <div
+            className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-surface-2"
+            role="progressbar"
+            aria-valuenow={Math.round(pctTour)}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label={t('tontines.detail.collecte')}
+          >
+            <div className="h-full rounded-full bg-jade transition-all" style={{ width: `${pctTour}%` }} />
+          </div>
+        )}
 
         {/* Suivi de collecte : qui a versé sa mise pour ce tour, qui reste dû (§ suivi de collecte). */}
         {!reverse && (
@@ -348,6 +366,10 @@ export function TontineDetailPage() {
                     type="button"
                     size="sm"
                     loading={reversementEnCours === tour.id}
+                    // Reverser un pot VIDE n'a pas de sens (flux d'argent) : garde tant que rien
+                    // n'est collecté, avec le motif en infobulle.
+                    disabled={colleTour === 0}
+                    title={colleTour === 0 ? t('tontines.detail.reverserVide') : undefined}
                     onClick={() => void reverser(tour.id)}
                   >
                     {t('tontines.detail.reverser')}

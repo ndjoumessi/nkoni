@@ -68,6 +68,7 @@ export default {
       enregistrerMise: 'Record a contribution',
       miseSucces: 'Contribution recorded.',
       reverser: 'Pay out',
+      reverserVide: 'No contribution collected for this round yet.',
       reverserSucces: 'Pot paid out.',
       reverseLe: 'Paid out on {{date}}',
     },

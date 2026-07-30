@@ -335,8 +335,11 @@ export function MembreDetailPage() {
 
   if (!membre) return null
 
+  // Pas de `max-w-*` sur le conteneur : la largeur est décidée par `AppShell.classeLargeur(pathname)`,
+  // qui rend déjà `max-w-6xl` par défaut pour cette route. Un plafond local ferait une SECONDE source
+  // de vérité et annulerait en silence toute entrée future dans `classeLargeur`.
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="mx-auto">
       <PageHeader
         back={{ to: '/membres', label: t('membres.detail.retour') }}
         title={
@@ -464,7 +467,12 @@ export function MembreDetailPage() {
         }
       />
 
-      <Card className="nk-reveal nk-d1 mt-6 flex items-center gap-4 p-5">
+      {/* Layout 2 colonnes (finding UX) : rail gauche = photo + totaux + informations ;
+          colonne droite = contributions + équilibrages + documents. Remplit la largeur et
+          coupe le long scroll d'une colonne unique. `items-start` : colonnes indépendantes. */}
+      <div className="mt-6 grid items-start gap-4 lg:grid-cols-2">
+        <div className="space-y-4">
+          <Card className="nk-reveal nk-d1 flex items-center gap-4 p-5">
         <AvatarMembre
           membreId={membre.id}
           nom={membre.nom}
@@ -500,7 +508,7 @@ export function MembreDetailPage() {
       </Card>
 
       {statut && (
-        <section className="nk-reveal nk-d2 mt-7 grid gap-4 sm:grid-cols-2">
+        <section className="nk-reveal nk-d2 grid gap-4 sm:grid-cols-2">
           <Card className="p-5">
             <Overline>{t('membres.detail.totalAttendu')}</Overline>
             <p className="mt-2 text-xl font-semibold text-foreground">
@@ -516,7 +524,7 @@ export function MembreDetailPage() {
         </section>
       )}
 
-      <Card className="nk-reveal nk-d3 mt-4 p-6">
+          <Card className="nk-reveal nk-d3 p-6">
         <Overline>{t('membres.detail.informations')}</Overline>
         <dl className="mt-4 grid gap-5 sm:grid-cols-2">
           <Info
@@ -535,10 +543,12 @@ export function MembreDetailPage() {
             value={membre.anneeFinContribution ? String(membre.anneeFinContribution) : '—'}
           />
         </dl>
-      </Card>
+          </Card>
+        </div>
 
+        <div className="space-y-4">
       {financierAccessible && (
-        <Card className="nk-reveal nk-d4 mt-4 p-6">
+        <Card className="nk-reveal nk-d4 p-6">
           <div className="flex items-center justify-between gap-3">
             <Overline>{t('membres.detail.contributions')}</Overline>
             {peutSaisirVersement(user?.role) && (
@@ -616,7 +626,7 @@ export function MembreDetailPage() {
 
       {/* Équilibrages appliqués — lecture seule (ADMIN/PRESIDENT/TRESORIERE/COMMISSAIRE). */}
       {equilibrages && equilibrages.length > 0 && (
-        <Card className="nk-reveal nk-d5 mt-4 p-6">
+        <Card className="nk-reveal nk-d5 p-6">
           <Overline>{t('membres.detail.equilibragesAppliques')}</Overline>
           <div className="mt-4 overflow-hidden rounded-xl border border-hairline">
             <div className="grid grid-cols-[1fr_1.3fr_1fr] gap-3 border-b border-hairline bg-surface-2/40 px-4 py-2.5 text-2xs font-medium uppercase tracking-[0.12em] text-faint">
@@ -648,6 +658,8 @@ export function MembreDetailPage() {
         entiteId={membre.id}
         canManage={peutGererDocument(user?.role, 'MEMBRE')}
       />
+        </div>
+      </div>
 
       {/* Désignation du chef — surnom optionnel (réutilise Modal/Field/Input/Button). */}
       <Modal

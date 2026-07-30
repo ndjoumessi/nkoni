@@ -16,6 +16,7 @@ import {
   RefreshCw,
   Scale,
   ScrollText,
+  Search,
   Settings,
   ShieldAlert,
   ShieldUser,
@@ -473,15 +474,27 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             {user.nomOrganisation}
           </span>
         )}
-        <button
-          type="button"
-          ref={ouvrirDrawerRef}
-          onClick={() => setDrawer(true)}
-          className="flex h-11 w-11 items-center justify-center rounded-lg border border-hairline-strong bg-surface-2 text-foreground"
-          aria-label={t('shell.ouvrirMenu')}
-        >
-          <Menu className="h-5 w-5" aria-hidden="true" />
-        </button>
+        <div className="flex shrink-0 items-center gap-2">
+          {/* Recherche transverse (⌘K) — SEUL déclencheur tactile depuis le retrait du bouton
+              sidebar ; sans lui la palette serait inatteignable sur mobile (clavier absent). */}
+          <button
+            type="button"
+            onClick={() => window.dispatchEvent(new Event('nkoni:open-search'))}
+            className="flex h-11 w-11 items-center justify-center rounded-lg border border-hairline-strong bg-surface-2 text-foreground"
+            aria-label={t('shell.recherche.ariaDialog')}
+          >
+            <Search className="h-5 w-5" aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            ref={ouvrirDrawerRef}
+            onClick={() => setDrawer(true)}
+            className="flex h-11 w-11 items-center justify-center rounded-lg border border-hairline-strong bg-surface-2 text-foreground"
+            aria-label={t('shell.ouvrirMenu')}
+          >
+            <Menu className="h-5 w-5" aria-hidden="true" />
+          </button>
+        </div>
       </header>
 
       {/* Drawer mobile */}

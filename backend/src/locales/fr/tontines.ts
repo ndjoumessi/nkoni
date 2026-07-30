@@ -7,6 +7,7 @@ export const messages = {
   'tontines.participantDuplique': 'Un membre est présent plusieurs fois dans la liste.',
   'tontines.tourNonAttribue': "Le tour n'a pas de bénéficiaire.",
   'tontines.tourDejaReverse': 'Le tour est déjà reversé.',
+  'tontines.potVide': 'Aucune mise encaissée : rien à reverser.',
   'tontines.tourDejaAttribue': 'Le tour a déjà un bénéficiaire.',
   'tontines.aucunEligible': 'Aucun participant éligible au tirage.',
   'tontines.modeNonSupporte': "Opération non disponible pour ce mode de rotation.",

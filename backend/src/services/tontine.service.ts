@@ -82,6 +82,13 @@ export class TourDejaReverseError extends Error {
     this.name = 'TourDejaReverseError'
   }
 }
+/** Reverser un pot VIDE (aucune mise encaissée) n'a pas de sens sur un flux d'argent. → 409 */
+export class PotVideError extends Error {
+  constructor() {
+    super('Aucune mise encaissée : rien à reverser.')
+    this.name = 'PotVideError'
+  }
+}
 /** Le tour a déjà un bénéficiaire (tirage/attribution non rejouable). → 409 */
 export class TourDejaAttribueError extends Error {
   constructor() {
@@ -356,6 +363,10 @@ export async function reverserTour(
     _sum: { montant: true },
   })
   const montantPot = agg?._sum?.montant ?? 0
+  // GARDE SERVEUR (flux d'argent) : reverser un pot vide créerait un reversement à zéro. Le
+  // `disabled` du front n'est que du confort ; la vraie garde est ici. Placée APRÈS le calcul du
+  // pot, AVANT l'écriture → l'état du tour n'est jamais modifié sur un refus.
+  if (montantPot === 0) throw new PotVideError()
   await prisma.tourTontine.update({
     where: { id: tourId },
     data: { montantPot, statut: 'REVERSE', dateReversement: now },

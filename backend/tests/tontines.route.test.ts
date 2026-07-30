@@ -236,6 +236,33 @@ describe('Tontine — flux d’argent (requireRoles)', () => {
     expect(dataRecu?.dateReversement).toBeInstanceOf(Date)
     await app.close()
   })
+
+  it('reverser un pot VIDE (Σ mises = 0) → 409, sans écriture (garde flux d’argent)', async () => {
+    let updateAppele = false
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const prisma: any = {
+      tourTontine: {
+        findFirst: async () => ({
+          id: 'tour1',
+          cycleId: 'c1',
+          beneficiaireId: 'm2',
+          statut: 'A_VENIR',
+          cycle: { tontine: { modeRotation: 'ORDRE_FIXE', montantBaseMise: 5000 } },
+        }),
+        update: async () => {
+          updateAppele = true
+          return {}
+        },
+      },
+      miseTontine: { aggregate: async () => ({ _sum: { montant: 0 } }) },
+    }
+    const app = await appAvec(prisma)
+    const res = await app.inject({ method: 'POST', url: '/tours/tour1/reverser', headers: auth(app, 'TRESORIERE') })
+    expect(res.statusCode).toBe(409)
+    // Le refus doit précéder l'écriture : l'état du tour reste intact.
+    expect(updateAppele).toBe(false)
+    await app.close()
+  })
 })
 
 /**

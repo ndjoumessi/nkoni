@@ -54,12 +54,13 @@ import { useFocusTrap } from '@/hooks/useFocusTrap'
 /**
  * Largeur de la colonne de contenu SELON le type de page (finding UX) : une largeur unique ne peut
  * pas servir à la fois un formulaire (confortable étroit) et une table dense (étouffée). Formulaires
- * & réglages → étroit ; tables denses → large ; défaut → intermédiaire. Appliquée À LA FOIS au
- * contenu et à la barre supérieure pour que le menu compte reste aligné sur le bord du contenu.
+ * de saisie et `/parametres` → étroit ; tables denses → large ; défaut → intermédiaire. Appliquée
+ * À LA FOIS au contenu et à la barre supérieure pour que le menu compte reste aligné sur le bord du
+ * contenu. NB : `/mon-profil` est passé au DÉFAUT (large) en devenant une page à 2 colonnes — le
+ * critère est la DENSITÉ du contenu, pas la catégorie « réglages ».
  */
 function classeLargeur(pathname: string): string {
   const formulaire =
-    pathname === '/mon-profil' ||
     pathname === '/parametres' ||
     /\/(nouveau|nouvelle|editer|equilibrage)$/.test(pathname) ||
     pathname.endsWith('/versements/nouveau')

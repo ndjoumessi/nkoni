@@ -21,8 +21,9 @@ interface TabsProps {
   /** Étiquette du groupe pour les lecteurs d'écran (obligatoire sur un `role="tablist"`). */
   ariaLabel: string
   /**
-   * Namespace d'id reliant chaque onglet à son panneau. Fourni ⇒ pairing APG complet
-   * (`id` + `aria-controls` émis) ; le parent pose les id symétriques via `panelId`/`tabId`.
+   * Namespace d'id reliant chaque onglet à son panneau. Fourni ⇒ pairing APG : chaque onglet porte
+   * un `id` (référencé par le panneau via `aria-labelledby`) et l'onglet ACTIF porte `aria-controls`
+   * vers le panneau visible ; le parent pose les id symétriques via `panelId`/`tabId`.
    * Omis ⇒ pas de pairing (simple segmented control), aucun `aria-controls` pendouillant.
    */
   idBase?: string
@@ -79,7 +80,11 @@ export function Tabs({ value, onValueChange, options, ariaLabel, idBase, classNa
             type="button"
             id={idBase ? tabId(idBase, o.value) : undefined}
             aria-selected={actif}
-            aria-controls={idBase ? panelId(idBase, o.value) : undefined}
+            // `aria-controls` UNIQUEMENT sur l'onglet actif : le motif « panneau unique réutilisé »
+            // ne monte qu'UN panneau à la fois, donc un aria-controls sur un onglet inactif pointerait
+            // vers un id absent du DOM (finding d'audit a11y automatisé). Seul l'actif contrôle un
+            // panneau réel ; le panneau, lui, référence l'onglet actif via aria-labelledby.
+            aria-controls={idBase && actif ? panelId(idBase, o.value) : undefined}
             tabIndex={actif ? 0 : -1}
             onClick={() => onValueChange(o.value)}
             onKeyDown={(e) => onKeyDown(e, i)}

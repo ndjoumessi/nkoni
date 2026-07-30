@@ -408,6 +408,7 @@ export function AuditLogPage() {
               rows={data.donnees}
               rowKey={(e) => e.id}
               expandable={(e) => <DiffDetails entry={e} />}
+              zebra
             />
 
             {/* Pagination */}

@@ -249,8 +249,13 @@ export function BaremePage() {
         <Card className="nk-reveal nk-d2 p-5">
           <form ref={ajoutRef} onSubmit={handleAdd} noValidate>
             <Overline>{t('bareme.ajouterAnnee')}</Overline>
-            <div className="mt-3 flex flex-wrap items-start gap-3">
-              <Field label={t('bareme.anneeLabel')} required className="w-32" error={errAnnee}>
+            {/* Stack vertical : la carte étant à demi-largeur (2 colonnes), une rangée horizontale
+                tassait le champ Montant au point de faire passer son libellé sur 2 lignes — ce qui
+                désalignait l'input et le `*` requis (l'ancien calage par « label fantôme » supposait
+                des libellés d'UNE ligne). Empilés, chaque champ a toute la largeur → plus de retour à
+                la ligne ni de dépendance à la hauteur des libellés voisins. */}
+            <div className="mt-3 space-y-3">
+              <Field label={t('bareme.anneeLabel')} required className="sm:w-44" error={errAnnee}>
                 <SelecteurAnnee
                   value={Number(annee) || anneeCouranteApp()}
                   min={1900}
@@ -261,7 +266,7 @@ export function BaremePage() {
                   }}
                 />
               </Field>
-              <Field label={t('bareme.montantLabel')} required className="flex-1" error={errMontant}>
+              <Field label={t('bareme.montantLabel')} required error={errMontant}>
                 <Input
                   type="number"
                   min={0}
@@ -272,22 +277,17 @@ export function BaremePage() {
                   }}
                 />
               </Field>
-              {/* Label fantôme : cale le bouton exactement au niveau des champs (§8),
-                  indépendamment des messages d'erreur qui poussent la hauteur en dessous. */}
-              <div className="flex flex-col">
-                {/* Mêmes classes que le label de Field → hauteur identique, bouton aligné. */}
-                <span
-                  className="mb-1.5 flex items-center gap-1 text-2xs font-medium uppercase tracking-[0.1em]"
-                  aria-hidden="true"
-                >
-                  &nbsp;
-                </span>
-                <Button type="submit" icon={Plus} loading={adding} disabled={anneeAjoutDejaPrise}>
-                  {t('bareme.ajouter')}
-                </Button>
-              </div>
+              <Button
+                type="submit"
+                icon={Plus}
+                loading={adding}
+                disabled={anneeAjoutDejaPrise}
+                className="w-full sm:w-auto"
+              >
+                {t('bareme.ajouter')}
+              </Button>
             </div>
-            {/* Message PLEINE LARGEUR (et non dans le champ `w-32`, où il se tasserait sur 4 lignes). */}
+            {/* Message PLEINE LARGEUR, hors du champ Année (`sm:w-44`) où il se tasserait sur 4 lignes. */}
             {anneeAjoutDejaPrise && (
               <p className="mt-3 text-sm text-amber" role="status">
                 {t('bareme.erreurs.anneeDejaConfiguree')}

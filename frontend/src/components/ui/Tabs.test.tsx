@@ -60,11 +60,16 @@ describe('Tabs — segmented control', () => {
     expect(screen.getByRole('tablist', { name: 'Sections' })).toBeTruthy()
   })
 
-  it('avec idBase : chaque onglet porte id + aria-controls vers son panneau (paire APG)', () => {
+  it('avec idBase : l’onglet ACTIF porte id + aria-controls ; les inactifs ont un id mais PAS d’aria-controls', () => {
     render(<Tabs value="apercu" onValueChange={() => {}} options={OPTIONS} ariaLabel="Sections" idBase="demo" />)
-    const a = onglet(/Aperçu/)
-    expect(a.getAttribute('id')).toBe('demo-tab-apercu')
-    expect(a.getAttribute('aria-controls')).toBe('demo-panel-apercu')
+    const actif = onglet(/Aperçu/)
+    expect(actif.getAttribute('id')).toBe('demo-tab-apercu')
+    expect(actif.getAttribute('aria-controls')).toBe('demo-panel-apercu')
+    // Onglet inactif : id présent (référencé par aria-labelledby), mais pas d'aria-controls vers
+    // un panneau absent du DOM (motif « panneau unique réutilisé »).
+    const inactif = onglet(/Contributions/)
+    expect(inactif.getAttribute('id')).toBe('demo-tab-contributions')
+    expect(inactif.getAttribute('aria-controls')).toBeNull()
   })
 
   it('sans idBase : aucun aria-controls pendouillant', () => {

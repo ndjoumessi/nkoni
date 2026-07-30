@@ -9,7 +9,7 @@ copie hors-site R2 → contrôle de restauration fonctionnelle).
 > hors-site qu'on croit en place et qui ne l'est pas est le pire des cas). Poser **tous** les
 > secrets ci-dessous AVANT de lancer le workflow — sinon il échoue et ouvre une issue d'alerte.
 
-## Secrets requis (6)
+## Secrets requis (7)
 
 | Secret | Rôle | Utilisé par |
 |--------|------|-------------|
@@ -18,7 +18,8 @@ copie hors-site R2 → contrôle de restauration fonctionnelle).
 | `R2_ACCOUNT_ID` | Account ID Cloudflare (endpoint R2) | §2.3 copie hors-site |
 | `R2_ACCESS_KEY_ID` | Access Key du jeton R2 | §2.3 copie hors-site |
 | `R2_SECRET_ACCESS_KEY` | Secret Key du jeton R2 | §2.3 copie hors-site |
-| `R2_BUCKET` | Nom du bucket R2 (ex. `nkoni-backups`) | §2.3 copie hors-site |
+| `R2_BUCKET` | Nom du bucket R2 (ex. `nkoni-backups`) | §2.3 copie hors-site + miroir Blob |
+| `BLOB_READ_WRITE_TOKEN` | Token Vercel Blob (lecture des fichiers privés) | **miroir Blob** (`blob-mirror.yml`, dette GA D2) |
 
 ### 1. `DATABASE_URL`
 

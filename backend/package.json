@@ -10,6 +10,7 @@
     "seed": "tsx prisma/seed.ts",
     "seed:superadmin": "tsx prisma/seed-superadmin.ts",
     "backfill:mode-momo": "tsx prisma/backfill-mode-mobile-money.ts",
+    "mirror:blobs": "tsx prisma/mirror-blobs.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "postinstall": "prisma generate"

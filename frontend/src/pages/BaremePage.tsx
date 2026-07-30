@@ -5,7 +5,7 @@ import { CalendarPlus, CalendarRange, Check, Pencil, Plus, X } from 'lucide-reac
 import { useAuth } from '@/contexts/auth-context'
 import { baremeApi, contributionsApi, ApiError, messageErreur, type Bareme } from '@/lib/api'
 import { peutVoirBareme, peutGererBareme, peutOuvrirAnnee } from '@/lib/roles'
-import { focusPremierChampInvalide } from '@/lib/utils'
+import { focusPremierChampInvalide, cn } from '@/lib/utils'
 import { formatMontant } from '@/lib/format'
 import { anneeCouranteApp } from '@/lib/date-app'
 import { useToast } from '@/components/ui/Toast'
@@ -27,6 +27,7 @@ export function BaremePage() {
   const { user, accessToken } = useAuth()
   const toast = useToast()
   const gestion = peutGererBareme(user?.role)
+  const ouvrirAutorise = peutOuvrirAnnee(user?.role)
 
   const [baremes, setBaremes] = useState<Bareme[]>([])
   const [loading, setLoading] = useState(true)
@@ -232,7 +233,7 @@ export function BaremePage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl">
+    <div className="mx-auto max-w-4xl">
       <PageHeader
         overline={t('bareme.overline')}
         title={t('bareme.titre')}
@@ -241,8 +242,11 @@ export function BaremePage() {
         })}
       />
 
+      {/* Ajouter + Ouvrir côte à côte quand les DEUX sont permis (ADMIN) ; sinon la carte présente
+          prend toute la largeur (TRESORIERE n'a que « Ouvrir »). Réduit le scroll, remonte la table. */}
+      <div className={cn('mt-7', gestion && ouvrirAutorise && 'grid items-start gap-4 lg:grid-cols-2')}>
       {gestion && (
-        <Card className="nk-reveal nk-d2 mt-7 p-5">
+        <Card className="nk-reveal nk-d2 p-5">
           <form ref={ajoutRef} onSubmit={handleAdd} noValidate>
             <Overline>{t('bareme.ajouterAnnee')}</Overline>
             <div className="mt-3 flex flex-wrap items-start gap-3">
@@ -285,7 +289,7 @@ export function BaremePage() {
             </div>
             {/* Message PLEINE LARGEUR (et non dans le champ `w-32`, où il se tasserait sur 4 lignes). */}
             {anneeAjoutDejaPrise && (
-              <p className="mt-3 text-sm text-terra" role="status">
+              <p className="mt-3 text-sm text-amber" role="status">
                 {t('bareme.erreurs.anneeDejaConfiguree')}
               </p>
             )}
@@ -298,8 +302,8 @@ export function BaremePage() {
           directement la configuration du barème (barème de l'année → ouverture → versements).
           Elle reste OPTIONNELLE : encaisser une année non ouverte l'ouvre à la volée pour le membre
           concerné (cf. `ouvrirAnneeMembre`). Sert à préparer l'exercice en une fois. */}
-      {peutOuvrirAnnee(user?.role) && (
-        <Card className="nk-reveal nk-d2 mt-4 p-5">
+      {ouvrirAutorise && (
+        <Card className="nk-reveal nk-d2 p-5">
           <Overline>{t('bareme.ouvrir.titre')}</Overline>
           <p className="mt-1.5 text-xs text-faint">{t('bareme.ouvrir.hint')}</p>
           <div className="mt-3 flex flex-wrap items-center gap-3">
@@ -324,15 +328,18 @@ export function BaremePage() {
           </div>
           {/* Motifs de blocage dits AVANT l'appel (sinon 400 opaque). L'année future prime : c'est
               le cas le plus fréquent quand un barème a été configuré en avance. */}
+          {/* Contraintes = INFORMATION (l'année n'est pas due / pas de barème), pas une erreur de
+              l'utilisateur → amber (attention) et non terra (rouge = destructif/retard). */}
           {anneeOuvrirFuture ? (
-            <p className="mt-3 text-sm text-terra">{t('bareme.ouvrir.anneeFuture')}</p>
+            <p className="mt-3 text-sm text-amber">{t('bareme.ouvrir.anneeFuture')}</p>
           ) : (
             anneeOuvrirSansBareme && (
-              <p className="mt-3 text-sm text-terra">{t('bareme.ouvrir.sansBareme')}</p>
+              <p className="mt-3 text-sm text-amber">{t('bareme.ouvrir.sansBareme')}</p>
             )
           )}
         </Card>
       )}
+      </div>
 
       <div className="nk-reveal nk-d3 mt-6">
         {loading && (
@@ -361,7 +368,7 @@ export function BaremePage() {
           <Card className="overflow-hidden p-0">
             <div className="grid grid-cols-[1fr_2fr_auto] gap-4 border-b border-hairline px-5 py-3 text-2xs font-medium uppercase tracking-[0.12em] text-faint">
               <span>{t('bareme.colonneAnnee')}</span>
-              <span>{t('bareme.colonneMontant')}</span>
+              <span className="text-right">{t('bareme.colonneMontant')}</span>
               <span className="sr-only">{t('bareme.colonneActions')}</span>
             </div>
             <ul className="divide-y divide-hairline">
@@ -397,7 +404,7 @@ export function BaremePage() {
                       )}
                     </div>
                   ) : (
-                    <span className="num text-sm text-foreground/85">
+                    <span className="num text-right text-sm text-foreground/85">
                       {formatMontant(b.montantAttendu)}
                     </span>
                   )}

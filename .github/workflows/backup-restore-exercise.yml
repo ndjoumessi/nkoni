@@ -111,7 +111,9 @@ jobs:
           echo "✓ Dump is readable and restorable"
 
       - name: Upload encrypted backup as artifact
-        uses: actions/upload-artifact@v4
+        # @v5 (runtime Node 24, fin de la déprécation) — DOIT rester à la même version majeure que
+        # le download-artifact de restore-verify : un artefact v5 ne se lit qu'avec download-artifact v5.
+        uses: actions/upload-artifact@v5
         with:
           name: nkoni-backup-${{ env.STAMP }}
           path: ${{ env.BACKUP_GPG }}
@@ -216,7 +218,8 @@ jobs:
           /usr/lib/postgresql/18/bin/pg_restore --version
 
       - name: Télécharger l'artefact de sauvegarde
-        uses: actions/download-artifact@v4
+        # @v5 apparié à l'upload-artifact@v5 ci-dessus (les versions majeures doivent concorder).
+        uses: actions/download-artifact@v5
         with:
           name: nkoni-backup-${{ needs.backup-and-verify.outputs.stamp }}
           path: ./restore

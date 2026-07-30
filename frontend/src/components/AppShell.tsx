@@ -51,6 +51,25 @@ import { NkoniMark } from '@/components/ui/NkoniMark'
 import { usePopoverFlottant } from '@/components/ui/usePopoverFlottant'
 import { useFocusTrap } from '@/hooks/useFocusTrap'
 
+/**
+ * Largeur de la colonne de contenu SELON le type de page (finding UX) : une largeur unique ne peut
+ * pas servir à la fois un formulaire (confortable étroit) et une table dense (étouffée). Formulaires
+ * & réglages → étroit ; tables denses → large ; défaut → intermédiaire. Appliquée À LA FOIS au
+ * contenu et à la barre supérieure pour que le menu compte reste aligné sur le bord du contenu.
+ */
+function classeLargeur(pathname: string): string {
+  const formulaire =
+    pathname === '/mon-profil' ||
+    pathname === '/parametres' ||
+    /\/(nouveau|nouvelle|editer|equilibrage)$/.test(pathname) ||
+    pathname.endsWith('/versements/nouveau')
+  if (formulaire) return 'max-w-3xl'
+  // Tables très denses : pleine largeur utile.
+  if (pathname === '/audit' || pathname === '/membres' || pathname === '/utilisateurs') return 'max-w-7xl'
+  // Défaut : un cran plus large que l'ancien 5xl (moins de vide sur grand écran).
+  return 'max-w-6xl'
+}
+
 interface NavItem {
   to: string
   label: string
@@ -375,12 +394,12 @@ function SidebarContent({ onNavigate, compte }: { onNavigate?: () => void; compt
 }
 
 /** Barre supérieure desktop : organisation à gauche du cluster droit + menu compte à droite. */
-function TopBar() {
+function TopBar({ largeur }: { largeur: string }) {
   const { user } = useAuth()
   const { t } = useTranslation()
   return (
     <header className="sticky top-0 z-20 hidden border-b border-hairline bg-canvas/80 backdrop-blur-xl lg:block">
-      <div className="mx-auto flex h-16 max-w-5xl items-center justify-end gap-3 px-5 sm:px-8">
+      <div className={cn('mx-auto flex h-16 items-center justify-end gap-3 px-5 sm:px-8', largeur)}>
         <IndicateurSync />
         {user?.nomOrganisation && (
           <div
@@ -413,6 +432,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { t } = useTranslation()
   const { user } = useAuth()
   const location = useLocation()
+  const largeur = classeLargeur(location.pathname)
   const fermerDrawerRef = useRef<HTMLButtonElement>(null)
   const ouvrirDrawerRef = useRef<HTMLButtonElement>(null)
   const drawerEtaitOuvert = useRef(false)
@@ -530,13 +550,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       )}
 
-      {/* Colonne de contenu — barre supérieure desktop puis contenu centré (cible du skip-link). */}
+      {/* Colonne de contenu — barre supérieure desktop puis contenu centré (cible du skip-link).
+          Largeur adaptée au type de page (cf. classeLargeur), partagée avec la barre supérieure. */}
       <div className="lg:pl-64">
-        <TopBar />
+        <TopBar largeur={largeur} />
         <div
           id="contenu-principal"
           tabIndex={-1}
-          className="mx-auto max-w-5xl px-5 py-8 sm:px-8 sm:py-10"
+          className={cn('mx-auto px-5 py-8 sm:px-8 sm:py-10', largeur)}
         >
           {children}
         </div>

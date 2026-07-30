@@ -19,7 +19,6 @@ export default {
       AUTRE: 'Autre',
     },
     statuts: { IMPAYEE: 'Impayée', PAYEE: 'Payée', ANNULEE: 'Annulée' },
-    modes: { ESPECES: 'Espèces', TIERS: 'Tiers', MOBILE_MONEY: 'Mobile Money', AUTRE: 'Autre' },
     colonnes: {
       membre: 'Membre',
       type: 'Type',

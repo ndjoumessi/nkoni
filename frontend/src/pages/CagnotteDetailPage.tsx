@@ -315,7 +315,7 @@ export function CagnotteDetailPage() {
                     {d.note && <span className="block text-xs text-faint">{d.note}</span>}
                   </td>
                   <td className="px-5 py-2.5 text-muted-foreground">{formatDate(d.date)}</td>
-                  <td className="px-5 py-2.5 text-muted-foreground">{t(`cagnottes.modes.${d.mode}`)}</td>
+                  <td className="px-5 py-2.5 text-muted-foreground">{t(`commun.modesVersement.${d.mode}`)}</td>
                   <td className="num px-5 py-2.5 text-right font-medium text-foreground">{formatMontant(d.montant)}</td>
                   {argent && ouverte && (
                     <td className="px-5 py-2.5 text-right">
@@ -365,7 +365,7 @@ export function CagnotteDetailPage() {
             <Select value={donMode} onChange={(e) => setDonMode(e.target.value as ModeVersement)}>
               {MODES.map((m) => (
                 <option key={m} value={m}>
-                  {t(`cagnottes.modes.${m}`)}
+                  {t(`commun.modesVersement.${m}`)}
                 </option>
               ))}
             </Select>

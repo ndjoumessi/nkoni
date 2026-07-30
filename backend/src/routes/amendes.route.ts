@@ -4,6 +4,7 @@ import type { CreationScopee } from '../lib/tenant-extension'
 import { authenticate } from '../middlewares/authenticate'
 import { requirePermission, requireRoles, ROLES_ARGENT } from '../middlewares/permissions'
 import { t, langueDeRequete } from '../lib/i18n'
+import { MODES_VERSEMENT, type ModeVersement } from '../lib/modes-versement'
 import {
   estEditableAmende,
   validerTransitionAmende,
@@ -24,7 +25,6 @@ import {
 
 const TYPES = ['RETARD_COTISATION', 'ABSENCE_REUNION', 'AUTRE'] as const
 const STATUTS = ['IMPAYEE', 'PAYEE', 'ANNULEE'] as const
-const MODES = ['ESPECES', 'TIERS', 'MOBILE_MONEY', 'AUTRE'] as const
 
 interface CreateBody {
   membreId: string
@@ -36,7 +36,7 @@ interface CreateBody {
 type UpdateBody = Partial<Omit<CreateBody, 'membreId'>>
 interface PayerBody {
   datePaiement?: string
-  modePaiement?: (typeof MODES)[number]
+  modePaiement?: ModeVersement
 }
 
 const amendeBodyProps = {
@@ -63,7 +63,7 @@ const payerSchema = {
     additionalProperties: false,
     properties: {
       datePaiement: { type: 'string', minLength: 4, maxLength: 40 },
-      modePaiement: { type: 'string', enum: MODES },
+      modePaiement: { type: 'string', enum: MODES_VERSEMENT },
     },
   },
 } as const

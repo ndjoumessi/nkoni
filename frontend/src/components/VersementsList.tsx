@@ -357,7 +357,7 @@ export function VersementsList({
               <p className="num text-sm font-medium text-foreground">
                 {formatMontant(v.montant)}
                 <span className="ml-2 text-xs font-normal text-faint">
-                  {formatDate(v.dateVersement, DATE_COURTE)} · {t(`versements.modes.${v.mode}`)}
+                  {formatDate(v.dateVersement, DATE_COURTE)} · {t(`commun.modesVersement.${v.mode}`)}
                 </span>
               </p>
               {v.note && <p className="mt-0.5 truncate text-xs text-faint">{v.note}</p>}
@@ -518,7 +518,7 @@ export function VersementsList({
                       {/* Montant BARRÉ et sans `.num` : argent non collecté, jamais lu comme un encaissement. */}
                       <span className="line-through">{formatMontant(r.montant)}</span>
                       <span className="ml-2 text-xs">
-                        {formatDate(r.dateVersement, DATE_COURTE)} · {t(cleI18n(`versements.modes.${r.mode}`))}
+                        {formatDate(r.dateVersement, DATE_COURTE)} · {t(cleI18n(`commun.modesVersement.${r.mode}`))}
                       </span>
                     </p>
                     <p className="mt-0.5 text-xs text-faint">{t('versements.liste.versementSupprime')}</p>
@@ -557,7 +557,7 @@ export function VersementsList({
               <Select value={editMode} onChange={(e) => setEditMode(e.target.value as ModeVersement)}>
                 {MODES.map((m) => (
                   <option key={m} value={m}>
-                    {t(`versements.modes.${m}`)}
+                    {t(`commun.modesVersement.${m}`)}
                   </option>
                 ))}
               </Select>

@@ -439,7 +439,7 @@ export function AmendesPage() {
               <Select value={payMode} onChange={(e) => setPayMode(e.target.value as ModeVersement)}>
                 {MODES.map((m) => (
                   <option key={m} value={m}>
-                    {t(`amendes.modes.${m}`)}
+                    {t(`commun.modesVersement.${m}`)}
                   </option>
                 ))}
               </Select>

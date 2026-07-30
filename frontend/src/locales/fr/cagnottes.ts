@@ -25,7 +25,6 @@ export default {
     },
     types: { DEUIL: 'Deuil', MARIAGE: 'Mariage', NAISSANCE: 'Naissance', AUTRE: 'Autre' },
     statuts: { OUVERTE: 'En cours', CLOTUREE: 'Clôturée' },
-    modes: { ESPECES: 'Espèces', TIERS: 'Tiers', MOBILE_MONEY: 'Mobile Money', AUTRE: 'Autre' },
     detail: {
       retour: 'Cagnottes',
       erreurChargement: 'Chargement de la cagnotte impossible.',

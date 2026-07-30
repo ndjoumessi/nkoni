@@ -1,12 +1,6 @@
 /** Chaînes EN du domaine « versements » (§4 i18n). */
 export default {
   versements: {
-    modes: {
-      ESPECES: 'Cash',
-      TIERS: 'Third party',
-      MOBILE_MONEY: 'Mobile Money',
-      AUTRE: 'Other',
-    },
     resume: '{{montant}} · year {{annee}}',
     form: {
       header: {

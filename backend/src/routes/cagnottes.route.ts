@@ -4,6 +4,7 @@ import type { CreationScopee } from '../lib/tenant-extension'
 import { authenticate } from '../middlewares/authenticate'
 import { requirePermission, requireRoles, ROLES_ARGENT } from '../middlewares/permissions'
 import { t, langueDeRequete } from '../lib/i18n'
+import { MODES_VERSEMENT, type ModeVersement } from '../lib/modes-versement'
 import {
   collecteCagnotte,
   soldeCagnotte,
@@ -25,7 +26,6 @@ import {
  */
 
 const TYPES = ['DEUIL', 'MARIAGE', 'NAISSANCE', 'AUTRE'] as const
-const MODES = ['ESPECES', 'TIERS', 'MOBILE_MONEY', 'AUTRE'] as const
 
 
 interface CreateBody {
@@ -42,7 +42,7 @@ interface DonBody {
   membreId: string
   montant: number
   date?: string
-  mode?: (typeof MODES)[number]
+  mode?: ModeVersement
   note?: string
 }
 interface ClotureBody {
@@ -75,7 +75,7 @@ const donSchema = {
       membreId: { type: 'string', minLength: 1 },
       montant: { type: 'integer', minimum: 1 },
       date: { type: 'string', minLength: 4, maxLength: 40 },
-      mode: { type: 'string', enum: MODES },
+      mode: { type: 'string', enum: MODES_VERSEMENT },
       note: { type: 'string', maxLength: 500 },
     },
   },

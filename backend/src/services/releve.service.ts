@@ -1,4 +1,5 @@
 import PDFDocument from 'pdfkit'
+import type { ModeVersement } from '../lib/modes-versement'
 import {
   NK,
   enteteDocument,
@@ -28,7 +29,7 @@ export interface MouvementReleve {
   date: Date
   annee: number
   montant: number
-  mode: 'ESPECES' | 'TIERS' | 'MOBILE_MONEY' | 'AUTRE'
+  mode: ModeVersement
 }
 
 export type StatutReleve = 'A_JOUR' | 'PARTIEL' | 'NON_A_JOUR'

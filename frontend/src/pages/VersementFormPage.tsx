@@ -381,7 +381,7 @@ export function VersementFormPage() {
                     <Select value={mode} onChange={(e) => setMode(e.target.value as ModeVersement)}>
                       {MODES.map((m) => (
                         <option key={m} value={m}>
-                          {t(`versements.modes.${m}`)}
+                          {t(`commun.modesVersement.${m}`)}
                         </option>
                       ))}
                     </Select>

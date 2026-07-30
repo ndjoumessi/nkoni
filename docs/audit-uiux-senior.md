@@ -258,10 +258,20 @@ Extensible au-delà de « Mon espace » : les points 1, 2 et 4 sont transverses 
 - **Point 1 — cibles tactiles** : FAIT (PR #35). `sm` 32→36, `icon` 40→44, boutons-icône bruts
   SuperAdmin à 44 px réels (les trois, y c. le « copier l'ID » du détail), X de Barème aligné à 36.
 - **Point 2 — `DataTable` vide/loading** : FAIT (PR #36). Props `loading`/`skeletonRows`/`empty`,
-  réutilisant la primitive `Skeleton` **existante** (cf. correction §3.1). Adoption page par page
-  encore à faire (passer `loading`/`empty` dans MembresPage, Trésorerie…).
+  réutilisant la primitive `Skeleton` **existante** (cf. correction §3.1).
+- **Point 3 — « Mon espace »** : FAIT. Primitive `Tabs` (PR #38) + pairing APG `aria-controls`
+  (PR #39) ; onglets Aperçu/Contributions/Tontines/Reçus + CTA « Payer le reste » (PR #40) ; layout
+  colonne + rail droit desktop (PR #41). `Tabs`/`tabId`/`panelId` extraits (`tabs-ids.ts`) pour le
+  Fast Refresh. `aria-controls` émis SEULEMENT sur l'onglet actif (motif panneau unique réutilisé).
 - **Point 4 — contraste** : MESURÉ, **conforme AA** (cf. tableau ci-dessus) — ligne close, zéro diff.
+- **Point 5 — polish** : FAIT (PR #42). Dédup du badge « Partiel » (retiré de l'en-tête situation,
+  porté par carte + progression + CTA) ; rail conditionnel (pas de colonne vide desktop). `ghost` :
+  déjà conforme (usage en ligne de tableau, sanctionné par CLAUDE.md) → aucun changement.
 - **Correction §3.1** : la primitive `Skeleton` n'était PAS manquante (erreur de l'exploration
   initiale). Le §3.1 est rectifié en conséquence.
-- **Restent** : point 3 (« Mon espace » — `Tabs`/CTA/rail), point 5 (polish), et l'adoption des
-  props `DataTable` dans les pages.
+- **Adoption `DataTable` `loading`/`empty`** : FAIT pour TresoreriePage (PR #43), qui avait le motif
+  SIMPLE (vide en `<p>` nu). **NON étendue aux autres pages-listes** (Amendes, Cagnottes, Membres,
+  Utilisateurs, Tontines…) : elles ont déjà un `EmptyState` PLEINE PAGE (icône + CTA + variantes
+  avec/sans filtres) qui garde le `DataTable`, plus `RowsSkeleton` pour le chargement — motif page-level
+  RICHE. Les convertir vers le `empty` en cellule serait un DOWNGRADE. Décision : ne pas sweeper ;
+  les props `DataTable` sont réservées aux tableaux imbriqués à vide-simple.

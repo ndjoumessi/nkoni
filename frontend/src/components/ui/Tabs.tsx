@@ -1,5 +1,6 @@
 import { useRef } from 'react'
 import { cn } from '@/lib/utils'
+import { panelId, tabId } from './tabs-ids'
 
 /**
  * Segmented control accessible (motif APG « tabs ») — CONTRÔLÉ : le parent détient l'onglet actif
@@ -19,10 +20,16 @@ interface TabsProps {
   options: TabOption[]
   /** Étiquette du groupe pour les lecteurs d'écran (obligatoire sur un `role="tablist"`). */
   ariaLabel: string
+  /**
+   * Namespace d'id reliant chaque onglet à son panneau. Fourni ⇒ pairing APG complet
+   * (`id` + `aria-controls` émis) ; le parent pose les id symétriques via `panelId`/`tabId`.
+   * Omis ⇒ pas de pairing (simple segmented control), aucun `aria-controls` pendouillant.
+   */
+  idBase?: string
   className?: string
 }
 
-export function Tabs({ value, onValueChange, options, ariaLabel, className }: TabsProps) {
+export function Tabs({ value, onValueChange, options, ariaLabel, idBase, className }: TabsProps) {
   const refs = useRef<(HTMLButtonElement | null)[]>([])
 
   const aller = (i: number) => {
@@ -70,7 +77,9 @@ export function Tabs({ value, onValueChange, options, ariaLabel, className }: Ta
             }}
             role="tab"
             type="button"
+            id={idBase ? tabId(idBase, o.value) : undefined}
             aria-selected={actif}
+            aria-controls={idBase ? panelId(idBase, o.value) : undefined}
             tabIndex={actif ? 0 : -1}
             onClick={() => onValueChange(o.value)}
             onKeyDown={(e) => onKeyDown(e, i)}

@@ -50,15 +50,6 @@ const ACTIONS_PLATEFORME: ActionPlateforme[] = [
 export const platformRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
   const garde = { preHandler: [authenticate, requireSuperAdmin] }
 
-  // ⚠️ TEMPORAIRE — À RETIRER après vérification (GA 0.1). Route de diagnostic Sentry : lève une
-  // erreur non rattrapée → `app.setErrorHandler` la classe en 5xx et appelle `observabilite.signaler`
-  // → une issue doit apparaître dans le projet Sentry `nkoni-backend`. Gardée `requireSuperAdmin`
-  // (aucune exposition publique). Prouve l'ingestion RÉELLE du DSN backend, que le test unitaire
-  // (espion mocké) ne peut pas prouver. Une PR de retrait suit dès la vérification faite.
-  app.get('/platform/debug-sentry', garde, async () => {
-    throw new Error('Test Sentry backend (debug GA 0.1) — à ignorer, route temporaire')
-  })
-
   /**
    * Journalisation BEST-EFFORT d'une action plateforme (CHANGER_FORFAIT/SUSPENDRE/REACTIVER/
    * EXPORTER) : une trace manquante est regrettable mais l'action reste faite et re-jouable, donc

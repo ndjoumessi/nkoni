@@ -947,7 +947,34 @@ export function MonEspacePage() {
         <p className="mt-4 text-sm text-faint">{t('monEspace.contributions.aucune')}</p>
       ) : (
         <div className="mt-4">
-          <DataTable columns={colContributions} rows={contributions} rowKey={(c) => c.id} />
+          <DataTable
+            columns={colContributions}
+            rows={contributions}
+            rowKey={(c) => c.id}
+            // Dépliage : les versements qui composent l'année (données déjà renvoyées par
+            // /moi/contributions). `null` si aucun → pas de chevron sur une année à 0 versement.
+            expandable={(c) =>
+              c.versements.length === 0 ? null : (
+                <div>
+                  <p className="mb-2 text-2xs font-medium uppercase tracking-[0.1em] text-faint">
+                    {t('monEspace.contributions.detailVersements')}
+                  </p>
+                  <ul className="space-y-1.5">
+                    {c.versements.map((v) => (
+                      <li key={v.id} className="flex items-center gap-3 text-sm">
+                        <span className="text-muted-foreground">{formatDate(v.dateVersement)}</span>
+                        {/* `versements.modes.*` — même table de libellés que `cagnottes.modes`/
+                            `amendes.modes` (triplication connue), mais c'est ICI le namespace
+                            sémantiquement juste : on qualifie le mode d'un VERSEMENT. */}
+                        <span className="text-xs text-faint">{t(cleI18n(`versements.modes.${v.mode}`))}</span>
+                        <span className="num ml-auto text-foreground">{formatMontant(v.montant)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )
+            }
+          />
         </div>
       )}
     </Card>

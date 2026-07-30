@@ -70,6 +70,7 @@ export default {
       valorise: 'Valorisé',
       statut: 'Statut',
       aucune: 'Aucune contribution enregistrée.',
+      detailVersements: 'Versements',
     },
     reunions: {
       titre: 'Réunions à venir',

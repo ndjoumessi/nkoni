@@ -3,6 +3,13 @@ export default {
   monEspace: {
     titre: 'My space',
     sousTitre: 'Your situation, your contributions and your receipts.',
+    tabs: {
+      aria: 'My space sections',
+      apercu: 'Overview',
+      contributions: 'Contributions',
+      tontines: 'Tontines',
+      recus: 'Receipts',
+    },
     aucuneFiche: {
       titre: 'No member profile',
       texte: 'No member profile is linked to your account.',
@@ -36,6 +43,7 @@ export default {
     },
     paiement: {
       payer: 'Pay',
+      payerReste: 'Pay the balance ({{montant}})',
       succes: 'Payment confirmed. Thank you!',
       echec: 'Could not start the payment',
       echecPaiement: 'The payment did not go through',

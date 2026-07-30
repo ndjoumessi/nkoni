@@ -3,6 +3,13 @@ export default {
   monEspace: {
     titre: 'Mon espace',
     sousTitre: 'Votre situation, vos contributions et vos reçus.',
+    tabs: {
+      aria: 'Sections de mon espace',
+      apercu: 'Aperçu',
+      contributions: 'Contributions',
+      tontines: 'Tontines',
+      recus: 'Reçus',
+    },
     aucuneFiche: {
       titre: 'Aucune fiche membre',
       texte: "Aucune fiche membre n'est associée à votre compte.",
@@ -36,6 +43,7 @@ export default {
     },
     paiement: {
       payer: 'Payer',
+      payerReste: 'Payer le reste ({{montant}})',
       succes: 'Paiement confirmé. Merci !',
       echec: 'Impossible de lancer le paiement',
       echecPaiement: 'Le paiement n’a pas abouti',

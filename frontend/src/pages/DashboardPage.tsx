@@ -6,11 +6,13 @@ import {
   GitBranch,
   ShieldCheck,
   Sparkles,
+  UserPlus,
   Users,
   Wallet,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { peutGererBareme } from '@/lib/roles'
+import { peutGererBareme, peutGererMembres, peutSaisirVersement } from '@/lib/roles'
+import { cn } from '@/lib/utils'
 import { useAuth } from '@/contexts/auth-context'
 import { useDashboard } from '@/hooks/useDashboard'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -147,6 +149,50 @@ function EvolutionMensuelleCard({ annee, data }: { annee: number; data: Evolutio
   )
 }
 
+/**
+ * Actions rapides du bureau : les gestes quotidiens, un tap depuis le tableau de bord (gain de flux).
+ * Chaque action est gardée par sa permission ; la barre entière disparaît si aucune n'est permise.
+ * « Versement » mène à la liste des membres (l'encaissement part TOUJOURS d'une fiche membre —
+ * pas de route de versement sans membre).
+ */
+function ActionsRapides() {
+  const { t } = useTranslation()
+  const { user } = useAuth()
+  const role = user?.role
+  const actions: { to: string; label: string; icon: typeof Coins }[] = []
+  if (peutSaisirVersement(role)) actions.push({ to: '/membres', label: t('dashboard.actions.versement'), icon: Coins })
+  if (peutGererMembres(role)) actions.push({ to: '/membres/nouveau', label: t('dashboard.actions.membre'), icon: UserPlus })
+  if (peutGererBareme(role)) actions.push({ to: '/bareme', label: t('dashboard.actions.ouvrirAnnee'), icon: CalendarRange })
+  if (actions.length === 0) return null
+  return (
+    <div className="flex flex-wrap gap-2">
+      {actions.map((a) => (
+        <ButtonLink key={a.to} to={a.to} variant="outline" size="sm" icon={a.icon}>
+          {a.label}
+        </ButtonLink>
+      ))}
+    </div>
+  )
+}
+
+/**
+ * Variation % du collecté CUMULÉ « à date » (borné au mois courant applicatif) vs la même période
+ * l'an dernier — comparaison honnête (même fenêtre). `null` si N-1 est nul : pas de base comparable
+ * (on n'affiche alors aucune puce plutôt qu'un « +∞ % » trompeur).
+ */
+function deltaCollecteN1(evolution: EvolutionMois[]): number | null {
+  const moisCourant = moisCourantApp()
+  let collecte = 0
+  let collecteN1 = 0
+  for (const e of evolution) {
+    if (e.mois > moisCourant) continue
+    collecte += e.collecte
+    collecteN1 += e.collecteN1 ?? 0
+  }
+  if (collecteN1 <= 0) return null
+  return ((collecte - collecteN1) / collecteN1) * 100
+}
+
 /* -------------------------------------------------------------------------- */
 /* Vues                                                                       */
 /* -------------------------------------------------------------------------- */
@@ -165,8 +211,10 @@ function VueComplet({ d, canManage }: { d: DashboardComplet; canManage: boolean 
   // bascule d'année → alerte ciblée, pas le guide complet. Le guide ne sert que la mise en route.
   const operationnel = etapes.membres && etapes.versement
   const montrerGuide = canManage && !setupComplet && !operationnel
+  const aJour = d.membresParStatutContribution.A_JOUR
   return (
     <div className="space-y-4">
+      <ActionsRapides />
       {montrerGuide && <GuideDemarrage etapes={etapes} />}
       {!montrerGuide && d.alertes.baremeAnneeCouranteManquant && <AlerteBareme annee={d.anneeCourante} />}
       {vide ? (
@@ -177,24 +225,33 @@ function VueComplet({ d, canManage }: { d: DashboardComplet; canManage: boolean 
             taux={d.finances.tauxRecouvrement}
             collecte={d.finances.totalCollecteCumule}
             attendu={d.finances.totalAttenduCumule}
+            deltaN1={deltaCollecteN1(d.evolutionMensuelle)}
+            anneeN1={d.anneeCourante - 1}
           />
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className={cn('grid gap-4', d.nombreBranches > 0 ? 'sm:grid-cols-3' : 'sm:grid-cols-2')}>
+            {/* Cliquable → liste filtrée. Tonalité SELON le signal : 0 membre à jour n'est pas
+                « bon » (vert) mais un point d'action (terra). */}
             <StatCard
               label={t('dashboard.stat.membresAJour')}
-              value={formatNombre(d.membresParStatutContribution.A_JOUR)}
+              value={formatNombre(aJour)}
               icon={ShieldCheck}
-              tone="jade"
+              tone={aJour > 0 ? 'jade' : 'terra'}
+              to="/membres?cotisation=A_JOUR"
             />
             <StatCard
               label={t('dashboard.stat.membresActifs')}
               value={formatNombre(d.membresParStatutMembre.ACTIF)}
               icon={Users}
+              to="/membres?statut=ACTIF"
             />
-            <StatCard
-              label={t('dashboard.stat.branches')}
-              value={formatNombre(d.nombreBranches)}
-              icon={GitBranch}
-            />
+            {/* Branches : masquée à 0 (métrique non actionnable — pas de page branches dédiée). */}
+            {d.nombreBranches > 0 && (
+              <StatCard
+                label={t('dashboard.stat.branches')}
+                value={formatNombre(d.nombreBranches)}
+                icon={GitBranch}
+              />
+            )}
           </div>
           {d.financesConsolidees && <FinancesConsolideesCard data={d.financesConsolidees} />}
           <EvolutionMensuelleCard annee={d.anneeCourante} data={d.evolutionMensuelle} />
@@ -216,6 +273,7 @@ function VueFinancier({ d, canManage }: { d: DashboardFinancier; canManage: bool
   // Aucune chaîne en dur ici : les libellés viennent des composants enfants.
   return (
     <div className="space-y-4">
+      <ActionsRapides />
       {d.alertes.baremeAnneeCouranteManquant && <AlerteBareme annee={d.anneeCourante} />}
       {vide ? (
         <OnboardingVide canManage={canManage} />

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { CreditCard, Check, ShieldCheck } from 'lucide-react'
+import { CreditCard, Check, ShieldCheck, Pencil } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
 import {
   organisationApi,
@@ -54,6 +54,9 @@ export function ConfigPaiement() {
   const [enregistrement, setEnregistrement] = useState(false)
   const [enregistre, setEnregistre] = useState(false) // confirmation PERSISTANTE (effacée dès qu'on remodifie)
   const [erreur, setErreur] = useState<string | null>(null)
+  // Le formulaire d'édition est REPLIÉ tant qu'une config existe déjà (le récap suffit à la lecture) ;
+  // il s'ouvre au clic « Modifier ». En 1ʳᵉ configuration (aucune config), il reste ouvert d'emblée.
+  const [editionOuverte, setEditionOuverte] = useState(false)
 
   useEffect(() => {
     if (!accessToken) return
@@ -100,6 +103,11 @@ export function ConfigPaiement() {
       setApiKey('')
       setCampayPassword('')
       setEnregistre(true)
+      // GARDER le bloc d'édition ouvert après enregistrement. En 1ʳᵉ configuration il n'était ouvert
+      // que par `!config.configure` ; `setConfig(c)` vient de passer ce drapeau à vrai, donc sans
+      // ceci le bloc se replierait en emportant la confirmation PERSISTANTE (`role="status"`) qui
+      // vit dedans — il ne resterait que le toast fugace.
+      setEditionOuverte(true)
       toast.success(t('parametres.paiement.succes'))
     } catch (e) {
       const msg = messageErreur(e)
@@ -176,11 +184,16 @@ export function ConfigPaiement() {
         </dl>
       )}
 
-      <div className="mt-4 space-y-4">
-        {config?.configure && (
-          <p className="text-xs font-medium uppercase tracking-wide text-faint">{t('parametres.paiement.modifier')}</p>
-        )}
+      {config?.configure && !editionOuverte && (
+        <div className="mt-4 flex justify-end">
+          <Button type="button" variant="outline" size="sm" icon={Pencil} onClick={() => setEditionOuverte(true)}>
+            {t('parametres.paiement.modifier')}
+          </Button>
+        </div>
+      )}
 
+      {(!config?.configure || editionOuverte) && (
+      <div className="mt-4 space-y-4">
         <Field label={t('parametres.paiement.provider')}>
           <Select
             value={provider}
@@ -315,6 +328,7 @@ export function ConfigPaiement() {
           </Button>
         </div>
       </div>
+      )}
     </Card>
   )
 }

@@ -18,6 +18,7 @@ import {
   ParticipantDupliqueError,
   TourNonAttribueError,
   TourDejaReverseError,
+  PotVideError,
   TourDejaAttribueError,
   ModeNonSupporteError,
   AucunEligibleError,
@@ -98,6 +99,7 @@ function reply4xxSiMetier(err: unknown, reply: FastifyReply): boolean {
   if (err instanceof ParticipantDupliqueError) return envoyer(400, 'tontines.participantDuplique')
   if (err instanceof TourNonAttribueError) return envoyer(409, 'tontines.tourNonAttribue')
   if (err instanceof TourDejaReverseError) return envoyer(409, 'tontines.tourDejaReverse')
+  if (err instanceof PotVideError) return envoyer(409, 'tontines.potVide')
   if (err instanceof TourDejaAttribueError) return envoyer(409, 'tontines.tourDejaAttribue')
   if (err instanceof AucunEligibleError) return envoyer(409, 'tontines.aucunEligible')
   if (err instanceof ModeNonSupporteError) return envoyer(409, 'tontines.modeNonSupporte')

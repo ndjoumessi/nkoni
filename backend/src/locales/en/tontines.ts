@@ -7,6 +7,7 @@ export const messages = {
   'tontines.participantDuplique': 'A member appears more than once in the list.',
   'tontines.tourNonAttribue': 'The round has no beneficiary.',
   'tontines.tourDejaReverse': 'The round has already been paid out.',
+  'tontines.potVide': 'No contribution collected: nothing to pay out.',
   'tontines.tourDejaAttribue': 'The round already has a beneficiary.',
   'tontines.aucunEligible': 'No participant eligible for the draw.',
   'tontines.modeNonSupporte': 'Operation not available for this rotation mode.',

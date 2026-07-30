@@ -59,4 +59,16 @@ describe('Tabs — segmented control', () => {
     render(<Harness />)
     expect(screen.getByRole('tablist', { name: 'Sections' })).toBeTruthy()
   })
+
+  it('avec idBase : chaque onglet porte id + aria-controls vers son panneau (paire APG)', () => {
+    render(<Tabs value="apercu" onValueChange={() => {}} options={OPTIONS} ariaLabel="Sections" idBase="demo" />)
+    const a = onglet(/Aperçu/)
+    expect(a.getAttribute('id')).toBe('demo-tab-apercu')
+    expect(a.getAttribute('aria-controls')).toBe('demo-panel-apercu')
+  })
+
+  it('sans idBase : aucun aria-controls pendouillant', () => {
+    render(<Harness />)
+    expect(onglet(/Aperçu/).getAttribute('aria-controls')).toBeNull()
+  })
 })

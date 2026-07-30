@@ -26,6 +26,7 @@ export function StatCard({
   icon: Icon,
   tone = 'neutral',
   to,
+  onClick,
   className,
 }: {
   label: string
@@ -34,8 +35,10 @@ export function StatCard({
   hint?: string
   icon?: LucideIcon
   tone?: keyof typeof ICON_TONE
-  /** Destination de drill-down (ex. `/membres?cotisation=NON_A_JOUR`). Rend la carte cliquable. */
+  /** Destination de drill-down NAVIGUÉE (ex. `/membres?cotisation=NON_A_JOUR`). Rend la carte cliquable. */
   to?: string
+  /** Action SUR PLACE (ex. poser un filtre de la page courante) — quand la navigation ne convient pas. */
+  onClick?: () => void
   className?: string
 }) {
   const carte = (
@@ -52,13 +55,21 @@ export function StatCard({
       {hint && <p className="mt-1 text-xs text-faint">{hint}</p>}
     </Card>
   )
-  return to ? (
-    <Link to={to} className="block rounded-2xl">
-      {carte}
-    </Link>
-  ) : (
-    carte
-  )
+  if (to) {
+    return (
+      <Link to={to} className="block rounded-2xl">
+        {carte}
+      </Link>
+    )
+  }
+  if (onClick) {
+    return (
+      <button type="button" onClick={onClick} className="block w-full rounded-2xl text-left">
+        {carte}
+      </button>
+    )
+  }
+  return carte
 }
 
 export default StatCard

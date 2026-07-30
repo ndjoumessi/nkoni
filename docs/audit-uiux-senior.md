@@ -38,7 +38,7 @@ mobile-first, **(2) états manquants mutualisés** (vide/skeleton dans `DataTabl
 | 🟡 | `MonEspacePage.tsx` (sections) | Hiérarchie plate : tous les titres en même overline `text-2xs uppercase` ; 7+ sections en scroll unique ; large vide horizontal desktop | Loi de Fitts / hiérarchie visuelle | Segmentation par onglets + layout colonne + rail droit + 3 niveaux typo |
 | 🟡 | `MonEspacePage.tsx` | Pas de segmentation — Aperçu/Contributions/Tontines/Reçus empilés | Nielsen « reconnaissance » | Segmented control (`Tabs`) collant sous l'en-tête |
 | 🟡 | `MonEspacePage.tsx` (réunions/notifs vides) | États vides en carte pleine (« Aucune réunion à venir ») = bruit qui dilue l'information | Densité / signal-bruit | Ligne compacte muette ou repli dans le rail |
-| 🟡 | `index.css:97` `--faint: oklch(0.67 …)` ; `:123` `--muted-foreground` | Contraste du texte secondaire/hint sur `--surface`/`--canvas` à **mesurer** (commentaire « relevé pour tenir AA » mais valeur 0.67, non prouvée) | WCAG 1.4.3 (4.5:1 texte normal) | Mesurer en sRGB ; si < 4.5:1 sur du texte < 18 px, relever L jusqu'au seuil |
+| ✅ | `index.css:97/123` `--faint`/`--muted-foreground` | **Mesuré (résolu)** : sur les 4 surfaces (`canvas`/`surface`/`surface-2`/`surface-3`), `--faint` va de 6.56:1 à **4.65:1** et `--muted-foreground` de 7.91:1 à **5.61:1** — au-dessus du seuil AA 4.5:1 partout. Pire cas = `surface-3` (fond de SURVOL des cartes et boutons `outline`) | WCAG 1.4.3 | Aucun changement requis ; le commentaire « relevé pour tenir AA » est validé. **Marge mince sur `--faint`/`surface-3` (4.65)** : assombrir `--faint` ou éclaircir `--surface-3` casserait AA |
 | 🟢 | `MonEspacePage.tsx` (situation + carte) | Badge « Partiel » affiché deux fois (en-tête + carte de membre) | Cohérence / redondance | Garder un seul point de vérité du statut |
 | 🟢 | `MonEspacePage.tsx` (carte de membre) | Carte de membre volumineuse (carte dans carte) au milieu du flux de données | Rythme visuel | Déplacer dans le rail droit, format compact |
 | 🟢 | `button-variants.ts` (`ghost`) | `ghost` sans bordure au repos se lit comme une légende quand isolé (déjà noté dans CLAUDE.md) | Affordance | Réserver `ghost` aux zones portant déjà l'affordance ; sinon `outline` |
@@ -98,25 +98,12 @@ trap complet), `Toast` (`role`, auto-dismiss, close).
 
 Trois écarts à combler, avec code prêt :
 
-### 3.1 — Primitive `Skeleton` partagée (manquante)
+### 3.1 — Primitive `Skeleton` partagée (CORRECTION : elle existe déjà)
 
-Aujourd'hui ~30 fichiers font leur squelette en `animate-pulse`/`nk-shimmer` ad hoc → incohérence.
-Une primitive unique :
-
-```tsx
-// src/components/ui/Skeleton.tsx
-import { cn } from '@/lib/utils'
-
-/** Placeholder de chargement. `nk-shimmer` respecte déjà prefers-reduced-motion (index.css). */
-export function Skeleton({ className }: { className?: string }) {
-  return (
-    <div
-      aria-hidden="true"
-      className={cn('nk-shimmer rounded-xl bg-surface-2/60', className)}
-    />
-  )
-}
-```
+Rectification post-audit : `components/ui/Skeleton.tsx` **existe déjà** (`Skeleton`,
+`StatCardSkeleton`, `RowsSkeleton`) — l'exploration initiale l'avait manqué. Il n'y a donc RIEN à
+créer ; l'intégration `DataTable` ci-dessous réutilise la primitive existante. Le reste de ce §3.1
+est conservé pour trace mais ne s'applique pas.
 
 ### 3.2 — `DataTable` : états vide + chargement intégrés
 
@@ -218,7 +205,7 @@ accessible, palette dérivée des tokens. À maintenir sur tout nouveau graphe.
 - [x] Erreurs annoncées `role="alert"` (`Field.tsx`)
 - [x] Champs liés à un `<label>` + aria auto (`Field.tsx:86`)
 - [x] Pas d'info par la couleur seule (graphes forme+couleur)
-- [~] Contraste texte ≥ 4.5:1 — **à mesurer** sur `--faint`/`--muted-foreground`
+- [x] Contraste texte ≥ 4.5:1 — **mesuré** (sRGB, 4 surfaces) : `--faint` ≥ 4.65:1, `--muted-foreground` ≥ 5.61:1. Pire cas sur `--surface-3` ; sur `--surface-2` on est à 5.48 / 6.62
 - [x] Navigation clavier (Modal focus trap, DataTable, CommandPalette)
 
 **Tactile & mobile**
@@ -263,3 +250,18 @@ accessible, palette dérivée des tokens. À maintenir sur tout nouveau graphe.
 5. **Polish (🟢)** — dédup badge « Partiel », carte membre au rail, usage `ghost`.
 
 Extensible au-delà de « Mon espace » : les points 1, 2 et 4 sont transverses à tout le front.
+
+---
+
+## Suivi (post-audit)
+
+- **Point 1 — cibles tactiles** : FAIT (PR #35). `sm` 32→36, `icon` 40→44, boutons-icône bruts
+  SuperAdmin à 44 px réels (les trois, y c. le « copier l'ID » du détail), X de Barème aligné à 36.
+- **Point 2 — `DataTable` vide/loading** : FAIT (PR #36). Props `loading`/`skeletonRows`/`empty`,
+  réutilisant la primitive `Skeleton` **existante** (cf. correction §3.1). Adoption page par page
+  encore à faire (passer `loading`/`empty` dans MembresPage, Trésorerie…).
+- **Point 4 — contraste** : MESURÉ, **conforme AA** (cf. tableau ci-dessus) — ligne close, zéro diff.
+- **Correction §3.1** : la primitive `Skeleton` n'était PAS manquante (erreur de l'exploration
+  initiale). Le §3.1 est rectifié en conséquence.
+- **Restent** : point 3 (« Mon espace » — `Tabs`/CTA/rail), point 5 (polish), et l'adoption des
+  props `DataTable` dans les pages.

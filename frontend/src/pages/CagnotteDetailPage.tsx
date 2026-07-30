@@ -8,6 +8,7 @@ import {
   membresApi,
   ApiError,
   messageErreur,
+  MODES_VERSEMENT,
   type CagnotteDetail,
   type DonCagnotte,
   type MembreStatut,
@@ -25,8 +26,6 @@ import { DatePicker } from '@/components/ui/DatePicker'
 import { SelecteurMembreUnique } from '@/components/membres/SelecteurMembreUnique'
 import { Modal } from '@/components/ui/Modal'
 import { useToast } from '@/components/ui/Toast'
-
-const MODES: ModeVersement[] = ['ESPECES', 'TIERS', 'MOBILE_MONEY', 'AUTRE']
 
 function aujourdHui(): string {
   return new Date().toISOString().slice(0, 10)
@@ -363,7 +362,7 @@ export function CagnotteDetailPage() {
           </div>
           <Field label={t('cagnottes.don.mode')}>
             <Select value={donMode} onChange={(e) => setDonMode(e.target.value as ModeVersement)}>
-              {MODES.map((m) => (
+              {MODES_VERSEMENT.map((m) => (
                 <option key={m} value={m}>
                   {t(`commun.modesVersement.${m}`)}
                 </option>

@@ -79,7 +79,9 @@ export function CarteMembre({
           <div className="mt-4 flex items-center gap-4 border-t border-hairline pt-4">
             {/* Pastille blanche : scannabilité garantie même sur fond teinté. */}
             <div className="shrink-0 rounded-lg bg-white p-1.5">
-              <img src={apercu.qrDataUrl} alt="" className="h-[4.5rem] w-[4.5rem]" />
+              {/* 80 px : le QR est le seul élément FONCTIONNEL de la carte (scannabilité) — ne pas
+                  le rogner pour l'esthétique, surtout sur écran bas de gamme. */}
+              <img src={apercu.qrDataUrl} alt="" className="h-20 w-20" />
             </div>
             <p className="text-xs leading-snug text-faint">{t('monEspace.carte.scanner')}</p>
           </div>

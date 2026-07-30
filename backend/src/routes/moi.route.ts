@@ -177,6 +177,54 @@ export const moiRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
     }))
   })
 
+  // GET /moi/recus/:id — DÉTAIL d'un de SES reçus (données, pas le PDF) → rendu HTML natif dans
+  // l'app (bien meilleur que le PDF en iframe sur mobile). Isolation : `where { id, membreId }`
+  // (+ org injecté par l'extension) → un reçu d'un autre membre/org renvoie null → 404 uniforme.
+  // Lit le SNAPSHOT figé (montant/annee/mode/dateVersement) + nom du membre + nom de l'org.
+  app.get<{ Params: { id: string } }>(
+    '/moi/recus/:id',
+    { preHandler: [authenticate] },
+    async (req, reply) => {
+      const membre = await membreConnecte(app.prisma, req.user.sub)
+      if (!membre) {
+        return reply
+          .code(404)
+          .send({ error: 'Not Found', message: t(langueDeRequete(req), 'monEspace.aucuneFiche') })
+      }
+      const recu = await app.prisma.recu.findFirst({
+        where: { id: req.params.id, membreId: membre.id },
+        select: {
+          numero: true,
+          montant: true,
+          annee: true,
+          mode: true,
+          dateVersement: true,
+          dateGeneration: true,
+          annuleLe: true,
+          membre: { select: { nom: true, prenom: true } },
+          organisation: { select: { nom: true } },
+        },
+      })
+      if (!recu) {
+        return reply
+          .code(404)
+          .send({ error: 'Not Found', message: t(langueDeRequete(req), 'monEspace.aucuneFiche') })
+      }
+      return {
+        numero: recu.numero,
+        montant: recu.montant,
+        annee: recu.annee,
+        mode: recu.mode,
+        dateVersement: recu.dateVersement,
+        dateGeneration: recu.dateGeneration,
+        annuleLe: recu.annuleLe,
+        membreNom: recu.membre.nom,
+        membrePrenom: recu.membre.prenom,
+        orgNom: recu.organisation.nom,
+      }
+    },
+  )
+
   // GET /moi/amendes — SES amendes (§4.10), lecture seule. Montant, motif, statut (impayée/payée/
   // annulée). Le membre voit ce qu'il doit ; la SAISIE et l'encaissement restent au bureau.
   app.get('/moi/amendes', { preHandler: [authenticate] }, async (req) => {

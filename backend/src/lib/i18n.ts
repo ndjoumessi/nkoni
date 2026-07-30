@@ -100,6 +100,18 @@ export function t(
   return interpole(catalogue[cle] ?? fr[cle], params)
 }
 
+/**
+ * Libellé d'un mode de versement dans la langue donnée — SOURCE UNIQUE des chaînes serveur
+ * (catalogue `commun.modeVersement.*`), lue par les documents PDF (reçu §4.6, relevé §4.8) qui
+ * fabriquaient chacun leur propre table. Repli sur la valeur BRUTE pour un mode inconnu (donnée
+ * héritée) plutôt qu'un `undefined` silencieux dans la case « Mode » d'un document remis au membre.
+ */
+export function libelleModeVersement(mode: string, langue: Langue): string {
+  const cle = `commun.modeVersement.${mode}` as CleMessage
+  const catalogue = CATALOGUES[langue] ?? fr
+  return catalogue[cle] ?? fr[cle] ?? mode
+}
+
 /** Vrai si la valeur est une langue supportée. */
 export function estLangue(valeur: unknown): valeur is Langue {
   return valeur === 'FR' || valeur === 'EN'

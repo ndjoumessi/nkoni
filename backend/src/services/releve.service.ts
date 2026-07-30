@@ -7,7 +7,7 @@ import {
   montantExport,
   type ColonnePremium,
 } from './export-style'
-import { formatDateHeure, type Langue, type Devise } from '../lib/i18n'
+import { formatDateHeure, libelleModeVersement, type Langue, type Devise } from '../lib/i18n'
 
 /**
  * Relevé de compte membre (§4.8) — PDF « relevé bancaire » des cotisations d'UN membre, identité
@@ -56,7 +56,6 @@ interface LibellesReleve {
   syntheseReste: string
   syntheseStatut: string
   statuts: Record<StatutReleve, string>
-  modes: Record<MouvementReleve['mode'], string>
   sectionAnnees: string
   sectionMouvements: string
   colAnnee: string
@@ -80,7 +79,6 @@ function libelles(langue: Langue): LibellesReleve {
         syntheseReste: 'Outstanding',
         syntheseStatut: 'Status',
         statuts: { A_JOUR: 'Up to date', PARTIEL: 'Partial', NON_A_JOUR: 'Overdue' },
-        modes: { ESPECES: 'Cash', TIERS: 'Third party', MOBILE_MONEY: 'Mobile Money', AUTRE: 'Other' },
         sectionAnnees: 'By year',
         sectionMouvements: 'Movements',
         colAnnee: 'Year',
@@ -101,7 +99,6 @@ function libelles(langue: Langue): LibellesReleve {
         syntheseReste: 'Reste à payer',
         syntheseStatut: 'Statut',
         statuts: { A_JOUR: 'À jour', PARTIEL: 'Partiel', NON_A_JOUR: 'Non à jour' },
-        modes: { ESPECES: 'Espèces', TIERS: 'Tiers', MOBILE_MONEY: 'Mobile Money', AUTRE: 'Autre' },
         sectionAnnees: 'Par année',
         sectionMouvements: 'Mouvements',
         colAnnee: 'Année',
@@ -240,7 +237,7 @@ export function genererRelevePdf(
       const lignesMvt = d.mouvements.map((mv) => [
         formatDateCourte(mv.date, langue),
         String(mv.annee),
-        L.modes[mv.mode],
+        libelleModeVersement(mv.mode, langue),
         m(mv.montant),
       ])
       const totalMvt = ['', '', L.total, m(d.mouvements.reduce((s, mv) => s + mv.montant, 0))]

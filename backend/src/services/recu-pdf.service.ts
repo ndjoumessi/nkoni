@@ -1,5 +1,5 @@
 import PDFDocument from 'pdfkit'
-import { type Langue, type Devise, formatDateHeure } from '../lib/i18n'
+import { type Langue, type Devise, formatDateHeure, libelleModeVersement } from '../lib/i18n'
 import { NK, enteteDocument, montantExport } from './export-style'
 import type { BlobClient } from './document.service'
 
@@ -20,12 +20,6 @@ export interface DonneesRecuPdf {
   annee: number
   montant: number
   mode: string
-}
-
-function libelleMode(mode: string, langue: Langue): string {
-  const fr: Record<string, string> = { ESPECES: 'Espèces', TIERS: 'Par un tiers', MOBILE_MONEY: 'Mobile Money', AUTRE: 'Autre' }
-  const en: Record<string, string> = { ESPECES: 'Cash', TIERS: 'Third party', MOBILE_MONEY: 'Mobile Money', AUTRE: 'Other' }
-  return (langue === 'EN' ? en : fr)[mode] ?? mode
 }
 
 /** Génère le PDF (Buffer) — fonction PURE, testable sans DB ni Blob. */
@@ -57,7 +51,7 @@ export function genererRecuPdf(
     const champs: [string, string][] = [
       [EN ? 'Member' : 'Membre', `${donnees.membreNom} ${donnees.membrePrenom}`],
       [EN ? 'Contribution year' : 'Année de contribution', String(donnees.annee)],
-      [EN ? 'Payment method' : 'Mode de versement', libelleMode(donnees.mode, langue)],
+      [EN ? 'Payment method' : 'Mode de versement', libelleModeVersement(donnees.mode, langue)],
     ]
     let y = yStart + 8
     for (const [l, v] of champs) {

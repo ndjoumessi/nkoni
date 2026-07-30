@@ -14,7 +14,9 @@ import { MODES_VERSEMENT } from '../src/lib/modes-versement'
  * Ce test échoue si un fichier du backend reconstruit l'ensemble des modes à la main :
  *   - un tableau littéral de chaînes MAJUSCULES contenant à la fois `'ESPECES'` ET `'MOBILE_MONEY'`
  *   - une union de type contenant ces deux mêmes littéraux
- * → « importe MODES_VERSEMENT / type ModeVersement de lib/modes-versement.ts ».
+ *   - un objet littéral dont les CLÉS couvrent la signature (table de libellés `{ ESPECES: … }`) —
+ *     l'angle mort du 1ᵉʳ jet, découvert dans recu-pdf/releve, désormais couvert
+ * → « importe MODES_VERSEMENT / type ModeVersement, ou passe par le catalogue i18n (libelleModeVersement) ».
  *
  * Volontairement ÉTROIT : la SIGNATURE est `ESPECES` + `MOBILE_MONEY` ENSEMBLE (une liste de modes),
  * pas un `'ESPECES'` isolé — le défaut légitime d'`amendes.route.ts` (`modePaiement ?? 'ESPECES'`)
@@ -47,6 +49,9 @@ function contientSignature(membres: string[]): boolean {
  * Extrait les ensembles de chaînes MAJUSCULES reconstruisant potentiellement les modes :
  *   - tableaux littéraux  `['ESPECES', 'TIERS', 'MOBILE_MONEY', 'AUTRE']`
  *   - unions de type      `'ESPECES' | 'TIERS' | 'MOBILE_MONEY' | 'AUTRE'`
+ *   - tables de libellés  `{ ESPECES: 'Espèces', …, MOBILE_MONEY: 'Mobile Money', … }`
+ *     (le cas qui manquait : un `Record<string,string>` par mode, angle mort du 1ᵉʳ garde — vécu
+ *     dans recu-pdf/releve, documents remis aux membres où un mode absent rendait `undefined`).
  */
 function ensemblesDeModes(source: string): string[][] {
   const propre = sansCommentaires(source)
@@ -60,6 +65,16 @@ function ensemblesDeModes(source: string): string[][] {
   const reUnion = /'[A-Z_]+'(?:\s*\|\s*'[A-Z_]+')+/g
   for (const m of propre.matchAll(reUnion)) {
     out.push(m[0].split('|').map((s) => s.trim().replace(/'/g, '')))
+  }
+  // Objet littéral PLAT (sans accolade imbriquée) : on collecte ses CLÉS 'UPPER_SNAKE' (bornées
+  // par `:`), nues ou entre guillemets. Une clé dottée/minuscule (`'commun.modeVersement.ESPECES'`)
+  // n'est PAS une clé de mode et n'est donc pas capturée — pas de faux positif sur le catalogue i18n.
+  const reObjet = /\{[^{}]*\}/g
+  const reCle = /(?:'([A-Z_]+)'|\b([A-Z_]+))\s*:/g
+  for (const bloc of propre.matchAll(reObjet)) {
+    const cles: string[] = []
+    for (const c of bloc[0].matchAll(reCle)) cles.push(c[1] ?? c[2])
+    if (cles.length > 0) out.push(cles)
   }
   return out
 }
@@ -88,7 +103,7 @@ describe('Source unique des modes de versement ↔ backend', () => {
     expect(fichiers.length).toBeGreaterThan(0)
   })
 
-  it('aucun fichier ne recopie l’ensemble des modes (tableau ou union)', () => {
+  it('aucun fichier ne recopie l’ensemble des modes (tableau, union ou table de libellés)', () => {
     const fautes: string[] = []
     for (const f of fichiers) {
       const source = readFileSync(f, 'utf8')

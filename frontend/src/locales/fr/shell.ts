@@ -36,7 +36,7 @@ export default {
       COMMISSAIRE_COMPTES: 'Commissaire aux comptes',
       MEMBRE_SIMPLE: 'Membre',
     },
-    rechercher: 'Rechercher…',
+    menuCompte: 'Menu du compte',
     monProfil: 'Mon profil',
     retourAccueilPublic: 'Retour à l’accueil public',
     ouvrirMenu: 'Ouvrir le menu',

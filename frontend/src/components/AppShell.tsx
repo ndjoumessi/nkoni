@@ -3,23 +3,25 @@ import { useTranslation } from 'react-i18next'
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
   BarChart3,
-  Wallet,
+  Building2,
   CalendarRange,
+  ChevronDown,
   Flame,
-  HeartHandshake,
-  Scale,
   Gavel,
+  HeartHandshake,
   Landmark,
   LayoutDashboard,
   LogOut,
   Menu,
   RefreshCw,
+  Scale,
   ScrollText,
-  Search,
   Settings,
   ShieldAlert,
   ShieldUser,
+  UserRound,
   Users,
+  Wallet,
   X,
   type LucideIcon,
 } from 'lucide-react'
@@ -43,8 +45,9 @@ import {
   peutVoirAudit,
   peutVoirParametres,
 } from '@/lib/roles'
-import { cn, estMac } from '@/lib/utils'
+import { cn } from '@/lib/utils'
 import { NkoniMark } from '@/components/ui/NkoniMark'
+import { usePopoverFlottant } from '@/components/ui/usePopoverFlottant'
 import { useFocusTrap } from '@/hooks/useFocusTrap'
 
 interface NavItem {
@@ -105,7 +108,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const groups = useNavGroups()
   const { t } = useTranslation()
   return (
-    <nav aria-label={t('shell.nav.ariaPrincipale')} className="flex flex-col gap-5">
+    <nav aria-label={t('shell.nav.ariaPrincipale')} className="flex flex-col gap-6">
       {groups.map((group, gi) => (
         <div key={group.label ?? `groupe-${gi}`} className="flex flex-col gap-1">
           {group.label && (
@@ -154,18 +157,20 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
 }
 
 // Identité du membre lié (nom/prénom) — cache module : un seul fetch best-effort par session,
-// même si le chip est monté deux fois (sidebar desktop + drawer mobile).
+// réutilisé par le chip du drawer mobile ET le menu compte de la barre supérieure desktop.
 let identiteMembreCache: { membreId: string; nom: string; prenom: string } | null = null
 
-function UserChip({ onNavigate }: { onNavigate?: () => void }) {
+/**
+ * Initiales de l'utilisateur : dérivées du nom/prénom du membre lié quand il existe (best-effort
+ * via /moi/situation), sinon des deux premières lettres de l'e-mail. Partagé (chip mobile + menu
+ * compte desktop) pour un rendu identique et un seul fetch par session.
+ */
+function useInitiales(): string {
   const { user, accessToken } = useAuth()
-  const { t } = useTranslation()
   const [identite, setIdentite] = useState<{ nom: string; prenom: string } | null>(
     user?.membreId && identiteMembreCache?.membreId === user.membreId ? identiteMembreCache : null,
   )
 
-  // m9 : initiales dérivées du nom/prénom du membre lié quand il existe (comme UtilisateursPage),
-  // via le self-service /moi/situation (best-effort : 404 sans fiche → repli e-mail).
   useEffect(() => {
     const membreId = user?.membreId
     if (!membreId || !accessToken || identite) return
@@ -190,7 +195,22 @@ function UserChip({ onNavigate }: { onNavigate?: () => void }) {
   const initialesMembre = identite
     ? `${identite.prenom?.[0] ?? ''}${identite.nom?.[0] ?? ''}`.trim()
     : ''
-  const initials = (initialesMembre || (user?.email ?? '?').slice(0, 2)).toUpperCase()
+  return (initialesMembre || (user?.email ?? '?').slice(0, 2)).toUpperCase()
+}
+
+/** Libellé de rôle traduit (repli sur la valeur brute). */
+function useLibelleRole(): string | undefined {
+  const { user } = useAuth()
+  const { t } = useTranslation()
+  return user?.role ? t(`shell.roles.${user.role}`, { defaultValue: user.role }) : undefined
+}
+
+/** Chip compte cliquable → Mon profil (drawer mobile, où il n'y a pas de barre supérieure). */
+function UserChip({ onNavigate }: { onNavigate?: () => void }) {
+  const { user } = useAuth()
+  const { t } = useTranslation()
+  const initials = useInitiales()
+  const role = useLibelleRole()
   return (
     <Link
       to="/mon-profil"
@@ -203,16 +223,102 @@ function UserChip({ onNavigate }: { onNavigate?: () => void }) {
       </span>
       <div className="min-w-0">
         <p className="truncate text-sm font-medium text-foreground">{user?.email}</p>
-        <p className="truncate text-xs text-faint">
-          {user?.role ? t(`shell.roles.${user.role}`, { defaultValue: user.role }) : user?.role}
-        </p>
+        <p className="truncate text-xs text-faint">{role}</p>
       </div>
     </Link>
   )
 }
 
-function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
-  const { logout, user } = useAuth()
+/**
+ * Menu compte de la barre supérieure (desktop) : avatar + rôle → dépliant « Mon profil » /
+ * « Se déconnecter ». Rendu en PORTAIL via `usePopoverFlottant` (clic-extérieur + Échap gérés).
+ */
+function CompteMenu() {
+  const { user, logout } = useAuth()
+  const { t } = useTranslation()
+  const navigate = useNavigate()
+  const [open, setOpen] = useState(false)
+  const [signingOut, setSigningOut] = useState(false)
+  const initials = useInitiales()
+  const role = useLibelleRole()
+  const { containerRef, triggerRef, rendreFlottant } = usePopoverFlottant({
+    open,
+    onFermer: () => setOpen(false),
+    largeurDefaut: 240,
+    hauteurDefaut: 180,
+  })
+
+  const handleLogout = async () => {
+    setSigningOut(true)
+    await logout()
+    navigate('/login', { replace: true })
+  }
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={t('shell.menuCompte')}
+        className="flex items-center gap-2.5 rounded-xl border border-hairline bg-surface/60 py-1.5 pl-1.5 pr-2.5 transition-colors hover:border-hairline-strong hover:bg-surface-2/70"
+      >
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-surface-2 text-xs font-semibold text-brass">
+          {initials}
+        </span>
+        <span className="hidden min-w-0 text-left sm:block">
+          <span className="block max-w-[11rem] truncate text-xs font-medium text-foreground">
+            {user?.email}
+          </span>
+          <span className="block truncate text-3xs text-faint">{role}</span>
+        </span>
+        <ChevronDown
+          className={cn('h-4 w-4 shrink-0 text-faint transition-transform', open && 'rotate-180')}
+          aria-hidden="true"
+        />
+      </button>
+
+      {open &&
+        rendreFlottant(
+          <div className="w-60 overflow-hidden rounded-xl border border-hairline-strong bg-surface p-1.5 shadow-2xl">
+            <div className="border-b border-hairline px-2.5 pb-2 pt-1.5">
+              <p className="truncate text-sm font-medium text-foreground">{user?.email}</p>
+              <p className="truncate text-xs text-faint">{role}</p>
+            </div>
+            <Link
+              to="/mon-profil"
+              onClick={() => setOpen(false)}
+              className="mt-1 flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground"
+            >
+              <UserRound className="h-4 w-4" aria-hidden="true" />
+              {t('shell.monProfil')}
+            </Link>
+            <button
+              type="button"
+              onClick={handleLogout}
+              disabled={signingOut}
+              className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-terra/10 hover:text-terra disabled:opacity-60"
+            >
+              <LogOut className="h-4 w-4" aria-hidden="true" />
+              {signingOut ? t('shell.deconnexionEnCours') : t('shell.seDeconnecter')}
+            </button>
+          </div>,
+          { className: 'z-50', 'aria-label': t('shell.menuCompte') },
+        )}
+    </div>
+  )
+}
+
+/**
+ * Contenu de la nav latérale — ÉPURÉ (finding UX) : logo → navigation, sans recherche ni bloc
+ * organisation (l'organisation vit désormais dans la barre supérieure desktop / la topbar mobile).
+ * `compte` : n'affiche le chip compte + déconnexion QUE dans le drawer mobile (le desktop a son
+ * menu compte dans la barre supérieure). Sans ça, mobile perdrait l'accès profil/déconnexion.
+ */
+function SidebarContent({ onNavigate, compte }: { onNavigate?: () => void; compte?: boolean }) {
+  const { logout } = useAuth()
   const { t } = useTranslation()
   const navigate = useNavigate()
   const [signingOut, setSigningOut] = useState(false)
@@ -238,62 +344,62 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         </span>
       </Link>
 
-      {/* Organisation en relief : premier repère en entrant dans l'app (bloc menthe discret). */}
-      {user?.nomOrganisation && (
-        <div className="mt-4 shrink-0 rounded-xl border border-brass/25 bg-brass/[0.06] px-3 py-2.5">
-          <p className="text-3xs font-medium uppercase tracking-[0.14em] text-brass/80">
-            {t('shell.organisation')}
-          </p>
-          <p
-            className="mt-0.5 truncate font-display text-sm font-semibold text-foreground"
-            title={user.nomOrganisation}
-          >
-            {user.nomOrganisation}
-          </p>
-        </div>
-      )}
-
-      {/* Recherche transverse (⌘K) */}
-      <button
-        type="button"
-        onClick={() => {
-          onNavigate?.()
-          window.dispatchEvent(new Event('nkoni:open-search'))
-        }}
-        className="mt-6 flex shrink-0 items-center gap-2.5 rounded-xl border border-hairline bg-surface/50 px-3 py-2 text-sm text-muted-foreground transition-colors hover:border-hairline-strong hover:text-foreground"
-      >
-        <Search className="h-4 w-4 text-faint" aria-hidden="true" />
-        <span className="flex-1 text-left">{t('shell.rechercher')}</span>
-        <kbd className="rounded border border-hairline-strong px-1.5 py-0.5 text-3xs text-faint">
-          {estMac() ? '⌘K' : 'Ctrl K'}
-        </kbd>
-      </button>
-
       {/* État réseau + file de synchro (§ PWA) — masqué quand en ligne et file vide. */}
-      <IndicateurSync className="mt-3 w-full justify-center" />
+      <IndicateurSync className="mt-4 w-full justify-center" />
 
-      {/* Nav scrollable : garantit que la zone compte/déconnexion en bas reste toujours
-          visible même quand la liste de liens dépasse la hauteur de l'écran (min-h-0 est
-          requis pour qu'un enfant flex puisse défiler au lieu de pousser le reste). */}
+      {/* Nav scrollable : garantit que la zone du bas (drawer mobile) reste visible même quand la
+          liste dépasse la hauteur de l'écran (min-h-0 requis pour qu'un enfant flex défile). */}
       <div className="mt-6 min-h-0 flex-1 overflow-y-auto">
         <NavLinks onNavigate={onNavigate} />
       </div>
 
-      {/* Zone compte + action destructive (déconnexion), séparée de la navigation (§9).
-          shrink-0 : toujours à sa taille pleine, ancrée en bas (jamais poussée hors écran). */}
-      <div className="mt-4 shrink-0 space-y-2 border-t border-hairline pt-4">
-        <UserChip onNavigate={onNavigate} />
-        <button
-          type="button"
-          onClick={handleLogout}
-          disabled={signingOut}
-          className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-terra/10 hover:text-terra disabled:opacity-60"
-        >
-          <LogOut className="h-[1.15rem] w-[1.15rem]" aria-hidden="true" />
-          {signingOut ? t('shell.deconnexionEnCours') : t('shell.seDeconnecter')}
-        </button>
-      </div>
+      {/* Compte + déconnexion — DRAWER MOBILE uniquement (le desktop les porte dans la barre
+          supérieure). shrink-0 : ancré en bas, jamais poussé hors écran. */}
+      {compte && (
+        <div className="mt-4 shrink-0 space-y-2 border-t border-hairline pt-4">
+          <UserChip onNavigate={onNavigate} />
+          <button
+            type="button"
+            onClick={handleLogout}
+            disabled={signingOut}
+            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-terra/10 hover:text-terra disabled:opacity-60"
+          >
+            <LogOut className="h-[1.15rem] w-[1.15rem]" aria-hidden="true" />
+            {signingOut ? t('shell.deconnexionEnCours') : t('shell.seDeconnecter')}
+          </button>
+        </div>
+      )}
     </div>
+  )
+}
+
+/** Barre supérieure desktop : organisation à gauche du cluster droit + menu compte à droite. */
+function TopBar() {
+  const { user } = useAuth()
+  const { t } = useTranslation()
+  return (
+    <header className="sticky top-0 z-20 hidden border-b border-hairline bg-canvas/80 backdrop-blur-xl lg:block">
+      <div className="mx-auto flex h-16 max-w-5xl items-center justify-end gap-3 px-5 sm:px-8">
+        <IndicateurSync />
+        {user?.nomOrganisation && (
+          <div
+            className="flex min-w-0 items-center gap-2 rounded-xl border border-brass/25 bg-brass/[0.06] px-3 py-1.5"
+            title={user.nomOrganisation}
+          >
+            <Building2 className="h-4 w-4 shrink-0 text-brass/80" aria-hidden="true" />
+            <div className="min-w-0 text-right">
+              <p className="text-3xs font-medium uppercase leading-tight tracking-[0.14em] text-brass/80">
+                {t('shell.organisation')}
+              </p>
+              <p className="max-w-[16rem] truncate font-display text-sm font-semibold leading-tight text-foreground">
+                {user.nomOrganisation}
+              </p>
+            </div>
+          </div>
+        )}
+        <CompteMenu />
+      </div>
+    </header>
   )
 }
 
@@ -405,13 +511,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             >
               <X className="h-5 w-5" aria-hidden="true" />
             </button>
-            <SidebarContent onNavigate={() => setDrawer(false)} />
+            {/* compte : le drawer mobile porte le chip compte + déconnexion (pas de barre supérieure). */}
+            <SidebarContent onNavigate={() => setDrawer(false)} compte />
           </div>
         </div>
       )}
 
-      {/* Contenu — cible du skip-link (tabIndex -1 : focusable par programme uniquement). */}
+      {/* Colonne de contenu — barre supérieure desktop puis contenu centré (cible du skip-link). */}
       <div className="lg:pl-64">
+        <TopBar />
         <div
           id="contenu-principal"
           tabIndex={-1}
@@ -421,7 +529,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </div>
 
-      {/* Recherche transverse (⌘K) — montée une fois, globale */}
+      {/* Recherche transverse (⌘K) — montée une fois, globale ; raccourci clavier conservé. */}
       <CommandPalette />
     </div>
   )

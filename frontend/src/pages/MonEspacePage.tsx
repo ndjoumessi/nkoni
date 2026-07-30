@@ -513,10 +513,9 @@ export function MonEspacePage() {
     <Card className="nk-reveal nk-d2 p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Overline>{t('monEspace.situation.titre')}</Overline>
-        <div className="flex flex-wrap items-center gap-2">
-          <StatutMembreBadge statut={membre.statut as StatutMembre} size="sm" />
-          <StatutCotisationBadge statut={cotisation.statut as StatutContribution} size="sm" />
-        </div>
+        {/* Statut MEMBRE seulement : le statut de COTISATION est déjà porté par la carte (rail) et
+            par la barre de progression + reste + CTA ci-dessous — inutile de répéter « Partiel ». */}
+        <StatutMembreBadge statut={membre.statut as StatutMembre} size="sm" />
       </div>
       <p className="mt-1 text-lg font-medium text-foreground">
         {membre.nom} <span className="text-muted-foreground">{membre.prenom}</span>
@@ -912,6 +911,10 @@ export function MonEspacePage() {
     </Card>
   )
 
+  // Rail droit rendu SEULEMENT s'il a du contenu (sinon une colonne vide en desktop) ; la colonne
+  // principale reprend alors toute la largeur.
+  const aRail = Boolean(blocCarte) || Boolean(blocNotifications)
+
   return (
     <div className="mx-auto max-w-5xl">
       <PageHeader title={t('monEspace.titre')} description={t('monEspace.sousTitre')} />
@@ -941,18 +944,20 @@ export function MonEspacePage() {
           // l'actionnable (situation + CTA, réunions/RSVP, votes, obligations). `items-start` évite
           // que les colonnes s'étirent à la même hauteur. En mobile : une seule colonne (grille à
           // 1 colonne par défaut), l'ordre DOM plaçant la situation puis les actions en tête.
-          <div className="grid gap-4 lg:grid-cols-3 lg:items-start">
-            <div className="space-y-4 lg:col-span-2">
+          <div className={cn('grid gap-4 lg:items-start', aRail ? 'lg:grid-cols-3' : 'lg:grid-cols-1')}>
+            <div className={cn('space-y-4', aRail && 'lg:col-span-2')}>
               {blocSituation}
               {blocReunions}
               {blocVotes}
               {blocAmendes}
               {blocCagnottes}
             </div>
-            <div className="space-y-4">
-              {blocCarte}
-              {blocNotifications}
-            </div>
+            {aRail && (
+              <div className="space-y-4">
+                {blocCarte}
+                {blocNotifications}
+              </div>
+            )}
           </div>
         )}
         {tabActif === 'contributions' && blocContributions}

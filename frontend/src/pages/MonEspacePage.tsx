@@ -20,6 +20,8 @@ import {
   HandHeart,
   Trophy,
   Check,
+  CheckCheck,
+  Trash2,
   Clock,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
@@ -383,19 +385,44 @@ export function MonEspacePage() {
     }
   }
 
-  // Ouvrir le panneau = « vu » : on marque toutes les non-lues comme lues côté serveur puis on met
-  // à jour l'état local (le compteur retombe à 0). Best-effort : un échec laisse l'état inchangé, on
-  // réessaiera à la prochaine ouverture. Fermer ne redéclenche rien (garde `ouvre && …`).
-  const basculerRappels = () => {
-    const ouvre = !rappelsOuverts
-    setRappelsOuverts(ouvre)
-    if (ouvre && accessToken && notifications.some((n) => !n.lu)) {
-      void notificationsApi
-        .marquerToutesLues(accessToken)
-        .then(() => setNotifications((prev) => prev.map((n) => (n.lu ? n : { ...n, lu: true }))))
-        .catch(() => {
-          /* silencieux : réessai à la prochaine ouverture */
-        })
+  // Simple bascule du panneau. La lecture n'est PLUS automatique à l'ouverture : le membre
+  // contrôle chaque notification (marquer lu / supprimer) ou tout marquer d'un geste explicite.
+  const basculerRappels = () => setRappelsOuverts((o) => !o)
+
+  // Gestion fine (MAJ optimiste + rollback sur échec). Marquer UNE lue.
+  const marquerNotifLue = async (id: string) => {
+    if (!accessToken) return
+    const precedent = notifications
+    setNotifications((ns) => ns.map((n) => (n.id === id ? { ...n, lu: true } : n)))
+    try {
+      await notificationsApi.marquerLue(id, accessToken)
+    } catch (e) {
+      setNotifications(precedent)
+      toast.error(messageErreur(e))
+    }
+  }
+  // Supprimer (écarter) UNE notification.
+  const supprimerNotif = async (id: string) => {
+    if (!accessToken) return
+    const precedent = notifications
+    setNotifications((ns) => ns.filter((n) => n.id !== id))
+    try {
+      await notificationsApi.supprimer(id, accessToken)
+    } catch (e) {
+      setNotifications(precedent)
+      toast.error(messageErreur(e))
+    }
+  }
+  // Tout marquer comme lu (geste explicite).
+  const toutMarquerLu = async () => {
+    if (!accessToken) return
+    const precedent = notifications
+    setNotifications((ns) => ns.map((n) => (n.lu ? n : { ...n, lu: true })))
+    try {
+      await notificationsApi.marquerToutesLues(accessToken)
+    } catch (e) {
+      setNotifications(precedent)
+      toast.error(messageErreur(e))
     }
   }
 
@@ -667,7 +694,14 @@ export function MonEspacePage() {
       </button>
       {rappelsOuverts && (
         <>
-          <ul className="mt-4 space-y-2">
+          {notifsNonLues > 0 && (
+            <div className="mt-3 flex justify-end">
+              <Button type="button" variant="ghost" size="sm" icon={CheckCheck} onClick={toutMarquerLu}>
+                {t('monEspace.rappels.toutLu')}
+              </Button>
+            </div>
+          )}
+          <ul className="mt-2 space-y-2">
             {notifications.slice(0, 8).map((n) => {
               const Icone = NOTIF_ICONE[n.type] ?? Bell
               const ton = NOTIF_TON[n.type] ?? '--brass'
@@ -687,14 +721,34 @@ export function MonEspacePage() {
                     <Icone className="h-4 w-4" aria-hidden="true" />
                   </span>
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-start justify-between gap-3">
-                      <p className="text-sm font-medium text-foreground">{n.titre}</p>
+                    <div className="flex items-center gap-2">
                       {!n.lu && (
-                        <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-brass" aria-label={t('monEspace.rappels.nonLu')} />
+                        <span className="h-2 w-2 shrink-0 rounded-full bg-brass" aria-label={t('monEspace.rappels.nonLu')} />
                       )}
+                      <p className="text-sm font-medium text-foreground">{n.titre}</p>
                     </div>
                     <p className="mt-0.5 text-sm text-muted-foreground">{n.message}</p>
                     <p className="mt-1 text-xs text-faint">{formatDate(n.dateCreation, { dateStyle: 'long' })}</p>
+                  </div>
+                  <div className="flex shrink-0 items-start gap-1">
+                    {!n.lu && (
+                      <button
+                        type="button"
+                        onClick={() => marquerNotifLue(n.id)}
+                        aria-label={t('monEspace.rappels.marquerLu')}
+                        className="tap-target flex h-8 w-8 items-center justify-center rounded-lg text-faint transition-colors hover:text-jade"
+                      >
+                        <Check className="h-4 w-4" aria-hidden="true" />
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => supprimerNotif(n.id)}
+                      aria-label={t('monEspace.rappels.supprimer')}
+                      className="tap-target flex h-8 w-8 items-center justify-center rounded-lg text-faint transition-colors hover:text-terra"
+                    >
+                      <Trash2 className="h-4 w-4" aria-hidden="true" />
+                    </button>
                   </div>
                 </li>
               )

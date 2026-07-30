@@ -57,6 +57,8 @@ export interface NotificationPrisma {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     updateMany(args: any): Promise<{ count: number }>
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    deleteMany(args: any): Promise<{ count: number }>
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     count(args?: any): Promise<number>
   }
   membre: {
@@ -233,6 +235,20 @@ export async function marquerCommeLue(
     where: { id, destinataireId },
     data: { lu: true, dateLecture: now },
   })
+  if (count === 0) throw new NotificationIntrouvableError(id)
+}
+
+/**
+ * Supprime (écarte) UNE notification — uniquement si elle appartient au demandeur. Même garde
+ * que `marquerCommeLue` : `deleteMany` filtré par (id, destinataireId), `count === 0` →
+ * NotificationIntrouvableError (route → 404, sans révéler l'existence d'une notif d'autrui).
+ */
+export async function supprimerNotification(
+  prisma: NotificationPrisma,
+  id: string,
+  destinataireId: string,
+): Promise<void> {
+  const { count } = await prisma.notification.deleteMany({ where: { id, destinataireId } })
   if (count === 0) throw new NotificationIntrouvableError(id)
 }
 

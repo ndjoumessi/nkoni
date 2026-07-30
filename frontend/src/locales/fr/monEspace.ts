@@ -42,6 +42,9 @@ export default {
       nonLus_other: '{{count}} non lus',
       autres_one: '+{{count}} autre notification',
       autres_other: '+{{count}} autres notifications',
+      toutLu: 'Tout marquer comme lu',
+      marquerLu: 'Marquer comme lu',
+      supprimer: 'Supprimer la notification',
     },
     paiement: {
       payer: 'Payer',

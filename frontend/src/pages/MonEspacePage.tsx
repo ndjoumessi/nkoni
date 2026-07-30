@@ -913,7 +913,7 @@ export function MonEspacePage() {
   )
 
   return (
-    <div className="mx-auto max-w-4xl">
+    <div className="mx-auto max-w-5xl">
       <PageHeader title={t('monEspace.titre')} description={t('monEspace.sousTitre')} />
 
       {/* Onglets unifiés (§3b) : segmentation de la page. Scrollable en mobile si les libellés débordent. */}
@@ -936,15 +936,24 @@ export function MonEspacePage() {
         className="mt-4 space-y-4 focus-visible:outline-none"
       >
         {tabActif === 'apercu' && (
-          <>
-            {blocSituation}
-            {blocCarte}
-            {blocNotifications}
-            {blocReunions}
-            {blocVotes}
-            {blocAmendes}
-            {blocCagnottes}
-          </>
+          // Desktop : colonne principale (2/3) + rail droit (1/3). Le rail porte le SECONDAIRE
+          // (carte de référence, notifications passives) ; la colonne garde le primaire et
+          // l'actionnable (situation + CTA, réunions/RSVP, votes, obligations). `items-start` évite
+          // que les colonnes s'étirent à la même hauteur. En mobile : une seule colonne (grille à
+          // 1 colonne par défaut), l'ordre DOM plaçant la situation puis les actions en tête.
+          <div className="grid gap-4 lg:grid-cols-3 lg:items-start">
+            <div className="space-y-4 lg:col-span-2">
+              {blocSituation}
+              {blocReunions}
+              {blocVotes}
+              {blocAmendes}
+              {blocCagnottes}
+            </div>
+            <div className="space-y-4">
+              {blocCarte}
+              {blocNotifications}
+            </div>
+          </div>
         )}
         {tabActif === 'contributions' && blocContributions}
         {tabActif === 'tontines' && blocTontines}

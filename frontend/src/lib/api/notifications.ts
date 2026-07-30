@@ -1,4 +1,4 @@
-import { request } from './core'
+import { request, rid } from './core'
 
 /* -------------------------------------------------------------------------- */
 /* Notifications (§5) — préférences par type                                  */
@@ -24,6 +24,12 @@ export const notificationsApi = {
   /** Marque toutes ses notifications non-lues comme lues → nombre marqué. */
   marquerToutesLues: (accessToken: string) =>
     request<{ count: number }>('/notifications/tout-lu', { method: 'PATCH', accessToken }),
+  /** Marque UNE de ses notifications comme lue (204 ; 404 si pas la sienne). */
+  marquerLue: (id: string, accessToken: string) =>
+    request<void>(`/notifications/${rid(id)}/lu`, { method: 'PATCH', accessToken }),
+  /** Supprime (écarte) UNE de ses notifications (204 ; 404 si pas la sienne). */
+  supprimer: (id: string, accessToken: string) =>
+    request<void>(`/notifications/${rid(id)}`, { method: 'DELETE', accessToken }),
   getPreferences: (accessToken: string, signal?: AbortSignal) =>
     request<PreferencesNotification>('/notifications/preferences', { accessToken, signal }),
   updatePreferences: (patch: Partial<PreferencesNotification>, accessToken: string) =>

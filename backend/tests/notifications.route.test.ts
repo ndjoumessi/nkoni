@@ -87,6 +87,26 @@ describe('Routes Notifications (§5)', () => {
     expect(notifs.get('b1')?.lu).toBe(false) // inchangée
   })
 
+  it('DELETE /notifications/:id supprime la sienne (204) et la retire de la liste', async () => {
+    const res = await app.inject({
+      method: 'DELETE',
+      url: '/notifications/a1',
+      headers: auth('u-a'),
+    })
+    expect(res.statusCode).toBe(204)
+    expect(notifs.has('a1')).toBe(false)
+  })
+
+  it('DELETE /notifications/:id REFUSE la notif d’un autre compte (404) sans la supprimer', async () => {
+    const res = await app.inject({
+      method: 'DELETE',
+      url: '/notifications/b1',
+      headers: auth('u-a'),
+    })
+    expect(res.statusCode).toBe(404)
+    expect(notifs.has('b1')).toBe(true) // celle de u-b intacte
+  })
+
   it('PATCH /notifications/tout-lu ne marque que ses non-lues', async () => {
     const res = await app.inject({
       method: 'PATCH',

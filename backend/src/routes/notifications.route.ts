@@ -4,6 +4,7 @@ import {
   listerNotifications,
   marquerCommeLue,
   marquerToutesCommeLues,
+  supprimerNotification,
   compterNonLues,
   lirePreferences,
   majPreferences,
@@ -36,6 +37,7 @@ const preferencesSchema = {
  *   GET   /notifications/compteur → { nonLues } (badge)
  *   PATCH /notifications/tout-lu  → marque toutes ses non-lues comme lues → { count }
  *   PATCH /notifications/:id/lu   → marque UNE des siennes comme lue (404 si pas la sienne)
+ *   DELETE /notifications/:id     → supprime UNE des siennes (404 si pas la sienne)
  */
 export const notificationsRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
   app.get('/notifications', { preHandler: [authenticate] }, async (req) => {
@@ -71,6 +73,23 @@ export const notificationsRoutes: FastifyPluginAsync = async (app: FastifyInstan
     async (req, reply) => {
       try {
         await marquerCommeLue(app.prisma, req.params.id, req.user.sub ?? '')
+        return reply.code(204).send()
+      } catch (err) {
+        // Notif inexistante OU appartenant à un autre compte → 404 (pas de fuite).
+        if (err instanceof NotificationIntrouvableError) {
+          return reply.code(404).send({ error: 'Not Found', message: 'Notification introuvable.' })
+        }
+        throw err
+      }
+    },
+  )
+
+  app.delete<{ Params: { id: string } }>(
+    '/notifications/:id',
+    { preHandler: [authenticate] },
+    async (req, reply) => {
+      try {
+        await supprimerNotification(app.prisma, req.params.id, req.user.sub ?? '')
         return reply.code(204).send()
       } catch (err) {
         // Notif inexistante OU appartenant à un autre compte → 404 (pas de fuite).

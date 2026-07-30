@@ -134,6 +134,16 @@ export function buildNotificationsMock(options: NotificationsMockOptions = {}) {
         }
         return { count }
       },
+      deleteMany: async ({ where = {} }: any) => {
+        let count = 0
+        for (const [id, n] of notifs) {
+          if (matchNotif(n, where)) {
+            notifs.delete(id)
+            count += 1
+          }
+        }
+        return { count }
+      },
       count: async ({ where = {} }: any = {}) =>
         [...notifs.values()].filter((n) => matchNotif(n, where)).length,
     },

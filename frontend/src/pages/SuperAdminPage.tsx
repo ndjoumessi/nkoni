@@ -599,7 +599,7 @@ export function SuperAdminPage() {
             onClick={() => copier(o.id, t('superAdmin.toast.idCopie'))}
             aria-label={t('superAdmin.table.copierId', { nom: o.nom })}
             title={t('superAdmin.table.copierId', { nom: o.nom })}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-faint transition-colors hover:bg-surface-2 hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-brass/60"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-faint transition-colors hover:bg-surface-2 hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-brass/60"
           >
             <Copy className="h-4 w-4" aria-hidden="true" />
           </button>
@@ -608,7 +608,7 @@ export function SuperAdminPage() {
             onClick={() => setDetailId(o.id)}
             aria-label={t('superAdmin.table.ouvrirDetail', { nom: o.nom })}
             title={t('superAdmin.table.ouvrirDetail', { nom: o.nom })}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-faint transition-colors hover:bg-surface-2 hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-brass/60"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-faint transition-colors hover:bg-surface-2 hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-brass/60"
           >
             <Eye className="h-4 w-4" aria-hidden="true" />
           </button>
@@ -878,7 +878,7 @@ export function SuperAdminPage() {
                   type="button"
                   onClick={() => copier(detailOrg.id, t('superAdmin.toast.idCopie'))}
                   aria-label={t('superAdmin.table.copierId', { nom: detailOrg.nom })}
-                  className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-faint transition-colors hover:bg-surface-2 hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-brass/60"
+                  className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-faint transition-colors hover:bg-surface-2 hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-brass/60"
                 >
                   <Copy className="h-4 w-4" aria-hidden="true" />
                 </button>

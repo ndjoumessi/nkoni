@@ -153,8 +153,13 @@ export function MonProfilPage() {
     <>
       <PageHeader overline={t('profil.header.overline')} title={t('profil.header.titre')} />
 
-      {/* Identité (lecture seule) */}
-      <Card className="nk-reveal nk-d1 mt-7 p-6">
+      {/* Réglages en 2 colonnes (finding UX) : gauche = identité + photo + langue ; droite = mot de
+          passe + notifications. Coupe le long scroll d'une colonne unique. Les blocs de tête de chaque
+          colonne n'ont PAS de marge haute (tops alignés) ; les blocs suivants gardent leur `mt-6`. */}
+      <div className="mt-7 grid items-start gap-6 lg:grid-cols-2">
+        <div>
+          {/* Identité (lecture seule) */}
+          <Card className="nk-reveal nk-d1 p-6">
         <div className="flex items-center gap-2">
           <UserCircle className="h-4 w-4 text-brass" aria-hidden="true" />
           <Overline>{t('profil.identite.titre')}</Overline>
@@ -183,9 +188,11 @@ export function MonProfilPage() {
 
       {/* Langue de l'interface (§4) */}
       <SelecteurLangue />
+        </div>
 
-      {/* Changement de mot de passe */}
-      <Card className="nk-reveal nk-d2 mt-6 p-6">
+        <div>
+          {/* Changement de mot de passe */}
+          <Card className="nk-reveal nk-d2 p-6">
         <div className="flex items-center gap-2">
           <KeyRound className="h-4 w-4 text-brass" aria-hidden="true" />
           <Overline>{t('profil.motDePasse.titre')}</Overline>
@@ -269,6 +276,8 @@ export function MonProfilPage() {
 
       {/* Préférences de notification (§5) */}
       <NotificationPreferences />
+        </div>
+      </div>
     </>
   )
 }

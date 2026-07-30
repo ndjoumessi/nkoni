@@ -64,7 +64,13 @@ export function CarteMembre({
               <p className="text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-amber">
                 {t('monEspace.carte.membreLabel')}
               </p>
-              <p className="mt-1 truncate text-lg font-bold text-foreground">{apercu.nom.toUpperCase()}</p>
+              {/* Nom : autorisé à passer sur 2 lignes (nom composé « DEMANOU KENGO ») plutôt que
+                  tronqué en « DEMANOU… ». Le rail a la place verticale (avatar items-start).
+                  `break-words` : sans `truncate`, un nom long SANS espace ne peut pas se couper et
+                  déborderait la carte — pendant du plancher de taille côté PDF. */}
+              <p className="mt-1 break-words text-lg font-bold leading-tight text-foreground">
+                {apercu.nom.toUpperCase()}
+              </p>
               <p className="truncate text-sm text-muted-foreground">{apercu.prenom}</p>
               <p className="mt-2 text-xs text-faint">
                 {apercu.branche ? `${t('monEspace.carte.branche')} : ${apercu.branche} · ` : ''}

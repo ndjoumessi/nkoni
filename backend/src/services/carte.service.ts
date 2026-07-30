@@ -46,6 +46,26 @@ const MARGE = 30
 const GAP = 16
 const COLS = 2
 
+/**
+ * Plus grande taille de police (entre `max` et `min`, pas de 0,5) à laquelle `texte` tient sur UNE
+ * ligne dans `largeur`, mesurée avec la police COURANTE du document. Un nom composé (« DEMANOU
+ * KENGO ») dépasse la colonne à taille fixe et se faisait tronquer en « DEMANOU… » ; ici on RÉTRÉCIT
+ * au lieu de couper. L'appelant doit avoir posé la bonne police (`font(...)`) AVANT l'appel.
+ */
+export function tailleAjustee(
+  doc: PDFKit.PDFDocument,
+  texte: string,
+  largeur: number,
+  max: number,
+  min: number,
+): number {
+  let taille = max
+  while (taille > min && doc.fontSize(taille).widthOfString(texte) > largeur) {
+    taille -= 0.5
+  }
+  return taille
+}
+
 /** Dessine UNE carte à l'origine (x, y). `qr` = PNG du QR déjà rendu. */
 function dessinerCarte(
   doc: PDFKit.PDFDocument,
@@ -110,9 +130,14 @@ function dessinerCarte(
   // couper sur l'espace (« ROMEL NELSON » → 2 lignes qui chevauchent la ligne du dessous).
   doc.fillColor(NK.or).font('Helvetica-Bold').fontSize(7)
     .text(L.carte, tx, y + bandH + 8, { characterSpacing: 1.2, width: tw, height: 11, ellipsis: true })
-  doc.fillColor(NK.encre).font('Helvetica-Bold').fontSize(13)
-    .text(d.nom.toUpperCase(), tx, y + 57, { width: tw, height: 17, ellipsis: true })
-  doc.fillColor(NK.encre).font('Helvetica').fontSize(11)
+  // Nom & prénom : taille AJUSTÉE pour tenir dans la colonne (nom composé « DEMANOU KENGO » sinon
+  // tronqué). Police posée AVANT la mesure ; `ellipsis` garde le filet ultime au cas très extrême.
+  const nomMaj = d.nom.toUpperCase()
+  doc.font('Helvetica-Bold')
+  doc.fillColor(NK.encre).fontSize(tailleAjustee(doc, nomMaj, tw, 13, 8))
+    .text(nomMaj, tx, y + 57, { width: tw, height: 17, ellipsis: true })
+  doc.font('Helvetica')
+  doc.fillColor(NK.encre).fontSize(tailleAjustee(doc, d.prenom, tw, 11, 8))
     .text(d.prenom, tx, y + 75, { width: tw, height: 15, ellipsis: true })
 
   let ligneY = y + 96

@@ -1,8 +1,9 @@
 import { useTranslation } from 'react-i18next'
-import { Coins, TrendingDown, Wallet } from 'lucide-react'
+import { Coins, TrendingDown, TrendingUp, Wallet } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { Montant } from '@/components/ui/Montant'
 import { formatPourcent } from '@/lib/format'
+import { cn } from '@/lib/utils'
 import { useCountUp } from '@/hooks/useCountUp'
 
 /** Jauge circulaire menthe pour le taux de recouvrement. */
@@ -61,15 +62,40 @@ function Gauge({ value }: { value: number }) {
   )
 }
 
+/** Puce de tendance : variation du collecté « à date » vs même période N-1 (jade si ≥ 0, terra sinon). */
+function DeltaN1({ delta, anneeN1 }: { delta: number; anneeN1: number }) {
+  const { t } = useTranslation()
+  const positif = delta >= 0
+  const Fleche = positif ? TrendingUp : TrendingDown
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-2xs font-medium',
+        positif ? 'bg-jade/10 text-jade' : 'bg-terra/10 text-terra',
+      )}
+      title={t('dashboard.hero.vsN1', { annee: anneeN1 })}
+    >
+      <Fleche className="h-3 w-3" aria-hidden="true" />
+      {positif ? '+' : ''}
+      {formatPourcent(Math.round(delta))}
+    </span>
+  )
+}
+
 /** Bloc dominant du dashboard : la métrique clé (recouvrement) domine visuellement. */
 export function RecouvrementHero({
   taux,
   collecte,
   attendu,
+  deltaN1 = null,
+  anneeN1,
 }: {
   taux: number
   collecte: number
   attendu: number
+  /** Variation % du collecté à date vs même période N-1 (null = pas de N-1 comparable). */
+  deltaN1?: number | null
+  anneeN1?: number
 }) {
   const { t } = useTranslation()
   return (
@@ -87,7 +113,12 @@ export function RecouvrementHero({
               </span>
               {t('dashboard.hero.totalCollecte')}
             </span>
-            <Montant value={collecte} className="text-lg font-semibold text-foreground" />
+            <span className="flex items-center gap-2">
+              {deltaN1 !== null && anneeN1 !== undefined && (
+                <DeltaN1 delta={deltaN1} anneeN1={anneeN1} />
+              )}
+              <Montant value={collecte} className="text-lg font-semibold text-foreground" />
+            </span>
           </div>
           <div className="flex items-center justify-between gap-4 rounded-xl border border-hairline bg-surface/60 px-4 py-3.5">
             <span className="flex items-center gap-2.5 text-sm text-muted-foreground">

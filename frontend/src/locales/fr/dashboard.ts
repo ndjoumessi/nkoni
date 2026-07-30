@@ -64,6 +64,11 @@ export default {
       membresActifs: 'Membres actifs',
       branches: 'Branches',
     },
+    actions: {
+      versement: 'Enregistrer un versement',
+      membre: 'Ajouter un membre',
+      ouvrirAnnee: 'Ouvrir l’année',
+    },
     perso: {
       overline: 'Ma situation · {{annee}}',
       statutTitre: 'Statut de cotisation',
@@ -76,6 +81,7 @@ export default {
       totalCollecte: 'Total collecté',
       totalAttendu: 'Total attendu',
       resteACollecter: 'Reste à collecter',
+      vsN1: 'vs {{annee}} (même période)',
     },
     anniversaires: {
       titre: 'Anniversaires du mois',

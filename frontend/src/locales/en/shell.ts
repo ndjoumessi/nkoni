@@ -36,7 +36,7 @@ export default {
       COMMISSAIRE_COMPTES: 'Auditor',
       MEMBRE_SIMPLE: 'Member',
     },
-    rechercher: 'Search…',
+    menuCompte: 'Account menu',
     monProfil: 'My profile',
     retourAccueilPublic: 'Back to public home',
     ouvrirMenu: 'Open menu',

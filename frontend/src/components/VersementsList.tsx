@@ -350,7 +350,7 @@ export function VersementsList({
         return (
           <div
             key={v.id}
-            className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-hairline bg-surface/50 px-4 py-3"
+            className="rounded-xl border border-hairline bg-surface/50 px-4 py-3"
           >
             <div className="min-w-0">
               <p className="num text-sm font-medium text-foreground">
@@ -361,7 +361,10 @@ export function VersementsList({
               </p>
               {v.note && <p className="mt-0.5 truncate text-xs text-faint">{v.note}</p>}
             </div>
-            <div className="flex flex-wrap items-center justify-end gap-x-2 gap-y-1.5">
+            {/* Actions sur LEUR PROPRE rangée, alignées à GAUCHE : dans la colonne étroite de la fiche
+                (2 col), le `justify-between` info|actions + `justify-end` faisait déborder les 5 boutons
+                sur deux lignes ferraillées à droite. Empilé + wrap gauche = grille propre à toute largeur. */}
+            <div className="mt-2.5 flex flex-wrap items-center gap-2">
               {recu && recu.annuleLe === null ? (
                 <>
                   <Badge tone="jade" size="sm">

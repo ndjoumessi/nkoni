@@ -112,6 +112,20 @@ export interface TontineMembre {
   tours: TontineTourMembre[]
 }
 
+/** Détail d'un reçu (données du snapshot + membre + org) pour un rendu HTML natif dans l'app. */
+export interface RecuDetail {
+  numero: string
+  montant: number
+  annee: number
+  mode: string
+  dateVersement: string
+  dateGeneration: string
+  annuleLe: string | null
+  membreNom: string
+  membrePrenom: string
+  orgNom: string
+}
+
 export const moiApi = {
   situation: (accessToken: string, signal?: AbortSignal) =>
     request<SituationMembre>('/moi/situation', { accessToken, signal }),
@@ -138,6 +152,9 @@ export const moiApi = {
     }),
   recus: (accessToken: string, signal?: AbortSignal) =>
     request<RecuMembre[]>('/moi/recus', { accessToken, signal }),
+  /** Détail d'UN reçu (données, pas le PDF) — pour l'aperçu HTML en modale. */
+  recuDetail: (id: string, accessToken: string, signal?: AbortSignal) =>
+    request<RecuDetail>(`/moi/recus/${rid(id)}`, { accessToken, signal }),
   /** SES amendes (lecture seule). */
   amendes: (accessToken: string, signal?: AbortSignal) =>
     request<AmendeMembre[]>('/moi/amendes', { accessToken, signal }),

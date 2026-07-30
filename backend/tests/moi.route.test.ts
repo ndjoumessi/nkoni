@@ -71,6 +71,24 @@ function buildMock(membre: any) {
       },
     },
     recu: {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      findFirst: async ({ where }: any) => {
+        calls.recuDetailWhere = where
+        if (where.id === 'r1' && where.membreId === 'm1') {
+          return {
+            numero: 'NKONI-2024-000001',
+            montant: 4_000,
+            annee: 2024,
+            mode: 'ESPECES',
+            dateVersement: new Date('2024-02-15'),
+            dateGeneration: new Date('2024-03-01'),
+            annuleLe: null,
+            membre: { nom: 'Tchoupa', prenom: 'Bernard' },
+            organisation: { nom: 'Famille A' },
+          }
+        }
+        return null
+      },
       findMany: async ({ where }: any) => {
         calls.recuWhere = where
         return [
@@ -198,6 +216,25 @@ describe('Espace membre /moi/* — membre lié', () => {
     ])
     // Plus AUCUN détour par les versements : une seule requête, scopée par membre.
     expect(calls.recuWhere).toEqual({ membreId: 'm1' })
+  })
+
+  it('GET /moi/recus/:id → détail du reçu, scopé par membreId', async () => {
+    const res = await app.inject({ method: 'GET', url: '/moi/recus/r1', headers: auth() })
+    expect(res.statusCode).toBe(200)
+    expect(calls.recuDetailWhere).toEqual({ id: 'r1', membreId: 'm1' })
+    expect(res.json()).toMatchObject({
+      numero: 'NKONI-2024-000001',
+      montant: 4_000,
+      annee: 2024,
+      mode: 'ESPECES',
+      membreNom: 'Tchoupa',
+      orgNom: 'Famille A',
+    })
+  })
+
+  it('GET /moi/recus/:id inconnu (ou d’un autre) → 404', async () => {
+    const res = await app.inject({ method: 'GET', url: '/moi/recus/zzz', headers: auth() })
+    expect(res.statusCode).toBe(404)
   })
 
   it('GET /moi/contributions → filtré par l’id du membre résolu', async () => {

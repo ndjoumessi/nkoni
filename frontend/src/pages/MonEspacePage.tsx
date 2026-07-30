@@ -38,6 +38,7 @@ import {
   type ResolutionOuverte,
   type SensVote,
   type RecuMembre,
+  type RecuDetail,
   type Notification,
   type CarteApercu,
   type AmendeMembre,
@@ -132,9 +133,10 @@ export function MonEspacePage() {
   const [paiementCible, setPaiementCible] = useState<ContributionMembre | null>(null)
   const [montantSaisi, setMontantSaisi] = useState('')
   const [erreurMontant, setErreurMontant] = useState<string | null>(null)
-  // Aperçu d'un reçu en modale : le reçu ciblé + l'object URL du PDF (null tant qu'il charge).
+  // Aperçu d'un reçu en modale : le reçu ciblé + son DÉTAIL (données, rendu HTML natif ; null tant
+  // qu'il charge). Plus d'iframe PDF — le PDF reste accessible via « Ouvrir » / « Télécharger ».
   const [recuApercu, setRecuApercu] = useState<RecuMembre | null>(null)
-  const [recuApercuUrl, setRecuApercuUrl] = useState<string | null>(null)
+  const [recuDetail, setRecuDetail] = useState<RecuDetail | null>(null)
 
   useEffect(() => {
     if (!accessToken) return
@@ -341,30 +343,34 @@ export function MonEspacePage() {
   const statutAnnee = (c: ContributionMembre): StatutContribution =>
     c.montantValorise >= c.montantAttendu ? 'A_JOUR' : c.montantValorise > 0 ? 'PARTIEL' : 'NON_A_JOUR'
 
-  // APERÇU en MODALE : ouvre le reçu (infos + PDF embarqué) sans quitter la page. Le PDF est servi
-  // par un proxy authentifié (Bearer), donc on récupère le blob et on l'affiche via object URL.
+  // APERÇU en MODALE : on charge le DÉTAIL (données JSON) et on le rend en HTML natif — bien plus
+  // fiable que le PDF en iframe sur mobile. Le PDF reste accessible via « Ouvrir »/« Télécharger ».
   const voirRecu = async (recu: RecuMembre) => {
     if (!accessToken) return
     setRecuApercu(recu)
-    setRecuApercuUrl(null)
+    setRecuDetail(null)
     try {
-      const blob = await recusApi.telecharger(recu.id, accessToken)
-      setRecuApercuUrl(URL.createObjectURL(blob))
+      setRecuDetail(await moiApi.recuDetail(recu.id, accessToken))
     } catch (e) {
       toast.error(t('monEspace.recus.indisponible'), e instanceof ApiError ? e.message : '')
       setRecuApercu(null)
     }
   }
   const fermerApercuRecu = () => {
-    // Révocation DIFFÉRÉE (même motif que `telechargerRecu` ci-dessous) : « Ouvrir dans un onglet »
-    // confie CETTE object URL à un autre onglet. La révoquer à la fermeture de la modale casserait
-    // le PDF qu'on vient d'y ouvrir. Le délai laisse l'autre onglet finir de charger.
-    if (recuApercuUrl) {
-      const url = recuApercuUrl
-      setTimeout(() => URL.revokeObjectURL(url), 60_000)
-    }
-    setRecuApercuUrl(null)
+    setRecuDetail(null)
     setRecuApercu(null)
+  }
+  // Ouvre le PDF officiel dans un nouvel onglet (secondaire — l'aperçu HTML suffit d'ordinaire).
+  const ouvrirPdfRecu = async (recuId: string) => {
+    if (!accessToken) return
+    try {
+      const blob = await recusApi.telecharger(recuId, accessToken)
+      const url = URL.createObjectURL(blob)
+      window.open(url, '_blank', 'noopener')
+      setTimeout(() => URL.revokeObjectURL(url), 60_000)
+    } catch (e) {
+      toast.error(t('monEspace.recus.indisponible'), e instanceof ApiError ? e.message : '')
+    }
   }
 
   // TÉLÉCHARGEMENT : force l'enregistrement du fichier (attribut `download`), distinct de l'aperçu.
@@ -1148,48 +1154,64 @@ export function MonEspacePage() {
         )}
       </Modal>
 
-      {/* Aperçu d'un reçu — infos + PDF embarqué, sans quitter la page. Repli mobile : « Ouvrir
-          dans un onglet » (les PDF en iframe sont peu fiables sur navigateur mobile). */}
+      {/* Aperçu d'un reçu — DÉTAIL rendu en HTML natif (pas d'iframe PDF : bien plus fiable sur
+          mobile). Le PDF officiel reste accessible via « Ouvrir le PDF » / « Télécharger ». */}
       <Modal
         open={recuApercu !== null}
         onClose={fermerApercuRecu}
         title={recuApercu ? t('monEspace.recus.apercuTitre', { numero: recuApercu.numero }) : ''}
-        className="max-w-2xl"
+        className="max-w-lg"
       >
         {recuApercu && (
           <div className="space-y-4">
-            <dl className="grid grid-cols-2 gap-3 rounded-xl border border-hairline bg-surface-2/40 px-4 py-3 text-sm">
-              <div>
-                <dt className="text-xs text-faint">{t('monEspace.recus.date')}</dt>
-                <dd className="mt-0.5 text-foreground">{formatDate(recuApercu.date, { dateStyle: 'long' })}</dd>
+            {recuDetail ? (
+              <div className="overflow-hidden rounded-2xl border border-hairline">
+                {/* Bandeau reçu (dégradé émeraude→or, même identité que la carte de membre). */}
+                <div className="px-5 py-3" style={{ background: 'linear-gradient(100deg, #2f9e73, #e0bd6f)' }}>
+                  <p className="truncate text-sm font-semibold text-[#04210f]">{recuDetail.orgNom}</p>
+                  <p className="text-xs font-medium text-[#04210f]/80">{t('monEspace.recus.titre')}</p>
+                </div>
+                <dl className="divide-y divide-hairline px-5 text-sm">
+                  <div className="flex items-center justify-between py-2.5">
+                    <dt className="text-faint">{t('monEspace.recus.numero')}</dt>
+                    <dd className="num text-foreground">{recuDetail.numero}</dd>
+                  </div>
+                  <div className="flex items-center justify-between py-2.5">
+                    <dt className="text-faint">{t('monEspace.recus.membre')}</dt>
+                    <dd className="text-foreground">{recuDetail.membreNom} {recuDetail.membrePrenom}</dd>
+                  </div>
+                  <div className="flex items-center justify-between py-2.5">
+                    <dt className="text-faint">{t('monEspace.recus.dateVersement')}</dt>
+                    <dd className="text-foreground">{formatDate(recuDetail.dateVersement, { dateStyle: 'long' })}</dd>
+                  </div>
+                  <div className="flex items-center justify-between py-2.5">
+                    <dt className="text-faint">{t('monEspace.contributions.annee')}</dt>
+                    <dd className="num text-foreground">{recuDetail.annee}</dd>
+                  </div>
+                  <div className="flex items-center justify-between py-2.5">
+                    <dt className="text-faint">{t('monEspace.recus.mode')}</dt>
+                    <dd className="text-foreground">{t(cleI18n(`cagnottes.modes.${recuDetail.mode}`))}</dd>
+                  </div>
+                  <div className="flex items-center justify-between py-3">
+                    <dt className="text-faint">{t('monEspace.recus.montant')}</dt>
+                    <dd><Montant value={recuDetail.montant} className="text-base font-semibold" /></dd>
+                  </div>
+                  {recuDetail.annuleLe && (
+                    <div className="flex items-center justify-between py-2.5">
+                      <dt className="text-faint">{t('monEspace.recus.statut')}</dt>
+                      <dd><Badge tone="terra" size="sm"><Ban className="h-3 w-3" aria-hidden="true" />{t('monEspace.recus.annule')}</Badge></dd>
+                    </div>
+                  )}
+                </dl>
               </div>
-              <div className="text-right">
-                <dt className="text-xs text-faint">{t('monEspace.recus.montant')}</dt>
-                <dd className="mt-0.5"><Montant value={recuApercu.montant} className="font-medium" /></dd>
-              </div>
-            </dl>
-
-            {recuApercuUrl ? (
-              <iframe
-                title={t('monEspace.recus.apercuTitre', { numero: recuApercu.numero })}
-                src={recuApercuUrl}
-                className="h-[55vh] w-full rounded-xl border border-hairline bg-white"
-              />
             ) : (
-              <Skeleton className="h-[55vh] w-full" />
+              <Skeleton className="h-64 w-full" />
             )}
 
             <div className="flex flex-wrap justify-end gap-2">
-              {recuApercuUrl && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  icon={ExternalLink}
-                  onClick={() => window.open(recuApercuUrl, '_blank', 'noopener')}
-                >
-                  {t('monEspace.recus.ouvrirOnglet')}
-                </Button>
-              )}
+              <Button type="button" variant="outline" icon={ExternalLink} onClick={() => ouvrirPdfRecu(recuApercu.id)}>
+                {t('monEspace.recus.ouvrirPdf')}
+              </Button>
               <Button type="button" icon={Download} onClick={() => telechargerRecu(recuApercu)}>
                 {t('monEspace.recus.telecharger')}
               </Button>

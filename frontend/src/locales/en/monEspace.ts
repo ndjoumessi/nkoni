@@ -70,6 +70,7 @@ export default {
       valorise: 'Valued',
       statut: 'Status',
       aucune: 'No contribution recorded.',
+      detailVersements: 'Payments',
     },
     reunions: {
       titre: 'Upcoming meetings',

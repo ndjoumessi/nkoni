@@ -38,7 +38,7 @@ mobile-first, **(2) états manquants mutualisés** (vide/skeleton dans `DataTabl
 | 🟡 | `MonEspacePage.tsx` (sections) | Hiérarchie plate : tous les titres en même overline `text-2xs uppercase` ; 7+ sections en scroll unique ; large vide horizontal desktop | Loi de Fitts / hiérarchie visuelle | Segmentation par onglets + layout colonne + rail droit + 3 niveaux typo |
 | 🟡 | `MonEspacePage.tsx` | Pas de segmentation — Aperçu/Contributions/Tontines/Reçus empilés | Nielsen « reconnaissance » | Segmented control (`Tabs`) collant sous l'en-tête |
 | 🟡 | `MonEspacePage.tsx` (réunions/notifs vides) | États vides en carte pleine (« Aucune réunion à venir ») = bruit qui dilue l'information | Densité / signal-bruit | Ligne compacte muette ou repli dans le rail |
-| ✅ | `index.css:97/123` `--faint`/`--muted-foreground` | **Mesuré (résolu)** : sur les 4 surfaces (`canvas`/`surface`/`surface-2`/`surface-3`), `--faint` va de 6.56:1 à **4.65:1** et `--muted-foreground` de 7.91:1 à **5.61:1** — au-dessus du seuil AA 4.5:1 partout. Pire cas = `surface-3` (fond de SURVOL des cartes et boutons `outline`) | WCAG 1.4.3 | Aucun changement requis ; le commentaire « relevé pour tenir AA » est validé. **Marge mince sur `--faint`/`surface-3` (4.65)** : assombrir `--faint` ou éclaircir `--surface-3` casserait AA |
+| ✅ | `index.css` `--faint`/`--muted-foreground` | **Mesuré (résolu)** : sur les 4 surfaces (`canvas`/`surface`/`surface-2`/`surface-3`), `--faint` (relevé 0.67→0.70) va de 7.35:1 à **5.21:1** et `--muted-foreground` de 7.91:1 à **5.61:1** — au-dessus du seuil AA 4.5:1 partout. Pire cas = `surface-3` (fond de SURVOL des cartes et boutons `outline`) | WCAG 1.4.3 | Coussin porté de ~3 % à **~16 %** sur `--faint`/`surface-3` (5.21) ; assombrir `--faint` ou éclaircir `--surface-3` réduit la marge (re-mesurer, script oklch→sRGB→WCAG) |
 | 🟢 | `MonEspacePage.tsx` (situation + carte) | Badge « Partiel » affiché deux fois (en-tête + carte de membre) | Cohérence / redondance | Garder un seul point de vérité du statut |
 | 🟢 | `MonEspacePage.tsx` (carte de membre) | Carte de membre volumineuse (carte dans carte) au milieu du flux de données | Rythme visuel | Déplacer dans le rail droit, format compact |
 | 🟢 | `button-variants.ts` (`ghost`) | `ghost` sans bordure au repos se lit comme une légende quand isolé (déjà noté dans CLAUDE.md) | Affordance | Réserver `ghost` aux zones portant déjà l'affordance ; sinon `outline` |
@@ -205,7 +205,7 @@ accessible, palette dérivée des tokens. À maintenir sur tout nouveau graphe.
 - [x] Erreurs annoncées `role="alert"` (`Field.tsx`)
 - [x] Champs liés à un `<label>` + aria auto (`Field.tsx:86`)
 - [x] Pas d'info par la couleur seule (graphes forme+couleur)
-- [x] Contraste texte ≥ 4.5:1 — **mesuré** (sRGB, 4 surfaces) : `--faint` ≥ 4.65:1, `--muted-foreground` ≥ 5.61:1. Pire cas sur `--surface-3` ; sur `--surface-2` on est à 5.48 / 6.62
+- [x] Contraste texte ≥ 4.5:1 — **mesuré** (sRGB, 4 surfaces) : `--faint` ≥ 5.21:1 (relevé 0.67→0.70), `--muted-foreground` ≥ 5.61:1. Pire cas sur `--surface-3` ; sur `--surface-2` on est à 6.15 / 6.62
 - [x] Navigation clavier (Modal focus trap, DataTable, CommandPalette)
 
 **Tactile & mobile**

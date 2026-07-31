@@ -42,8 +42,15 @@ export default {
       progression: '{{faites}} of {{total}} steps',
       faire: 'Do it',
       fait: 'Done',
+      optionnel: 'Optional',
       ignorer: 'Don’t show again',
       masquer: 'Hide the getting-started guide',
+      paiement: {
+        titre: 'Enable online payments',
+        description:
+          'Let your members pay via Mobile Money — set it up with your credentials in settings.',
+        cta: 'Set up',
+      },
       etapes: {
         bareme: {
           titre: 'Configure the annual scale',

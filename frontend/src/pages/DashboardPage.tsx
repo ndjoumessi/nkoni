@@ -11,7 +11,12 @@ import {
   Wallet,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { peutGererBareme, peutGererMembres, peutSaisirVersement } from '@/lib/roles'
+import {
+  peutConfigurerPaiement,
+  peutGererBareme,
+  peutGererMembres,
+  peutSaisirVersement,
+} from '@/lib/roles'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/contexts/auth-context'
 import { useDashboard } from '@/hooks/useDashboard'
@@ -203,6 +208,7 @@ function deltaCollecteN1(evolution: EvolutionMois[] | undefined): number | null 
 
 function VueComplet({ d, canManage }: { d: DashboardComplet; canManage: boolean }) {
   const { t } = useTranslation()
+  const { user } = useAuth()
   const vide = d.finances.totalAttenduCumule === 0
   // Étapes de mise en route (onboarding §1.2) — dérivées des données déjà chargées, aucun appel.
   const etapes = {
@@ -219,7 +225,9 @@ function VueComplet({ d, canManage }: { d: DashboardComplet; canManage: boolean 
   return (
     <div className="space-y-4">
       <ActionsRapides />
-      {montrerGuide && <GuideDemarrage etapes={etapes} />}
+      {montrerGuide && (
+        <GuideDemarrage etapes={etapes} montrerPaiement={peutConfigurerPaiement(user?.role)} />
+      )}
       {!montrerGuide && d.alertes.baremeAnneeCouranteManquant && <AlerteBareme annee={d.anneeCourante} />}
       {vide ? (
         !canManage ? <OnboardingVide canManage={canManage} /> : null

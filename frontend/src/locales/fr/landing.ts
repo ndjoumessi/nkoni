@@ -54,10 +54,6 @@ export default {
           texte:
             'Chaque membre voit s’il est à jour, partiel ou non à jour, en temps réel.',
         },
-        mouvements: {
-          titre: 'Mouvements tracés',
-          texte: 'Les équilibrages entre branches sont enregistrés et vérifiables par tous.',
-        },
         recus: {
           titre: 'Reçus archivés',
           texte: 'Chaque cotisation peut générer un reçu conservé et consultable à tout moment.',
@@ -65,6 +61,21 @@ export default {
         cartes: {
           titre: 'Cartes de membre',
           texte: 'Des cartes avec photo et QR : un scan vérifie le statut du membre en direct.',
+        },
+        paiement: {
+          titre: 'Paiement Mobile Money',
+          texte:
+            'Les membres règlent tout ou partie de leur cotisation par MTN ou Orange Money ; l’argent va directement sur le compte de l’organisation.',
+        },
+        tontine: {
+          titre: 'Tontines intégrées',
+          texte:
+            'Cycles, tours et mises de vos tontines rotatives, avec un suivi clair de qui a cotisé et qui a reçu le pot.',
+        },
+        reunions: {
+          titre: 'Réunions & votes',
+          texte:
+            'Convoquez, suivez les présences et faites voter les résolutions en ligne — comptes-rendus PDF inclus.',
         },
       },
       dejaEspace: 'Vous avez déjà un espace ? Se connecter',

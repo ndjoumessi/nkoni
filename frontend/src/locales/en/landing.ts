@@ -53,10 +53,6 @@ export default {
           titre: 'Transparent statuses',
           texte: 'Each member sees whether they are up to date, partial or overdue, in real time.',
         },
-        mouvements: {
-          titre: 'Tracked transactions',
-          texte: 'Balancing between branches is recorded and verifiable by everyone.',
-        },
         recus: {
           titre: 'Archived receipts',
           texte: 'Each contribution can generate a receipt kept and viewable at any time.',
@@ -64,6 +60,21 @@ export default {
         cartes: {
           titre: 'Member cards',
           texte: 'Cards with photo and QR: a scan verifies the member’s status live.',
+        },
+        paiement: {
+          titre: 'Mobile Money payments',
+          texte:
+            'Members pay all or part of their dues via MTN or Orange Money; the money goes straight to the organisation’s account.',
+        },
+        tontine: {
+          titre: 'Built-in tontines',
+          texte:
+            'Cycles, rounds and contributions for your rotating tontines, with clear tracking of who has paid and who has received the pot.',
+        },
+        reunions: {
+          titre: 'Meetings & votes',
+          texte:
+            'Convene meetings, track attendance and put resolutions to an online vote — PDF minutes included.',
         },
       },
       dejaEspace: 'Already have a space? Sign in',

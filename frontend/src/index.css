@@ -86,9 +86,11 @@
     --surface-2: oklch(0.242 0.050 262);
     --surface-3: oklch(0.295 0.045 262); /* ⚠️ contraste : c'est LE fond le plus clair (survol de
        Card, bouton `outline`), donc le pire cas pour le petit texte `--faint`/`--muted-foreground`.
-       Marges AA MESURÉES (sRGB) : `--faint` sur `--surface-3` = 4.65:1, `--muted-foreground` = 5.61:1
-       (seuil 4.5:1). Il ne reste que ~3 % sur `--faint` : ÉCLAIRCIR `--surface-3` ou ASSOMBRIR
-       `--faint` casse AA. Toute retouche de l'un de ces deux jetons doit re-mesurer le ratio. */
+       Marges AA MESURÉES (sRGB) : `--faint` sur `--surface-3` = 5.21:1, `--muted-foreground` = 5.61:1
+       (seuil 4.5:1). Il reste ~16 % sur `--faint` (coussin porté de ~3 % à ~16 % en éclaircissant
+       `--faint` 0.67→0.70) : ÉCLAIRCIR `--surface-3` ou ASSOMBRIR `--faint` réduit la marge — au-delà
+       de ~0.31 sur `--surface-3` on repasse sous AA. Toute retouche de l'un de ces deux jetons doit
+       re-mesurer le ratio (script oklch→sRGB→WCAG). */
 
     /* Bordures un peu plus marquées : elles DÉFINISSENT les cartes (fini le glow) */
     --hairline: oklch(1 0 0 / 10%);
@@ -96,11 +98,12 @@
 
     /* --- Texte (blanc/gris froid) --- */
     --foreground: oklch(0.965 0.004 250);
-    /* Relevé à 0.66 (était 0.60) pour tenir le contraste AA sur le petit texte (labels, kbd,
+    /* Relevé à 0.70 (0.60 → 0.67 → 0.70) pour tenir le contraste AA sur le petit texte (labels, kbd,
        horodatages) — cf. audit UI/UX WCAG 1.4.3. ⚠️ La contrainte qui LIE n'est PAS `--canvas`
-       (6.56:1, large) mais `--surface-3` : 4.65:1 pour un seuil de 4.5:1, soit ~3 % de marge.
-       ASSOMBRIR ce jeton casse AA — re-mesurer, cf. l'avertissement posé sur `--surface-3`. */
-    --faint: oklch(0.67 0.008 255);
+       (7.35:1, large) mais `--surface-3` : 5.21:1 pour un seuil de 4.5:1, soit ~16 % de marge (le
+       0.67→0.70 a porté le coussin de ~3 % à ~16 %). ASSOMBRIR ce jeton réduit la marge — re-mesurer,
+       cf. l'avertissement posé sur `--surface-3`. */
+    --faint: oklch(0.70 0.008 255);
 
     /* --- Accents ---
        NB : les noms de jetons restent stables (les composants les référencent partout) ;

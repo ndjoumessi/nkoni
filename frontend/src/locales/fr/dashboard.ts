@@ -42,8 +42,15 @@ export default {
       progression: '{{faites}} sur {{total}} étapes',
       faire: 'Faire',
       fait: 'Fait',
+      optionnel: 'Optionnel',
       ignorer: 'Ne plus afficher',
       masquer: 'Masquer le guide de mise en route',
+      paiement: {
+        titre: 'Activez le paiement en ligne',
+        description:
+          'Laissez vos membres régler par Mobile Money — à configurer avec vos identifiants dans les paramètres.',
+        cta: 'Configurer',
+      },
       etapes: {
         bareme: {
           titre: 'Configurer le barème annuel',

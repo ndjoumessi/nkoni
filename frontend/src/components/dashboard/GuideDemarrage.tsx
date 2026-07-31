@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   Circle,
   Coins,
+  Smartphone,
   Sparkles,
   Users,
   X,
@@ -45,7 +46,16 @@ const ETAPES: DefinitionEtape[] = [
  * la mise en route n'est pas terminée. Masquable (préférence locale) ; réapparaît jamais une fois
  * toutes les étapes faites, puisque le parent cesse de le monter.
  */
-export function GuideDemarrage({ etapes }: { etapes: EtapesDemarrage }) {
+export function GuideDemarrage({
+  etapes,
+  montrerPaiement = false,
+}: {
+  etapes: EtapesDemarrage
+  /** Affiche l'astuce OPTIONNELLE « activer le paiement en ligne » (config PSP par org). Réservée
+   * au bureau (ADMIN/PRESIDENT, seul à pouvoir configurer) : non comptée dans la progression, car le
+   * paiement en ligne est facultatif et son état « configuré » n'est pas porté par le dashboard. */
+  montrerPaiement?: boolean
+}) {
   const { t } = useTranslation()
   const [masque, setMasque] = useState(() => {
     try {
@@ -138,6 +148,34 @@ export function GuideDemarrage({ etapes }: { etapes: EtapesDemarrage }) {
           )
         })}
       </ol>
+
+      {/* Astuce OPTIONNELLE — hors checklist (pas de coche, pas comptée dans la progression) : le
+          paiement en ligne est facultatif et son activation dépend d'une config PSP par org. Guidée
+          vers /parametres, réservée à qui peut la configurer (ADMIN/PRESIDENT). */}
+      {montrerPaiement && (
+        <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-dashed border-hairline bg-surface/40 px-4 py-3.5">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-surface-2 text-brass">
+            <Smartphone className="h-4 w-4" aria-hidden="true" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="flex items-center gap-2">
+              <span className="block text-sm font-medium text-foreground">
+                {t('dashboard.guide.paiement.titre')}
+              </span>
+              <span className="rounded-full bg-surface-2 px-2 py-0.5 text-2xs font-medium uppercase tracking-[0.08em] text-faint">
+                {t('dashboard.guide.optionnel')}
+              </span>
+            </span>
+            <span className="mt-0.5 block text-xs text-faint">
+              {t('dashboard.guide.paiement.description')}
+            </span>
+          </span>
+          <ButtonLink to="/parametres" variant="outline" size="sm">
+            {t('dashboard.guide.paiement.cta')}
+            <ArrowRight className="h-4 w-4" aria-hidden="true" />
+          </ButtonLink>
+        </div>
+      )}
 
       <div className="mt-4">
         <Button variant="ghost" size="sm" onClick={masquer}>

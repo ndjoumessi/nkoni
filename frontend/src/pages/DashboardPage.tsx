@@ -107,7 +107,7 @@ function OnboardingVide({ canManage }: { canManage: boolean }) {
  * période. « Mois courant applicatif » = Africa/Douala (comme le scheduler/back), jamais le fuseau
  * navigateur (sinon glissement d'un mois pour la diaspora). Mois locale-aware (Intl).
  */
-function EvolutionMensuelleCard({ annee, data }: { annee: number; data: EvolutionMois[] }) {
+function EvolutionMensuelleCard({ annee, data }: { annee: number; data: EvolutionMois[] | undefined }) {
   const { t, i18n } = useTranslation()
   const points = useMemo<PointEvolution[]>(() => {
     const fmt = new Intl.DateTimeFormat(i18n.language, { month: 'short', timeZone: 'UTC' })
@@ -117,7 +117,9 @@ function EvolutionMensuelleCard({ annee, data }: { annee: number; data: Evolutio
     let cumulN1 = 0
     // Borné au mois courant : la cible cumulée s'arrête à l'objectif « à date » (pas à l'annuel
     // plein) → l'échelle n'écrase plus la courbe collectée. N-1 cumulé sur la MÊME période.
-    return data
+    // `?? []` = filet : si l'API renvoie une réponse sans `evolutionMensuelle` (dérive de forme /
+    // skew de version), on rend un graphe vide plutôt que de jeter (écran blanc via ErrorBoundary).
+    return (data ?? [])
       .filter((e) => e.mois <= moisCourant)
       .map((e) => {
         cumulCollecte += e.collecte
@@ -180,11 +182,13 @@ function ActionsRapides() {
  * l'an dernier — comparaison honnête (même fenêtre). `null` si N-1 est nul : pas de base comparable
  * (on n'affiche alors aucune puce plutôt qu'un « +∞ % » trompeur).
  */
-function deltaCollecteN1(evolution: EvolutionMois[]): number | null {
+function deltaCollecteN1(evolution: EvolutionMois[] | undefined): number | null {
   const moisCourant = moisCourantApp()
   let collecte = 0
   let collecteN1 = 0
-  for (const e of evolution) {
+  // `?? []` : même filet que EvolutionMensuelleCard — une réponse sans `evolutionMensuelle` ne doit
+  // pas jeter « undefined is not iterable » ici (le for..of planterait le rendu → ErrorBoundary).
+  for (const e of evolution ?? []) {
     if (e.mois > moisCourant) continue
     collecte += e.collecte
     collecteN1 += e.collecteN1 ?? 0
@@ -356,6 +360,11 @@ function DashboardContent({ data, canManage }: { data: Dashboard; canManage: boo
       return <VueRestreint d={data} />
     case 'PERSO':
       return <VuePerso d={data} />
+    default:
+      // `data.vue` hors des 4 valeurs attendues (dérive d'API / skew de version) : un composant qui
+      // retourne `undefined` jette « Nothing was returned from render » → ErrorBoundary. On dégrade
+      // en rien-de-rendu plutôt qu'en écran blanc. `data` est `never` ici si l'union est exhaustive.
+      return null
   }
 }
 

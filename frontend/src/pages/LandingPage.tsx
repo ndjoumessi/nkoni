@@ -15,7 +15,7 @@ import {
   Users,
   Coins,
   CalendarCheck,
-  Gavel,
+  RefreshCw,
   FileBarChart,
   WifiOff,
   Globe,
@@ -88,18 +88,33 @@ export function LandingPage() {
           description={t('landing.apropos.description')}
         />
 
-        <div className="mt-14 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-14 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
           <FeatureCard
             icon={ShieldCheck}
             tone="jade"
             title={t('landing.apropos.cards.statuts.titre')}
             text={t('landing.apropos.cards.statuts.texte')}
           />
+          {/* Phare : paiement en ligne — l'argument le plus fort, promu de puce à carte vedette. */}
           <FeatureCard
-            icon={Scale}
+            icon={Smartphone}
             tone="brass"
-            title={t('landing.apropos.cards.mouvements.titre')}
-            text={t('landing.apropos.cards.mouvements.texte')}
+            title={t('landing.apropos.cards.paiement.titre')}
+            text={t('landing.apropos.cards.paiement.texte')}
+          />
+          {/* Phare : tontines rotatives (cycles / tours / mises). */}
+          <FeatureCard
+            icon={RefreshCw}
+            tone="jade"
+            title={t('landing.apropos.cards.tontine.titre')}
+            text={t('landing.apropos.cards.tontine.texte')}
+          />
+          {/* Phare : réunions, présences & votes de résolutions en ligne. */}
+          <FeatureCard
+            icon={CalendarCheck}
+            tone="brass"
+            title={t('landing.apropos.cards.reunions.titre')}
+            text={t('landing.apropos.cards.reunions.texte')}
           />
           <FeatureCard
             icon={Receipt}
@@ -401,15 +416,10 @@ export function LandingPage() {
 
 // Capacités « et aussi » — clés i18n + icônes (libellés résolus à l'affichage, §4).
 const CAPACITES: { key: string; icon: LucideIcon }[] = [
-  { key: 'paiementEnLigne', icon: Smartphone },
-  { key: 'reunions', icon: CalendarCheck },
-  { key: 'resolutions', icon: Gavel },
   { key: 'cagnottes', icon: HeartHandshake },
   { key: 'amendes', icon: Scale },
-  { key: 'cartes', icon: CreditCard },
   { key: 'rapports', icon: FileBarChart },
   { key: 'releve', icon: FileText },
-  { key: 'recus', icon: Receipt },
   { key: 'horsLigne', icon: WifiOff },
   { key: 'multiDevise', icon: Globe },
 ]

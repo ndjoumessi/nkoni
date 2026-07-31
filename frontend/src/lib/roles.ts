@@ -31,8 +31,23 @@ export function estMembreSimple(role: string | undefined): boolean {
   return role === 'MEMBRE_SIMPLE'
 }
 
-/** Rôles autorisés à désigner/retirer le chef de l'organisation (miroir du garde backend). */
+/*
+ * Trois gardes serveur DISTINCTES ci-dessous partagent aujourd'hui la même valeur ['ADMIN',
+ * 'PRESIDENT'] — mais ce sont des contreparties backend INDÉPENDANTES. Chacune a donc sa propre
+ * constante, nommée et commentée avec sa route serveur : découpler évite qu'un changement de l'une
+ * (p. ex. ouvrir la désignation du chef au secrétaire) fasse dériver les autres en silence. C'est le
+ * couplage que `tests/roles-lists-parity.test.ts` traque côté backend ; ce fichier n'a pas
+ * d'équivalent exécutable, d'où le soin porté aux constantes distinctes.
+ */
+
+/** Miroir du garde backend `requireRoles(['ADMIN','PRESIDENT'])` de PATCH /organisations/moi/chef. */
 const DESIGNATION_CHEF = ['ADMIN', 'PRESIDENT']
+
+/** Miroir du garde backend `requireRoles(['ADMIN','PRESIDENT'])` de GET /organisations/moi/export. */
+const EXPORT_DONNEES = ['ADMIN', 'PRESIDENT']
+
+/** Miroir du garde backend `requireRoles(['ADMIN','PRESIDENT'])` de la route de config PSP. */
+const CONFIG_PAIEMENT = ['ADMIN', 'PRESIDENT']
 
 /** Peut désigner ou retirer le chef de l'organisation (PATCH /organisations/moi/chef). */
 export function peutDesignerChef(role: string | undefined): boolean {
@@ -44,7 +59,7 @@ export function peutDesignerChef(role: string | undefined): boolean {
  * Réservé au bureau dirigeant (ADMIN/PRESIDENT) : l'export contient toutes les PII + les finances.
  */
 export function peutExporterDonnees(role: string | undefined): boolean {
-  return role !== undefined && DESIGNATION_CHEF.includes(role)
+  return role !== undefined && EXPORT_DONNEES.includes(role)
 }
 
 /**
@@ -52,7 +67,7 @@ export function peutExporterDonnees(role: string | undefined): boolean {
  * dirigeant (ADMIN/PRESIDENT) : la config engage l'encaissement au nom de l'association.
  */
 export function peutConfigurerPaiement(role: string | undefined): boolean {
-  return role !== undefined && DESIGNATION_CHEF.includes(role)
+  return role !== undefined && CONFIG_PAIEMENT.includes(role)
 }
 
 /** Rôles autorisés à saisir un versement et à ouvrir une année (Contribution/Versement CRUD §2). */

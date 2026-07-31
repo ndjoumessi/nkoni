@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
 import { Link, useNavigate } from 'react-router-dom'
@@ -12,6 +12,7 @@ import {
   Download,
   Eye,
   Fingerprint,
+  Gauge,
   Languages,
   LogOut,
   PauseCircle,
@@ -20,7 +21,9 @@ import {
   Search,
   ShieldAlert,
   Trash2,
+  TrendingUp,
   Users,
+  X,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
 import { platformApi, ApiError, messageErreur, type PlatformOrganisation } from '@/lib/api'
@@ -39,6 +42,7 @@ import { NkoniMark } from '@/components/ui/NkoniMark'
 import { Input } from '@/components/ui/Field'
 import { cn, formatDate } from '@/lib/utils'
 import { FORFAITS, limiteMembresForfait, type Forfait } from '@/lib/forfait'
+import { anneeCouranteApp, moisCourantApp } from '@/lib/date-app'
 import { cleI18n } from '@/lib/i18n'
 
 /** Format long pour l'info-bulle (attribut title). */
@@ -57,6 +61,38 @@ const TEINTE_FORFAIT: Record<Forfait, { barre: string; texte: string }> = {
 type FiltreStatut = 'tous' | 'actives' | 'suspendues'
 type FiltreForfait = 'tous' | Forfait
 type ColonneTri = 'organisation' | 'forfait' | 'membres' | 'creee' | 'statut'
+
+/** Une org « proche du plafond » = forfait plafonné ET ≥ 80 % du quota membres (signal d'attention/upsell). */
+function estProchePlafond(o: PlatformOrganisation): boolean {
+  const max = limiteMembresForfait(o.forfait)
+  return max !== null && o.nbMembres >= 0.8 * max
+}
+/** … et « au plafond » = quota atteint ou dépassé (blocage des nouveaux membres). */
+function estAuPlafond(o: PlatformOrganisation): boolean {
+  const max = limiteMembresForfait(o.forfait)
+  return max !== null && o.nbMembres >= max
+}
+
+/**
+ * Préférences d'affichage PERSISTÉES (localStorage) : filtres + tri survivent au rechargement, comme
+ * ailleurs dans l'app. La recherche N'EST PAS persistée (texte transitoire). Lecture défensive :
+ * localStorage indisponible (navigation privée) ou JSON corrompu → objet vide, valeurs par défaut.
+ */
+const PREFS_KEY = 'nkoni.superadmin.prefs'
+type PrefsConsole = {
+  statut: FiltreStatut
+  forfait: FiltreForfait
+  quota: boolean
+  tri: { col: ColonneTri; dir: SortDir }
+}
+function chargerPrefs(): Partial<PrefsConsole> {
+  try {
+    const brut = localStorage.getItem(PREFS_KEY)
+    return brut ? (JSON.parse(brut) as Partial<PrefsConsole>) : {}
+  } catch {
+    return {}
+  }
+}
 
 /** Date relative « il y a 3 j » selon la langue courante (Intl.RelativeTimeFormat). */
 function tempsRelatif(iso: string, langue: string): string {
@@ -202,9 +238,15 @@ export function SuperAdminPage() {
   const [pendingId, setPendingId] = useState<string | null>(null)
 
   const [recherche, setRecherche] = useState('')
-  const [filtreStatut, setFiltreStatut] = useState<FiltreStatut>('tous')
-  const [filtreForfait, setFiltreForfait] = useState<FiltreForfait>('tous')
-  const [tri, setTri] = useState<{ col: ColonneTri; dir: SortDir }>({ col: 'creee', dir: 'desc' })
+  // Filtres + tri initialisés depuis les préférences persistées (repli sur les défauts).
+  const [filtreStatut, setFiltreStatut] = useState<FiltreStatut>(() => chargerPrefs().statut ?? 'tous')
+  const [filtreForfait, setFiltreForfait] = useState<FiltreForfait>(() => chargerPrefs().forfait ?? 'tous')
+  const [filtreQuota, setFiltreQuota] = useState<boolean>(() => chargerPrefs().quota ?? false)
+  const [tri, setTri] = useState<{ col: ColonneTri; dir: SortDir }>(
+    () => chargerPrefs().tri ?? { col: 'creee', dir: 'desc' },
+  )
+  // Focus clavier « / » → saute au champ recherche (raccourci d'inspection courant).
+  const searchRef = useRef<HTMLInputElement>(null)
 
   const [cibleSuspension, setCibleSuspension] = useState<PlatformOrganisation | null>(null)
   // Suppression définitive (0.3) : la cible, la frappe de confirmation, et les états de charge.
@@ -239,6 +281,39 @@ export function SuperAdminPage() {
     }
   }, [accessToken])
 
+  // Persiste filtres + tri (pas la recherche) à chaque changement — restaurés au prochain montage.
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        PREFS_KEY,
+        JSON.stringify({ statut: filtreStatut, forfait: filtreForfait, quota: filtreQuota, tri }),
+      )
+    } catch {
+      /* localStorage indisponible (navigation privée / quota) : on ignore, non bloquant. */
+    }
+  }, [filtreStatut, filtreForfait, filtreQuota, tri])
+
+  // Raccourci « / » : focus le champ de recherche, sauf si l'on frappe déjà dans un champ éditable.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== '/' || e.defaultPrevented) return
+      const el = document.activeElement as HTMLElement | null
+      if (
+        el &&
+        (el.tagName === 'INPUT' ||
+          el.tagName === 'TEXTAREA' ||
+          el.tagName === 'SELECT' ||
+          el.isContentEditable)
+      ) {
+        return
+      }
+      e.preventDefault()
+      searchRef.current?.focus()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
   // KPIs plateforme (sur l'ensemble non filtré) + répartition par forfait.
   const kpis = useMemo(() => {
     const liste = organisations ?? []
@@ -248,12 +323,25 @@ export function SuperAdminPage() {
       (acc, f) => ({ ...acc, [f]: liste.filter((o) => o.forfait === f).length }),
       {} as Record<Forfait, number>,
     )
+    // Croissance : orgs créées dans le mois courant APPLICATIF (Africa/Douala, comme le reste de
+    // l'app — jamais le fuseau du poste). `anneeCouranteApp(d)`/`moisCourantApp(d)` lisent la date
+    // passée dans ce fuseau, donc la comparaison est cohérente avec le « mois courant » affiché.
+    const anneeC = anneeCouranteApp()
+    const moisC = moisCourantApp()
+    const nouvelles = liste.filter((o) => {
+      const d = new Date(o.createdAt)
+      return anneeCouranteApp(d) === anneeC && moisCourantApp(d) === moisC
+    }).length
     return {
       total,
       actives,
       suspendues: total - actives,
       membres: liste.reduce((somme, o) => somme + o.nbMembres, 0),
       parForfait,
+      nouvelles,
+      // Pression de quota : proches (≥ 80 %) et au plafond (≥ 100 %) — signal d'attention/upsell.
+      proches: liste.filter(estProchePlafond).length,
+      auPlafond: liste.filter(estAuPlafond).length,
     }
   }, [organisations])
 
@@ -266,9 +354,10 @@ export function SuperAdminPage() {
       if (filtreStatut === 'actives' && !o.actif) return false
       if (filtreStatut === 'suspendues' && o.actif) return false
       if (filtreForfait !== 'tous' && o.forfait !== filtreForfait) return false
+      if (filtreQuota && !estProchePlafond(o)) return false
       return true
     })
-  }, [organisations, recherche, filtreStatut, filtreForfait])
+  }, [organisations, recherche, filtreStatut, filtreForfait, filtreQuota])
 
   // Tri client.
   const triees = useMemo(() => {
@@ -302,6 +391,7 @@ export function SuperAdminPage() {
     setRecherche('')
     setFiltreStatut('tous')
     setFiltreForfait('tous')
+    setFiltreQuota(false)
   }
 
   const detailOrg = useMemo(
@@ -668,9 +758,11 @@ export function SuperAdminPage() {
         <PageHeader overline={t('superAdmin.header.overline')} title={t('superAdmin.header.titre')} />
 
         {/* Bandeau de KPIs — skeletons pendant le chargement (cohérent avec le dashboard). */}
-        <div className="nk-reveal nk-d1 mt-7 grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <div className="nk-reveal nk-d1 mt-7 grid grid-cols-2 gap-4 lg:grid-cols-3">
           {loading ? (
             <>
+              <StatCardSkeleton />
+              <StatCardSkeleton />
               <StatCardSkeleton />
               <StatCardSkeleton />
               <StatCardSkeleton />
@@ -698,6 +790,28 @@ export function SuperAdminPage() {
                 label={t('superAdmin.kpi.membres')}
                 value={String(kpis.membres)}
                 hint={t('superAdmin.kpi.membresHint')}
+              />
+              <StatCard
+                icon={TrendingUp}
+                tone="jade"
+                label={t('superAdmin.kpi.nouvelles')}
+                value={String(kpis.nouvelles)}
+                hint={t('superAdmin.kpi.nouvellesHint')}
+              />
+              {/* Pression de quota : tonalité selon la sévérité (au plafond = terra, proche = amber).
+                  Cliquable UNIQUEMENT s'il y a des espaces concernés → bascule le filtre quota. */}
+              <StatCard
+                icon={Gauge}
+                tone={kpis.auPlafond > 0 ? 'terra' : kpis.proches > 0 ? 'amber' : 'neutral'}
+                label={t('superAdmin.kpi.pressionQuota')}
+                value={String(kpis.proches)}
+                hint={
+                  kpis.proches > 0
+                    ? t('superAdmin.kpi.pressionQuotaFiltre')
+                    : t('superAdmin.kpi.pressionQuotaHint')
+                }
+                onClick={kpis.proches > 0 ? () => setFiltreQuota((v) => !v) : undefined}
+                className={filtreQuota ? 'ring-2 ring-brass/50' : undefined}
               />
             </>
           )}
@@ -747,11 +861,13 @@ export function SuperAdminPage() {
                 aria-hidden="true"
               />
               <Input
+                ref={searchRef}
                 type="search"
                 value={recherche}
                 onChange={(e) => setRecherche(e.target.value)}
                 placeholder={t('superAdmin.filtres.recherche')}
                 aria-label={t('superAdmin.filtres.rechercheLabel')}
+                title={t('superAdmin.filtres.rechercheRaccourci')}
                 className="pl-9"
               />
             </div>
@@ -779,6 +895,19 @@ export function SuperAdminPage() {
               actif={filtreForfait}
               onSelect={setFiltreForfait}
             />
+            {/* Filtre quota actif (basculé depuis le KPI, plus haut) : rendu ICI comme pilule
+                retirable pour qu'il reste visible et annulable au niveau des autres filtres. */}
+            {filtreQuota && (
+              <button
+                type="button"
+                onClick={() => setFiltreQuota(false)}
+                aria-label={t('superAdmin.filtres.quotaRetirer')}
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-amber/40 bg-amber/[0.08] px-3 py-1.5 text-xs font-medium text-amber transition-colors hover:bg-amber/[0.14] focus:outline-none focus-visible:ring-2 focus-visible:ring-brass/60"
+              >
+                {t('superAdmin.filtres.quotaActif')}
+                <X className="h-3.5 w-3.5" aria-hidden="true" />
+              </button>
+            )}
           </div>
         </div>
 

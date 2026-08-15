@@ -31,6 +31,7 @@ export default {
       branche: 'Branch',
       depuis: 'Member since',
       scanner: 'Scan to check status',
+      qrAlt: 'QR code to verify this member\'s status',
       chef: 'Head',
       telecharger: 'Download the PDF',
       erreur: 'Could not download the card',

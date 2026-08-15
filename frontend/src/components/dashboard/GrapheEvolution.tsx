@@ -1,7 +1,7 @@
 import { useEffect, useId, useMemo, useState } from 'react'
 import { Activity, BarChart3 } from 'lucide-react'
 import { Card, Overline } from '@/components/ui/Card'
-import { formatMontant, formatNombre, formatPourcent } from '@/lib/format'
+import { formatMontant, formatPourcent } from '@/lib/format'
 import { cn, prefersReducedMotion } from '@/lib/utils'
 
 /**
@@ -284,9 +284,12 @@ function CorpsAire({
         }}
         onMouseLeave={() => setHover(null)}
       >
-        {/* Échelle haute (valeur max), lisible et non déformée. */}
+        {/* Échelle haute (valeur max), lisible et non déformée. `formatMontant` et non
+            `formatNombre` : c'est la SEULE graduation de l'axe, et sans unité le lecteur voyant ne
+            sait pas s'il lit des FCFA ou un effectif — la table `sr-only`, elle, donnait déjà des
+            montants. Toutes les autres valeurs du composant sont déjà formatées ainsi. */}
         <span className="num absolute -top-1 left-0 z-10 text-2xs text-faint">
-          {formatNombre(max)}
+          {formatMontant(max)}
         </span>
         <svg
           viewBox={`0 0 ${W} ${H}`}

@@ -63,6 +63,9 @@ export function VersementFormPage() {
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  // Erreur serveur PERSISTANTE, en plus du toast : un toast dure 8 s et, raté, l'information est
+  // perdue — inacceptable sur un formulaire qui enregistre de l'argent (audit UI/UX, m6).
+  const [erreurServeur, setErreurServeur] = useState<string | null>(null)
   const [resultat, setResultat] = useState<VersementCree | null>(null)
   const [errMontant, setErrMontant] = useState<string | undefined>(undefined)
   const formRef = useRef<HTMLFormElement>(null)
@@ -144,6 +147,7 @@ export function VersementFormPage() {
       requestAnimationFrame(() => focusPremierChampInvalide(formRef.current))
       return
     }
+    setErreurServeur(null) // purge : un réessai réussi ne doit pas laisser l'erreur précédente
     setSaving(true)
 
     // L'année choisie peut ne pas avoir de ligne Contribution (jamais ouverte globalement) : on
@@ -187,10 +191,9 @@ export function VersementFormPage() {
         t('versements.resume', { montant: formatMontant(res.versement.montant), annee: res.contribution.annee }),
       )
     } catch (e) {
-      toast.error(
-        t('versements.toast.enregistrementImpossible'),
-        e instanceof ApiError ? e.message : t('versements.toast.enregistrementEchec'),
-      )
+      const detail = e instanceof ApiError ? e.message : t('versements.toast.enregistrementEchec')
+      setErreurServeur(detail)
+      toast.error(t('versements.toast.enregistrementImpossible'), detail)
     } finally {
       setSaving(false)
     }
@@ -390,6 +393,14 @@ export function VersementFormPage() {
                   <Textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} />
                 </Field>
 
+                {erreurServeur && (
+                  <p
+                    role="alert"
+                    className="rounded-xl border border-terra/30 bg-terra/10 px-3.5 py-2.5 text-sm text-terra-text"
+                  >
+                    {erreurServeur}
+                  </p>
+                )}
                 <div className="flex justify-end">
                   <Button type="submit" loading={saving} disabled={anneeChoisie === null}>
                     {t('versements.form.enregistrer')}

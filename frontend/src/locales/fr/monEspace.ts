@@ -31,6 +31,7 @@ export default {
       branche: 'Branche',
       depuis: 'Membre depuis',
       scanner: 'Scanner pour vérifier le statut',
+      qrAlt: 'QR code de vérification du statut de ce membre',
       chef: 'Chef',
       telecharger: 'Télécharger le PDF',
       erreur: 'Téléchargement de la carte impossible',

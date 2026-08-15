@@ -298,7 +298,10 @@ export function EquilibrageFormPage() {
                         className="hidden h-4 w-4 text-faint sm:block"
                         aria-hidden="true"
                       />
-                      <div className="col-span-2 flex items-center gap-2 sm:col-span-1">
+                      <div className="col-span-2 flex flex-wrap items-center gap-2 sm:col-span-1">
+                        {/* `aria-invalid` ANNONCE une erreur : sans `aria-describedby` pointant sur
+                            un message, la bordure rouge reste muette et le lecteur d'écran entend
+                            « invalide » sans savoir pourquoi ni comment corriger. */}
                         <Input
                           type="number"
                           min={0}
@@ -307,12 +310,24 @@ export function EquilibrageFormPage() {
                           className="num"
                           aria-label={t('equilibrages.repartition.montantAria', { annee: l.annee })}
                           aria-invalid={(nums[i] ?? 0) < 0 ? true : undefined}
+                          aria-describedby={
+                            (nums[i] ?? 0) < 0 ? `montant-negatif-${l.annee}` : undefined
+                          }
                         />
                         {delta !== 0 && (
                           <Badge tone="info" size="sm">
                             {delta > 0 ? '+' : '−'}
                             {formatMontant(Math.abs(delta))}
                           </Badge>
+                        )}
+                        {(nums[i] ?? 0) < 0 && (
+                          <span
+                            id={`montant-negatif-${l.annee}`}
+                            role="alert"
+                            className="w-full text-2xs text-terra-text"
+                          >
+                            {t('equilibrages.repartition.montantNegatif')}
+                          </span>
                         )}
                       </div>
                     </li>

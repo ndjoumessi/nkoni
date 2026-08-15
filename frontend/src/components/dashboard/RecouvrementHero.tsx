@@ -54,7 +54,7 @@ function Gauge({ value }: { value: number }) {
         <span className="num text-3xl font-semibold tracking-tight text-foreground">
           {formatPourcent(Math.round(anime))}
         </span>
-        <span className="mt-0.5 text-3xs uppercase tracking-[0.12em] text-faint">
+        <span className="mt-0.5 text-2xs uppercase tracking-[0.12em] text-faint">
           {t('dashboard.hero.recouvre')}
         </span>
       </div>

@@ -23,10 +23,14 @@
     --font-display: var(--font-sans);
     --font-heading: var(--font-display);
 
-    /* Échelle micro-typo (labels/overlines) — PLANCHER de lisibilité à 0.68rem :
-       remplace les tailles arbitraires text-[0.6–0.72rem] éparpillées (M11). */
-    --text-2xs: 0.72rem;
-    --text-3xs: 0.68rem;
+    /* Échelle micro-typo (labels/overlines) — UN SEUL cran, posé au PLANCHER de lisibilité de
+       12 px. Remplace les tailles arbitraires text-[0.6–0.72rem] éparpillées (M11).
+       ⚠️ `--text-3xs` (0.68rem = 10.9 px) a été SUPPRIMÉ, pas relevé : le commentaire annonçait un
+       plancher que la valeur ne tenait pas, sur un public partiellement presbyte et des écrans bas
+       de gamme (audit UI/UX 2026-08, C5). Le relever à 0.75rem l'aurait rendu PLUS GRAND que
+       `--text-2xs` (0.72rem) et aurait inversé l'échelle ; ses 14 usages sont donc migrés ici.
+       NE PAS réintroduire de cran sous 12 px : c'est ce qui rend le plancher tenable. */
+    --text-2xs: 0.75rem;
 
     /* Rayons */
     --radius-sm: calc(var(--radius) * 0.55);

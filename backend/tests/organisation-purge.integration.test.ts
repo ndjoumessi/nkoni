@@ -189,6 +189,13 @@ async function semer(orgId: string, actif: boolean): Promise<void> {
       titre: 'Reçu', message: 'Versement enregistré',
     },
   })
+  await (base as any).pushSubscription.create({
+    data: {
+      // `endpoint` est @unique → dérivé de l'orgId pour ne pas collisionner entre A et B.
+      organisationId: orgId, destinataireId: u.id, endpoint: `https://push.test/${orgId}`,
+      p256dh: 'cle-p256dh', auth: 'cle-auth',
+    },
+  })
   await base.depense.create({
     data: {
       organisationId: orgId, montant: 5000, date: new Date('2025-05-01T00:00:00Z'),

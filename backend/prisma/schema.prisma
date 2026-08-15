@@ -211,6 +211,7 @@ model Organisation {
   amendes              Amende[]
   parametrePaiement    ParametrePaiement?
   paiements            Paiement[]
+  pushSubscriptions    PushSubscription[]
 }
 
 model Utilisateur {
@@ -248,6 +249,7 @@ model Utilisateur {
   documentsTeleverses  Document[]     @relation("DocumentTeleversePar") // V2 §5
   auditsActeur         AuditLog[]     @relation("AuditActeur") // V2 §5 — écritures tracées
   notifications        Notification[] @relation("NotificationDestinataire") // V2 §5 — notifs reçues
+  pushSubscriptions    PushSubscription[] @relation("PushSubscriptionUtilisateur") // Web Push (par appareil)
   depensesSaisies      Depense[]      @relation("DepenseSaisiPar") // Trésorerie — dépenses saisies
   depensesApprouvees   Depense[]      @relation("DepenseApprouvePar") // Trésorerie — dépenses approuvées/rejetées
   // Préférences de notification par type. null / clé absente = ACTIVÉ (défaut : tout activé,
@@ -1018,6 +1020,25 @@ model Notification {
 
   @@index([destinataireId, lu])
   @@index([destinataireId, type, dateCreation]) // pour l'anti-spam COTISATION_RETARD (< 7 j)
+  @@index([organisationId])
+}
+
+// Abonnement Web Push d'un APPAREIL (une ligne par navigateur/appareil d'un utilisateur ; un même
+// compte peut en avoir plusieurs). Scopé par organisation comme le reste. L'envoi se fait
+// best-effort depuis le pipeline de notifications (§ notifications) ; `endpoint` est l'URL push du
+// navigateur, `p256dh`/`auth` les clés de chiffrement du client (protocole Web Push standard).
+model PushSubscription {
+  id             String       @id @default(uuid())
+  organisationId String
+  organisation   Organisation @relation(fields: [organisationId], references: [id])
+  destinataireId String
+  destinataire   Utilisateur  @relation("PushSubscriptionUtilisateur", fields: [destinataireId], references: [id], onDelete: Cascade)
+  endpoint       String       @unique
+  p256dh         String
+  auth           String
+  dateCreation   DateTime     @default(now())
+
+  @@index([destinataireId])
   @@index([organisationId])
 }
 

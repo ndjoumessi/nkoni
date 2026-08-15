@@ -143,10 +143,20 @@ export function NotificationPreferences() {
         setEtatPush('inactif')
       }
     } catch (e) {
-      toast.error(
-        t('profil.notifications.push.erreur'),
-        e instanceof ApiError ? e.message : t('profil.notifications.reessayer'),
-      )
+      // On fait REMONTER la cause réelle dans le toast : un échec d'abonnement push est presque
+      // toujours technique (permission OS, échec d'enregistrement FCM sur certains appareils…) et
+      // le message générique « réessayez » n'aide ni l'utilisateur ni le diagnostic. Pour une
+      // erreur HTTP → son message serveur ; pour une exception navigateur → `Nom: message`
+      // (ex. « AbortError: Registration failed - push service error »).
+      const detail =
+        e instanceof ApiError
+          ? e.message
+          : e instanceof Error
+            ? `${e.name}: ${e.message}`
+            : t('profil.notifications.reessayer')
+      // Trace console AUSSI (visible en débogage à distance chrome://inspect), en plus du toast.
+      console.error('[push] activation impossible', e)
+      toast.error(t('profil.notifications.push.erreur'), detail)
     } finally {
       setPushEnCours(false)
     }

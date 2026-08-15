@@ -25,6 +25,7 @@ import {
   downloadRapportFinancier,
   downloadRapportComparaisonMulti,
   downloadExportContributions,
+  downloadRecouvrement,
   messageErreur,
   ApiError,
   type ComparaisonMulti,
@@ -412,6 +413,8 @@ export function RapportsPage() {
   const [chargementAnnees, setChargementAnnees] = useState(true)
   const [mode, setMode] = useState<Mode>('evolution')
   const [exportEnCours, setExportEnCours] = useState<'xlsx' | 'pdf' | null>(null)
+  // Export recouvrement : indépendant du mode/année ci-dessus (reste dû cumulé, calculé serveur).
+  const [recouvrementEnCours, setRecouvrementEnCours] = useState<'xlsx' | 'pdf' | null>(null)
 
   // Onglets de mode = motif ARIA Tabs (APG). Roving tabindex (seul l'onglet actif est tabbable)
   // + navigation ←/→/Home/End qui déplace la sélection ET le focus (a11y clavier).
@@ -578,6 +581,27 @@ export function RapportsPage() {
     }
   }
 
+  // Rapport de recouvrement : liste des membres actifs avec reste dû cumulé (relance). Toujours
+  // disponible, sans dépendre des sélecteurs de mode/année — le serveur calcule la fenêtre courante.
+  const exporterRecouvrement = async (format: 'xlsx' | 'pdf') => {
+    if (!accessToken) return
+    setRecouvrementEnCours(format)
+    try {
+      await downloadRecouvrement(format, accessToken)
+      toast.success(
+        t('rapports.export.pret'),
+        t('rapports.export.pretDetail', { format: format.toUpperCase() }),
+      )
+    } catch (e) {
+      toast.error(
+        t('rapports.export.echec'),
+        e instanceof ApiError ? e.message : t('rapports.export.reessayer'),
+      )
+    } finally {
+      setRecouvrementEnCours(null)
+    }
+  }
+
   const exportDesactive =
     exportEnCours !== null ||
     (mode === 'evolution'
@@ -611,6 +635,50 @@ export function RapportsPage() {
         title={t('rapports.header.titre')}
         description={t('rapports.header.description')}
       />
+
+      {/* Rapport de recouvrement — autonome (reste dû cumulé, indépendant des sélecteurs). */}
+      <Card
+        variant="feature"
+        className="nk-reveal nk-d1 mt-7 flex flex-wrap items-center justify-between gap-4 p-5 sm:p-6"
+      >
+        <div className="flex items-start gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-surface-2 text-brass">
+            <Wallet className="h-5 w-5" aria-hidden="true" />
+          </span>
+          <div>
+            <h2 className="font-display text-lg font-semibold tracking-tight text-foreground">
+              {t('rapports.recouvrement.titre')}
+            </h2>
+            <p className="mt-1 max-w-xl text-sm text-muted-foreground">
+              {t('rapports.recouvrement.description')}
+            </p>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            icon={FileSpreadsheet}
+            loading={recouvrementEnCours === 'xlsx'}
+            disabled={recouvrementEnCours !== null}
+            onClick={() => exporterRecouvrement('xlsx')}
+          >
+            {t('rapports.export.excel')}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            icon={FileText}
+            loading={recouvrementEnCours === 'pdf'}
+            disabled={recouvrementEnCours !== null}
+            onClick={() => exporterRecouvrement('pdf')}
+          >
+            {t('rapports.export.pdf')}
+          </Button>
+        </div>
+      </Card>
 
       {chargementAnnees ? (
         <Card className="nk-reveal nk-d2 mt-7 overflow-hidden p-0">

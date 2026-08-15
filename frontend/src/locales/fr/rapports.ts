@@ -81,6 +81,11 @@ export default {
       echec: 'Échec de l’export',
       reessayer: 'Réessayez plus tard.',
     },
+    recouvrement: {
+      titre: 'Rapport de recouvrement',
+      description:
+        'Liste des membres actifs qui ont un reste à payer pour être à jour (cumulé, avec téléphone et branche pour la relance).',
+    },
     synthese: {
       totalCollecte: 'Total collecté',
       totalAttendu: 'Total attendu',

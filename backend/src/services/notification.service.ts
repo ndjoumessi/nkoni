@@ -12,7 +12,12 @@
  */
 
 import { t, formatMontant, type Langue, type Devise } from '../lib/i18n'
-import { notifierParPush, type PushClient, type PushPrisma } from './push.service'
+import {
+  notifierParPush,
+  type PushClient,
+  type PushPrisma,
+  type PushObservabilite,
+} from './push.service'
 
 export type TypeNotification = 'VERSEMENT_RECU' | 'COTISATION_RETARD' | 'REUNION_RAPPEL'
 
@@ -290,6 +295,7 @@ export async function notifierVersement(
   prisma: NotificationPrisma,
   params: VersementNotifParams,
   push?: PushClient,
+  observabilite?: PushObservabilite,
 ): Promise<void> {
   const membre = await prisma.membre.findUnique({
     where: { id: params.membreId },
@@ -321,10 +327,12 @@ export async function notifierVersement(
   // Web Push (best-effort) : chemin ROUTE, hors transaction, contexte d'org déjà posé par
   // `authenticate` → on peut envoyer en ligne. No-op si `push` absent ou clés VAPID absentes.
   if (push) {
-    await notifierParPush(prisma as unknown as PushPrisma, push, destinataireId, {
-      titre,
-      message,
-      url: '/notifications',
-    })
+    await notifierParPush(
+      prisma as unknown as PushPrisma,
+      push,
+      destinataireId,
+      { titre, message, url: '/notifications' },
+      observabilite,
+    )
   }
 }

@@ -320,7 +320,7 @@ function CompteMenu() {
               type="button"
               onClick={handleLogout}
               disabled={signingOut}
-              className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-terra/10 hover:text-terra disabled:opacity-60"
+              className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-terra/10 hover:text-terra-text disabled:opacity-60"
             >
               <LogOut className="h-4 w-4" aria-hidden="true" />
               {signingOut ? t('shell.deconnexionEnCours') : t('shell.seDeconnecter')}
@@ -383,7 +383,7 @@ function SidebarContent({ onNavigate, compte }: { onNavigate?: () => void; compt
             type="button"
             onClick={handleLogout}
             disabled={signingOut}
-            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-terra/10 hover:text-terra disabled:opacity-60"
+            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-terra/10 hover:text-terra-text disabled:opacity-60"
           >
             <LogOut className="h-[1.15rem] w-[1.15rem]" aria-hidden="true" />
             {signingOut ? t('shell.deconnexionEnCours') : t('shell.seDeconnecter')}

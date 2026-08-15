@@ -71,6 +71,11 @@
     --color-terra: var(--terra);
     --color-info: var(--info);
     --color-faint: var(--faint);
+    /* Variantes TEXTE (text-terra-text, text-info-text…) — cf. le bloc `:root` pour la raison :
+       un accent posé en texte sur un fond de la MÊME teinte échoue AA. */
+    --color-terra-text: var(--terra-text);
+    --color-info-text: var(--info-text);
+    --color-emerald-deep-text: var(--emerald-deep-text);
 }
 
 :root {
@@ -117,6 +122,25 @@
     --amber: oklch(0.80 0.085 85);           /* OR discret — accent secondaire (héritage) */
     --terra: oklch(0.66 0.15 28);            /* alerte / retard */
     --info: oklch(0.72 0.09 240);            /* information */
+
+    /* --- Variantes TEXTE des accents (audit UI/UX 2026-08, WCAG 1.4.3) ---
+       ⚠️ NE PAS remplacer par le jeton d'accent « pour simplifier » : un accent ne peut pas servir
+       à la fois d'APLAT et de TEXTE-SUR-CE-MÊME-APLAT. Un `Badge` compose `text-<ton>` sur
+       `bg-<ton>/12` ; fond et texte partageant la teinte, le fond remonte la luminance du substrat
+       et ÉCRASE le ratio. MESURÉ sur `--surface` : terra 3.58:1 et info 4.21:1, donc SOUS le seuil
+       AA de 4.5 — et ce sont les badges « Non à jour » / « Impayée », l'information la plus lourde
+       de sens du produit. Baisser l'opacité du fond ne sauve pas terra (3.58 → 4.50 seulement à 5 %,
+       où le badge ne se distingue plus) : la correction doit porter sur le TEXTE.
+       Ces jetons servent AUSSI de texte sur `--surface-3` (survol de carte, `outline` au survol),
+       où `--terra` tombait à 4.18:1 et `--emerald-deep` à 3.88:1.
+       Les jetons d'accent ci-dessus restent inchangés pour les bordures, aplats, barres et courbes.
+       Même discipline que `--faint`/`--surface-3` : TOUTE retouche re-mesure le ratio.
+       Les valeurs sont choisies sur le PIRE substrat (badge posé sur `--surface-2`), avec un coussin
+       ≥ 10 % au-dessus du seuil — au niveau de rigueur retenu pour `--faint` (un coussin de ~2-3 %
+       a été jugé trop mince là-bas, il l'est ici aussi). */
+    --terra-text: oklch(0.80 0.15 28);          /* badge 3.58 → 5.26:1 (pire cas) ; +17 % de marge */
+    --info-text: oklch(0.80 0.09 240);          /* badge 4.21 → 5.28:1 (pire cas) ; +17 % de marge */
+    --emerald-deep-text: oklch(0.72 0.15 163);  /* 3.88 → 5.99:1 sur surface-3 */
 
     /* --- Remap shadcn --- */
     --background: var(--canvas);

@@ -350,24 +350,29 @@ export function AmendesPage() {
                     </td>
                     {(gestion || argent) && (
                       <td className="px-4 py-2.5">
-                        <div className="flex justify-end gap-1.5">
+                        {/* Cibles tactiles : ces 4 actions faisaient 28 px, espacées de 6 px, dans
+                            une cellule de tableau — densité inatteignable au pouce, et elle mêle des
+                            actions bénignes (modifier) à des actions destructives (supprimer, annuler
+                            un encaissement). 36 px + `gap-2`, et un état `active:` puisqu'au doigt
+                            `hover` n'existe pas et que le halo natif est neutralisé globalement. */}
+                        <div className="flex justify-end gap-2">
                           {a.statut === 'IMPAYEE' && argent && (
-                            <button type="button" onClick={() => { setAPayer(a); setPayDate(aujourdHui()); setPayMode('ESPECES'); setModal('payer') }} className="rounded-md p-1.5 text-faint transition-colors hover:bg-jade/10 hover:text-jade" aria-label={t('amendes.actions.payer')} title={t('amendes.actions.payer')}>
+                            <button type="button" onClick={() => { setAPayer(a); setPayDate(aujourdHui()); setPayMode('ESPECES'); setModal('payer') }} className="inline-flex h-9 w-9 items-center justify-center rounded-md text-faint transition-colors hover:bg-jade/10 hover:text-jade active:bg-jade/15 active:text-jade" aria-label={t('amendes.actions.payer')} title={t('amendes.actions.payer')}>
                               <Check className="h-4 w-4" aria-hidden="true" />
                             </button>
                           )}
                           {a.statut === 'IMPAYEE' && gestion && (
-                            <button type="button" onClick={() => ouvrirEdition(a)} className="rounded-md p-1.5 text-faint transition-colors hover:bg-surface-2 hover:text-foreground" aria-label={t('amendes.actions.modifier')} title={t('amendes.actions.modifier')}>
+                            <button type="button" onClick={() => ouvrirEdition(a)} className="inline-flex h-9 w-9 items-center justify-center rounded-md text-faint transition-colors hover:bg-surface-2 hover:text-foreground active:bg-surface-3 active:text-foreground" aria-label={t('amendes.actions.modifier')} title={t('amendes.actions.modifier')}>
                               <Pencil className="h-4 w-4" aria-hidden="true" />
                             </button>
                           )}
                           {a.statut === 'IMPAYEE' && argent && (
-                            <button type="button" onClick={() => setAAnnuler(a)} className="rounded-md p-1.5 text-faint transition-colors hover:bg-surface-2 hover:text-foreground" aria-label={t('amendes.actions.annuler')} title={t('amendes.actions.annuler')}>
+                            <button type="button" onClick={() => setAAnnuler(a)} className="inline-flex h-9 w-9 items-center justify-center rounded-md text-faint transition-colors hover:bg-surface-2 hover:text-foreground active:bg-surface-3 active:text-foreground" aria-label={t('amendes.actions.annuler')} title={t('amendes.actions.annuler')}>
                               <Ban className="h-4 w-4" aria-hidden="true" />
                             </button>
                           )}
                           {a.statut === 'IMPAYEE' && gestion && (
-                            <button type="button" onClick={() => setASupprimer(a)} className="rounded-md p-1.5 text-faint transition-colors hover:bg-terra/10 hover:text-terra" aria-label={t('amendes.actions.supprimer')} title={t('amendes.actions.supprimer')}>
+                            <button type="button" onClick={() => setASupprimer(a)} className="inline-flex h-9 w-9 items-center justify-center rounded-md text-faint transition-colors hover:bg-terra/10 hover:text-terra-text active:bg-terra/15 active:text-terra-text" aria-label={t('amendes.actions.supprimer')} title={t('amendes.actions.supprimer')}>
                               <Trash2 className="h-4 w-4" aria-hidden="true" />
                             </button>
                           )}

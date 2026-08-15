@@ -1159,7 +1159,7 @@ export function SuperAdminPage() {
       >
         <div className="space-y-4">
           <div className="flex items-start gap-3 rounded-xl border border-terra/30 bg-terra/[0.08] px-3.5 py-3">
-            <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-terra" aria-hidden="true" />
+            <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-terra-text" aria-hidden="true" />
             <div className="space-y-2 text-sm text-muted-foreground">
               <p>
                 {t('superAdmin.suppression.avert', { nom: cibleSuppression?.nom ?? '' })}

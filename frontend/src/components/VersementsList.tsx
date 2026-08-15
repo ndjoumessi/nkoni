@@ -466,7 +466,7 @@ export function VersementsList({
                     icon={Trash2}
                     aria-label={t('versements.liste.supprimer')}
                     title={t('versements.liste.supprimer')}
-                    className="hover:bg-terra/10 hover:text-terra"
+                    className="hover:bg-terra/10 hover:text-terra-text"
                     onClick={() => setConfirmDelete(v)}
                   />
                 </div>

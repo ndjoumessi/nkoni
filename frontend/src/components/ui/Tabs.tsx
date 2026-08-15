@@ -89,7 +89,10 @@ export function Tabs({ value, onValueChange, options, ariaLabel, idBase, classNa
             onClick={() => onValueChange(o.value)}
             onKeyDown={(e) => onKeyDown(e, i)}
             className={cn(
-              'rounded-full px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none',
+              // `min-h-11` en mobile (44 px au doigt), resserré à partir de `sm:` pour garder la
+              // densité au curseur — ces onglets faisaient 36 px et pilotent la navigation
+              // secondaire de TOUTE l'app (Mon espace, Rapports, Trésorerie…).
+              'inline-flex min-h-11 items-center rounded-full px-4 text-sm font-medium transition-colors focus-visible:outline-none sm:min-h-9',
               actif ? 'bg-surface-2 text-foreground' : 'text-muted-foreground hover:text-foreground',
             )}
           >

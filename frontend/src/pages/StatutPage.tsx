@@ -20,7 +20,7 @@ import { cn, formatDateHeure } from '@/lib/utils'
 const GRAVITE_STYLE: Record<GraviteIncident, { ring: string; tone: string; icon: LucideIcon }> = {
   INFO: { ring: 'border-brass/30 bg-brass/[0.07]', tone: 'text-brass', icon: Info },
   MAINTENANCE: { ring: 'border-amber/30 bg-amber/[0.07]', tone: 'text-amber', icon: Wrench },
-  INCIDENT: { ring: 'border-terra/30 bg-terra/[0.07]', tone: 'text-terra', icon: AlertTriangle },
+  INCIDENT: { ring: 'border-terra/30 bg-terra/[0.07]', tone: 'text-terra-text', icon: AlertTriangle },
 }
 
 const CONTACT_SUPPORT = 'romel.djoumessi@gmail.com'

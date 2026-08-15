@@ -113,3 +113,36 @@ export function calculerStatutContribution(
 
   return { totalAttenduCumule, totalValoriseCumule, statut }
 }
+
+/**
+ * Années encore DUES (non entièrement soldées) dans la fenêtre de contribution — pour la relance.
+ *
+ * Le modèle est CUMULATIF (la valorisation se redistribue entre années, cf. équilibrage §4.1), donc
+ * on n'oppose PAS bêtement le valorisé de chaque année à son attendu. On alloue le valorisé TOTAL
+ * aux années par ordre chronologique (les plus anciennes d'abord — logique d'arriérés) : une année
+ * est DUE dès que le solde restant ne la couvre pas entièrement. Renvoie les années triées croissant
+ * (vide si le membre est à jour). Une année sans barème (montant attendu 0) n'est jamais due.
+ */
+export function anneesImpayees(params: StatutContributionParams): number[] {
+  const { baremes, contributions, anneeAdhesion, anneeFinContribution, anneeCourante } = params
+  const borneFin = Math.min(anneeCourante, anneeFinContribution ?? anneeCourante)
+
+  let solde = contributions
+    .filter((c) => c.annee >= anneeAdhesion && c.annee <= borneFin)
+    .reduce((somme, c) => somme + c.montantValorise, 0)
+
+  const dues: number[] = []
+  const anneesAttendues = baremes
+    .filter((b) => b.annee >= anneeAdhesion && b.annee <= borneFin && b.montantAttendu > 0)
+    .sort((a, b) => a.annee - b.annee)
+
+  for (const b of anneesAttendues) {
+    if (solde >= b.montantAttendu) {
+      solde -= b.montantAttendu // année soldée par le cumul
+    } else {
+      dues.push(b.annee) // partiellement ou pas couverte → due
+      solde = 0
+    }
+  }
+  return dues
+}

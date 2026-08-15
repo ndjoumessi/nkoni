@@ -90,6 +90,10 @@ describe('assemblerDonneesRecouvrement', () => {
     expect(d.lignes[1]).toMatchObject({
       membreId: 'm2', statut: 'PARTIEL', telephone: '699000000', branche: 'Nord', resteDu: 15_000,
     })
+    // Années dues (fenêtre 2024-2025, barèmes 10 000/an) : m3 (0 versé) et m2 (5 000 versé, < 2024)
+    // doivent tous deux 2024 ET 2025.
+    expect(d.lignes[0].anneesDues).toEqual([2024, 2025])
+    expect(d.lignes[1].anneesDues).toEqual([2024, 2025])
 
     // (3) aucun reste négatif (clamp sur le trop-versé m5, exclu), et totaux = somme des lignes.
     expect(d.lignes.every((l) => l.resteDu > 0)).toBe(true)
@@ -121,7 +125,8 @@ describe('assemblerDonneesRecouvrement', () => {
 function ligne(over: Partial<LigneRecouvrement>): LigneRecouvrement {
   return {
     membreId: 'x', nom: 'A', prenom: 'B', telephone: null, branche: null,
-    anneeAdhesion: 2024, statut: 'NON_A_JOUR', attendu: 1_000, valorise: 0, resteDu: 1_000, ...over,
+    anneeAdhesion: 2024, statut: 'NON_A_JOUR', attendu: 1_000, valorise: 0, resteDu: 1_000,
+    anneesDues: [2024], ...over,
   }
 }
 function donnees(lignes: LigneRecouvrement[]): DonneesRecouvrement {

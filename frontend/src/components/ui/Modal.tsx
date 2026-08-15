@@ -114,15 +114,23 @@ export function Modal({
         onClick={onClose}
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
       />
+      {/* HAUTEUR BORNÉE + CORPS DÉFILANT — obligatoire, pas cosmétique. Le panneau était centré
+          SANS `max-h` ni `overflow`, alors que `document.body` est verrouillé (`overflow:hidden`,
+          cf. plus haut) : tout contenu plus haut que la fenêtre était coupé EN HAUT ET EN BAS, et
+          les boutons de validation devenaient inatteignables (formulaire dépense/amende, cropper
+          photo, détail d'organisation… à 360 px). `dvh` et non `vh` : suit la barre d'URL
+          rétractable d'Android. `overscroll-contain` empêche le scroll de « traverser » vers le
+          body verrouillé. Le découpage en-tête/corps reproduit EXACTEMENT l'ancien espacement
+          (p-6 + mb-4 sous le titre) → aucun changement visuel. */}
       <div
         ref={panneauRef}
         tabIndex={-1}
         className={cn(
-          'nk-toast-in relative w-full max-w-md rounded-2xl border border-hairline bg-canvas p-6 shadow-xl',
+          'nk-toast-in relative flex max-h-[85dvh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-hairline bg-canvas shadow-xl',
           className,
         )}
       >
-        <div className="mb-4 flex items-center justify-between gap-4">
+        <div className="flex shrink-0 items-center justify-between gap-4 px-6 pb-4 pt-6">
           <h2 className="font-display text-lg font-semibold text-foreground">{title}</h2>
           <button
             type="button"
@@ -133,7 +141,7 @@ export function Modal({
             <X className="h-5 w-5" aria-hidden="true" />
           </button>
         </div>
-        {children}
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 pb-6">{children}</div>
       </div>
     </div>,
     document.body,

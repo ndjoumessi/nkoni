@@ -9,7 +9,14 @@ import { cva } from 'class-variance-authority'
  * → `--amber`) pour un rendu premium ; `outline`/`ghost` = secondaire, `danger` = destructif.
  */
 export const buttonVariants = cva(
-  'group relative inline-flex select-none items-center justify-center gap-2 whitespace-nowrap rounded-full font-semibold transition-all duration-150 ease-out focus-visible:outline-none disabled:pointer-events-none disabled:opacity-55',
+  // ⚠️ ANNEAU DE FOCUS EXPLICITE — ne pas retirer au motif qu'`index.css` en pose un globalement.
+  // L'anneau global (`:focus-visible { box-shadow: … }`) vit dans la couche CSS `base` ; le variant
+  // `brass` (le DÉFAUT, donc le CTA primaire) applique un `shadow-[…]` qui vit dans la couche
+  // `utilities`. En cascade de couches, `utilities` GAGNE sur `base` quelle que soit la spécificité
+  // → le box-shadow décoratif ÉCRASAIT l'anneau, et `focus-visible:outline-none` supprimait en plus
+  // le repli natif : le bouton le plus important de l'app n'avait AUCUN focus visible au clavier.
+  // `ring-*` est une propriété distincte de `box-shadow` : les deux coexistent désormais.
+  'group relative inline-flex select-none items-center justify-center gap-2 whitespace-nowrap rounded-full font-semibold transition-all duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass/60 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas disabled:pointer-events-none disabled:opacity-55',
   {
     variants: {
       variant: {

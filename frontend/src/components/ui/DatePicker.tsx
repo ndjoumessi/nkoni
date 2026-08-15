@@ -475,7 +475,10 @@ export function DatePicker({
                       </span>
                     ))}
                   </div>
-                  <div className="grid grid-cols-7 gap-0.5">
+                  {/* `gap-1` et cellules de 40 px : à 36 px jointives (`gap-0.5`), 42 cibles
+                      adjacentes rendaient la sélection imprécise au pouce — or se tromper de jour
+                      est une erreur SILENCIEUSE sur une date de versement. */}
+                  <div className="grid grid-cols-7 gap-1">
                     {grille.map((d) => {
                       const estMois = d.getMonth() === vue.getMonth()
                       const estSel = selected != null && sameDay(d, selected)
@@ -493,7 +496,7 @@ export function DatePicker({
                             aria-current={estToday ? 'date' : undefined}
                             onClick={() => choisir(d)}
                             className={cn(
-                              'flex h-9 w-full items-center justify-center rounded-lg text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brass/60',
+                              'flex h-10 w-full items-center justify-center rounded-lg text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brass/60',
                               !estMois && 'text-faint',
                               estMois && !estSel && 'text-foreground hover:bg-surface-2',
                               estSel && 'bg-brass font-semibold text-canvas hover:bg-brass',

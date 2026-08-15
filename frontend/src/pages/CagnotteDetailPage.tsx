@@ -216,7 +216,7 @@ export function CagnotteDetailPage() {
     return (
       <>
         <PageHeader overline={t('cagnottes.liste.overline')} title={t('cagnottes.detail.retour')} back={{ to: '/cagnottes', label: t('cagnottes.detail.retour') }} />
-        <Card className="nk-reveal nk-d2 mt-7 border-terra/30 bg-terra/[0.07] p-5 text-terra">
+        <Card className="nk-reveal nk-d2 mt-7 border-terra/30 bg-terra/[0.07] p-5 text-terra-text">
           {error ?? t('cagnottes.detail.erreurChargement')}
         </Card>
       </>
@@ -331,7 +331,7 @@ export function CagnotteDetailPage() {
                       <button
                         type="button"
                         onClick={() => setDonASupprimer(d)}
-                        className="tap-target inline-flex h-9 w-9 items-center justify-center rounded-lg text-faint transition-colors hover:text-terra active:bg-terra/10 active:text-terra"
+                        className="tap-target inline-flex h-9 w-9 items-center justify-center rounded-lg text-faint transition-colors hover:text-terra-text active:bg-terra/10 active:text-terra-text"
                         aria-label={t('cagnottes.detail.supprimerDon')}
                       >
                         <Trash2 className="h-4 w-4" aria-hidden="true" />

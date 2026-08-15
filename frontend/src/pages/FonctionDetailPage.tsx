@@ -220,7 +220,7 @@ export function FonctionDetailPage() {
           title={t('fonctions.detail.titre')}
           back={{ to: '/fonctions', label: t('fonctions.detail.retour') }}
         />
-        <Card className="nk-reveal nk-d2 mt-7 border-terra/30 bg-terra/[0.07] p-5 text-terra">
+        <Card className="nk-reveal nk-d2 mt-7 border-terra/30 bg-terra/[0.07] p-5 text-terra-text">
           {error ?? t('fonctions.detail.introuvable')}
         </Card>
       </>

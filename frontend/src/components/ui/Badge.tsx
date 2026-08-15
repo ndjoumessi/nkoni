@@ -14,11 +14,19 @@ const badgeVariants = cva(
         brass: 'border-brass/30 bg-brass/10 text-brass',
         jade: 'border-jade/30 bg-jade/12 text-jade',
         amber: 'border-amber/30 bg-amber/12 text-amber',
-        terra: 'border-terra/35 bg-terra/12 text-terra',
-        info: 'border-info/35 bg-info/12 text-info',
+        // ⚠️ `text-terra-text` / `text-info-text` (jetons plus clairs), PAS `text-terra`/`text-info` :
+        // sur un fond de la MÊME teinte, l'accent brut mesure 3.58:1 et 4.21:1 → sous AA. Ce sont
+        // les badges « Non à jour » et « Impayée ». Bordure et fond gardent l'accent. Cf. index.css.
+        terra: 'border-terra/35 bg-terra/12 text-terra-text',
+        info: 'border-info/35 bg-info/12 text-info-text',
       },
       size: {
-        sm: 'px-2.5 py-0.5 text-3xs',
+        // `text-xs` (12 px) et non `text-3xs` (10.9 px) : un badge porte une information MÉTIER
+        // (statut de cotisation), pas une décoration. `--text-3xs`/`--text-2xs` restent réservés
+        // aux overlines en capitales espacées, qui tolèrent mieux la petite taille.
+        // `sm` et `md` partagent volontairement 12 px : ils se distinguent par le PADDING (densité),
+        // pas par la lisibilité — descendre `sm` sous 12 px repasserait sous le plancher.
+        sm: 'px-2.5 py-0.5 text-xs',
         md: 'px-3 py-1 text-xs',
         lg: 'px-4 py-1.5 text-sm',
       },

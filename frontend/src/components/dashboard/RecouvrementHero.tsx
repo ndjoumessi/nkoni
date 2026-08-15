@@ -75,7 +75,7 @@ function DeltaN1({ delta, anneeN1 }: { delta: number; anneeN1: number }) {
     <span
       className={cn(
         'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-2xs font-medium',
-        positif ? 'bg-jade/10 text-jade' : 'bg-terra/10 text-terra',
+        positif ? 'bg-jade/10 text-jade' : 'bg-terra/10 text-terra-text',
       )}
       // `role="img"` : un aria-label sur un span SANS rôle n'est pas exposé de façon fiable
       // (role générique). Même motif que `GrapheEvolution` — le libellé remplace alors le contenu.

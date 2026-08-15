@@ -860,7 +860,7 @@ export function RapportsPage() {
           </Card>
 
           {erreur && (
-            <Card role="alert" className="nk-reveal mt-4 border-terra/30 bg-terra/[0.07] p-5 text-terra">
+            <Card role="alert" className="nk-reveal mt-4 border-terra/30 bg-terra/[0.07] p-5 text-terra-text">
               {erreur}
             </Card>
           )}

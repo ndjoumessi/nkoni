@@ -260,7 +260,7 @@ export function MonProfilPage() {
           {error && (
             <p
               role="alert"
-              className="rounded-xl border border-terra/30 bg-terra/10 px-3.5 py-2.5 text-sm text-terra"
+              className="rounded-xl border border-terra/30 bg-terra/10 px-3.5 py-2.5 text-sm text-terra-text"
             >
               {error}
             </p>

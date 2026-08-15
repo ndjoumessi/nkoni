@@ -313,7 +313,7 @@ export function MonEspacePage() {
     return (
       <div className="mx-auto max-w-4xl">
         <PageHeader title={t('monEspace.titre')} description={t('monEspace.sousTitre')} />
-        <Card role="alert" className="mt-6 border-terra/30 bg-terra/[0.07] p-5 text-terra">
+        <Card role="alert" className="mt-6 border-terra/30 bg-terra/[0.07] p-5 text-terra-text">
           {erreur}
         </Card>
       </div>
@@ -736,13 +736,18 @@ export function MonEspacePage() {
                     <p className="mt-0.5 text-sm text-muted-foreground">{n.message}</p>
                     <p className="mt-1 text-xs text-faint">{formatDate(n.dateCreation, { dateStyle: 'long' })}</p>
                   </div>
-                  <div className="flex shrink-0 items-start gap-1">
+                  {/* Cibles TACTILES RÉELLES (h-11) et NON `tap-target` : ces deux boutons sont
+                      ADJACENTS, or l'utilitaire projette une hitbox de 44 px CENTRÉE et invisible —
+                      collés, leurs deux zones se recouvraient et « supprimer » pouvait se déclencher
+                      à la place de « marquer lu ». `index.css` le dit : `tap-target` est réservé aux
+                      boutons ISOLÉS. Ici on agrandit donc le bouton lui-même, et on écarte (gap-2). */}
+                  <div className="flex shrink-0 items-start gap-2">
                     {!n.lu && (
                       <button
                         type="button"
                         onClick={() => marquerNotifLue(n.id)}
                         aria-label={t('monEspace.rappels.marquerLu')}
-                        className="tap-target flex h-8 w-8 items-center justify-center rounded-lg text-faint transition-colors hover:text-jade"
+                        className="flex h-11 w-11 items-center justify-center rounded-lg text-faint transition-colors hover:text-jade active:bg-jade/10 active:text-jade"
                       >
                         <Check className="h-4 w-4" aria-hidden="true" />
                       </button>
@@ -751,7 +756,7 @@ export function MonEspacePage() {
                       type="button"
                       onClick={() => supprimerNotif(n.id)}
                       aria-label={t('monEspace.rappels.supprimer')}
-                      className="tap-target flex h-8 w-8 items-center justify-center rounded-lg text-faint transition-colors hover:text-terra"
+                      className="flex h-11 w-11 items-center justify-center rounded-lg text-faint transition-colors hover:text-terra-text active:bg-terra/10 active:text-terra-text"
                     >
                       <Trash2 className="h-4 w-4" aria-hidden="true" />
                     </button>
@@ -802,7 +807,13 @@ export function MonEspacePage() {
                         aria-pressed={actif}
                         onClick={() => void repondreRsvp(r.id, s)}
                         className={cn(
-                          'rounded-full border px-3 py-1 text-xs font-medium transition-colors disabled:opacity-50',
+                          // `min-h-11` (44 px) : le RSVP est l'une des deux seules actions
+                          // engageantes de l'espace membre, sur la page la plus mobile du produit —
+                          // elle faisait 24 px de haut. `min-h` et non `h` pour rester compatible
+                          // avec un libellé qui passerait sur deux lignes en EN.
+                          // `active:` car au doigt il n'y a pas de `hover`, et le halo natif est
+                          // neutralisé globalement (`-webkit-tap-highlight-color: transparent`).
+                          'inline-flex min-h-11 items-center rounded-full border px-4 text-sm font-medium transition-colors active:scale-[0.97] disabled:opacity-50',
                           !actif && 'border-hairline text-faint hover:text-foreground',
                         )}
                         style={
@@ -855,7 +866,9 @@ export function MonEspacePage() {
                       aria-pressed={actif}
                       onClick={() => void voter(r.id, s)}
                       className={cn(
-                        'rounded-full border px-3 py-1 text-xs font-medium transition-colors disabled:opacity-50',
+                        // 44 px : même raison que le RSVP ci-dessus — un vote engage le membre,
+                        // il ne doit pas se jouer sur une cible de 24 px de haut.
+                        'inline-flex min-h-11 items-center rounded-full border px-4 text-sm font-medium transition-colors active:scale-[0.97] disabled:opacity-50',
                         !actif && 'border-hairline text-faint hover:text-foreground',
                       )}
                       style={
@@ -1164,7 +1177,7 @@ export function MonEspacePage() {
               />
             </Field>
             {erreurMontant && (
-              <p role="alert" className="rounded-xl border border-terra/30 bg-terra/10 px-3.5 py-2.5 text-sm text-terra">
+              <p role="alert" className="rounded-xl border border-terra/30 bg-terra/10 px-3.5 py-2.5 text-sm text-terra-text">
                 {erreurMontant}
               </p>
             )}

@@ -124,7 +124,7 @@ export function ConflitDetailPage() {
     return (
       <>
         <PageHeader overline={t('conflits.overline')} title={t('conflits.detail.titre')} back={{ to: '/conflits', label: t('conflits.detail.retour') }} />
-        <Card className="nk-reveal nk-d2 mt-7 border-terra/30 bg-terra/[0.07] p-5 text-terra">
+        <Card className="nk-reveal nk-d2 mt-7 border-terra/30 bg-terra/[0.07] p-5 text-terra-text">
           {error ?? t('conflits.detail.introuvable')}
         </Card>
       </>

@@ -11,4 +11,7 @@ export const controlClasses =
  * ne pas diverger entre composants.
  */
 export const navButtonClasses =
-  'flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-brass/60'
+  // 44 px au doigt (`h-11`), resserré à 32 px au curseur (`sm:`) : ces chevrons font naviguer de
+  // mois en mois / d'année en année dans un popover — les rater fait sauter une période entière.
+  // Ils sont ISOLÉS aux deux extrémités de l'en-tête, donc pas de risque de hitbox qui se recouvrent.
+  'flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground active:bg-surface-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-brass/60 sm:h-8 sm:w-8'

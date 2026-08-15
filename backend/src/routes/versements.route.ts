@@ -153,6 +153,7 @@ export const versementsRoutes: FastifyPluginAsync = async (
               annee: result.contribution.annee,
             },
             app.push,
+            app.observabilite,
           )
         } catch (notifErr) {
           app.log.error({ err: notifErr }, 'Notification de versement non créée')

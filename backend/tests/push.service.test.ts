@@ -79,16 +79,30 @@ describe('persistance des abonnements push', () => {
   })
 })
 
-function mockPush(opts: { disponible?: boolean; expire?: string[] } = {}) {
+function mockPush(
+  opts: { disponible?: boolean; expire?: string[]; erreur?: Record<string, unknown> } = {},
+) {
   const envois: { endpoint: string; payload: unknown }[] = []
   const push: PushClient = {
     disponible: () => opts.disponible ?? true,
     envoyer: async (sub, payload) => {
       envois.push({ endpoint: sub.endpoint, payload })
+      if (opts.erreur && sub.endpoint in opts.erreur) {
+        return { ok: false, erreur: opts.erreur[sub.endpoint] }
+      }
       return { ok: true, expire: (opts.expire ?? []).includes(sub.endpoint) }
     },
   }
   return { push, envois }
+}
+
+/** Espion d'observabilité minimal (surface `PushObservabilite`). */
+function mockObservabilite() {
+  const appels: { erreur: unknown; contexte: Record<string, unknown> }[] = []
+  return {
+    obs: { signaler: (erreur: unknown, contexte: any) => appels.push({ erreur, contexte }) },
+    appels,
+  }
 }
 
 describe('notifierParPush — best-effort', () => {
@@ -127,5 +141,44 @@ describe('notifierParPush — best-effort', () => {
     await expect(
       notifierParPush(prisma, push, 'u-1', { titre: 'T', message: 'M' }),
     ).resolves.toBeUndefined()
+  })
+
+  it('SIGNALE à l’observabilité une erreur d’envoi INATTENDUE (config VAPID, réseau)', async () => {
+    const { prisma } = mockPrisma() // findMany → 1 abo (e1)
+    const bug = new Error('Vapid subject is not a url or mailto url')
+    const { push } = mockPush({ erreur: { e1: bug } })
+    const { obs, appels } = mockObservabilite()
+    await notifierParPush(prisma, push, 'u-9', { titre: 'T', message: 'M' }, obs)
+    expect(appels).toHaveLength(1)
+    expect(appels[0]?.erreur).toBe(bug)
+    expect(appels[0]?.contexte).toEqual({ source: 'push', destinataireId: 'u-9' })
+  })
+
+  it('ne signale PAS un abonnement expiré (404/410 = cas normal, purge silencieuse)', async () => {
+    const { prisma, calls } = mockPrisma()
+    const { push } = mockPush({ expire: ['e1'] })
+    const { obs, appels } = mockObservabilite()
+    await notifierParPush(prisma, push, 'u-1', { titre: 'T', message: 'M' }, obs)
+    expect(calls.deleteMany).toContainEqual({ where: { endpoint: 'e1' } })
+    expect(appels).toHaveLength(0)
+  })
+
+  it('signale aussi une erreur de LECTURE quand l’observabilité est fournie (best-effort préservé)', async () => {
+    const prisma: PushPrisma = {
+      pushSubscription: {
+        deleteMany: async () => ({ count: 0 }),
+        create: async () => ({}),
+        findMany: async () => {
+          throw new Error('DB down')
+        },
+      },
+    }
+    const { push } = mockPush()
+    const { obs, appels } = mockObservabilite()
+    await expect(
+      notifierParPush(prisma, push, 'u-1', { titre: 'T', message: 'M' }, obs),
+    ).resolves.toBeUndefined()
+    expect(appels).toHaveLength(1)
+    expect(appels[0]?.contexte).toEqual({ source: 'push', destinataireId: 'u-1' })
   })
 })

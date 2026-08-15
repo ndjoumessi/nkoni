@@ -24,11 +24,31 @@ export interface PushPayload {
   url?: string
 }
 
+/**
+ * Résultat d'un envoi. `expire:true` = abonnement mort (404/410), à purger SILENCIEUSEMENT (cas
+ * normal : le navigateur a été vidé). `erreur` = échec INATTENDU (config VAPID invalide, réseau,
+ * 5xx du service push) que l'appelant doit faire remonter à l'observabilité — sans lui, un push
+ * cassé pour TOUT le monde (ex. `VAPID_SUBJECT` sans `mailto:`) reste invisible.
+ */
+export interface EnvoiResultat {
+  ok: boolean
+  expire?: boolean
+  erreur?: unknown
+}
+
 export interface PushClient {
   /** Les 3 clés VAPID sont-elles présentes ? */
   disponible(): boolean
-  /** Envoie une notification. Renvoie `{ ok }` ; `expire:true` si l'abonnement est mort (à purger). NE LÈVE PAS. */
-  envoyer(sub: PushSubscriptionData, payload: PushPayload): Promise<{ ok: boolean; expire?: boolean }>
+  /** Envoie une notification. `expire:true` si l'abonnement est mort ; `erreur` si échec inattendu. NE LÈVE PAS. */
+  envoyer(sub: PushSubscriptionData, payload: PushPayload): Promise<EnvoiResultat>
+}
+
+/**
+ * Surface d'observabilité MINIMALE consommée par `notifierParPush` (décorrélée de
+ * `lib/observabilite.ts` comme `PushPrisma` l'est de Prisma) : injectée par l'appelant, mockable.
+ */
+export interface PushObservabilite {
+  signaler(erreur: unknown, contexte: { source: string; [cle: string]: unknown }): void
 }
 
 /** Client réel Web Push (lib `web-push`). No-op sans clés VAPID. */
@@ -53,10 +73,12 @@ export const vraiPushClient: PushClient = {
       )
       return { ok: true }
     } catch (e) {
-      // 404/410 = abonnement expiré ou révoqué côté navigateur → à supprimer de la base.
+      // 404/410 = abonnement expiré ou révoqué côté navigateur → à supprimer de la base (SILENCIEUX).
       const code = (e as { statusCode?: number }).statusCode
       if (code === 404 || code === 410) return { ok: false, expire: true }
-      return { ok: false } // best-effort : toute autre erreur est avalée.
+      // Toute autre erreur est INATTENDUE (config VAPID invalide, réseau, 5xx) → l'appelant la
+      // fera remonter à l'observabilité. On ne lève toujours pas (best-effort), on REMONTE l'info.
+      return { ok: false, erreur: e }
     }
   },
 }
@@ -136,6 +158,7 @@ export async function notifierParPush(
   push: PushClient,
   destinataireId: string,
   payload: PushPayload,
+  observabilite?: PushObservabilite,
 ): Promise<void> {
   if (!push.disponible()) return
   try {
@@ -143,8 +166,14 @@ export async function notifierParPush(
     for (const abo of abos) {
       const r = await push.envoyer(abo, payload)
       if (r.expire) await supprimerAbonnementPush(prisma, abo.endpoint)
+      // Échec INATTENDU (pas un abonnement mort) : on ALERTE au lieu d'avaler en silence — sinon un
+      // push cassé pour tout le monde (config VAPID, réseau) reste invisible. On continue la boucle.
+      else if (r.erreur !== undefined && observabilite) {
+        observabilite.signaler(r.erreur, { source: 'push', destinataireId })
+      }
     }
-  } catch {
-    // best-effort : toute erreur (lecture, envoi, purge) est avalée.
+  } catch (err) {
+    // best-effort : toute erreur de lecture/purge est avalée — mais signalée si possible.
+    if (observabilite) observabilite.signaler(err, { source: 'push', destinataireId })
   }
 }

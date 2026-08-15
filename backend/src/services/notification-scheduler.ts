@@ -341,6 +341,7 @@ export function demarrerScheduler(app: FastifyInstance): void {
                     app.push,
                     p.destinataireId,
                     { titre: p.titre, message: p.message, url: '/notifications' },
+                    app.observabilite,
                   )
                 }
               })

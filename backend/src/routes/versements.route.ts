@@ -144,12 +144,16 @@ export const versementsRoutes: FastifyPluginAsync = async (
         // doit JAMAIS faire échouer ni annuler l'écriture financière déjà committée.
         // (NB : aucune génération de Reçu ici — cf. garde §4.6.)
         try {
-          await notifierVersement(app.prisma, {
-            versementId: result.versement.id,
-            membreId: result.contribution.membreId,
-            montant: result.versement.montant,
-            annee: result.contribution.annee,
-          })
+          await notifierVersement(
+            app.prisma,
+            {
+              versementId: result.versement.id,
+              membreId: result.contribution.membreId,
+              montant: result.versement.montant,
+              annee: result.contribution.annee,
+            },
+            app.push,
+          )
         } catch (notifErr) {
           app.log.error({ err: notifErr }, 'Notification de versement non créée')
         }

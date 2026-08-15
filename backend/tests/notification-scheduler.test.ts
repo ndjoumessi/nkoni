@@ -61,6 +61,10 @@ describe('executerVerificationRetards (§5)', () => {
     const creees = [...notifs.values()]
     expect(creees).toHaveLength(1)
     expect(creees[0]).toMatchObject({ destinataireId: 'u1', type: 'COTISATION_RETARD' })
+    // Web Push (PR C) : la collecte des notifs à pousser suit les notifs créées (1:1).
+    expect(res.aPousser).toEqual([
+      { destinataireId: 'u1', titre: expect.any(String), message: expect.any(String) },
+    ])
   })
 
   it('rappel rendu dans la langue du membre DESTINATAIRE (EN)', async () => {

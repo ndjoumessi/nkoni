@@ -12,6 +12,7 @@
  */
 
 import { t, formatMontant, type Langue, type Devise } from '../lib/i18n'
+import { notifierParPush, type PushClient, type PushPrisma } from './push.service'
 
 export type TypeNotification = 'VERSEMENT_RECU' | 'COTISATION_RETARD' | 'REUNION_RAPPEL'
 
@@ -288,6 +289,7 @@ export interface VersementNotifParams {
 export async function notifierVersement(
   prisma: NotificationPrisma,
   params: VersementNotifParams,
+  push?: PushClient,
 ): Promise<void> {
   const membre = await prisma.membre.findUnique({
     where: { id: params.membreId },
@@ -303,15 +305,26 @@ export async function notifierVersement(
   // du versement (une trésorière FR/FCFA notifie un membre EN/EUR dans SA langue et SA devise).
   const langue = await resoudreLangueDestinataire(prisma, destinataireId)
   const devise = await resoudreDeviseDestinataire(prisma, destinataireId)
+  const titre = t(langue, 'notifications.versementRecu.titre')
+  const message = t(langue, 'notifications.versementRecu.message', {
+    montant: formatMontant(params.montant, langue, devise),
+    annee: params.annee,
+  })
   await creerNotification(prisma, {
     destinataireId,
     type: 'VERSEMENT_RECU',
-    titre: t(langue, 'notifications.versementRecu.titre'),
-    message: t(langue, 'notifications.versementRecu.message', {
-      montant: formatMontant(params.montant, langue, devise),
-      annee: params.annee,
-    }),
+    titre,
+    message,
     entiteType: 'Versement',
     entiteId: params.versementId,
   })
+  // Web Push (best-effort) : chemin ROUTE, hors transaction, contexte d'org déjà posé par
+  // `authenticate` → on peut envoyer en ligne. No-op si `push` absent ou clés VAPID absentes.
+  if (push) {
+    await notifierParPush(prisma as unknown as PushPrisma, push, destinataireId, {
+      titre,
+      message,
+      url: '/notifications',
+    })
+  }
 }

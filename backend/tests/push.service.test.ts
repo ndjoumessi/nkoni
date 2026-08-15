@@ -4,6 +4,8 @@ import {
   enregistrerAbonnementPush,
   supprimerAbonnementPush,
   abonnementsDe,
+  notifierParPush,
+  type PushClient,
   type PushPrisma,
 } from '../src/services/push.service'
 
@@ -74,5 +76,56 @@ describe('persistance des abonnements push', () => {
     const { prisma } = mockPrisma()
     const abos = await abonnementsDe(prisma, 'u-1')
     expect(abos).toEqual([{ endpoint: 'e1', keys: { p256dh: 'p1', auth: 'a1' } }])
+  })
+})
+
+function mockPush(opts: { disponible?: boolean; expire?: string[] } = {}) {
+  const envois: { endpoint: string; payload: unknown }[] = []
+  const push: PushClient = {
+    disponible: () => opts.disponible ?? true,
+    envoyer: async (sub, payload) => {
+      envois.push({ endpoint: sub.endpoint, payload })
+      return { ok: true, expire: (opts.expire ?? []).includes(sub.endpoint) }
+    },
+  }
+  return { push, envois }
+}
+
+describe('notifierParPush — best-effort', () => {
+  it('no-op si le client push est indisponible (aucun envoi)', async () => {
+    const { prisma } = mockPrisma()
+    const { push, envois } = mockPush({ disponible: false })
+    await notifierParPush(prisma, push, 'u-1', { titre: 'T', message: 'M' })
+    expect(envois).toHaveLength(0)
+  })
+
+  it('envoie le payload à chaque abonnement du destinataire', async () => {
+    const { prisma } = mockPrisma() // findMany → 1 abo (e1)
+    const { push, envois } = mockPush()
+    await notifierParPush(prisma, push, 'u-1', { titre: 'T', message: 'M', url: '/notifications' })
+    expect(envois).toEqual([{ endpoint: 'e1', payload: { titre: 'T', message: 'M', url: '/notifications' } }])
+  })
+
+  it('purge un abonnement expiré (envoyer → expire:true)', async () => {
+    const { prisma, calls } = mockPrisma()
+    const { push } = mockPush({ expire: ['e1'] })
+    await notifierParPush(prisma, push, 'u-1', { titre: 'T', message: 'M' })
+    expect(calls.deleteMany).toContainEqual({ where: { endpoint: 'e1' } })
+  })
+
+  it('ne lève JAMAIS (une erreur de lecture est avalée)', async () => {
+    const prisma: PushPrisma = {
+      pushSubscription: {
+        deleteMany: async () => ({ count: 0 }),
+        create: async () => ({}),
+        findMany: async () => {
+          throw new Error('DB down')
+        },
+      },
+    }
+    const { push } = mockPush()
+    await expect(
+      notifierParPush(prisma, push, 'u-1', { titre: 'T', message: 'M' }),
+    ).resolves.toBeUndefined()
   })
 })

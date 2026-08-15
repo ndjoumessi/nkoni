@@ -36,6 +36,7 @@ import {
   resoudreLangueDestinataire,
   type NotificationPrisma,
 } from './notification.service'
+import { notifierParPush, type PushEnAttente, type PushPrisma } from './push.service'
 import { t, formatDateHeure } from '../lib/i18n'
 import { orgContext } from '../lib/org-context'
 import { anneeCouranteApp } from '../lib/date-app'
@@ -72,6 +73,8 @@ export interface VerificationRetardsResult {
   verifies: number
   /** Nombre de notifications COTISATION_RETARD effectivement créées. */
   notifies: number
+  /** Notifications à pousser en Web Push — envoyées APRÈS le commit de la tx (cf. demarrerScheduler). */
+  aPousser: PushEnAttente[]
 }
 
 /**
@@ -108,6 +111,7 @@ export async function executerVerificationRetards(
 
   const seuilAntispam = new Date(now.getTime() - JOURS_ANTISPAM * MS_PAR_JOUR)
   let notifies = 0
+  const aPousser: PushEnAttente[] = []
 
   for (const m of membres) {
     const { statut } = calculerStatutContribution({
@@ -135,18 +139,21 @@ export async function executerVerificationRetards(
 
     // §4 : rappel rendu dans la langue du membre DESTINATAIRE (chacun dans sa langue).
     const langue = await resoudreLangueDestinataire(prisma, m.compteUtilisateurId)
+    const titre = t(langue, 'notifications.cotisationRetard.titre')
+    const message = t(langue, 'notifications.cotisationRetard.message')
     await creerNotification(prisma, {
       destinataireId: m.compteUtilisateurId,
       type: 'COTISATION_RETARD',
-      titre: t(langue, 'notifications.cotisationRetard.titre'),
-      message: t(langue, 'notifications.cotisationRetard.message'),
+      titre,
+      message,
       entiteType: 'Membre',
       entiteId: m.id,
     })
+    aPousser.push({ destinataireId: m.compteUtilisateurId, titre, message })
     notifies += 1
   }
 
-  return { verifies: membres.length, notifies }
+  return { verifies: membres.length, notifies, aPousser }
 }
 
 /** Résultat de la vérification pour une organisation donnée. */
@@ -193,6 +200,8 @@ export interface RappelsReunionsResult {
   reunions: number
   /** Notifications REUNION_RAPPEL effectivement créées. */
   notifies: number
+  /** Notifications à pousser en Web Push — envoyées APRÈS le commit de la tx (cf. demarrerScheduler). */
+  aPousser: PushEnAttente[]
 }
 
 /**
@@ -217,7 +226,7 @@ export async function executerRappelsReunions(
     select: { id: true, date: true, lieu: true },
     orderBy: { date: 'asc' },
   })
-  if (reunions.length === 0) return { reunions: 0, notifies: 0 }
+  if (reunions.length === 0) return { reunions: 0, notifies: 0, aPousser: [] }
 
   const membres = await prisma.membre.findMany({
     where: { statut: 'ACTIF', compteUtilisateurId: { not: null } },
@@ -225,6 +234,7 @@ export async function executerRappelsReunions(
   })
 
   let notifies = 0
+  const aPousser: PushEnAttente[] = []
   for (const r of reunions) {
     for (const m of membres) {
       const destinataireId = m.compteUtilisateurId as string
@@ -236,21 +246,24 @@ export async function executerRappelsReunions(
       if (dejaAnnonce) continue
 
       const langue = await resoudreLangueDestinataire(prisma, destinataireId)
+      const titre = t(langue, 'notifications.reunionRappel.titre')
+      const message = t(langue, 'notifications.reunionRappel.message', {
+        date: formatDateHeure(r.date, langue),
+        lieu: r.lieu,
+      })
       await creerNotification(prisma, {
         destinataireId,
         type: 'REUNION_RAPPEL',
-        titre: t(langue, 'notifications.reunionRappel.titre'),
-        message: t(langue, 'notifications.reunionRappel.message', {
-          date: formatDateHeure(r.date, langue),
-          lieu: r.lieu,
-        }),
+        titre,
+        message,
         entiteType: 'Reunion',
         entiteId: r.id,
       })
+      aPousser.push({ destinataireId, titre, message })
       notifies += 1
     }
   }
-  return { reunions: reunions.length, notifies }
+  return { reunions: reunions.length, notifies, aPousser }
 }
 
 /** Rappels de réunion POUR TOUTES LES ORGANISATIONS ACTIVES (même patron d'itération scopée). */
@@ -309,7 +322,7 @@ export function demarrerScheduler(app: FastifyInstance): void {
           },
           { timeout: 10 * 60 * 1000 },
         )
-        .then((resultats) => {
+        .then(async (resultats) => {
           if (!resultats) return
           const { retards, rappels } = resultats
           const verifies = retards.reduce((s, r) => s + r.verifies, 0)
@@ -319,6 +332,22 @@ export function demarrerScheduler(app: FastifyInstance): void {
             { organisations: retards.length, verifies, notifies, rappelsNotifies },
             'Tâches de nuit terminées (retards de cotisation + rappels de réunion, toutes organisations)',
           )
+          // Web Push APRÈS le commit (jamais d'HTTP dans la tx) et PAR ORG (PushSubscription est
+          // scopé → contexte d'isolation requis). `app.prisma` = client NON transactionnel.
+          // Best-effort : `notifierParPush` ne lève jamais. No-op si les clés VAPID sont absentes.
+          for (const r of [...retards, ...rappels]) {
+            if (r.aPousser.length === 0) continue
+            await orgContext.run({ organisationId: r.organisationId }, async () => {
+              for (const p of r.aPousser) {
+                await notifierParPush(
+                  app.prisma as unknown as PushPrisma,
+                  app.push,
+                  p.destinataireId,
+                  { titre: p.titre, message: p.message, url: '/notifications' },
+                )
+              }
+            })
+          }
         })
         .catch((err) => {
           app.log.error({ err }, 'Tâches de nuit (retards + rappels de réunion) échouées')

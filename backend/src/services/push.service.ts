@@ -103,7 +103,7 @@ export async function supprimerAbonnementPush(prisma: PushPrisma, endpoint: stri
   await prisma.pushSubscription.deleteMany({ where: { endpoint } })
 }
 
-/** Abonnements push d'un utilisateur (pour l'envoi best-effort par le pipeline de notifs, PR C). */
+/** Abonnements push d'un utilisateur (pour l'envoi best-effort par le pipeline de notifs). */
 export async function abonnementsDe(
   prisma: PushPrisma,
   destinataireId: string,
@@ -113,4 +113,38 @@ export async function abonnementsDe(
     select: { endpoint: true, p256dh: true, auth: true },
   })
   return rows.map((r) => ({ endpoint: r.endpoint, keys: { p256dh: r.p256dh, auth: r.auth } }))
+}
+
+/** Une notification à pousser (collectée pendant la tx du scheduler, envoyée APRÈS le commit). */
+export interface PushEnAttente {
+  destinataireId: string
+  titre: string
+  message: string
+}
+
+/**
+ * Pousse une notification à TOUS les appareils d'un destinataire. BEST-EFFORT : NE LÈVE JAMAIS
+ * (un push raté ne doit casser ni la création de notification ni le scheduler). Purge les
+ * abonnements morts (404/410 → `expire`).
+ *
+ * ⚠️ `prisma` doit être NON transactionnel (l'envoi vit HORS de toute tx — HTTP dans une tx =
+ * anti-pattern) et le contexte d'ORGANISATION doit être posé par l'appelant (PushSubscription est
+ * scopé) : côté route via `authenticate`, côté scheduler via un `orgContext.run` APRÈS le commit.
+ */
+export async function notifierParPush(
+  prisma: PushPrisma,
+  push: PushClient,
+  destinataireId: string,
+  payload: PushPayload,
+): Promise<void> {
+  if (!push.disponible()) return
+  try {
+    const abos = await abonnementsDe(prisma, destinataireId)
+    for (const abo of abos) {
+      const r = await push.envoyer(abo, payload)
+      if (r.expire) await supprimerAbonnementPush(prisma, abo.endpoint)
+    }
+  } catch {
+    // best-effort : toute erreur (lecture, envoi, purge) est avalée.
+  }
 }

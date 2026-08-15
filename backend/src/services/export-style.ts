@@ -152,9 +152,25 @@ export function dessinerCorpsPremium(
     return positioned
   })
 
+  // Tronque à la largeur de colonne avec une ellipse. NÉCESSAIRE car `lineBreak: false` de PDFKit
+  // n'empêche PAS le retour à la ligne quand le texte dépasse la largeur (vérifié : un nom de 132 pt
+  // dans une colonne de 114 pt fait 2 lignes de 20,8 pt, qui débordent la ligne de 20 pt et
+  // chevauchent la suivante). On coupe donc le texte au caractère près pour garantir UNE ligne.
+  const tronquer = (texte: string, largeur: number): string => {
+    if (doc.widthOfString(texte) <= largeur) return texte
+    let t = texte
+    while (t.length > 1 && doc.widthOfString(`${t}…`) > largeur) t = t.slice(0, -1)
+    return `${t}…`
+  }
+
   const cellule = (texte: string, col: (typeof cols)[number], y: number): void => {
     const x = col.align === 'right' ? col.x : col.x + PAD
-    doc.text(texte, x, y, { width: col.largeur - PAD, align: col.align, lineBreak: false })
+    const largeurUtile = col.largeur - PAD
+    doc.text(tronquer(texte, largeurUtile), x, y, {
+      width: largeurUtile,
+      align: col.align,
+      lineBreak: false,
+    })
   }
 
   const dessinerEnTete = (y: number): number => {

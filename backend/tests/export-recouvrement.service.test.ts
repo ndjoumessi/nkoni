@@ -72,16 +72,17 @@ describe('assemblerDonneesRecouvrement', () => {
     expect(capture.where).toEqual({ statut: 'ACTIF' })
 
     // (2) seuls m2 (partiel) et m3 (non à jour) restent : m1 & m5 sont à jour, m4 est inactif.
-    expect(d.lignes.map((l) => l.membreId)).toEqual(['m2', 'm3'])
+    // Ordre = reste dû DÉCROISSANT → m3 (20 000) avant m2 (15 000).
+    expect(d.lignes.map((l) => l.membreId)).toEqual(['m3', 'm2'])
     expect(d.lignes.length).toBeGreaterThan(0) // anti-vacant
 
-    // reste dû + infos de relance portées.
+    // reste dû + infos de relance portées (le plus gros débiteur en tête).
     expect(d.lignes[0]).toMatchObject({
-      membreId: 'm2', statut: 'PARTIEL', telephone: '699000000', branche: 'Nord',
-      attendu: 20_000, valorise: 5_000, resteDu: 15_000,
+      membreId: 'm3', statut: 'NON_A_JOUR', telephone: null, branche: null,
+      attendu: 20_000, valorise: 0, resteDu: 20_000,
     })
     expect(d.lignes[1]).toMatchObject({
-      membreId: 'm3', statut: 'NON_A_JOUR', telephone: null, branche: null, resteDu: 20_000,
+      membreId: 'm2', statut: 'PARTIEL', telephone: '699000000', branche: 'Nord', resteDu: 15_000,
     })
 
     // (3) aucun reste négatif (clamp sur le trop-versé m5, exclu), et totaux = somme des lignes.

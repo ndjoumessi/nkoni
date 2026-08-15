@@ -34,6 +34,10 @@ export default defineConfig({
       workbox: {
         // `png` inclus → les icônes d'install sont précachées (install hors-ligne robuste).
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        // On GARDE generateSW (précache + NetworkFirst /api/* ci-dessous) et on greffe le handler
+        // Web Push par un script à part (`public/push-sw.js`) importé en tête du SW généré — pas de
+        // bascule injectManifest qui obligerait à réécrire toute la stratégie hors-ligne à la main.
+        importScripts: ['/push-sw.js'],
         navigateFallback: '/index.html',
         // Les requêtes /api/* ne sont PAS des navigations SPA → ne pas les rediriger vers index.html.
         navigateFallbackDenylist: [/^\/api\//],

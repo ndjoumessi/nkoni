@@ -39,3 +39,36 @@ export const notificationsApi = {
       accessToken,
     }),
 }
+
+/* -------------------------------------------------------------------------- */
+/* Web Push — (dés)abonnement par appareil + clé publique VAPID               */
+/* -------------------------------------------------------------------------- */
+
+/** Abonnement Web Push envoyé au serveur (forme restreinte de `PushSubscription.toJSON()`). */
+export interface AbonnementPush {
+  endpoint: string
+  keys: { p256dh: string; auth: string }
+}
+
+export const pushApi = {
+  /** Clé publique VAPID (null si le serveur n'a pas configuré le push). */
+  clePublique: (accessToken: string, signal?: AbortSignal) =>
+    request<{ clePublique: string | null }>('/notifications/push/cle-publique', {
+      accessToken,
+      signal,
+    }),
+  /** Enregistre l'abonnement de CET appareil. */
+  subscribe: (abonnement: AbonnementPush, accessToken: string) =>
+    request<{ ok: boolean }>('/notifications/push/subscribe', {
+      method: 'POST',
+      json: abonnement,
+      accessToken,
+    }),
+  /** Désinscrit CET appareil (par endpoint). */
+  unsubscribe: (endpoint: string, accessToken: string) =>
+    request<void>('/notifications/push/subscribe', {
+      method: 'DELETE',
+      json: { endpoint },
+      accessToken,
+    }),
+}

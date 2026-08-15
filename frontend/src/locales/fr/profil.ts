@@ -54,6 +54,15 @@ export default {
       description: 'Choisissez les notifications que vous souhaitez recevoir dans l’application.',
       erreur: 'Modification impossible',
       reessayer: 'Réessayez plus tard.',
+      push: {
+        titre: 'Notifications sur cet appareil',
+        description:
+          'Recevez les rappels (cotisation, réunion) même quand l’application est fermée.',
+        nonSupporte: 'Non pris en charge par ce navigateur.',
+        activee: 'Notifications activées sur cet appareil',
+        refusee: 'Permission refusée par le navigateur.',
+        erreur: 'Activation impossible',
+      },
       types: {
         VERSEMENT_RECU: {
           titre: 'Versement enregistré',

@@ -81,6 +81,11 @@ export default {
       echec: 'Export failed',
       reessayer: 'Please try again later.',
     },
+    recouvrement: {
+      titre: 'Collection report',
+      description:
+        'List of active members who still owe to be up to date (cumulative, with phone and branch for follow-up).',
+    },
     synthese: {
       totalCollecte: 'Total collected',
       totalAttendu: 'Total expected',

@@ -199,6 +199,15 @@ export function downloadRapportFinancier(
   )
 }
 
+/** Export du rapport de recouvrement (membres actifs avec reste dû cumulé) en Excel/PDF. */
+export function downloadRecouvrement(format: 'xlsx' | 'pdf', accessToken: string): Promise<void> {
+  return telechargerBinaire(
+    `/rapports/recouvrement/export?format=${format}`,
+    `recouvrement.${format}`,
+    accessToken,
+  )
+}
+
 /** Export de la comparaison de deux années en Excel/PDF. */
 export function downloadRapportComparaison(
   anneeA: number,

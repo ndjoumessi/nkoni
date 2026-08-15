@@ -17,6 +17,12 @@ import {
   genererComparaisonMultiPdf,
 } from '../services/export-rapport.service'
 import { assemblerDonneesContributions } from '../services/export.service'
+import {
+  assemblerDonneesRecouvrement,
+  genererRecouvrementExcel,
+  genererRecouvrementPdf,
+} from '../services/export-recouvrement.service'
+import { anneeCouranteApp } from '../lib/date-app'
 import { resoudreLocaleExport } from '../lib/export-locale'
 import {
   calculerStatutContribution,
@@ -95,6 +101,15 @@ const detailMembresSchema = {
     additionalProperties: false,
     required: ['annee'],
     properties: { annee: ANNEE },
+  },
+} as const
+
+/** Recouvrement : pas de paramètre d'année (reste dû CUMULÉ jusqu'à l'année courante), format seul. */
+const recouvrementExportSchema = {
+  querystring: {
+    type: 'object',
+    additionalProperties: false,
+    properties: { format: FORMAT },
   },
 } as const
 
@@ -275,6 +290,35 @@ export const rapportsRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
           .code(400)
           .send({ error: 'Bad Request', message: t(langueDeRequete(req), 'rapports.comparaisonInvalide') })
       }
+
+      return reply
+        .header('Content-Type', CONTENT_TYPE[format])
+        .header('Content-Disposition', `attachment; filename="${nomFichier}"`)
+        .send(buffer)
+    },
+  )
+
+  /* --- Export RECOUVREMENT (membres avec reste dû cumulé) ---------------- */
+
+  app.get<{ Querystring: { format?: 'xlsx' | 'pdf' } }>(
+    '/rapports/recouvrement/export',
+    {
+      schema: recouvrementExportSchema,
+      preHandler: [authenticate, requirePermission('Export', 'read')],
+    },
+    async (req, reply) => {
+      const format = req.query.format ?? 'xlsx'
+      // Fenêtre cumulée bornée à l'année courante APPLICATIVE (Africa/Douala, comme le dashboard).
+      const donnees = await assemblerDonneesRecouvrement(app.prisma, anneeCouranteApp())
+
+      // Langue/devise de l'exporteur ; devise résolue seulement pour le PDF (l'Excel garde des nombres).
+      const { langue, devise } = await resoudreLocaleExport(req, app.prisma, format === 'pdf')
+
+      const nomFichier = `recouvrement-${donnees.anneeCourante}.${format}`
+      const buffer =
+        format === 'pdf'
+          ? await genererRecouvrementPdf(donnees, langue, devise)
+          : await genererRecouvrementExcel(donnees)
 
       return reply
         .header('Content-Type', CONTENT_TYPE[format])

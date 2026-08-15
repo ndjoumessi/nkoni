@@ -125,7 +125,10 @@ export function FonctionsPage() {
       />
 
       {fonctions && fonctions.length > 0 && (
-        <div className="nk-reveal nk-d2 mt-7 grid grid-cols-3 gap-3">
+        /* `grid-cols-2` d'abord : en 3 colonnes fixes, chaque StatCard (p-5) ne laissait que
+           ~69 px utiles à 360 px pour un chiffre en `text-2xl` et un label en capitales espacées.
+           Toutes les autres pages de liste suivent déjà ce motif `2 → 4`. */
+        <div className="nk-reveal nk-d2 mt-7 grid grid-cols-2 gap-3 sm:grid-cols-3">
           <StatCard label={t('fonctions.stats.total')} value={String(fonctions.length)} icon={Landmark} />
           <StatCard
             label={t('fonctions.stats.occupees')}

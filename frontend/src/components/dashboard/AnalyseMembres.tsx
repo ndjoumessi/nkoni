@@ -36,6 +36,15 @@ function barColor(taux: number): string {
   return 'bg-terra'
 }
 
+/** Clé i18n du niveau, sur les MÊMES seuils que `barColor` — les deux doivent rester alignés :
+ *  c'est ce qui évite que le seuil ne vive QUE dans la couleur (WCAG 1.4.1). Clés STATIQUES et
+ *  non un template littéral : elles restent ainsi vérifiées à la compilation contre le catalogue. */
+function cleNiveau(taux: number) {
+  if (taux >= 80) return 'dashboard.analyse.niveau.bon' as const
+  if (taux >= 50) return 'dashboard.analyse.niveau.moyen' as const
+  return 'dashboard.analyse.niveau.faible' as const
+}
+
 export function AnalyseMembres() {
   const { t } = useTranslation()
   const { accessToken } = useAuth()
@@ -136,7 +145,19 @@ export function AnalyseMembres() {
                     {formatPourcent(Math.round(b.taux))}
                   </span>
                 </div>
-                <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-surface-2">
+                {/* `role="progressbar"` + `aria-label` : c'était le SEUL endroit de l'app où une
+                    information n'existait QUE dans la couleur — le niveau de recouvrement (jade
+                    ≥ 80 %, amber ≥ 50 %, terra en dessous) n'était répliqué nulle part en texte.
+                    Invisible pour un daltonien comme pour un lecteur d'écran (WCAG 1.4.1). Le
+                    pourcentage était bien affiché, mais pas le SEUIL qu'il franchit. */}
+                <div
+                  role="progressbar"
+                  aria-valuenow={Math.round(b.taux)}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-label={`${b.nom} — ${t(cleNiveau(b.taux))}`}
+                  className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-surface-2"
+                >
                   <div
                     className={cn('h-full rounded-full transition-all', barColor(b.taux))}
                     style={{ width: `${b.taux}%` }}

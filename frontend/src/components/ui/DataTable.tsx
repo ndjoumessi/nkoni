@@ -94,7 +94,11 @@ export function DataTable<T>({
     // `sticky` de l'en-tête ; en desktop on repasse en `visible` → l'en-tête colle au viewport
     // sur les longues listes (audit UI). Scroll horizontal conservé sous md.
     <div className={cn('overflow-x-auto md:overflow-visible', className)}>
-      <table className="w-full border-collapse text-sm">
+      {/* `min-w-max` SOUS md : sans lui, `table-layout:auto` COMPRIME les colonnes jusqu'à leur
+          `min-content` plutôt que de déborder — on obtenait un wrap sauvage illisible à 360 px
+          AU LIEU du scroll horizontal que le conteneur offre pourtant. `md:min-w-0` rend la main
+          au layout fluide dès que la largeur suffit. */}
+      <table className="w-full min-w-max border-collapse text-sm md:min-w-0">
         {caption && <caption className="sr-only">{caption}</caption>}
         <thead className="sticky top-0 z-10">
           <tr className="bg-surface/95 backdrop-blur">

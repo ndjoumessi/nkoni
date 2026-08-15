@@ -3,7 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- `viewport-fit=cover` : SANS lui, `env(safe-area-inset-*)` vaut TOUJOURS 0 et les paddings
+         de sécurité (topbar sticky, drawer) sont inopérants. Indispensable en PWA installée
+         (standalone), où l'app occupe l'écran entier, encoche et barre de gestes comprises. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta
       name="description"
       content="NKONI — gestion des cotisations et transparence financière pour associations, familles et tontines."

@@ -8,7 +8,13 @@ import { Button } from '@/components/ui/Button'
  * CARRÉE (JPEG). Le viewport carré EST le cadre de recadrage ; à la validation, la portion visible
  * est redessinée sur un canvas `OUT×OUT` → blob. Évite d'ajouter une lib de crop.
  */
-const VP = 280 // viewport carré (px écran)
+// Viewport carré (px écran). 256 et non 280 : le cadre vit dans une `Modal` dont les gouttières
+// valent 56 px sous `sm:` (p-3 du conteneur + px-4 du corps) — à 320 px d'écran il reste donc
+// 264 px, et 280 débordait. ⚠️ VALEUR EN DUR ASSUMÉE, PAS responsive : `VP` sert aussi de repère
+// aux calculs de recadrage (clamp de position, échelle, découpe canvas). La rendre dynamique
+// exigerait de propager la variable dans tous ces calculs — un écart entre le CSS affiché et le
+// VP des maths décalerait la zone découpée par rapport à ce que l'utilisateur voit.
+const VP = 256
 const OUT = 512 // taille de sortie (px)
 
 export function CropperPhoto({

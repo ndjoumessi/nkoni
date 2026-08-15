@@ -273,7 +273,10 @@ export function CagnotteDetailPage() {
           </div>
           {c.progression != null && (
             <div className="mt-4">
-              <div className="h-2 w-full overflow-hidden rounded-full bg-surface-2">
+              {/* `aria-hidden` ici (et non `role="progressbar"`) : le pourcentage est DÉJÀ énoncé
+                  en toutes lettres juste en dessous — exposer la barre en plus ferait entendre
+                  l'information deux fois. La barre est ici purement illustrative. */}
+              <div className="h-2 w-full overflow-hidden rounded-full bg-surface-2" aria-hidden="true">
                 <div className="h-full rounded-full bg-gradient-to-r from-jade to-brass" style={{ width: `${c.progression}%` }} />
               </div>
               <p className="mt-1 text-xs text-faint">{t('cagnottes.liste.progression', { pct: c.progression })}</p>

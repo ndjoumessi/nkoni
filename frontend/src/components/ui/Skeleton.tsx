@@ -3,7 +3,11 @@ import { cn } from '@/lib/utils'
 /** Bloc de chargement avec balayage (nk-shimmer). Base de tous les squelettes. */
 export function Skeleton({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
+    // `aria-hidden` : un squelette est un LEURRE VISUEL. Sans lui, un lecteur d'écran parcourt une
+    // succession de blocs vides et muets, sans comprendre qu'un chargement est en cours. L'état est
+    // porté par le CONTENEUR (`aria-busy`, cf. `DataTable`/`Button` qui le font déjà), jamais ici.
     <div
+      aria-hidden="true"
       className={cn('nk-shimmer relative overflow-hidden rounded-lg bg-surface-2', className)}
       {...props}
     />

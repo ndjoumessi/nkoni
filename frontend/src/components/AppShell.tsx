@@ -481,7 +481,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Topbar mobile */}
-      <header className="sticky top-0 z-20 flex items-center justify-between border-b border-hairline bg-canvas/85 px-4 py-3 backdrop-blur-xl lg:hidden">
+      {/* `pt-safe-3` = py-3 + encoche : en PWA installée (standalone) le topbar occupait sinon la
+          bande d'état, logo et titre passant sous l'heure et les icônes système. */}
+      <header className="sticky top-0 z-20 flex items-center justify-between border-b border-hairline bg-canvas/85 px-4 py-3 pt-safe-3 backdrop-blur-xl lg:hidden">
         <Link to="/" title={t('shell.retourAccueilPublic')} className="flex shrink-0 items-center gap-2">
           <NkoniMark className="h-8 w-8 text-base" />
           <span className="font-display text-lg font-semibold tracking-tight">NKONI</span>
@@ -532,7 +534,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             role="dialog"
             aria-modal="true"
             aria-label={t('shell.menuNavigation')}
-            className="nk-toast-in absolute inset-y-0 left-0 w-[17rem] border-r border-hairline bg-canvas p-4"
+            // Drawer plein écran (`inset-y-0`) : ses extrémités tombent sous l'encoche EN HAUT et
+            // sous la barre de gestes EN BAS — la déconnexion, placée en pied, y devenait
+            // difficile à atteindre. Paddings de sécurité additifs (p-4 conservé).
+            className="nk-toast-in absolute inset-y-0 left-0 w-[17rem] border-r border-hairline bg-canvas p-4 pb-safe-4 pt-safe-3"
           >
             <button
               type="button"

@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest'
-import { assemblerDonneesRecouvrement } from '../src/services/export-recouvrement.service'
+import ExcelJS from 'exceljs'
+import {
+  assemblerDonneesRecouvrement,
+  genererRecouvrementExcel,
+  type DonneesRecouvrement,
+  type LigneRecouvrement,
+} from '../src/services/export-recouvrement.service'
 import type { MembreStatutPrisma } from '../src/services/membreStatut.service'
 
 /**
@@ -105,5 +111,43 @@ describe('assemblerDonneesRecouvrement', () => {
     const d = await assemblerDonneesRecouvrement(tousAJour, 2025)
     expect(d.lignes).toEqual([])
     expect(d.totalResteDu).toBe(0)
+  })
+})
+
+/* -------------------------------------------------------------------------- */
+/* Colonnes adaptatives Excel (Téléphone/Branche omises si toute la liste vide) */
+/* -------------------------------------------------------------------------- */
+
+function ligne(over: Partial<LigneRecouvrement>): LigneRecouvrement {
+  return {
+    membreId: 'x', nom: 'A', prenom: 'B', telephone: null, branche: null,
+    anneeAdhesion: 2024, statut: 'NON_A_JOUR', attendu: 1_000, valorise: 0, resteDu: 1_000, ...over,
+  }
+}
+function donnees(lignes: LigneRecouvrement[]): DonneesRecouvrement {
+  return { genereLe: new Date('2026-01-01'), anneeCourante: 2026, lignes, totalAttendu: 0, totalValorise: 0, totalResteDu: 0 }
+}
+async function entetesExcel(d: DonneesRecouvrement): Promise<string[]> {
+  const wb = new ExcelJS.Workbook()
+  await wb.xlsx.load(await genererRecouvrementExcel(d))
+  const row = wb.getWorksheet('Recouvrement')!.getRow(1)
+  return (row.values as unknown[]).filter((v): v is string => typeof v === 'string')
+}
+
+describe('genererRecouvrementExcel — colonnes adaptatives', () => {
+  it('omet Téléphone ET Branche quand aucune ligne n’en porte', async () => {
+    const headers = await entetesExcel(donnees([ligne({}), ligne({ membreId: 'y' })]))
+    expect(headers).toContain('Nom')
+    expect(headers).toContain('Reste dû')
+    expect(headers).not.toContain('Téléphone')
+    expect(headers).not.toContain('Branche')
+  })
+
+  it('affiche Téléphone/Branche dès qu’une seule ligne les renseigne', async () => {
+    const headers = await entetesExcel(
+      donnees([ligne({}), ligne({ membreId: 'y', telephone: '699000000', branche: 'Nord' })]),
+    )
+    expect(headers).toContain('Téléphone')
+    expect(headers).toContain('Branche')
   })
 })

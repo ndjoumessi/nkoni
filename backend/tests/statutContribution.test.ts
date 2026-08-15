@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   calculerStatutContribution,
+  anneesImpayees,
   type BaremeAnnuelInput,
   type ContributionInput,
 } from '../src/services/statutContribution'
@@ -202,5 +203,40 @@ describe('calculerStatutContribution (§4.1)', () => {
     expect(r.totalAttenduCumule).toBe(20_000)
     expect(r.totalValoriseCumule).toBe(20_000)
     expect(r.statut).toBe('A_JOUR')
+  })
+})
+
+describe('anneesImpayees (allocation FIFO, arriérés)', () => {
+  const baremes: BaremeAnnuelInput[] = [
+    { annee: 2023, montantAttendu: 10_000 },
+    { annee: 2024, montantAttendu: 10_000 },
+    { annee: 2025, montantAttendu: 10_000 },
+  ]
+  const base = { baremes, anneeAdhesion: 2023, anneeFinContribution: null, anneeCourante: 2025 }
+
+  it('membre à jour → aucune année due', () => {
+    const contributions: ContributionInput[] = [
+      { annee: 2023, montantValorise: 10_000 },
+      { annee: 2024, montantValorise: 10_000 },
+      { annee: 2025, montantValorise: 10_000 },
+    ]
+    expect(anneesImpayees({ ...base, contributions })).toEqual([])
+  })
+
+  it('rien versé → toutes les années de la fenêtre', () => {
+    expect(anneesImpayees({ ...base, contributions: [] })).toEqual([2023, 2024, 2025])
+  })
+
+  it('solde partiel alloué aux plus anciennes d’abord (arriérés)', () => {
+    // 15 000 versés : soldent 2023 (10 000), couvrent partiellement 2024 → 2024 et 2025 restent dues.
+    const contributions: ContributionInput[] = [{ annee: 2025, montantValorise: 15_000 }]
+    expect(anneesImpayees({ ...base, contributions })).toEqual([2024, 2025])
+  })
+
+  it('borne la fenêtre à anneeFinContribution (membre inactif/décédé)', () => {
+    // Fin 2024 → 2025 hors fenêtre ; rien versé → seules 2023 et 2024 dues.
+    expect(
+      anneesImpayees({ ...base, contributions: [], anneeFinContribution: 2024 }),
+    ).toEqual([2023, 2024])
   })
 })

@@ -18,12 +18,12 @@
 import ExcelJS from 'exceljs'
 import PDFDocument from 'pdfkit'
 import { formatDateHeure, type Langue, type Devise } from '../lib/i18n'
+import type { MembreStatutPrisma } from './membreStatut.service'
 import {
-  calculerStatutsMembres,
-  type MembreStatutPrisma,
-  type StatutMembreValue,
-} from './membreStatut.service'
-import type { StatutContributionValue } from './statutContribution'
+  calculerStatutContribution,
+  anneesImpayees,
+  type StatutContributionValue,
+} from './statutContribution'
 import {
   enteteDocument,
   dessinerCorpsPremium,
@@ -51,6 +51,8 @@ export interface LigneRecouvrement {
   attendu: number
   valorise: number
   resteDu: number
+  /** Années encore dues (non soldées) dans la fenêtre de contribution, triées croissant. */
+  anneesDues: number[]
 }
 
 export interface DonneesRecouvrement {
@@ -79,23 +81,53 @@ export async function assemblerDonneesRecouvrement(
   anneeCourante: number,
   now: Date = new Date(),
 ): Promise<DonneesRecouvrement> {
-  const actif: StatutMembreValue = 'ACTIF'
-  const { items } = await calculerStatutsMembres(prisma, anneeCourante, { statut: actif })
+  // AUTONOME (comme export.service) : charge barèmes + membres ACTIFS avec leurs contributions, puis
+  // calcule statut cumulé, reste dû ET années dues via les fonctions pures — sans dépendre du service
+  // de liste des membres (pas de champ `anneesDues` à greffer sur le type partagé MembreAvecStatut).
+  const [baremes, membres] = await Promise.all([
+    prisma.baremeAnnuel.findMany({ select: { annee: true, montantAttendu: true } }),
+    prisma.membre.findMany({
+      where: { statut: 'ACTIF' },
+      orderBy: [{ nom: 'asc' }, { prenom: 'asc' }],
+      select: {
+        id: true,
+        nom: true,
+        prenom: true,
+        telephone: true,
+        branche: { select: { nom: true } },
+        anneeAdhesion: true,
+        anneeFinContribution: true,
+        contributions: { select: { annee: true, montantValorise: true } },
+      },
+    }),
+  ])
 
-  const lignes: LigneRecouvrement[] = items
-    .map((m) => ({
-      membreId: m.id,
-      nom: m.nom,
-      prenom: m.prenom,
-      telephone: m.telephone,
-      branche: m.branche?.nom ?? null,
-      anneeAdhesion: m.anneeAdhesion,
-      statut: m.statutCotisation,
-      attendu: m.totalAttenduCumule,
-      valorise: m.totalValoriseCumule,
-      // Borné à 0 : un trop-versé ponctuel ne doit pas afficher un reste négatif.
-      resteDu: Math.max(0, m.totalAttenduCumule - m.totalValoriseCumule),
-    }))
+  const lignes: LigneRecouvrement[] = membres
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .map((m: any) => {
+      const params = {
+        baremes,
+        contributions: m.contributions,
+        anneeAdhesion: m.anneeAdhesion,
+        anneeFinContribution: m.anneeFinContribution ?? null,
+        anneeCourante,
+      }
+      const r = calculerStatutContribution(params)
+      return {
+        membreId: m.id,
+        nom: m.nom,
+        prenom: m.prenom,
+        telephone: m.telephone ?? null,
+        branche: m.branche?.nom ?? null,
+        anneeAdhesion: m.anneeAdhesion,
+        statut: r.statut,
+        attendu: r.totalAttenduCumule,
+        valorise: r.totalValoriseCumule,
+        // Borné à 0 : un trop-versé ponctuel ne doit pas afficher un reste négatif.
+        resteDu: Math.max(0, r.totalAttenduCumule - r.totalValoriseCumule),
+        anneesDues: anneesImpayees(params),
+      }
+    })
     .filter((l) => l.resteDu > 0)
     // Reste dû DÉCROISSANT : les plus gros débiteurs en tête (liste de relance), nom en départage.
     .sort(
@@ -136,6 +168,32 @@ const LIBELLE_STATUT: Record<StatutContributionValue, string> = {
 const tel = (t: string | null): string => t ?? '—'
 const branche = (b: string | null): string => b ?? '—'
 
+/**
+ * Années dues → chaîne compacte : les suites consécutives sont regroupées en plages
+ * (`2023–2026`), les trous restent séparés (`2023, 2025`). Tiret demi-cadratin U+2013, encodable
+ * par Helvetica/WinAnsi (contrairement à U+202F). Vide → « — » (ne devrait pas arriver : reste dû
+ * > 0 implique au moins une année non soldée).
+ */
+function formatAnneesDues(annees: number[]): string {
+  const tri = [...annees].sort((a, b) => a - b)
+  const premier = tri[0]
+  if (premier === undefined) return '—' // liste vide (garde + narrowing `number`)
+  const plages: string[] = []
+  let debut = premier
+  let prec = premier
+  for (const a of tri.slice(1)) {
+    if (a === prec + 1) {
+      prec = a
+    } else {
+      plages.push(debut === prec ? `${debut}` : `${debut}–${prec}`)
+      debut = a
+      prec = a
+    }
+  }
+  plages.push(debut === prec ? `${debut}` : `${debut}–${prec}`) // dernière plage
+  return plages.join(', ')
+}
+
 /* -------------------------------------------------------------------------- */
 /* Formatage Excel (exceljs) — colonnes détaillées                            */
 /* -------------------------------------------------------------------------- */
@@ -160,6 +218,7 @@ function colonnesXlsx(
     ...(aBranche ? [{ header: 'Branche', key: 'branche', width: 18 }] : []),
     { header: 'Adhésion', key: 'anneeAdhesion', width: 10 },
     { header: 'Statut', key: 'statut', width: 12 },
+    { header: 'Années dues', key: 'anneesDues', width: 18 },
     { header: 'Attendu', key: 'attendu', width: 16 },
     { header: 'Valorisé', key: 'valorise', width: 16 },
     { header: 'Reste dû', key: 'resteDu', width: 16 },
@@ -192,6 +251,7 @@ export async function genererRecouvrementExcel(donnees: DonneesRecouvrement): Pr
       branche: neutraliserFormuleCellule(branche(l.branche)),
       anneeAdhesion: l.anneeAdhesion,
       statut: LIBELLE_STATUT[l.statut],
+      anneesDues: formatAnneesDues(l.anneesDues),
       attendu: l.attendu,
       valorise: l.valorise,
       resteDu: l.resteDu,
@@ -223,8 +283,8 @@ export function genererRecouvrementPdf(
   devise: Devise = 'FCFA',
 ): Promise<Buffer> {
   return new Promise((resolve, reject) => {
-    // PAYSAGE : 7 colonnes dont un nom composé (souvent long au Cameroun) — l'A4 portrait forçait
-    // le nom sur 2 lignes. En paysage la colonne « Membre » tient 200 pt → noms entiers sur 1 ligne.
+    // PAYSAGE : jusqu'à 8 colonnes dont un nom composé (souvent long au Cameroun) — l'A4 portrait
+    // forçait le nom sur 2 lignes ; en paysage la colonne « Membre » reste large → noms sur 1 ligne.
     const doc = new PDFDocument({ size: 'A4', layout: 'landscape', margin: 40 })
     const chunks: Buffer[] = []
     doc.on('data', (chunk: Buffer) => chunks.push(chunk))
@@ -252,12 +312,13 @@ export function genererRecouvrementPdf(
     // à « Membre ». Total = 762 pt (A4 paysage) dans tous les cas.
     const aTel = donnees.lignes.some((l) => l.telephone)
     const aBranche = donnees.lignes.some((l) => l.branche)
-    const largeurMembre = 200 + (aTel ? 0 : 100) + (aBranche ? 0 : 120)
+    const largeurMembre = 150 + (aTel ? 0 : 88) + (aBranche ? 0 : 96)
     const colonnes: ColonnePremium[] = [
       { label: 'Membre', largeur: largeurMembre, align: 'left' },
-      ...(aTel ? [{ label: 'Téléphone', largeur: 100, align: 'left' as const }] : []),
-      ...(aBranche ? [{ label: 'Branche', largeur: 120, align: 'left' as const }] : []),
-      { label: 'Statut', largeur: 80, align: 'left' },
+      ...(aTel ? [{ label: 'Téléphone', largeur: 88, align: 'left' as const }] : []),
+      ...(aBranche ? [{ label: 'Branche', largeur: 96, align: 'left' as const }] : []),
+      { label: 'Statut', largeur: 66, align: 'left' },
+      { label: 'Années dues', largeur: 100, align: 'left' },
       { label: 'Attendu', largeur: 84, align: 'right' },
       { label: 'Valorisé', largeur: 84, align: 'right' },
       { label: 'Reste dû', largeur: 94, align: 'right' },
@@ -267,6 +328,7 @@ export function genererRecouvrementPdf(
       ...(aTel ? [tel(l.telephone)] : []),
       ...(aBranche ? [branche(l.branche)] : []),
       LIBELLE_STATUT[l.statut],
+      formatAnneesDues(l.anneesDues),
       m(l.attendu),
       m(l.valorise),
       m(l.resteDu),
@@ -275,6 +337,7 @@ export function genererRecouvrementPdf(
       'TOTAL',
       ...(aTel ? [''] : []),
       ...(aBranche ? [''] : []),
+      '',
       '',
       m(donnees.totalAttendu),
       m(donnees.totalValorise),

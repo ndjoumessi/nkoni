@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Bell } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
 import {
   notificationsApi,
+  pushApi,
   messageErreur,
   ApiError,
   type PreferencesNotification,
@@ -16,6 +17,29 @@ import { Skeleton } from '@/components/ui/Skeleton'
 
 /** Types de notification ; libellés résolus via `profil.notifications.types.*`. */
 const TYPES: TypeNotification[] = ['VERSEMENT_RECU', 'COTISATION_RETARD', 'REUNION_RAPPEL']
+
+/** Le navigateur supporte-t-il le Web Push ? (SW + PushManager + Notification.) */
+const pushSupporte = (): boolean =>
+  typeof navigator !== 'undefined' &&
+  'serviceWorker' in navigator &&
+  typeof window !== 'undefined' &&
+  'PushManager' in window &&
+  'Notification' in window
+
+/** Clé VAPID base64url → Uint8Array (format attendu par `pushManager.subscribe`). Construite sur un
+ *  `ArrayBuffer` explicite → `Uint8Array<ArrayBuffer>`, assignable à `BufferSource` (TS 5.7+). */
+function vapidVersUint8(base64: string): Uint8Array<ArrayBuffer> {
+  const padding = '='.repeat((4 - (base64.length % 4)) % 4)
+  const b64 = (base64 + padding).replace(/-/g, '+').replace(/_/g, '/')
+  const brut = atob(b64)
+  const buffer = new ArrayBuffer(brut.length)
+  const out = new Uint8Array(buffer)
+  for (let i = 0; i < brut.length; i += 1) out[i] = brut.charCodeAt(i)
+  return out
+}
+
+/** État de l'abonnement push de CET appareil. */
+type EtatPush = 'chargement' | 'nonSupporte' | 'nonConfigure' | 'actif' | 'inactif'
 
 /**
  * Préférences de notification (§5) — un interrupteur par type. Mise à jour optimiste avec
@@ -49,6 +73,84 @@ export function NotificationPreferences() {
       controller.abort()
     }
   }, [accessToken])
+
+  // --- Web Push par APPAREIL (indépendant des préférences par type ci-dessus) ---
+  const [etatPush, setEtatPush] = useState<EtatPush>('chargement')
+  const [pushEnCours, setPushEnCours] = useState(false)
+  const clePubliqueRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (!accessToken) return
+    if (!pushSupporte()) {
+      setEtatPush('nonSupporte')
+      return
+    }
+    let actif = true
+    void (async () => {
+      try {
+        const { clePublique } = await pushApi.clePublique(accessToken)
+        if (!actif) return
+        if (!clePublique) {
+          setEtatPush('nonConfigure') // serveur sans clés VAPID → rien à proposer
+          return
+        }
+        clePubliqueRef.current = clePublique
+        const reg = await navigator.serviceWorker.ready
+        const sub = await reg.pushManager.getSubscription()
+        if (actif) setEtatPush(sub ? 'actif' : 'inactif')
+      } catch {
+        if (actif) setEtatPush('inactif') // à défaut, on propose au moins d'activer
+      }
+    })()
+    return () => {
+      actif = false
+    }
+  }, [accessToken])
+
+  const basculerPush = async (activer: boolean) => {
+    if (!accessToken) return
+    setPushEnCours(true)
+    try {
+      const reg = await navigator.serviceWorker.ready
+      if (activer) {
+        const permission = await Notification.requestPermission()
+        if (permission !== 'granted') {
+          toast.error(t('profil.notifications.push.refusee'))
+          return
+        }
+        const cle = clePubliqueRef.current
+        if (!cle) {
+          setEtatPush('nonConfigure')
+          return
+        }
+        const sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: vapidVersUint8(cle),
+        })
+        const j = sub.toJSON()
+        await pushApi.subscribe(
+          { endpoint: sub.endpoint, keys: { p256dh: j.keys?.['p256dh'] ?? '', auth: j.keys?.['auth'] ?? '' } },
+          accessToken,
+        )
+        setEtatPush('actif')
+        toast.success(t('profil.notifications.push.activee'))
+      } else {
+        const sub = await reg.pushManager.getSubscription()
+        if (sub) {
+          await pushApi.unsubscribe(sub.endpoint, accessToken)
+          await sub.unsubscribe()
+        }
+        setEtatPush('inactif')
+      }
+    } catch (e) {
+      toast.error(
+        t('profil.notifications.push.erreur'),
+        e instanceof ApiError ? e.message : t('profil.notifications.reessayer'),
+      )
+    } finally {
+      setPushEnCours(false)
+    }
+  }
 
   const basculer = async (cle: TypeNotification, valeur: boolean) => {
     if (!accessToken || !prefs) return
@@ -105,6 +207,32 @@ export function NotificationPreferences() {
             </li>
           ))}
         </ul>
+      )}
+
+      {/* Web Push par APPAREIL : n'apparaît que si supporté ET configuré côté serveur (clé VAPID). */}
+      {etatPush !== 'chargement' && etatPush !== 'nonConfigure' && (
+        <div className="mt-4 border-t border-hairline pt-4">
+          <div className="flex items-center justify-between gap-4">
+            <div className="min-w-0">
+              <span id="push-appareil" className="block text-sm font-medium text-foreground">
+                {t('profil.notifications.push.titre')}
+              </span>
+              <span className="mt-0.5 block text-xs text-faint">
+                {etatPush === 'nonSupporte'
+                  ? t('profil.notifications.push.nonSupporte')
+                  : t('profil.notifications.push.description')}
+              </span>
+            </div>
+            {etatPush !== 'nonSupporte' && (
+              <Toggle
+                checked={etatPush === 'actif'}
+                onChange={basculerPush}
+                disabled={pushEnCours}
+                aria-labelledby="push-appareil"
+              />
+            )}
+          </div>
+        </div>
       )}
     </Card>
   )

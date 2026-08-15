@@ -53,6 +53,14 @@ export default {
       description: 'Choose the notifications you want to receive in the app.',
       erreur: 'Could not update',
       reessayer: 'Please try again later.',
+      push: {
+        titre: 'Notifications on this device',
+        description: 'Get reminders (dues, meetings) even when the app is closed.',
+        nonSupporte: 'Not supported by this browser.',
+        activee: 'Notifications enabled on this device',
+        refusee: 'Permission denied by the browser.',
+        erreur: 'Could not enable',
+      },
       types: {
         VERSEMENT_RECU: {
           titre: 'Payment recorded',

@@ -38,7 +38,7 @@ inatteignable. Les trois sont corrigeables en une journée.
 | C3 | `pages/CagnotteDetailPage.tsx:292` | Table des dons dans `Card className="overflow-hidden p-0"` **sans `overflow-x-auto`** → à 360 px les colonnes de droite sont **clippées et inatteignables** (pas de scroll possible). | WCAG 1.4.10 | Ajouter `overflow-x-auto` sur le conteneur. |
 | C4 | `ui/Badge.tsx:13-15` (mesure) | **Badges `terra` = 3.58:1** et **`info` = 4.21:1** (texte `text-<ton>` sur `bg-<ton>/12` composité sur `--surface`) → **sous le seuil 4.5:1**. Ce sont les badges **« Non à jour »**, **« Impayée »**, **« En retard »** : les statuts financiers les plus lourds de sens du produit. `jade` 4.88 / `amber` 4.77 / `brass` 5.15 passent de justesse. | WCAG 1.4.3 | Jetons de texte dédiés (voir §2.2). |
 | C4b | 6 blocs `role="alert"` (`LoginPage:271`, `InscriptionPage:262`, `MonProfilPage:263`, `ConfigPaiement:308`, `ReunionFormPage:241`, `MonEspacePage:1167`) | **Même défaut, sur les messages d'erreur** : `text-terra` sur `bg-terra/10` = **3.96:1 sur `canvas`, 3.80:1 sur `surface`**. Découvert en cherchant les autres occurrences du motif — ce sont les erreurs de **connexion**, d'**inscription** et de **paiement**, c'est-à-dire le texte qu'on lit précisément quand on est déjà en difficulté. | WCAG 1.4.3 | Même correctif (`text-terra-text`) → 6.22:1 / 5.97:1. |
-| C5 | `index.css:28` + `ui/Badge.tsx:18` | `--text-3xs: 0.68rem` = **10.9 px**, utilisé par `Badge size="sm"` — c'est-à-dire **tous** les badges de statut (`StatutBadges.tsx:28`, tableaux, listes). Sous le plancher de lisibilité de 12 px, sur un public partiellement presbyte et sur écran bas de gamme. | Heuristique lisibilité | Relever `--text-3xs` à `0.75rem` (12 px) ; le commentaire du fichier annonce d'ailleurs « PLANCHER de lisibilité » — il n'est pas tenu. |
+| C5 | `index.css:28` + `ui/Badge.tsx:18` | `--text-3xs: 0.68rem` = **10.9 px**, utilisé par `Badge size="sm"` — c'est-à-dire **tous** les badges de statut (`StatutBadges.tsx:28`, tableaux, listes). Sous le plancher de lisibilité de 12 px, sur un public partiellement presbyte et sur écran bas de gamme. | Heuristique lisibilité | ⚠️ **Correctif initialement recommandé ici — « relever `--text-3xs` à 0.75rem » — ERRONÉ** : `--text-2xs` valant `0.72rem`, le cran « 3xs » serait devenu **plus grand** que le « 2xs », inversant l'échelle. **Solution retenue et livrée** : `--text-3xs` **supprimé** (plus aucun usage), `--text-2xs` porté à `0.75rem` = 12 px, et `Badge size="sm"` passé à `text-xs`. Le plancher de 12 px est ainsi tenu sans inversion. |
 | C6 | `pages/CagnotteDetailPage.tsx:321` | Bouton de **suppression** d'un don : aucune classe de taille → cible tactile de **16 × 16 px**. Action **destructive** la plus petite de l'app. | WCAG 2.5.8 | `h-9 w-9` + `tap-target`, ou `Button size="icon"`. |
 | C7 | `pages/MonEspacePage.tsx:798,851` | Contrôles **RSVP** et **vote** : `px-3 py-1 text-xs` → **24 px de haut**. Ce sont les deux seules actions réellement *engageantes* de l'espace membre, sur la page **100 % mobile** du produit. | WCAG 2.5.8 | `min-h-11 px-4` (voir §3.5). |
 | C8 | `index.html:6` + `index.css` | **Aucune gestion des safe areas** : zéro `env(safe-area-inset-*)`, pas de `viewport-fit=cover`. En **PWA installée** (standalone — le mode nominal du produit, cf. push), le topbar sticky (`AppShell.tsx:484`) et le drawer plein écran (`:535`) passent **sous la barre de gestes Android / l'encoche**. | Ergonomie mobile | Voir §3.6. |
@@ -162,7 +162,7 @@ tone: {
   info:    'border-info/35 bg-info/12 text-info-text',
 },
 size: {
-  sm: 'px-2.5 py-0.5 text-2xs',  // ← 3xs (10.9px) → 2xs (11.5px) ; ou relever --text-3xs à 0.75rem
+  sm: 'px-2.5 py-0.5 text-xs',   // ← livré : 12 px (cf. C5 — `--text-3xs` a été supprimé)
   md: 'px-3 py-1 text-xs',
   lg: 'px-4 py-1.5 text-sm',
 },
@@ -353,6 +353,34 @@ Règle tenue partout ailleurs : infobulles doublées d'un équivalent textuel, l
 | **4 — Mobile & a11y de finition** | C8, M3, M5, M6, M7, M8, M9, M10 | ~5 h | PWA propre à 360 px |
 
 Mineurs (m1–m7) : au fil de l'eau.
+
+---
+
+## 7. État final (clos le 2026-08-15)
+
+**24 des 26 recommandations livrées** en 5 PR — `#114` (bloquants), `#115` (contraste + tactile),
+`#116` (mobile & a11y), `#117` (typo + largeurs), `#119` (finitions). Les 2 restantes n'avaient pas
+lieu d'être : **m1** était déjà satisfait (les champs utilisent `border-hairline-strong`), **m5** est
+un choix assumé et commenté dans le code.
+
+Deux constats issus de la mise en œuvre, à retenir **contre** ce rapport :
+
+- **C5 était faux** (cf. la ligne corrigée plus haut) : appliqué à la lettre, il inversait l'échelle
+  micro-typo. Vérifier une recommandation contre l'échelle existante avant de l'appliquer.
+- **L'explication du mécanisme `ring`/`box-shadow` en §3.2 était inexacte** : `ring-*` **est** du
+  `box-shadow`. S'ils coexistent, c'est parce que Tailwind les injecte dans `--tw-ring-shadow` et
+  `--tw-shadow` avant de les concaténer — pas parce que ce sont deux propriétés distinctes.
+  Corollaire pratique conservé dans le code : un `box-shadow` **brut** écraserait l'anneau.
+  Le diagnostic de cascade (`utilities` bat `base`), lui, était juste.
+- **M6 paraît non traité à la lecture d'un grep** (`width: '13rem'` subsiste) alors qu'il l'est :
+  `DataTable` fait transiter `col.width` par une variable CSS appliquée seulement à partir de `md:`.
+  Ne pas « re-corriger » ces largeurs.
+
+**Angle mort restant** : les correctifs d'accessibilité de `#116` (squelettes `aria-hidden`, barres
+exposées, niveau de recouvrement énoncé en texte) n'ont pas été validés au lecteur d'écran. Un
+passage TalkBack, ou à défaut un mode niveaux de gris, reste à faire.
+
+---
 
 **Vérification** : `tsc` et `oxlint` ne voient **rien** de cet audit. Les seuls contrôles valides sont
 (1) le script de contraste (§ mesures, reproductible), (2) `Tab` au clavier sur chaque écran, et

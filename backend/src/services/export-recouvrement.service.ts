@@ -103,8 +103,7 @@ export async function assemblerDonneesRecouvrement(
   ])
 
   const lignes: LigneRecouvrement[] = membres
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .map((m: any) => {
+    .map((m) => {
       const params = {
         baremes,
         contributions: m.contributions,

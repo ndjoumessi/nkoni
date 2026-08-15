@@ -133,7 +133,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
       {groups.map((group, gi) => (
         <div key={group.label ?? `groupe-${gi}`} className="flex flex-col gap-1">
           {group.label && (
-            <p className="mb-1 px-3 text-3xs font-medium uppercase tracking-[0.14em] text-faint">
+            <p className="mb-1 px-3 text-2xs font-medium uppercase tracking-[0.14em] text-faint">
               {group.label}
             </p>
           )}
@@ -293,7 +293,7 @@ function CompteMenu() {
           <span className="block max-w-[11rem] truncate text-xs font-medium text-foreground">
             {user?.email}
           </span>
-          <span className="block truncate text-3xs text-faint">{role}</span>
+          <span className="block truncate text-2xs text-faint">{role}</span>
         </span>
         <ChevronDown
           className={cn('h-4 w-4 shrink-0 text-faint transition-transform', open && 'rotate-180')}
@@ -409,7 +409,7 @@ function TopBar({ largeur }: { largeur: string }) {
           >
             <Building2 className="h-4 w-4 shrink-0 text-brass/80" aria-hidden="true" />
             <div className="min-w-0 text-right">
-              <p className="text-3xs font-medium uppercase leading-tight tracking-[0.14em] text-brass/80">
+              <p className="text-2xs font-medium uppercase leading-tight tracking-[0.14em] text-brass/80">
                 {t('shell.organisation')}
               </p>
               <p className="max-w-[16rem] truncate font-display text-sm font-semibold leading-tight text-foreground">

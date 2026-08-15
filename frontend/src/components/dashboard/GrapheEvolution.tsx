@@ -285,7 +285,7 @@ function CorpsAire({
         onMouseLeave={() => setHover(null)}
       >
         {/* Échelle haute (valeur max), lisible et non déformée. */}
-        <span className="num absolute -top-1 left-0 z-10 text-3xs text-faint">
+        <span className="num absolute -top-1 left-0 z-10 text-2xs text-faint">
           {formatNombre(max)}
         </span>
         <svg
@@ -426,7 +426,7 @@ function CorpsAire({
             <span className="num block text-2xs font-semibold text-foreground">
               {formatMontant(dernier.collecte)}
             </span>
-            <span className="num block text-3xs text-jade">
+            <span className="num block text-2xs text-jade">
               {formatPourcent(dernier.attendu > 0 ? Math.round((dernier.collecte / dernier.attendu) * 100) : 0)}{' '}
               {legendeAtteinte}
             </span>
@@ -444,7 +444,7 @@ function CorpsAire({
           return (
             <span
               key={p.cle}
-              className={cn('absolute text-3xs text-faint', ancrage, mobile)}
+              className={cn('absolute text-2xs text-faint', ancrage, mobile)}
               style={{ left: `${(x(i) / W) * 100}%` }}
             >
               {p.label}

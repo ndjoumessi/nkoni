@@ -21,8 +21,8 @@ const badgeVariants = cva(
         info: 'border-info/35 bg-info/12 text-info-text',
       },
       size: {
-        // `text-xs` (12 px) et non `text-3xs` (10.9 px) : un badge porte une information MÉTIER
-        // (statut de cotisation), pas une décoration. `--text-3xs`/`--text-2xs` restent réservés
+        // `text-xs` (12 px) et non `text-2xs` (10.9 px) : un badge porte une information MÉTIER
+        // (statut de cotisation), pas une décoration. `--text-2xs`/`--text-2xs` restent réservés
         // aux overlines en capitales espacées, qui tolèrent mieux la petite taille.
         // `sm` et `md` partagent volontairement 12 px : ils se distinguent par le PADDING (densité),
         // pas par la lisibilité — descendre `sm` sous 12 px repasserait sous le plancher.

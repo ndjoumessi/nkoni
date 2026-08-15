@@ -117,9 +117,15 @@ export function DataTable<T>({
                   key={col.key}
                   scope="col"
                   aria-sort={ariaSort}
-                  style={col.width ? { width: col.width } : undefined}
+                  // `col.width` transite par une VARIABLE CSS et n'est appliquée qu'à partir de
+                  // `md:` — un `style` inline ne peut pas être conditionné par une media query, et
+                  // ces largeurs fixes en `rem` imposaient jusqu'à ~800 px de table (SuperAdmin :
+                  // 9.5+10+8.5+7 rem), écrasant les colonnes libres à 360 px. En mobile on laisse
+                  // le contenu dicter la largeur, `min-w-max` (ci-dessous) assurant le scroll.
+                  style={col.width ? ({ '--col-w': col.width } as React.CSSProperties) : undefined}
                   className={cn(
                     'border-b border-hairline-strong px-4 py-2.5 text-2xs font-medium uppercase tracking-[0.1em] text-faint',
+                    col.width && 'md:w-[var(--col-w)]',
                     alignClass(col),
                     col.headerClassName,
                   )}

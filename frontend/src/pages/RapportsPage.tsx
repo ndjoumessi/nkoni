@@ -198,7 +198,7 @@ function NoteSansBareme({ rapport }: { rapport: RapportAnnee | null }) {
   const { t } = useTranslation()
   if (rapport) return null
   return (
-    <span className="mt-0.5 block text-3xs font-normal normal-case tracking-normal text-faint">
+    <span className="mt-0.5 block text-2xs font-normal normal-case tracking-normal text-faint">
       {t('rapports.aucunBareme')}
     </span>
   )

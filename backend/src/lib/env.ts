@@ -115,6 +115,17 @@ if (isProd) {
       'Aucun canal de notification configuré (ni WhatsApp WHATSAPP_TOKEN/WHATSAPP_PHONE_ID, ni email RESEND_API_KEY/RESEND_FROM) → les reçus et relances ne partiront pas. Posez au moins un canal sur Railway (bloquant GA 0.4).',
     )
   }
+  // Web Push (§ notifications) : les 3 clés VAPID sont requises pour pousser une notif sur le
+  // téléphone. Absentes/incomplètes → les rappels (COTISATION_RETARD/REUNION_RAPPEL) restent in-app.
+  if (
+    !process.env['VAPID_PUBLIC_KEY'] ||
+    !process.env['VAPID_PRIVATE_KEY'] ||
+    !process.env['VAPID_SUBJECT']
+  ) {
+    avertir(
+      'Clés VAPID incomplètes (VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY / VAPID_SUBJECT) → les notifications Web Push ne partent pas (les rappels restent in-app). Générez-les (`npx web-push generate-vapid-keys`) et posez-les sur Railway.',
+    )
+  }
 }
 
 const DAY_SECONDS = 60 * 60 * 24

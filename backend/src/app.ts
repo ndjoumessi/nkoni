@@ -56,6 +56,7 @@ import { orgContext } from './lib/org-context'
 import { vraiObservabiliteClient, type ObservabiliteClient } from './lib/observabilite'
 import type { PspClient } from './services/psp.service'
 import { pspRegistry } from './lib/psp-registry'
+import { vraiPushClient, type PushClient } from './services/push.service'
 
 // Décoration de l'instance Fastify avec le client Prisma + le client Blob (injectables en test).
 declare module 'fastify' {
@@ -66,6 +67,7 @@ declare module 'fastify' {
     email: EmailClient
     observabilite: ObservabiliteClient
     psp: PspClient
+    push: PushClient
   }
 }
 
@@ -82,6 +84,8 @@ export interface BuildAppOptions {
   observabilite?: ObservabiliteClient
   /** Client PSP (mock en test). Défaut : dispatcher multi-provider (Fapshi/CamPay selon la config org). */
   psp?: PspClient
+  /** Client Web Push (mock en test). Défaut : lib web-push réelle (no-op sans clés VAPID). */
+  push?: PushClient
   /** Active le logger Fastify. Défaut : true (désactivable en test). */
   logger?: boolean
 }
@@ -126,6 +130,7 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   app.decorate('email', opts.email ?? vraiEmailClient)
   app.decorate('observabilite', opts.observabilite ?? vraiObservabiliteClient)
   app.decorate('psp', opts.psp ?? pspRegistry)
+  app.decorate('push', opts.push ?? vraiPushClient)
 
   // Contextes ALS par requête : audit (acteur, V2 §5) et organisation (isolation SaaS §2.2).
   // L'acteur et l'organisation sont renseignés ensuite par `authenticate` (après vérif JWT),

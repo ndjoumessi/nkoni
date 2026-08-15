@@ -3,7 +3,10 @@ import { cn } from '@/lib/utils'
 
 /** Pastille de statut / étiquette. Tons alignés sur la palette Laiton & Jade. */
 const badgeVariants = cva(
-  'inline-flex items-center gap-1.5 rounded-full border font-medium leading-none',
+  // `whitespace-nowrap` : un badge de statut reste TOUJOURS sur une ligne. Sans lui, dans une
+  // colonne étroite (ex. « Statut » du tableau des contributions en mobile) le texte s'enroule et,
+  // le badge étant `rounded-full`, « Non à jour » devient un disque et « À jour » casse en deux.
+  'inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border font-medium leading-none',
   {
     variants: {
       tone: {
@@ -45,7 +48,7 @@ export function Badge({ className, tone, size, dot, pulse, children, ...props }:
   return (
     <span className={cn(badgeVariants({ tone, size }), className)} {...props}>
       {dot && (
-        <span className="relative flex h-1.5 w-1.5">
+        <span className="relative flex h-1.5 w-1.5 shrink-0">
           {pulse && (
             <span
               className={cn('absolute inline-flex h-full w-full animate-ping rounded-full opacity-75', dotColor)}

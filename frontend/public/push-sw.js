@@ -16,8 +16,12 @@ self.addEventListener('push', (event) => {
   const titre = data.titre || 'NKONI'
   const options = {
     body: data.message || '',
+    // `icon` = grande vignette (couleur) affichée dans la notif → le logo plein convient.
     icon: '/pwa-192x192.png',
-    badge: '/pwa-192x192.png',
+    // `badge` = petite icône de la barre d'état : Android n'en garde QUE la forme (alpha) et la
+    // recolore. Une tuile PLEINE et opaque (pwa-192) y devient un carré noir. Il faut une silhouette
+    // MONOCHROME BLANCHE sur fond TRANSPARENT — cf. public/pwa-badge.svg (source) → pwa-badge.png.
+    badge: '/pwa-badge.png',
     data: { url: data.url || '/' },
   }
   event.waitUntil(self.registration.showNotification(titre, options))

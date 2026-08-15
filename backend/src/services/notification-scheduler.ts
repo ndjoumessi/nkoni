@@ -325,6 +325,31 @@ export function demarrerScheduler(app: FastifyInstance): void {
         .then(async (resultats) => {
           if (!resultats) return
           const { retards, rappels } = resultats
+          // Web Push APRÈS le commit (jamais d'HTTP dans la tx) et PAR ORG (PushSubscription est
+          // scopé → contexte d'isolation requis). `app.prisma` = client NON transactionnel.
+          // Best-effort : `notifierParPush` ne lève jamais. No-op si les clés VAPID sont absentes.
+          // Try/catch DÉDIÉ : les notifications sont DÉJÀ créées (tx committée) — un pépin d'envoi
+          // ne doit pas être étiqueté « tâches de nuit échouées » ni alerter comme si les relances
+          // n'étaient pas parties. Il est signalé à part (tâche WEB_PUSH) sans faire échouer le reste.
+          try {
+            for (const r of [...retards, ...rappels]) {
+              if (r.aPousser.length === 0) continue
+              await orgContext.run({ organisationId: r.organisationId }, async () => {
+                for (const p of r.aPousser) {
+                  await notifierParPush(
+                    app.prisma as unknown as PushPrisma,
+                    app.push,
+                    p.destinataireId,
+                    { titre: p.titre, message: p.message, url: '/notifications' },
+                  )
+                }
+              })
+            }
+          } catch (errPush) {
+            app.log.error({ err: errPush }, 'Envoi Web Push post-tâches de nuit échoué (notifications déjà créées)')
+            app.observabilite.signaler(errPush, { source: 'scheduler', tache: 'WEB_PUSH' })
+          }
+          // Log de FIN émis APRÈS l'envoi push → marque la fin RÉELLE du travail de nuit.
           const verifies = retards.reduce((s, r) => s + r.verifies, 0)
           const notifies = retards.reduce((s, r) => s + r.notifies, 0)
           const rappelsNotifies = rappels.reduce((s, r) => s + r.notifies, 0)
@@ -332,22 +357,6 @@ export function demarrerScheduler(app: FastifyInstance): void {
             { organisations: retards.length, verifies, notifies, rappelsNotifies },
             'Tâches de nuit terminées (retards de cotisation + rappels de réunion, toutes organisations)',
           )
-          // Web Push APRÈS le commit (jamais d'HTTP dans la tx) et PAR ORG (PushSubscription est
-          // scopé → contexte d'isolation requis). `app.prisma` = client NON transactionnel.
-          // Best-effort : `notifierParPush` ne lève jamais. No-op si les clés VAPID sont absentes.
-          for (const r of [...retards, ...rappels]) {
-            if (r.aPousser.length === 0) continue
-            await orgContext.run({ organisationId: r.organisationId }, async () => {
-              for (const p of r.aPousser) {
-                await notifierParPush(
-                  app.prisma as unknown as PushPrisma,
-                  app.push,
-                  p.destinataireId,
-                  { titre: p.titre, message: p.message, url: '/notifications' },
-                )
-              }
-            })
-          }
         })
         .catch((err) => {
           app.log.error({ err }, 'Tâches de nuit (retards + rappels de réunion) échouées')

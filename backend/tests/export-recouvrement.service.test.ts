@@ -6,7 +6,7 @@ import {
   type DonneesRecouvrement,
   type LigneRecouvrement,
 } from '../src/services/export-recouvrement.service'
-import type { MembreStatutPrisma } from '../src/services/membreStatut.service'
+import type { RecouvrementPrisma } from '../src/services/export-recouvrement.service'
 
 /**
  * Tests unitaires de l'assemblage du rapport de RECOUVREMENT (membres actifs avec reste dû cumulé).
@@ -52,19 +52,15 @@ const membres = [
   }, // 20000/25000 (trop-versé) → A_JOUR, reste borné à 0 → EXCLU (teste le clamp)
 ]
 
-function buildMock(capture?: { where?: unknown }): MembreStatutPrisma {
+function buildMock(capture?: { where?: unknown }): RecouvrementPrisma {
   return {
     baremeAnnuel: { findMany: async () => baremes },
     membre: {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      findMany: async ({ where }: any = {}) => {
+      findMany: async ({ where }: { where?: { statut?: string } } = {}) => {
         if (capture) capture.where = where
         // Le vrai Prisma applique le where ; le mock l'honore pour le statut (sinon m4 passerait).
         return where?.statut ? membres.filter((m) => m.statut === where.statut) : membres
       },
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      count: async ({ where }: any = {}) =>
-        where?.statut ? membres.filter((m) => m.statut === where.statut).length : membres.length,
     },
   }
 }

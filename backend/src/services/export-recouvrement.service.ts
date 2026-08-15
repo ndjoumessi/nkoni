@@ -17,8 +17,8 @@
 
 import ExcelJS from 'exceljs'
 import PDFDocument from 'pdfkit'
+import { Prisma } from '../generated/prisma/client'
 import { formatDateHeure, type Langue, type Devise } from '../lib/i18n'
-import type { MembreStatutPrisma } from './membreStatut.service'
 import {
   calculerStatutContribution,
   anneesImpayees,
@@ -65,6 +65,53 @@ export interface DonneesRecouvrement {
 }
 
 /* -------------------------------------------------------------------------- */
+/* Interface de LECTURE (port Prisma)                                         */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Sélection Prisma des membres à relancer. Déclarée en CONSTANTE pour être à la fois passée à la
+ * requête ET servir de source au type de la ligne lue (`MembreRecouvrementLu`) : les deux ne
+ * peuvent donc pas diverger, et un champ renommé dans le schéma casse le build ici même.
+ */
+const SELECT_MEMBRE = {
+  id: true,
+  nom: true,
+  prenom: true,
+  telephone: true,
+  branche: { select: { nom: true } },
+  anneeAdhesion: true,
+  anneeFinContribution: true,
+  contributions: { select: { annee: true, montantValorise: true } },
+} satisfies Prisma.MembreSelect
+
+/** Un membre tel que lu ici — DÉRIVÉ du schéma via le `select` ci-dessus, jamais recopié à la main. */
+export type MembreRecouvrementLu = Prisma.MembreGetPayload<{ select: typeof SELECT_MEMBRE }>
+
+/**
+ * Port Prisma de l'assembleur : le strict nécessaire, pour rester mockable sans un vrai client.
+ *
+ * `membre.findMany` rend `unknown[]` et NON le type lu, pour une raison mesurée : le vrai client
+ * Prisma n'est pas assignable à un retour étroit (TypeScript instancie le générique avec les
+ * arguments par DÉFAUT, donc sans `select` — le payload obtenu n'a ni `branche` ni `contributions`,
+ * et l'affectation échoue). C'est ce mur qui poussait `MembreStatutPrisma` à rendre `any[]`, avec
+ * l'effet que tout le mapping en aval héritait de cet `any` : une faute de frappe sur un champ
+ * compilait sans broncher.
+ *
+ * `unknown[]` renverse ce compromis. Il reste assignable depuis le vrai client, mais il INTERDIT de
+ * consommer la valeur sans la nommer : le rétrécissement se fait en UN point explicite et visible
+ * (cf. `membresLus` plus bas), après quoi tout le calcul — statut, reste dû, années dues — est
+ * réellement vérifié par `tsc`, seul garde-fou de typage côté backend.
+ */
+export interface RecouvrementPrisma {
+  baremeAnnuel: {
+    findMany(args?: unknown): Promise<{ annee: number; montantAttendu: number }[]>
+  }
+  membre: {
+    findMany(args?: unknown): Promise<unknown[]>
+  }
+}
+
+/* -------------------------------------------------------------------------- */
 /* Assemblage                                                                 */
 /* -------------------------------------------------------------------------- */
 
@@ -77,7 +124,7 @@ export interface DonneesRecouvrement {
  * @param now Injecté pour les tests (horodatage `genereLe`).
  */
 export async function assemblerDonneesRecouvrement(
-  prisma: MembreStatutPrisma,
+  prisma: RecouvrementPrisma,
   anneeCourante: number,
   now: Date = new Date(),
 ): Promise<DonneesRecouvrement> {
@@ -89,20 +136,15 @@ export async function assemblerDonneesRecouvrement(
     prisma.membre.findMany({
       where: { statut: 'ACTIF' },
       orderBy: [{ nom: 'asc' }, { prenom: 'asc' }],
-      select: {
-        id: true,
-        nom: true,
-        prenom: true,
-        telephone: true,
-        branche: { select: { nom: true } },
-        anneeAdhesion: true,
-        anneeFinContribution: true,
-        contributions: { select: { annee: true, montantValorise: true } },
-      },
+      select: SELECT_MEMBRE,
     }),
   ])
 
-  const lignes: LigneRecouvrement[] = membres
+  // UNIQUE point de rétrécissement du port `unknown[]` (cf. RecouvrementPrisma) : tout ce qui suit
+  // est vérifié par tsc contre le type dérivé du `select`.
+  const membresLus = membres as MembreRecouvrementLu[]
+
+  const lignes: LigneRecouvrement[] = membresLus
     .map((m) => {
       const params = {
         baremes,

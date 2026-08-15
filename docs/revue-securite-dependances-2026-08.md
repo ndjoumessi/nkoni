@@ -4,8 +4,22 @@ Chantier **1.4** de [`roadmap-v1-vers-GA.md`](roadmap-v1-vers-GA.md).
 Méthode : `npm audit` sur les deux paquets, puis **tri par exposition réelle** — une faille dans
 l'outillage de build n'a pas le même statut qu'une faille dans le routeur HTTP de production.
 
-**Total brut : 24 alertes** (backend 13, frontend 11). **Après tri : 3 à traiter, 0 critique** —
-2 corrigées (montée de Fastify, PR #120), 1 restante (`brace-expansion`, exploitabilité faible).
+**Total brut : 24 alertes** (backend 13, frontend 11). **Après tri : 3 à traiter, 0 critique — les
+3 sont corrigées** (PR #120 `find-my-way`/`fast-uri`, PR #122 `brace-expansion`).
+
+### État final — **0 High sur chemin de production**
+
+| Reliquat | Gravité | Chemin | Statut |
+|---|---|---|---|
+| `nanoid`, `postcss` | 🔴 High | `vitest → vite` | **Dev uniquement**, jamais expédié. Hygiène CI. |
+| `undici` | 🟠 Moderate | `@vercel/blob` — **production** | Seul reliquat sur chemin de prod. Moderate, à suivre. |
+| autres | 🟠 Moderate | outillage de build | Voir §4. |
+
+> ⚠️ **Compter les alertes sur une sortie tronquée fausse le décompte.** Vécu : un `head -40` sur
+> `npm audit` avait masqué deux High (`nanoid`, `postcss`), donnant à croire qu'une seule High
+> subsistait. Le tri du §1 exige la liste **complète** — trier une liste amputée produit une
+> conclusion fausse avec l'apparence de la rigueur. Même piège que le grep dont le motif ne couvre
+> pas toutes les formes d'écriture.
 
 ---
 
@@ -29,7 +43,7 @@ questions décident du statut réel :
 | `find-my-way` 9.6.0 | 🔴 High | **Production** — c'est le routeur de Fastify, sur le chemin de **chaque** requête | DDoS via HTTP/2. Le seul CVE de la liste qui touche du code exécuté à chaque appel d'API. | Monter `fastify` (5.9.0 → dernière 5.x), qui embarque le correctif. |
 | `fast-uri` 3.1.3 | 🔴 High | **Production** — via `ajv`, donc la validation de schéma de toutes les routes | Confusion d'hôte via un `\` littéral comme délimiteur d'autorité. Exploitabilité **faible** chez nous (nos schémas ne valident pas d'URI fournies par l'utilisateur), mais c'est du code de production. | Même correctif : remontée de `fastify`/`ajv`. |
 
-| `brace-expansion` | 🔴 High | **Production (backend)** — chaîne `exceljs → archiver → archiver-utils → glob → minimatch → brace-expansion` ; `exceljs` est en `dependencies`, utilisé par les exports Excel | DoS par expansion exponentielle de groupes `{}`. **Exploitabilité faible** : le DoS suppose des **motifs glob contrôlés par l'attaquant**, or `archiver` ne globe que ses propres fichiers internes en assemblant le `.xlsx` (qui est un zip) — aucun motif ne vient de l'utilisateur. Mais c'est bien du code de production, pas de l'outillage. | Corrigeable sans rupture d'après npm. À traiter dans un lot suivant. |
+| `brace-expansion` | 🔴 High | **Production (backend)** — chaîne `exceljs → archiver → archiver-utils → glob → minimatch → brace-expansion` ; `exceljs` est en `dependencies`, utilisé par les exports Excel | DoS par expansion exponentielle de groupes `{}`. **Exploitabilité faible** : le DoS suppose des **motifs glob contrôlés par l'attaquant**, or `archiver` ne globe que ses propres fichiers internes en assemblant le `.xlsx` (qui est un zip) — aucun motif ne vient de l'utilisateur. Mais c'est bien du code de production, pas de l'outillage. | ✅ **CORRIGÉ (PR #122)** — `npm update brace-expansion`. ⚠️ **DEUX emplacements, dans DEUX majeures différentes** (range vulnérable `<=1.1.17 ‖ 2.0.0-2.1.3`) : racine 1.1.15 → **1.1.18**, et `readdir-glob/node_modules/` 2.1.1 → **2.1.4**. N'en remonter qu'un donnerait l'illusion du correctif — d'où le contrôle « l'avis a-t-il **disparu** de `npm audit` », plus robuste qu'une vérification de version à un seul chemin. Aucune remontée de `glob`/`archiver`/`exceljs`, pas d'override, `package.json` inchangé. |
 
 > ⚠️ **`npm update <paquet>` ne suffit PAS pour une transitive dont le range est déjà satisfait.**
 > Vécu sur cette revue : `npm update fastify` a bien monté Fastify 5.9 → 5.12, mais a **laissé

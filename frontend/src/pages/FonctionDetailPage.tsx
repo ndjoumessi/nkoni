@@ -260,7 +260,12 @@ export function FonctionDetailPage() {
         </div>
         {active ? (
           <div className="mt-4 flex flex-wrap items-center gap-3">
-            <Badge tone="jade" size="lg" dot>
+            {/* Ce badge porte un NOM de membre (contenu NON borné), pas un statut court. On rétablit
+                donc le retour à la ligne POUR CE CAS (via twMerge, `whitespace-normal` écrase le
+                `whitespace-nowrap` de la primitive) et on borne à la largeur de la carte : un nom
+                composé long (fréquent au Cameroun) reste entièrement lisible sans déborder à 360 px.
+                Tronquer masquerait une partie de l'identité — à éviter pour un nom. */}
+            <Badge tone="jade" size="lg" dot className="max-w-full whitespace-normal break-words">
               {nomMembre(active.membre)}
             </Badge>
             <span className="text-sm text-muted-foreground">

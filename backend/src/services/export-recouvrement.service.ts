@@ -68,9 +68,9 @@ export interface DonneesRecouvrement {
 
 /**
  * Construit la liste de recouvrement : membres ACTIFS dont le reste dû cumulé est strictement
- * positif, triés (nom, prénom — l'ordre vient déjà de `calculerStatutsMembres`). `anneeCourante`
- * = borne haute de la fenêtre cumulée (fuseau applicatif, résolu par la route). Pas de plafond de
- * troncature : un export doit être complet.
+ * positif, triés par RESTE DÛ décroissant (les plus gros débiteurs en tête ; nom en départage).
+ * `anneeCourante` = borne haute de la fenêtre cumulée (fuseau applicatif, résolu par la route). Pas
+ * de plafond de troncature : un export doit être complet.
  *
  * @param now Injecté pour les tests (horodatage `genereLe`).
  */
@@ -97,6 +97,11 @@ export async function assemblerDonneesRecouvrement(
       resteDu: Math.max(0, m.totalAttenduCumule - m.totalValoriseCumule),
     }))
     .filter((l) => l.resteDu > 0)
+    // Reste dû DÉCROISSANT : les plus gros débiteurs en tête (liste de relance), nom en départage.
+    .sort(
+      (a, b) =>
+        b.resteDu - a.resteDu || a.nom.localeCompare(b.nom) || a.prenom.localeCompare(b.prenom),
+    )
 
   const totaux = lignes.reduce(
     (acc, l) => ({
@@ -204,14 +209,16 @@ export function genererRecouvrementPdf(
   devise: Devise = 'FCFA',
 ): Promise<Buffer> {
   return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ size: 'A4', margin: 40 })
+    // PAYSAGE : 7 colonnes dont un nom composé (souvent long au Cameroun) — l'A4 portrait forçait
+    // le nom sur 2 lignes. En paysage la colonne « Membre » tient 200 pt → noms entiers sur 1 ligne.
+    const doc = new PDFDocument({ size: 'A4', layout: 'landscape', margin: 40 })
     const chunks: Buffer[] = []
     doc.on('data', (chunk: Buffer) => chunks.push(chunk))
     doc.on('end', () => resolve(Buffer.concat(chunks)))
     doc.on('error', reject)
 
     const GAUCHE = 40
-    const DROITE = 555
+    const DROITE = 802 // A4 paysage = 841,89 pt de large, moins la marge de 40
     const m = (n: number): string => montantExport(n, langue, devise)
 
     const sousTitre =
@@ -227,15 +234,15 @@ export function genererRecouvrementPdf(
       droite: DROITE,
     })
 
-    // 7 colonnes (Nom+Prénom fusionnés en « Membre » pour tenir en portrait), largeurs = 515 pt.
+    // 7 colonnes (Nom + Prénom fusionnés en « Membre »), largeurs = 762 pt (A4 paysage).
     const colonnes: ColonnePremium[] = [
-      { label: 'Membre', largeur: 120, align: 'left' },
-      { label: 'Téléphone', largeur: 78, align: 'left' },
-      { label: 'Branche', largeur: 72, align: 'left' },
-      { label: 'Statut', largeur: 63, align: 'left' },
-      { label: 'Attendu', largeur: 60, align: 'right' },
-      { label: 'Valorisé', largeur: 60, align: 'right' },
-      { label: 'Reste dû', largeur: 62, align: 'right' },
+      { label: 'Membre', largeur: 200, align: 'left' },
+      { label: 'Téléphone', largeur: 100, align: 'left' },
+      { label: 'Branche', largeur: 120, align: 'left' },
+      { label: 'Statut', largeur: 80, align: 'left' },
+      { label: 'Attendu', largeur: 84, align: 'right' },
+      { label: 'Valorisé', largeur: 84, align: 'right' },
+      { label: 'Reste dû', largeur: 94, align: 'right' },
     ]
     const lignes = donnees.lignes.map((l) => [
       `${l.nom} ${l.prenom}`.trim(),

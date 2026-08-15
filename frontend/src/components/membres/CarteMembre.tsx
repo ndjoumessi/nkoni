@@ -87,7 +87,10 @@ export function CarteMembre({
             <div className="shrink-0 rounded-lg bg-white p-1.5">
               {/* 80 px : le QR est le seul élément FONCTIONNEL de la carte (scannabilité) — ne pas
                   le rogner pour l'esthétique, surtout sur écran bas de gamme. */}
-              <img src={apercu.qrDataUrl} alt="" className="h-20 w-20" />
+              {/* `alt` DÉCRIT l'action, il n'est pas vide : ce QR n'est pas décoratif, c'est le
+                  seul élément fonctionnel de la carte. Un alternatif vide le rendait invisible au
+                  lecteur d'écran, qui ne pouvait pas savoir qu'un code à scanner était présent. */}
+              <img src={apercu.qrDataUrl} alt={t('monEspace.carte.qrAlt')} className="h-20 w-20" />
             </div>
             <p className="text-xs leading-snug text-faint">{t('monEspace.carte.scanner')}</p>
           </div>

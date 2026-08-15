@@ -37,6 +37,7 @@ export default {
       colAvant: 'Avant',
       colApres: 'Après (ajustable)',
       montantAria: 'Montant après pour {{annee}}',
+      montantNegatif: 'Le montant ne peut pas être négatif.',
     },
     recap: {
       totalPeriode: 'Total de la période : ',

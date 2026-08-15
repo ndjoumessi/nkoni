@@ -72,6 +72,9 @@ export function MembreFormPage() {
   const [membres, setMembres] = useState<MembreStatut[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  // Erreur serveur PERSISTANTE, en plus du toast : un toast dure 8 s et, raté, l'information est
+  // perdue — alors que l'utilisateur vient de saisir une fiche entière (audit UI/UX, m6).
+  const [erreurServeur, setErreurServeur] = useState<string | null>(null)
   const [errors, setErrors] = useState<Errors>({})
   const formRef = useRef<HTMLFormElement>(null)
 
@@ -166,6 +169,7 @@ export function MembreFormPage() {
       return
     }
     setErrors({})
+    setErreurServeur(null) // purge : un réessai réussi ne doit pas laisser l'erreur précédente
     setSaving(true)
     try {
       const payload: MembreInput = {
@@ -208,10 +212,9 @@ export function MembreFormPage() {
       toast.success(t('membres.form.toast.cree'), `${membre.nom} ${membre.prenom}`)
       navigate(`/membres/${membre.id}`, { replace: true })
     } catch (e) {
-      toast.error(
-        t('membres.form.toast.enregistrementImpossible'),
-        e instanceof ApiError ? e.message : t('membres.form.toast.reessayez'),
-      )
+      const detail = e instanceof ApiError ? e.message : t('membres.form.toast.reessayez')
+      setErreurServeur(detail)
+      toast.error(t('membres.form.toast.enregistrementImpossible'), detail)
     } finally {
       setSaving(false)
     }
@@ -351,6 +354,14 @@ export function MembreFormPage() {
               )}
             </FormSection>
 
+            {erreurServeur && (
+              <p
+                role="alert"
+                className="mt-4 rounded-xl border border-terra/30 bg-terra/10 px-3.5 py-2.5 text-sm text-terra-text"
+              >
+                {erreurServeur}
+              </p>
+            )}
             <div className="flex items-center justify-end gap-3 pt-2">
               <ButtonLink to={backTo} variant="ghost">
                 {t('membres.form.annuler')}

@@ -75,7 +75,6 @@
        un accent posé en texte sur un fond de la MÊME teinte échoue AA. */
     --color-terra-text: var(--terra-text);
     --color-info-text: var(--info-text);
-    --color-emerald-deep-text: var(--emerald-deep-text);
 }
 
 :root {
@@ -140,7 +139,10 @@
        a été jugé trop mince là-bas, il l'est ici aussi). */
     --terra-text: oklch(0.80 0.15 28);          /* badge 3.58 → 5.26:1 (pire cas) ; +17 % de marge */
     --info-text: oklch(0.80 0.09 240);          /* badge 4.21 → 5.28:1 (pire cas) ; +17 % de marge */
-    --emerald-deep-text: oklch(0.72 0.15 163);  /* 3.88 → 5.99:1 sur surface-3 */
+    /* (Un `--emerald-deep-text` avait été introduit ici puis RETIRÉ : `text-emerald-deep` n'existe
+       nulle part dans le dépôt, le jeton n'avait donc aucun consommateur. Le cas qu'il visait
+       — emerald-deep en TEXTE sur `--surface-3`, mesuré à 3.88:1 — reste théorique ; s'il se
+       présente un jour, la valeur conforme est `oklch(0.72 0.15 163)`.) */
 
     /* --- Remap shadcn --- */
     --background: var(--canvas);
@@ -319,6 +321,17 @@
    ========================================================================== */
 
 @layer utilities {
+    /* Zones de sécurité (encoche, barre de gestes Android/iOS). N'ont d'effet QUE si
+       `viewport-fit=cover` est présent dans le meta viewport (cf. index.html) — sinon `env()`
+       vaut 0. Le repli `0px` garde un rendu correct sur navigateur de bureau et hors standalone.
+       Utile surtout en PWA INSTALLÉE : en onglet, le chrome du navigateur absorbe déjà l'encoche. */
+    .pt-safe { padding-top: calc(env(safe-area-inset-top, 0px)); }
+    .pb-safe { padding-bottom: calc(env(safe-area-inset-bottom, 0px)); }
+    /* Variantes ADDITIVES : conservent le padding de composant existant et ajoutent la marge
+       de sécurité par-dessus (ex. topbar `py-3` → `py-3 pt-safe-3`). */
+    .pt-safe-3 { padding-top: calc(0.75rem + env(safe-area-inset-top, 0px)); }
+    .pb-safe-4 { padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px)); }
+
     /* Étend la zone tactile d'un petit bouton à ≥ 44×44px SANS modifier son rendu visuel
        (cf. audit : cibles tactiles denses). À réserver aux boutons ISOLÉS — sur des boutons
        adjacents rapprochés, les hitbox se chevaucheraient. */

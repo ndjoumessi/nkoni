@@ -103,7 +103,7 @@ export function Modal({
   // l'immunise structurellement.
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4"
       role="dialog"
       aria-modal="true"
       aria-label={title}
@@ -130,7 +130,10 @@ export function Modal({
           className,
         )}
       >
-        <div className="flex shrink-0 items-center justify-between gap-4 px-6 pb-4 pt-6">
+        {/* Gouttières RESSERRÉES sous `sm:` — 24 px de padding de chaque côté sur un écran de
+            360 px consommaient 13 % de la largeur utile, ce qui écrasait les contenus larges
+            (recadrage photo, formulaires à deux colonnes). Inchangé à partir de `sm:`. */}
+        <div className="flex shrink-0 items-center justify-between gap-4 px-4 pb-4 pt-5 sm:px-6 sm:pt-6">
           <h2 className="font-display text-lg font-semibold text-foreground">{title}</h2>
           <button
             type="button"
@@ -141,7 +144,9 @@ export function Modal({
             <X className="h-5 w-5" aria-hidden="true" />
           </button>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 pb-6">{children}</div>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-5 sm:px-6 sm:pb-6">
+          {children}
+        </div>
       </div>
     </div>,
     document.body,

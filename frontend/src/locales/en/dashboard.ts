@@ -134,6 +134,11 @@ export default {
       relancerWhatsApp: 'Follow up on WhatsApp',
       relanceMessage:
         'Hello {{prenom}}, a friendly reminder: {{montant}} remaining on your contributions. Thank you!',
+      niveau: {
+        bon: 'good collection level',
+        moyen: 'average collection',
+        faible: 'low collection',
+      },
     },
     export: {
       titre: 'Export contributions',

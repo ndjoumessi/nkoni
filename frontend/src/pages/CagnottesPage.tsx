@@ -22,11 +22,22 @@ const TONE_TYPE: Record<Cagnotte['type'], string> = {
 }
 
 function BarreProgression({ pct }: { pct: number }) {
+  const { t } = useTranslation()
+  const valeur = Math.min(100, Math.max(0, pct))
   return (
-    <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-surface-2">
+    // `role="progressbar"` : la barre était entièrement muette (ni rôle, ni label, ni aria-hidden),
+    // là où 5 autres barres du dépôt l'exposent correctement. On aligne sur ce pattern existant.
+    <div
+      role="progressbar"
+      aria-valuenow={Math.round(valeur)}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-label={t('cagnottes.liste.progression', { pct: Math.round(valeur) })}
+      className="mt-3 h-2 w-full overflow-hidden rounded-full bg-surface-2"
+    >
       <div
         className="h-full rounded-full bg-gradient-to-r from-jade to-brass transition-all"
-        style={{ width: `${Math.min(100, Math.max(0, pct))}%` }}
+        style={{ width: `${valeur}%` }}
       />
     </div>
   )

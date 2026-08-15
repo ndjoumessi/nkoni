@@ -134,6 +134,13 @@ export default {
       relancerWhatsApp: 'Relancer par WhatsApp',
       relanceMessage:
         'Bonjour {{prenom}}, petit rappel : il vous reste {{montant}} à régler pour vos cotisations. Merci !',
+      // Niveau de recouvrement énoncé en TEXTE : le même seuil que la couleur de la barre
+      // (cf. `barColor`/`niveauTaux`), pour que l'information ne soit pas portée par la seule teinte.
+      niveau: {
+        bon: 'bon niveau de recouvrement',
+        moyen: 'recouvrement moyen',
+        faible: 'recouvrement faible',
+      },
     },
     export: {
       titre: 'Exporter les contributions',

@@ -296,7 +296,13 @@ export function CagnotteDetailPage() {
         {c.dons.length === 0 ? (
           <p className="px-5 py-6 text-sm text-muted-foreground">{t('cagnottes.detail.aucunDon')}</p>
         ) : (
-          <table className="w-full text-sm">
+          // `overflow-x-auto` OBLIGATOIRE : la `Card` parente porte `overflow-hidden` (pour ses
+          // coins arrondis), donc SANS ce conteneur les colonnes de droite étaient CLIPPÉES et
+          // définitivement inatteignables à 360 px — aucun scroll possible. `min-w-max` rend le
+          // débordement franc : en `table-layout:auto`, le navigateur comprimerait sinon les
+          // colonnes à leur `min-content` (wrap sauvage) plutôt que d'activer le scroll.
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-max text-sm sm:min-w-0">
             <thead>
               <tr className="border-b border-hairline text-left text-xs uppercase tracking-wide text-faint">
                 <th className="px-5 py-2 font-medium">{t('cagnottes.detail.colMembre')}</th>
@@ -318,10 +324,14 @@ export function CagnotteDetailPage() {
                   <td className="num px-5 py-2.5 text-right font-medium text-foreground">{formatMontant(d.montant)}</td>
                   {argent && ouverte && (
                     <td className="px-5 py-2.5 text-right">
+                      {/* Cible tactile : la hitbox valait l'icône elle-même, soit 16×16 px — sur
+                          une action DESTRUCTIVE. `h-9 w-9` + `tap-target` (44 px effectifs) ;
+                          `active:` car au doigt il n'y a pas de `hover` et le halo natif est
+                          neutralisé (`-webkit-tap-highlight-color: transparent`). */}
                       <button
                         type="button"
                         onClick={() => setDonASupprimer(d)}
-                        className="text-faint transition-colors hover:text-terra"
+                        className="tap-target inline-flex h-9 w-9 items-center justify-center rounded-lg text-faint transition-colors hover:text-terra active:bg-terra/10 active:text-terra"
                         aria-label={t('cagnottes.detail.supprimerDon')}
                       >
                         <Trash2 className="h-4 w-4" aria-hidden="true" />
@@ -332,6 +342,7 @@ export function CagnotteDetailPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </Card>
 

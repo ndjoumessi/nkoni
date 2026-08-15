@@ -131,8 +131,11 @@ if (isProd) {
     // pour TOUT le monde, en silence. Erreur de config classique : on la rend visible au boot.
     const sujet = process.env['VAPID_SUBJECT'] ?? ''
     if (!sujet.startsWith('mailto:') && !sujet.startsWith('https://')) {
+      // ⚠️ Ne JAMAIS interpoler la valeur : ce garde se déclenche sur une valeur INATTENDUE, et le
+      // cas banal est l'interversion au collage avec VAPID_PRIVATE_KEY → l'imprimer divulguerait la
+      // clé privée dans les logs Railway (indélébiles). Le nom + le format attendu suffisent.
       avertir(
-        `VAPID_SUBJECT mal formé (« ${sujet} ») → doit commencer par « mailto: » (ex. mailto:contact@exemple.com) ou « https:// ». Sinon chaque envoi Web Push échoue silencieusement.`,
+        'VAPID_SUBJECT mal formé → doit commencer par « mailto: » (ex. mailto:contact@exemple.com) ou « https:// ». Sinon chaque envoi Web Push échoue silencieusement. (Valeur volontairement non affichée pour ne pas risquer de logguer un secret en cas d’interversion avec VAPID_PRIVATE_KEY.)',
       )
     }
   }

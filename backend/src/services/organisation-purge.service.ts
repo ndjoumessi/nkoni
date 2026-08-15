@@ -88,6 +88,8 @@ export const ORDRE_SUPPRESSION: readonly string[] = [
   'Commemoration',
   'Document',
   'Notification',
+  // FK vers Utilisateur en Cascade (aucune contrainte d'ordre), FK org Restrict → avant Organisation.
+  'PushSubscription',
   'Depense',
   'BaremeAnnuel',
   // Config paiement : ne référence que `Organisation` (Restrict) → n'importe où avant elle.

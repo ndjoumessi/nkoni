@@ -140,31 +140,45 @@ const branche = (b: string | null): string => b ?? '—'
 /* Formatage Excel (exceljs) — colonnes détaillées                            */
 /* -------------------------------------------------------------------------- */
 
-const COLONNES_XLSX = [
-  { header: 'Nom', key: 'nom' as const, width: 20 },
-  { header: 'Prénom', key: 'prenom' as const, width: 20 },
-  { header: 'Téléphone', key: 'telephone' as const, width: 16 },
-  { header: 'Branche', key: 'branche' as const, width: 18 },
-  { header: 'Adhésion', key: 'anneeAdhesion' as const, width: 10 },
-  { header: 'Statut', key: 'statut' as const, width: 12 },
-  { header: 'Attendu', key: 'attendu' as const, width: 16 },
-  { header: 'Valorisé', key: 'valorise' as const, width: 16 },
-  { header: 'Reste dû', key: 'resteDu' as const, width: 16 },
-]
 const COLS_MONTANT = new Set<string>(['attendu', 'valorise', 'resteDu'])
-const colEstMontant = (col: number): boolean => COLS_MONTANT.has(COLONNES_XLSX[col - 1]?.key ?? '')
+
+/**
+ * Colonnes Excel. `Téléphone` et `Branche` sont OMISES si AUCUNE ligne n'en porte (org sans
+ * téléphones/branches saisis) : une colonne entièrement vide n'est que du bruit. Elles réapparaissent
+ * dès qu'une seule ligne a la donnée — pas de suppression en dur qui pénaliserait les orgs qui s'en
+ * servent.
+ */
+function colonnesXlsx(
+  donnees: DonneesRecouvrement,
+): { header: string; key: string; width: number }[] {
+  const aTel = donnees.lignes.some((l) => l.telephone)
+  const aBranche = donnees.lignes.some((l) => l.branche)
+  return [
+    { header: 'Nom', key: 'nom', width: 20 },
+    { header: 'Prénom', key: 'prenom', width: 20 },
+    ...(aTel ? [{ header: 'Téléphone', key: 'telephone', width: 16 }] : []),
+    ...(aBranche ? [{ header: 'Branche', key: 'branche', width: 18 }] : []),
+    { header: 'Adhésion', key: 'anneeAdhesion', width: 10 },
+    { header: 'Statut', key: 'statut', width: 12 },
+    { header: 'Attendu', key: 'attendu', width: 16 },
+    { header: 'Valorisé', key: 'valorise', width: 16 },
+    { header: 'Reste dû', key: 'resteDu', width: 16 },
+  ]
+}
 
 export async function genererRecouvrementExcel(donnees: DonneesRecouvrement): Promise<Buffer> {
   const wb = new ExcelJS.Workbook()
   wb.creator = 'NKONI'
   wb.created = donnees.genereLe
 
+  const colonnes = colonnesXlsx(donnees)
   const ws = wb.addWorksheet('Recouvrement', { views: [{ state: 'frozen', ySplit: 1 }] })
-  ws.columns = COLONNES_XLSX.map((c) => ({ header: c.header, key: c.key, width: c.width }))
+  ws.columns = colonnes.map((c) => ({ header: c.header, key: c.key, width: c.width }))
+  const colEstMontant = (col: number): boolean => COLS_MONTANT.has(colonnes[col - 1]?.key ?? '')
   styliserEnTeteExcel(ws.getRow(1), colEstMontant)
 
   const formaterMontants = (row: ExcelJS.Row): void => {
-    COLONNES_XLSX.forEach((c, idx) => {
+    colonnes.forEach((c, idx) => {
       if (COLS_MONTANT.has(c.key)) formaterMontantCellule(row.getCell(idx + 1))
     })
   }
@@ -200,7 +214,7 @@ export async function genererRecouvrementExcel(donnees: DonneesRecouvrement): Pr
 }
 
 /* -------------------------------------------------------------------------- */
-/* Formatage PDF (PDFKit) — colonnes resserrées pour l'A4 portrait           */
+/* Formatage PDF (PDFKit) — A4 paysage, colonnes Téléphone/Branche adaptatives */
 /* -------------------------------------------------------------------------- */
 
 export function genererRecouvrementPdf(
@@ -234,11 +248,15 @@ export function genererRecouvrementPdf(
       droite: DROITE,
     })
 
-    // 7 colonnes (Nom + Prénom fusionnés en « Membre »), largeurs = 762 pt (A4 paysage).
+    // Téléphone/Branche OMISES si toute la liste est vide (colonne inutile) ; leur largeur revient
+    // à « Membre ». Total = 762 pt (A4 paysage) dans tous les cas.
+    const aTel = donnees.lignes.some((l) => l.telephone)
+    const aBranche = donnees.lignes.some((l) => l.branche)
+    const largeurMembre = 200 + (aTel ? 0 : 100) + (aBranche ? 0 : 120)
     const colonnes: ColonnePremium[] = [
-      { label: 'Membre', largeur: 200, align: 'left' },
-      { label: 'Téléphone', largeur: 100, align: 'left' },
-      { label: 'Branche', largeur: 120, align: 'left' },
+      { label: 'Membre', largeur: largeurMembre, align: 'left' },
+      ...(aTel ? [{ label: 'Téléphone', largeur: 100, align: 'left' as const }] : []),
+      ...(aBranche ? [{ label: 'Branche', largeur: 120, align: 'left' as const }] : []),
       { label: 'Statut', largeur: 80, align: 'left' },
       { label: 'Attendu', largeur: 84, align: 'right' },
       { label: 'Valorisé', largeur: 84, align: 'right' },
@@ -246,14 +264,22 @@ export function genererRecouvrementPdf(
     ]
     const lignes = donnees.lignes.map((l) => [
       `${l.nom} ${l.prenom}`.trim(),
-      tel(l.telephone),
-      branche(l.branche),
+      ...(aTel ? [tel(l.telephone)] : []),
+      ...(aBranche ? [branche(l.branche)] : []),
       LIBELLE_STATUT[l.statut],
       m(l.attendu),
       m(l.valorise),
       m(l.resteDu),
     ])
-    const total = ['TOTAL', '', '', '', m(donnees.totalAttendu), m(donnees.totalValorise), m(donnees.totalResteDu)]
+    const total = [
+      'TOTAL',
+      ...(aTel ? [''] : []),
+      ...(aBranche ? [''] : []),
+      '',
+      m(donnees.totalAttendu),
+      m(donnees.totalValorise),
+      m(donnees.totalResteDu),
+    ]
 
     dessinerCorpsPremium(doc, { colonnes, lignes, total, gauche: GAUCHE, droite: DROITE, yStart })
     doc.end()

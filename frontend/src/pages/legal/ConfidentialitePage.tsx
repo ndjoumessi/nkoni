@@ -2,20 +2,21 @@ import { PageLegale, SectionLegale, Placeholder } from './PageLegale'
 
 /**
  * Politique de confidentialité (RGPD) — bloquant GA 0.3. Contenu ancré sur les traitements RÉELS
- * du logiciel (données membres, finances, hébergement). Date + adresse du siège renseignées ;
- * RESTE le NUMÉRO D'IMMATRICULATION (Placeholder) à compléter, puis faire RELIRE par un juriste
- * avant mise en ligne réelle. Marché cible francophone → français.
+ * du logiciel (données membres, finances, hébergement). Identité du responsable ALIGNÉE sur
+ * l'attestation d'immatriculation au Registre national des entreprises (10/09/2026) : dénomination
+ * DJOUMESSI + adresse du siège. RESTE le NUMÉRO SIREN (Placeholder) — il figure sur la page 1 de
+ * l'attestation, non lue — puis faire RELIRE par un juriste. Ne JAMAIS publier ici une valeur qui
+ * ne vient pas de l'attestation (document opposable). Marché cible francophone → français.
  */
 export function ConfidentialitePage() {
   return (
-    <PageLegale titre="Politique de confidentialité" majLe="24 juillet 2026">
+    <PageLegale titre="Politique de confidentialité" majLe="12 septembre 2026">
       <SectionLegale titre="1. Qui est responsable de vos données">
         <p>
           NKONI est un service de gestion des cotisations et de transparence financière pour
-          associations, familles élargies et tontines. Le responsable du traitement est la société{' '}
-          HABATECH, immatriculée sous le numéro{' '}
-          <Placeholder>NUMÉRO D’IMMATRICULATION</Placeholder>, dont le siège est situé{' '}
-          71 rue de Rome, 13001 Marseille (ci-après « nous »).
+          associations, familles élargies et tontines. Le responsable du traitement est l’entreprise DJOUMESSI, immatriculée au Registre
+          national des entreprises sous le numéro <Placeholder>NUMÉRO SIREN</Placeholder>, dont le
+          siège est situé 71 rue de Rome, 13001 Marseille, France (ci-après « nous »).
         </p>
         <p>
           Nous traitons les données personnelles dans le respect du Règlement général sur la

@@ -10,7 +10,7 @@ export const messages = {
   'import.erreur.dateInvalide': 'Invalid date (expected format YYYY-MM-DD).',
   'import.erreur.brancheInconnue': 'Unknown branch in the organisation.',
   'import.quotaDepasse':
-    'Import refused: creating {aCreer} member(s) would push the total beyond {plafond} (free plan; {actuel} currently).',
+    'Import refused: creating {aCreer} active member(s) would push the total beyond {plafond} active members (free plan; {actuel} currently).',
   'import.aucuneLigne': 'No rows to import.',
   'import.fichierInvalide': 'Unreadable file. Check the format (.xlsx or .csv).',
 } as const

@@ -384,11 +384,13 @@ export const membresRoutes: FastifyPluginAsync = async (app: FastifyInstance) =>
         // clé = hash de l'orgId, libéré au commit). Deux créations concurrentes de la même org sont
         // donc SÉRIALISÉES → elles ne peuvent plus franchir le plafond ensemble, sans introduire
         // d'échec de sérialisation. Forfait illimité (`limite === null`) → pas de verrou ni de comptage.
+        // Quota = membres ACTIFS : une fiche créée INACTIVE/DÉCÉDÉE ne le consomme pas.
+        const consommeQuota = (body.statut ?? 'ACTIF') === 'ACTIF'
         const membre = await app.prisma.$transaction(async (tx) => {
-          if (limite !== null) {
+          if (limite !== null && consommeQuota) {
             await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${orgId}))`
-            const nbMembres = await tx.membre.count()
-            if (nbMembres >= limite) throw new QuotaMembresDepasseError(limite)
+            const nbActifs = await tx.membre.count({ where: { statut: 'ACTIF' } })
+            if (nbActifs >= limite) throw new QuotaMembresDepasseError(limite)
           }
           return tx.membre.create({ data: data as Prisma.MembreUncheckedCreateInput })
         })
@@ -527,12 +529,32 @@ export const membresRoutes: FastifyPluginAsync = async (app: FastifyInstance) =>
       const fin = finContributionAuto(body)
       if (fin !== undefined) data.anneeFinContribution = fin
 
+      // Réactivation (statut → ACTIF) : 3ᵉ voie qui ajoute un membre actif, soumise au quota comme la
+      // création et l'import. Même verrou consultatif par organisation que POST /membres (TOCTOU).
+      // Un membre DÉJÀ actif n'est jamais bloqué : on ne compte que s'il change réellement de statut.
+      const limite =
+        body.statut === 'ACTIF' ? await limiteMembresOrganisation(app, req.user.organisationId) : null
+      const orgId = req.user.organisationId ?? ''
+
       try {
-        return await app.prisma.membre.update({
-          where: { id: req.params.id },
-          data,
+        return await app.prisma.$transaction(async (tx) => {
+          if (limite !== null) {
+            await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${orgId}))`
+            const actuel = await tx.membre.findUnique({ where: { id: req.params.id }, select: { statut: true } })
+            if (actuel && actuel.statut !== 'ACTIF') {
+              const nbActifs = await tx.membre.count({ where: { statut: 'ACTIF' } })
+              if (nbActifs >= limite) throw new QuotaMembresDepasseError(limite)
+            }
+          }
+          return tx.membre.update({ where: { id: req.params.id }, data })
         })
       } catch (err) {
+        if (err instanceof QuotaMembresDepasseError) {
+          return reply.code(403).send({
+            error: 'Forbidden',
+            message: t(langueDeRequete(req), 'membres.plafondPlanGratuit', { plafond: err.plafond }),
+          })
+        }
         if (
           err instanceof Prisma.PrismaClientKnownRequestError &&
           err.code === 'P2025'

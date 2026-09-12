@@ -156,8 +156,11 @@ export async function listerOrganisations(
     orderBy: { createdAt: 'desc' },
   })
 
+  // Membres ACTIFS seulement : c'est le compteur du quota (lib/forfait), dont la console tire sa
+  // barre et son signal « proche du plafond » — même règle que création, import et réactivation.
   const parOrg = await prisma.membre.groupBy({
     by: ['organisationId'],
+    where: { statut: 'ACTIF' },
     _count: { _all: true },
   })
   const compteur = new Map<string, number>()

@@ -1,4 +1,5 @@
 import { PageLegale, SectionLegale } from './PageLegale'
+import { CONTACT_EMAIL } from '@/lib/contact'
 
 /**
  * Conditions générales d’utilisation (CGU) — bloquant GA 0.3. Ancrées sur le produit réel
@@ -105,10 +106,10 @@ export function CGUPage() {
         <p>
           Pour toute question relative aux présentes conditions, contactez-nous à{' '}
           <a
-            href="mailto:romel.djoumessi@gmail.com"
+            href={`mailto:${CONTACT_EMAIL}`}
             className="text-brass underline-offset-2 hover:underline"
           >
-            romel.djoumessi@gmail.com
+            {CONTACT_EMAIL}
           </a>
           .
         </p>

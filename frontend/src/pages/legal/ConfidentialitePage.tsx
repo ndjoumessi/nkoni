@@ -1,4 +1,5 @@
 import { PageLegale, SectionLegale, Placeholder } from './PageLegale'
+import { CONTACT_EMAIL } from '@/lib/contact'
 
 /**
  * Politique de confidentialité (RGPD) — bloquant GA 0.3. Contenu ancré sur les traitements RÉELS
@@ -122,10 +123,10 @@ export function ConfidentialitePage() {
         <p>
           Pour exercer ces droits, écrivez-nous à{' '}
           <a
-            href="mailto:romel.djoumessi@gmail.com"
+            href={`mailto:${CONTACT_EMAIL}`}
             className="text-brass underline-offset-2 hover:underline"
           >
-            romel.djoumessi@gmail.com
+            {CONTACT_EMAIL}
           </a>
           . Vous disposez également du droit d’introduire une réclamation auprès de l’autorité de
           contrôle compétente en matière de protection des données.
@@ -157,10 +158,10 @@ export function ConfidentialitePage() {
           portée à votre connaissance, et la date de dernière mise à jour figure en tête de page.
           Pour toute question, contactez-nous à{' '}
           <a
-            href="mailto:romel.djoumessi@gmail.com"
+            href={`mailto:${CONTACT_EMAIL}`}
             className="text-brass underline-offset-2 hover:underline"
           >
-            romel.djoumessi@gmail.com
+            {CONTACT_EMAIL}
           </a>
           .
         </p>

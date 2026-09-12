@@ -15,6 +15,7 @@ import { API_URL, statutApi, type IncidentPublic, type GraviteIncident } from '@
 import { NkoniMark } from '@/components/ui/NkoniMark'
 import { cleI18n } from '@/lib/i18n'
 import { cn, formatDateHeure } from '@/lib/utils'
+import { CONTACT_EMAIL } from '@/lib/contact'
 
 /** Tonalité de la bannière d'incident selon la gravité (même palette que les états). */
 const GRAVITE_STYLE: Record<GraviteIncident, { ring: string; tone: string; icon: LucideIcon }> = {
@@ -23,7 +24,7 @@ const GRAVITE_STYLE: Record<GraviteIncident, { ring: string; tone: string; icon:
   INCIDENT: { ring: 'border-terra/30 bg-terra/[0.07]', tone: 'text-terra-text', icon: AlertTriangle },
 }
 
-const CONTACT_SUPPORT = 'romel.djoumessi@gmail.com'
+const CONTACT_SUPPORT = CONTACT_EMAIL
 
 type Etat = 'verification' | 'operationnel' | 'incident'
 

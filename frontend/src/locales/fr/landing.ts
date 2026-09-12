@@ -122,6 +122,22 @@ export default {
       },
       note: 'Les forfaits Pro et Entreprise s’activent sur demande (contactez-nous). Les fonctionnalités annoncées sont indicatives et pourront évoluer.',
     },
+    demo: {
+      overline: 'Démonstration',
+      titre: 'NKONI en action, en moins d’une minute',
+      description:
+        'De l’encaissement d’une cotisation au reçu, puis à ce que voit le membre : le parcours complet, sur une association fictive.',
+      points: {
+        tableauDeBord: 'Le recouvrement et les retards, en un coup d’œil',
+        versement: 'Un versement enregistré et son reçu émis en quelques gestes',
+        membre: 'Chaque membre voit aussitôt sa situation à jour',
+      },
+      lecture: 'Lire la démo',
+      pause: 'Pause',
+      videoLabel: 'Vidéo de démonstration de NKONI sur téléphone',
+      transcription:
+        'La vidéo montre, sur téléphone : le tableau de bord d’une association fictive, avec son taux de recouvrement et la liste des membres à relancer par WhatsApp ; la trésorière qui ouvre la fiche d’une membre, enregistre un versement de 15 000 FCFA par Mobile Money et génère le reçu ; puis l’espace de cette membre, où elle voit sa situation à jour et sa carte de membre.',
+    },
     etapes: {
       overline: 'Prise en main',
       titre: 'Opérationnel en trois étapes',

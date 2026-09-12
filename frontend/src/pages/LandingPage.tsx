@@ -29,6 +29,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { GlassmorphismTrustHero } from '@/components/ui/glassmorphism-trust-hero'
+import { VideoDemo } from '@/components/landing/VideoDemo'
 import { ButtonLink } from '@/components/ui/Button'
 import { buttonVariants } from '@/components/ui/button-variants'
 import { Badge } from '@/components/ui/Badge'
@@ -50,6 +51,9 @@ export function LandingPage() {
   return (
     <main className="min-h-screen bg-background">
       <GlassmorphismTrustHero loginHref="/login" />
+
+      {/* ── Démonstration vidéo ───────────────────────────────────────── */}
+      <VideoDemo />
 
       {/* ── Comment ça marche : 3 étapes ─────────────────────────────── */}
       <section className="mx-auto max-w-5xl px-6 py-24">

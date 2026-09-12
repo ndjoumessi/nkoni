@@ -121,6 +121,22 @@ export default {
       },
       note: 'The Pro and Enterprise plans are activated on request (contact us). The announced features are indicative and may change.',
     },
+    demo: {
+      overline: 'Demo',
+      titre: 'NKONI in action, in under a minute',
+      description:
+        'From recording a contribution to issuing the receipt, then what the member sees: the full journey, on a fictional association (interface shown in French).',
+      points: {
+        tableauDeBord: 'Collection rate and late payers, at a glance',
+        versement: 'A payment recorded and its receipt issued in a few taps',
+        membre: 'Each member instantly sees they are up to date',
+      },
+      lecture: 'Play demo',
+      pause: 'Pause',
+      videoLabel: 'NKONI demo video on a phone',
+      transcription:
+        'The video shows, on a phone: the dashboard of a fictional association, with its collection rate and the list of members to remind via WhatsApp; the treasurer opening a member’s profile, recording a 15,000 FCFA Mobile Money payment and generating the receipt; then that member’s own space, where she sees she is up to date and her membership card.',
+    },
     etapes: {
       overline: 'Getting started',
       titre: 'Up and running in three steps',

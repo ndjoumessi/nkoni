@@ -1,0 +1,9 @@
+{
+  "name": "nkoni-demo-video",
+  "private": true,
+  "description": "Outillage de la vidéo de démonstration de la page d'accueil (hors application : ni frontend ni backend n'en dépendent).",
+  "type": "module",
+  "devDependencies": {
+    "playwright-core": "1.62.1"
+  }
+}

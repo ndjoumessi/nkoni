@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { PageLegale, SectionLegale, Placeholder } from './PageLegale'
+import { CONTACT_EMAIL } from '@/lib/contact'
 
 /**
  * Mentions légales (obligation LCEN, art. 6-III) — bloquant GA 0.3. Complète CGU et
@@ -32,8 +33,8 @@ export function MentionsLegalesPage() {
           <li>siège : 71 rue de Rome, 13001 Marseille, France ;</li>
           <li>
             e-mail :{' '}
-            <a href="mailto:romel.djoumessi@gmail.com" className={lien}>
-              romel.djoumessi@gmail.com
+            <a href={`mailto:${CONTACT_EMAIL}`} className={lien}>
+              {CONTACT_EMAIL}
             </a>{' '}
             ;
           </li>

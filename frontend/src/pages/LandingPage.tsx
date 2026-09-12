@@ -37,9 +37,9 @@ import { Card, Overline } from '@/components/ui/Card'
 import { NkoniMark } from '@/components/ui/NkoniMark'
 import { LangueToggle } from '@/components/ui/LangueToggle'
 import { cn } from '@/lib/utils'
+import { CONTACT_EMAIL } from '@/lib/contact'
 
-// Contact : mailto simple (pas de collecte d'emails en v1). Adresse validée avec le PO.
-const CONTACT_EMAIL = 'nelson.djoumessi@gmail.com'
+// Contact : mailto simple (pas de collecte d'emails en v1). Adresse : source unique `lib/contact`.
 
 /** Page publique d'entrée de NKONI (avant authentification). */
 export function LandingPage() {

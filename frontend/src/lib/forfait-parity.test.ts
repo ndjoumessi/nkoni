@@ -39,8 +39,8 @@ function lireForfaits(source: string): string[] {
 
 /** Les unités doivent être définies à l'identique : sinon `UNITES` ci-dessus mentirait. */
 function verifierUnites(source: string): void {
-  if (!/const MO = 1024 \* 1024\b/.test(source)) throw new Error('définition de MO absente ou modifiée')
-  if (!/const GO = 1024 \* MO\b/.test(source)) throw new Error('définition de GO absente ou modifiée')
+  if (!/^const MO = 1024 \* 1024$/m.test(source)) throw new Error('définition de MO absente ou modifiée')
+  if (!/^const GO = 1024 \* MO$/m.test(source)) throw new Error('définition de GO absente ou modifiée')
 }
 
 function lireCapacites(source: string): Record<string, Capacites> {

@@ -1,130 +1,127 @@
 # Exercice de restauration — Procédure locale (§4 du RUNBOOK)
 
-Ce document explique comment télécharger un backup depuis GitHub Actions et dérouler l'exercice de restauration localement.
+Comment récupérer une sauvegarde chiffrée et dérouler l'exercice de restauration **à la main**.
+
+> **Pourquoi cet exercice alors que la CI le fait déjà ?** Le job `restore-verify`
+> ([`backup-restore-exercise.yml`](../.github/workflows/backup-restore-exercise.yml)) prouve que la
+> **base** est restaurable. Cet exercice-ci prouve autre chose : que **la procédure écrite est
+> exécutable par un humain** sous incident, à 3 h du matin, sur sa propre machine. Un runbook jamais
+> déroulé ne vaut pas mieux qu'un workflow jamais lancé. Les deux sont nécessaires.
 
 ## Pré-requis
 
-- PostgreSQL client ≥ 18 : `pg_dump`, `pg_restore`, `psql` (cf. RUNBOOK §0)
-- `gpg` : chiffrement GPG (présent par défaut sur macOS/Linux)
-- Accès au dépôt GitHub `ndjoumessi/nkoni` (pour télécharger les artifacts)
-- Variable d'env `GPG_PASSPHRASE` : phrase de passe GPG du backup
+| Élément | Contrôle | Remède |
+|---|---|---|
+| Client PostgreSQL **≥ majeure du serveur prod** (18) | `pg_restore --version` | `brew install postgresql@18`. ⚠️ Le PATH Homebrew peut pointer vers une majeure ANCIENNE même si la 18 est installée — le script sélectionne désormais la plus récente automatiquement. |
+| `gpg`, `psql`, `createdb`, `dropdb`, `curl` | `command -v …` | Fournis par Homebrew / macOS |
+| Serveur Postgres local démarré | `pg_isready` | `brew services start postgresql@18` |
+| Accès au dépôt `ndjoumessi/nkoni` | `gh auth status` | `gh auth login` |
+| `GPG_PASSPHRASE` | phrase de passe du secret GitHub `GPG_PASSPHRASE_BACKUP` | — |
+| `PROD_DATABASE_URL` | URL publique Postgres Railway (`DATABASE_PUBLIC_URL`) | `railway variables` |
 
-## Étape 1 : Déclencher le backup depuis GitHub Actions
+> **`timeout` n'existe pas sur macOS.** Le script ne s'en sert plus (sondage en boucle).
 
-1. Ouvre [Actions → Backup & Restore Exercise](https://github.com/ndjoumessi/nkoni/actions/workflows/backup-restore-exercise.yml)
-2. Clique sur **Run workflow**
-3. Confirme (branche `main`, aucun paramètre requis)
-4. Attends ~15 min que le job `backup-and-verify` complète
+## Étape 1 : obtenir une sauvegarde
 
-**Alternativement**, le backup se déclenche automatiquement chaque **dimanche 03:00 UTC** (calendrier, cf. workflow).
-
-## Étape 2 : Télécharger l'artifact
-
-Une fois le job complété (status ✅) :
-
-1. Ouvre le résumé du job
-2. Scroll vers le bas → section **Artifacts**
-3. Télécharge `nkoni-backup-<TIMESTAMP>.zip` (~50 MB compressé)
-4. Dézippe : `unzip nkoni-backup-*.zip`
-
-**Résultat** : un fichier `nkoni_<TIMESTAMP>.dump.gpg` de ~50 MB.
-
-## Étape 3 : Dérouler l'exercice de restauration
-
-### Préparation
+Le workflow tourne **chaque dimanche 03:00 UTC** et les artefacts sont conservés **30 jours** — il y
+a donc presque toujours une sauvegarde récente à récupérer, inutile d'en déclencher une.
 
 ```bash
-# Navigue à la racine du dépôt
-cd ~/Documents/Projets/nkoni.worktrees/points-ouvert-questions
-
-# Définis la phrase de passe GPG (identique à celle de GitHub Secrets)
-export GPG_PASSPHRASE="<ta-phrase-de-passe>"
-
-# Définis l'URL de production (pour §4.2 comparaison comptes)
-export PROD_DATABASE_URL="postgresql://postgres:PASSWORD@shortline.proxy.rlwy.net:13085/railway?sslmode=require"
+gh run list --workflow=backup-restore-exercise.yml --limit 5
 ```
 
-### Lancer le script
+Pour en déclencher une à la demande (⚠️ produit un dump de la base de **production**) :
 
 ```bash
-./scripts/restore-exercise.sh ~/path/to/nkoni_<TIMESTAMP>.dump.gpg
+gh workflow run backup-restore-exercise.yml --ref main
+```
+
+## Étape 2 : télécharger l'artefact
+
+**Par le CLI** (le plus rapide — l'artefact arrive déjà décompressé) :
+
+```bash
+gh run download <RUN_ID> -n nkoni-backup-<TIMESTAMP> -D ~/Downloads
+```
+
+**Par le navigateur** : ouvrir le résumé du run → section **Artifacts** → télécharger le `.zip` →
+`unzip`.
+
+**Résultat** : un fichier `nkoni_<TIMESTAMP>.dump.gpg`. Sa taille suit celle de la base — de l'ordre
+de **150 Ko** aujourd'hui, pas des dizaines de mégaoctets. Un fichier « trop petit » n'est donc pas
+un signe d'échec ; le contrôle de validité est `file` :
+
+```bash
+file nkoni_*.dump.gpg   # attendu : PGP symmetric key encrypted data - AES with 256-bit key
+```
+
+## Étape 3 : dérouler l'exercice
+
+Une seule commande. Les deux secrets sont saisis **sans écho** et ne sont pas écrits dans
+l'historique du shell :
+
+```bash
+cd ~/Documents/Projets/nkoni
+read -rsp "Phrase de passe GPG : " GPG_PASSPHRASE; echo
+read -rsp "URL Postgres prod   : " PROD_DATABASE_URL; echo
+export GPG_PASSPHRASE PROD_DATABASE_URL
+./scripts/restore-exercise.sh ~/Downloads/nkoni_<TIMESTAMP>.dump.gpg
+unset GPG_PASSPHRASE PROD_DATABASE_URL
 ```
 
 Le script exécute :
-- **§4.1** : restauration du dump dans une base de test locale `nkoni_verify_<TIMESTAMP>`
-- **§4.2** : comparaison des comptes de lignes prod ↔ restaurée (Criterion A)
-- **§4.3** : vérification applicative (migrations, démarrage serveur, intégrité financière)
-- **§4.4** : nettoyage et rapport
 
-### Résultats attendus
+- **§4.1** — déchiffrement GPG + `pg_restore` dans une base jetable `nkoni_verify_<TIMESTAMP>`
+- **§4.2** — comparaison des comptes **prod ↔ restaurée** (tables, migrations, 7 tables métier)
+- **§4.3** — contrôle **applicatif** : `prisma migrate status`, génération du client Prisma, puis
+  **démarrage réel du backend** sur la base restaurée et sonde de `/ready`
+- **§4.4** — **réconciliation financière** contribution par contribution (`montantVerse` vs Σ des
+  versements), reproduction SQL de `reconcilierVersements`
+- nettoyage automatique (la base de test est supprimée même en cas d'interruption)
 
-```
-╔════════════════════════════════════════════════════════════════╗
-║  ✅ RESTORE EXERCISE COMPLETE                                  ║
-║                                                                ║
-║  All structural and application checks passed.                 ║"
-║  Backup is reliable and restorable.                            ║
-╚════════════════════════════════════════════════════════════════╝
-```
+### Lire le résultat
 
-## Étape 4 : Consigner le résultat dans le RUNBOOK
+Le rapport final est **dérivé** des contrôles réellement exécutés. Trois issues, distinguées par le
+code de sortie :
 
-Mets à jour le tableau §7 du [RUNBOOK](../docs/RUNBOOK_sauvegardes_restauration.md) :
+| Sortie | Code | Sens |
+|---|---|---|
+| ✅ EXERCICE COMPLET | 0 | Les 5 contrôles sont passés |
+| ⚠️ EXERCICE PARTIEL | 2 | Un contrôle n'a **pas été exécuté** (ex. `PROD_DATABASE_URL` absente) — ce n'est **pas** un succès |
+| ❌ EXERCICE EN ÉCHEC | 1 | Un contrôle a échoué |
 
-| Date | Sauvegarde testée | §4.2 comptes | §4.3 applicatif | §4.4 réconciliation | Anomalies / suites |
-|---|---|---|---|---|---|
-| 2026-07-27 | nkoni_20260727_010000.dump.gpg | ✓ | ✓ | ✓ | Aucune |
+> Un écart de comptes prod ↔ restaurée sur les tables métier est **normal** si la production a vécu
+> depuis le dump : il est signalé en anomalie sans faire échouer le critère structurel.
 
-**Important** : consigner **même un échec** — c'est l'information la plus précieuse que cet exercice puisse donner.
+## Étape 4 : consigner le résultat
+
+Mettre à jour le tableau **§7** du [RUNBOOK](RUNBOOK_sauvegardes_restauration.md) — **même en cas
+d'échec**, c'est l'information la plus précieuse que cet exercice puisse produire.
 
 ## Dépannage
 
-### Erreur : « pg_restore: server version mismatch »
+**`pg_restore: unsupported version … in file header`** — client Postgres plus ancien que le serveur
+de prod. Le script sélectionne la majeure la plus récente disponible sous
+`/opt/homebrew/opt/postgresql@*`; si aucune n'est ≥ 18, `brew install postgresql@18`.
 
-Ton client PostgreSQL est plus ancien que le serveur de prod (18.4).  
-**Solution** : installer PostgreSQL 18 via Homebrew ou télécharger depuis postgresql.org.
+**`gpg: decryption failed: Bad session key`** — phrase de passe incorrecte. Elle doit être identique
+au secret GitHub `GPG_PASSPHRASE_BACKUP`.
 
-```bash
-brew install postgresql@18
-/opt/homebrew/opt/postgresql@18/bin/pg_dump --version  # Vérifier
-```
+**Le backend ne répond pas sur `/ready`** — lire `/tmp/restore-server.log`. Cause la plus fréquente :
+client Prisma absent (`backend/src/generated/` est gitignoré) — le script le génère désormais, mais
+la génération elle-même peut échouer.
 
-### Erreur : « GPG : Bad passphrase »
-
-La phrase de passe est incorrecte ou mal définie.  
-**Solution** : vérifier que `$GPG_PASSPHRASE` match exactement celle de GitHub Secrets.
-
-```bash
-echo $GPG_PASSPHRASE  # Affiche la valeur (attention : en clair)
-```
-
-### Erreur : « No such table: Utilisateur »
-
-La restauration a échoué silencieusement.  
-**Solution** : vérifier que le dump n'est pas corrompu :
-
-```bash
-echo "$GPG_PASSPHRASE" | gpg --batch --passphrase-fd 0 --decrypt nkoni_*.dump.gpg 2>/dev/null | file -
-```
-
-**Attendu** : `gzip compressed data` ou similaire (format custom Postgres).
-
-### Erreur : « Connection refused » sur `/health`
-
-Le serveur n'a pas démarré.  
-**Solution** : vérifier les logs :
-
-```bash
-tail -20 /tmp/server.log
-```
+**§4.2 annoncé « NON EXÉCUTÉ »** — `PROD_DATABASE_URL` n'était pas définie. Utiliser
+`DATABASE_PUBLIC_URL` (le proxy public), pas l'URL interne Railway qui n'est joignable que depuis
+leur réseau.
 
 ## Fréquence
 
-- **Manuelle** : chaque fois qu'un changement structurant touche le schéma (nouvelle migration majeure)
-- **Automatique** : chaque dimanche 03:00 UTC (calendrier Actions)
-- **Idéal** : au moins une fois par trimestre, même sans changement
+- Après toute **migration structurante**
+- Au moins **une fois par trimestre**, même sans changement
+- La couverture automatique (CI) reste hebdomadaire et ne remplace pas cet exercice
 
 ## Voir aussi
 
-- [RUNBOOK sauvegardes & restauration](../docs/RUNBOOK_sauvegardes_restauration.md) (§4 complet)
-- Workflow GitHub Actions : [`.github/workflows/backup-restore-exercise.yml`](../.github/workflows/backup-restore-exercise.yml)
+- [RUNBOOK sauvegardes & restauration](RUNBOOK_sauvegardes_restauration.md) (§4 complet, §9 pièges de production)
+- Workflow : [`.github/workflows/backup-restore-exercise.yml`](../.github/workflows/backup-restore-exercise.yml)

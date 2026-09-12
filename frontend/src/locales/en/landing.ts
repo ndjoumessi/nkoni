@@ -237,6 +237,7 @@ export default {
       legal: 'Legal',
       confidentialite: 'Privacy',
       cgu: 'Terms',
+      mentions: 'Legal notice',
       statut: 'Status',
     },
   },

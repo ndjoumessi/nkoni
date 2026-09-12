@@ -401,6 +401,15 @@ export function LandingPage() {
               ·
             </span>
             <Link
+              to="/mentions-legales"
+              className="text-muted-foreground transition-colors hover:text-foreground"
+            >
+              {t('landing.footerNav.mentions')}
+            </Link>
+            <span className="text-hairline" aria-hidden="true">
+              ·
+            </span>
+            <Link
               to="/statut"
               className="text-muted-foreground transition-colors hover:text-foreground"
             >

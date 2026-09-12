@@ -53,9 +53,9 @@ export default {
       doublons_other: '{{count}} duplicates skipped',
       erreurs_one: '{{count}} row in error',
       erreurs_other: '{{count}} rows in error',
-      quotaOk: 'Quota: {{actuel}} + {{aCreer}} / {{plafond}} members',
+      quotaOk: 'Quota: {{actuel}} + {{aCreer}} / {{plafond}} active members',
       quotaDepasse:
-        'Quota exceeded: {{actuel}} + {{aCreer}} would pass the limit of {{plafond}} members (free plan).',
+        'Quota exceeded: {{actuel}} + {{aCreer}} would pass the limit of {{plafond}} active members (free plan).',
       colonneLigne: 'Row',
       colonneStatut: 'State',
       statutDoublon: 'Duplicate (skipped)',

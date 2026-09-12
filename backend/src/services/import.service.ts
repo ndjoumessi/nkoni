@@ -172,8 +172,10 @@ export async function analyserImport(
     }
   })
 
-  const actuel = await prisma.membre.count()
-  const aCreerCount = aCreer.length
+  // Quota = membres ACTIFS (SaaS §3.1), comme l'affichage des Paramètres : une fiche importée
+  // INACTIVE ou DÉCÉDÉE ne consomme pas le quota (statut absent = ACTIF, défaut du schéma).
+  const actuel = await prisma.membre.count({ where: { statut: 'ACTIF' } })
+  const aCreerCount = aCreer.filter((l) => (l.statut ?? 'ACTIF') === 'ACTIF').length
   const depasse = opts.plafond !== null && actuel + aCreerCount > opts.plafond
 
   return {

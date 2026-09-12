@@ -40,7 +40,11 @@ echo "Client PostgreSQL utilisé : $(command -v pg_restore) (majeure $PG_CLIENT_
 
 STAMP="$(basename "$BACKUP_FILE" | sed 's/nkoni_\(.*\)\.dump\.gpg/\1/')"
 VERIFY_DB="nkoni_verify_${STAMP}"
-VERIFY_URL="postgresql://localhost:5432/${VERIFY_DB}?sslmode=disable"
+# ⚠️ L'UTILISATEUR doit être EXPLICITE dans l'URL. psql/createdb/pg_restore (libpq) et le backend
+# (@prisma/adapter-pg) retombent sur l'utilisateur système, mais le moteur Rust de `prisma migrate`
+# NON : sans utilisateur il échoue en « P1010: User was denied access ». Défaut trouvé en répétition.
+VERIFY_USER="${VERIFY_DB_USER:-$(id -un)}"
+VERIFY_URL="postgresql://${VERIFY_USER}@localhost:5432/${VERIFY_DB}?sslmode=disable"
 PLAIN_DUMP="$(mktemp -t nkoni_restore).dump"
 
 nettoyer() {

@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useEffect, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { NkoniMark } from '@/components/ui/NkoniMark'
@@ -18,6 +18,15 @@ export function PageLegale({
   majLe: string
   children: ReactNode
 }) {
+  // React Router CONSERVE la position de défilement entre routes : arrivé depuis le pied de page
+  // de l'accueil (défilé tout en bas), on atterrissait au MILIEU du texte, titre hors écran
+  // (mesuré : /cgu ouvert à scrollY=1034 depuis un accueil à 5119). Une page légale se lit depuis
+  // son titre → retour en haut au montage. Chaque page légale est une Route distincte, donc la
+  // coquille remonte à chaque navigation entre elles et l'effet rejoue.
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [])
+
   return (
     <main className="min-h-screen bg-background">
       <header className="border-b border-hairline">

@@ -5,6 +5,7 @@ import { PrismaPg } from '@prisma/adapter-pg'
 import { PrismaClient } from '../src/generated/prisma/client'
 import { buildApp } from '../src/app'
 import { hashPassword } from '../src/services/auth.service'
+import { listerOrganisations } from '../src/services/organisation.service'
 
 /**
  * RÉGRESSION (SaaS §3.1) — le quota de membres porte sur les membres ACTIFS, sur les TROIS voies
@@ -158,6 +159,14 @@ describe('quota de membres — les fiches inactives ne consomment pas le quota',
     })
     expect(res.statusCode).toBe(200)
     expect(res.json().quota).toMatchObject({ actuel: PLAFOND, aCreer: 0, depasse: false })
+  })
+
+  it('console plateforme : le compteur par organisation ne compte que les ACTIFS', async () => {
+    // La console super-admin en tire sa barre de quota et son signal « proche du plafond » :
+    // compter les inactifs y reproduisait le défaut corrigé ici (4ᵉ endroit concerné).
+    await preparer(3, 4)
+    const orgs = await listerOrganisations(base as never)
+    expect(orgs.find((o) => o.id === ORG)?.nbMembres).toBe(3)
   })
 
   it('import : 50 actifs → importer 1 actif reste un dépassement (403 au commit)', async () => {

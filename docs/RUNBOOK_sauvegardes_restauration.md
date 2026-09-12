@@ -334,6 +334,8 @@ Une ligne par exercice. **Consigner les échecs** : c'est ce qui donne sa valeur
 | Date | Sauvegarde testée | §4.2 comptes | §4.3 applicatif | §4.4 réconciliation | Anomalies / suites |
 |---|---|---|---|---|---|
 | 2026-07-27 | En cours (workflow Actions) | ⏳ Pending | ⏳ Pending | ⏳ Pending | Workflow déclenché, en attente de résultats |
+| 2026-09-12 | ⚠️ **RÉPÉTITION À BLANC** — base de dev locale, **PAS** la sauvegarde de production | ✓ | ✓ | ✓ | **Ne vaut pas exercice de restauration** : la phrase de passe GPG de production n'était pas disponible. A validé l'OUTIL, pas la sauvegarde. **7ᵉ défaut trouvé et corrigé** : l'URL de la base de test n'avait pas d'utilisateur explicite → `prisma migrate status` échouait en `P1010` (libpq et `@prisma/adapter-pg` retombent sur l'utilisateur système, le moteur Rust de `prisma migrate` non). Capacité à rapporter un échec **prouvée par 4 sabotages** : mauvaise phrase de passe → §4.1 ÉCHEC ; `PROD_DATABASE_URL` absente → PARTIEL (code 2, jamais vert) ; « prod » pointée sur une base différente → §4.2 divergence détectée (l'ancien script disait « Criterion A passed ») ; `montantVerse` faussé de 2 500 → §4.4 ÉCHEC. |
+| _à venir_ | Sauvegarde de **production** (`nkoni_*.dump.gpg` d'un run Actions) | | | | **Reste à faire — c'est cette ligne qui ferme le bloquant GA 0.2.** Exige la phrase de passe du secret `GPG_PASSPHRASE_BACKUP`, détenue par le PO. |
 
 ---
 

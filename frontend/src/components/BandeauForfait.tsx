@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { AlertTriangle, CalendarClock, Info, X, type LucideIcon } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
 import { organisationApi, type OrganisationCourante } from '@/lib/api'
@@ -26,6 +26,7 @@ const STYLE: Record<BandeauForfaitVue['ton'], { cadre: string; texte: string; ic
 export function BandeauForfait() {
   const { t } = useTranslation()
   const { user, accessToken } = useAuth()
+  const { pathname } = useLocation()
   const autorise = peutGererForfait(user?.role)
   const [org, setOrg] = useState<OrganisationCourante | null>(null)
   const [fermes, setFermes] = useState<string[]>([])
@@ -41,6 +42,8 @@ export function BandeauForfait() {
   }, [autorise, accessToken])
 
   if (!autorise || !org) return null
+  // F4 : la carte d'échéance de /parametres dit déjà la même chose (lien redondant vers soi-même).
+  if (pathname === '/parametres') return null
   const vue = bandeauForfait(org)
   if (!vue) return null
   if (vue.fermable && (fermes.includes(vue.idFermeture) || estBandeauFerme(vue.idFermeture))) return null

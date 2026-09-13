@@ -38,7 +38,12 @@ const ORG: OrganisationCourante = {
   forfaitEffectif: 'PRO',
 }
 
-const rendre = () => render(<MemoryRouter><BandeauForfait /></MemoryRouter>)
+const rendre = (initialEntries: string[] = ['/']) =>
+  render(
+    <MemoryRouter initialEntries={initialEntries}>
+      <BandeauForfait />
+    </MemoryRouter>,
+  )
 
 beforeEach(() => {
   role = 'ADMIN'
@@ -97,5 +102,12 @@ describe('BandeauForfait (spec 1.1 §4.4)', () => {
     const { container } = rendre()
     await waitFor(() => expect(moi).toHaveBeenCalled())
     expect(container.innerHTML).toBe('')
+  })
+
+  it('F4 : sur /parametres, rien — même en grâce (la carte d’échéance y dit déjà la même chose)', async () => {
+    moi.mockResolvedValue({ ...ORG, etatForfait: 'GRACE', joursRestants: -3 })
+    const { container } = rendre(['/parametres'])
+    await waitFor(() => expect(moi).toHaveBeenCalled())
+    expect(container.querySelector('[role="status"]')).toBeNull()
   })
 })

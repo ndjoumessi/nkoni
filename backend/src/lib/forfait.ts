@@ -111,3 +111,31 @@ export function vueEcheance(forfait: Forfait, expireLe: Date | null, now: Date):
     forfaitEffectif: forfaitEffectif(forfait, expireLe, now),
   }
 }
+
+// ===========================================================================
+// Relances d'échéance (spec 1.1 §4.1) — étape CALCULÉE, jamais mémorisée ailleurs que dans la clé de
+// dédoublonnage des notifications.
+// ===========================================================================
+
+/** Étapes de relance : J-30, J-7, J-1, entrée en grâce. */
+export type EtapeRelanceForfait = 'J30' | 'J7' | 'J1' | 'GRACE'
+
+/**
+ * Étape de relance la plus RÉCENTE atteinte, ou `null` (rien à envoyer). Renvoyer l'étape atteinte
+ * plutôt que « le jour exact » rend une nuit manquée sans effet de rafale : la nuit suivante envoie
+ * l'étape en cours, et seulement elle (les précédentes ne sont pas rattrapées).
+ */
+export function etapeRelanceForfait(
+  forfait: Forfait,
+  expireLe: Date | null,
+  now: Date,
+): EtapeRelanceForfait | null {
+  const etat = etatForfait(forfait, expireLe, now)
+  if (expireLe === null) return null
+  if (etat === 'GRACE') return 'GRACE'
+  if (etat !== 'ECHEANCE_PROCHE') return null
+  const j = joursRestants(expireLe, now)
+  if (j <= 1) return 'J1'
+  if (j <= 7) return 'J7'
+  return 'J30'
+}

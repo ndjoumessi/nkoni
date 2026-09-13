@@ -20,6 +20,7 @@ export interface StoredNotif {
   lu: boolean
   dateCreation: Date
   dateLecture: Date | null
+  masqueeLe?: Date | null
 }
 
 export interface MembreSeed {
@@ -63,6 +64,11 @@ function matchNotif(n: StoredNotif, where: any = {}): boolean {
   if (where.entiteType !== undefined && n.entiteType !== where.entiteType) return false
   if (where.entiteId !== undefined && n.entiteId !== where.entiteId) return false
   if (where.dateCreation?.gte !== undefined && n.dateCreation < where.dateCreation.gte) return false
+  if (where.masqueeLe !== undefined) {
+    const masquee = n.masqueeLe != null
+    if (where.masqueeLe === null && masquee) return false
+    if (where.masqueeLe !== null && n.masqueeLe !== where.masqueeLe) return false
+  }
   return true
 }
 
@@ -107,6 +113,7 @@ export function buildNotificationsMock(options: NotificationsMockOptions = {}) {
           entiteId: null,
           lu: false,
           dateLecture: null,
+          masqueeLe: null,
           dateCreation: data.dateCreation ?? new Date(),
           ...data,
         }

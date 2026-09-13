@@ -23,6 +23,8 @@ export interface EmailClient {
   disponible(): boolean
   /** Envoie le PDF en pièce jointe à l'adresse. Renvoie `{ ok }` ; NE LÈVE PAS (best-effort géré ici). */
   envoyerDocument(email: string, pdf: Buffer, meta: EmailMeta): Promise<{ ok: boolean }>
+  /** Envoie un message TEXTE sans pièce jointe (relances d'échéance). Même contrat : NE LÈVE PAS. */
+  envoyerMessage(email: string, sujet: string, texte: string): Promise<{ ok: boolean }>
 }
 
 const RESEND_API = 'https://api.resend.com/emails'
@@ -47,6 +49,21 @@ export const vraiEmailClient: EmailClient = {
           text: meta.corps,
           attachments: [{ filename: meta.nomFichier, content: pdf.toString('base64') }],
         }),
+      })
+      return { ok: res.ok }
+    } catch {
+      return { ok: false }
+    }
+  },
+  async envoyerMessage(email, sujet, texte) {
+    const cle = process.env['RESEND_API_KEY']
+    const expediteur = process.env['RESEND_FROM']
+    if (!cle || !expediteur) return { ok: false }
+    try {
+      const res = await fetch(RESEND_API, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${cle}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ from: expediteur, to: [email], subject: sujet, text: texte }),
       })
       return { ok: res.ok }
     } catch {
@@ -110,5 +127,26 @@ export async function envoyerRecuEmail(
     return res.ok ? { envoye: true } : { envoye: false, raison: 'echecEnvoi' }
   } catch {
     return { envoye: false, raison: 'echecEnvoi' }
+  }
+}
+
+/**
+ * Envoie un message texte à une adresse — BEST-EFFORT, ne lève JAMAIS. Adresse normalisée AVANT tout
+ * envoi (une adresse non retenue n'est jamais transmise). Aucune préférence lue ici : l'appelant
+ * n'y recourt que pour des avis de service non désactivables (spec 1.1 §4.1).
+ */
+export async function envoyerMessageEmail(
+  email: EmailClient,
+  adresse: string | null,
+  sujet: string,
+  texte: string,
+): Promise<boolean> {
+  try {
+    const normalisee = normaliserEmail(adresse)
+    if (!normalisee || !email.disponible()) return false
+    const res = await email.envoyerMessage(normalisee, sujet, texte)
+    return res.ok
+  } catch {
+    return false
   }
 }

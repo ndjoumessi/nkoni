@@ -26,6 +26,7 @@ import {
   X,
   type LucideIcon,
 } from 'lucide-react'
+import { BandeauForfait } from '@/components/BandeauForfait'
 import { CommandPalette } from '@/components/CommandPalette'
 import { IndicateurSync } from '@/components/IndicateurSync'
 import { moiApi } from '@/lib/api'
@@ -565,6 +566,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           tabIndex={-1}
           className={cn('mx-auto px-5 py-8 sm:px-8 sm:py-10', largeur)}
         >
+          <BandeauForfait />
           {children}
         </div>
       </div>

@@ -8,7 +8,7 @@ import {
   messageErreur,
   ApiError,
   type PreferencesNotification,
-  type TypeNotification,
+  type TypeNotificationDesactivable,
 } from '@/lib/api'
 import { useToast } from '@/components/ui/Toast'
 import { Card, Overline } from '@/components/ui/Card'
@@ -16,7 +16,7 @@ import { Toggle } from '@/components/ui/Toggle'
 import { Skeleton } from '@/components/ui/Skeleton'
 
 /** Types de notification ; libellés résolus via `profil.notifications.types.*`. */
-const TYPES: TypeNotification[] = ['VERSEMENT_RECU', 'COTISATION_RETARD', 'REUNION_RAPPEL']
+const TYPES: TypeNotificationDesactivable[] = ['VERSEMENT_RECU', 'COTISATION_RETARD', 'REUNION_RAPPEL']
 
 /** Le navigateur supporte-t-il le Web Push ? (SW + PushManager + Notification.) */
 const pushSupporte = (): boolean =>
@@ -52,7 +52,7 @@ export function NotificationPreferences() {
 
   const [prefs, setPrefs] = useState<PreferencesNotification | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [saving, setSaving] = useState<TypeNotification | null>(null)
+  const [saving, setSaving] = useState<TypeNotificationDesactivable | null>(null)
 
   useEffect(() => {
     if (!accessToken) return
@@ -162,7 +162,7 @@ export function NotificationPreferences() {
     }
   }
 
-  const basculer = async (cle: TypeNotification, valeur: boolean) => {
+  const basculer = async (cle: TypeNotificationDesactivable, valeur: boolean) => {
     if (!accessToken || !prefs) return
     const precedent = prefs
     setSaving(cle)

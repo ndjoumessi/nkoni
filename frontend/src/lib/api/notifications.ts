@@ -4,8 +4,14 @@ import { request, rid } from './core'
 /* Notifications (§5) — préférences par type                                  */
 /* -------------------------------------------------------------------------- */
 
-export type TypeNotification = 'VERSEMENT_RECU' | 'COTISATION_RETARD' | 'REUNION_RAPPEL'
-export type PreferencesNotification = Record<TypeNotification, boolean>
+export type TypeNotification =
+  | 'VERSEMENT_RECU'
+  | 'COTISATION_RETARD'
+  | 'REUNION_RAPPEL'
+  | 'FORFAIT_ECHEANCE'
+/** Types désactivables : `FORFAIT_ECHEANCE` est un avis de service (miroir de `TYPES_NOTIFICATION` backend). */
+export type TypeNotificationDesactivable = Exclude<TypeNotification, 'FORFAIT_ECHEANCE'>
+export type PreferencesNotification = Record<TypeNotificationDesactivable, boolean>
 
 /** Notification in-app du destinataire (§5). */
 export interface Notification {

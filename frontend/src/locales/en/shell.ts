@@ -2,6 +2,14 @@
 export default {
   shell: {
     organisation: 'Organisation',
+    // Plan end-date banner (spec 1.1 §4.4) — ADMIN/PRESIDENT only.
+    bandeauForfait: {
+      proche: 'Your {{forfait}} plan ends on {{date}}.',
+      grace: '{{forfait}} plan expired on {{date}}: its features remain active until {{fin}}.',
+      expire: '{{forfait}} plan expired: its features are suspended, nothing is lost.',
+      voir: 'View the plan',
+      fermer: 'Hide this message',
+    },
     nav: {
       ariaPrincipale: 'Main navigation',
       titre: 'Navigation',

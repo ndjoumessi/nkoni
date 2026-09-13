@@ -10,4 +10,21 @@ export const messages = {
   'notifications.cotisationRetard.message': "Votre cotisation n'est pas à jour.",
   'notifications.reunionRappel.titre': 'Réunion à venir',
   'notifications.reunionRappel.message': 'Réunion le {date} à {lieu}.',
+  // Échéance du forfait (spec 1.1 §4.1) — destinataires ADMIN/PRESIDENT, avis de service.
+  // Nom de l'organisation inclus : un même responsable peut gérer plusieurs associations,
+  // et un rappel commercial sans nom d'organisation ressemble à de l'hameçonnage.
+  'notifications.forfaitEcheance.titre': 'Échéance du forfait NKONI — {organisation}',
+  'notifications.forfaitEcheance.J30':
+    'Le forfait {forfait} de {organisation} arrive à échéance le {date}, dans {jours} jours. Contactez-nous pour le renouveler sans interruption.',
+  'notifications.forfaitEcheance.J7':
+    'Le forfait {forfait} de {organisation} arrive à échéance le {date}, dans {jours} jours. Contactez-nous pour le renouveler sans interruption.',
+  'notifications.forfaitEcheance.J1':
+    'Le forfait {forfait} de {organisation} arrive à échéance le {date}. Renouvelez-le dès maintenant pour éviter toute interruption.',
+  'notifications.forfaitEcheance.GRACE':
+    "Le forfait {forfait} de {organisation} a expiré le {date}. Ses fonctionnalités restent actives jusqu'au {fin} : renouvelez-le d'ici là.",
+  'notifications.forfaitEcheance.pied':
+    'Pour renouveler, écrivez-nous depuis la page Paramètres de votre espace NKONI.',
+  'notifications.forfaits.GRATUIT': 'Gratuit',
+  'notifications.forfaits.PRO': 'Pro',
+  'notifications.forfaits.ENTREPRISE': 'Entreprise',
 } as const

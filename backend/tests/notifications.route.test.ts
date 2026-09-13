@@ -87,17 +87,32 @@ describe('Routes Notifications (§5)', () => {
     expect(notifs.get('b1')?.lu).toBe(false) // inchangée
   })
 
-  it('DELETE /notifications/:id supprime la sienne (204) et la retire de la liste', async () => {
+  it('DELETE /notifications/:id écarte la sienne (204) : disparaît de la liste, LA LIGNE SURVIT', async () => {
     const res = await app.inject({
       method: 'DELETE',
       url: '/notifications/a1',
       headers: auth('u-a'),
     })
     expect(res.statusCode).toBe(204)
-    expect(notifs.has('a1')).toBe(false)
+    // Suppression LOGIQUE : la ligne existe toujours (trace de dédoublonnage des relances/rappels),
+    // mais elle est masquée et n'apparaît plus dans GET /notifications.
+    expect(notifs.has('a1')).toBe(true)
+    expect(notifs.get('a1')?.masqueeLe).toBeTruthy()
+    const liste = await app.inject({ method: 'GET', url: '/notifications', headers: auth('u-a') })
+    expect(liste.json().map((n: { id: string }) => n.id)).toEqual(['a2'])
   })
 
-  it('DELETE /notifications/:id REFUSE la notif d’un autre compte (404) sans la supprimer', async () => {
+  it('DELETE /notifications/:id une 2e fois sur la même notif → 404 (déjà écartée)', async () => {
+    await app.inject({ method: 'DELETE', url: '/notifications/a1', headers: auth('u-a') })
+    const res = await app.inject({
+      method: 'DELETE',
+      url: '/notifications/a1',
+      headers: auth('u-a'),
+    })
+    expect(res.statusCode).toBe(404)
+  })
+
+  it('DELETE /notifications/:id REFUSE la notif d’un autre compte (404) sans la masquer', async () => {
     const res = await app.inject({
       method: 'DELETE',
       url: '/notifications/b1',
@@ -105,6 +120,7 @@ describe('Routes Notifications (§5)', () => {
     })
     expect(res.statusCode).toBe(404)
     expect(notifs.has('b1')).toBe(true) // celle de u-b intacte
+    expect(notifs.get('b1')?.masqueeLe).toBeFalsy()
   })
 
   it('PATCH /notifications/tout-lu ne marque que ses non-lues', async () => {

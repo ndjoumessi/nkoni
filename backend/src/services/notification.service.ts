@@ -19,17 +19,35 @@ import {
   type PushObservabilite,
 } from './push.service'
 
-export type TypeNotification = 'VERSEMENT_RECU' | 'COTISATION_RETARD' | 'REUNION_RAPPEL'
+export type TypeNotification =
+  | 'VERSEMENT_RECU'
+  | 'COTISATION_RETARD'
+  | 'REUNION_RAPPEL'
+  | 'FORFAIT_ECHEANCE'
 
-/** Tous les types de notification (source unique pour les préférences). */
-export const TYPES_NOTIFICATION: TypeNotification[] = [
+/**
+ * Avis de SERVICE, jamais désactivables (spec 1.1 §4.1) : l'échéance du forfait concerne la continuité
+ * du service de toute l'organisation, pas une préférence de confort. Absents de `TYPES_NOTIFICATION`,
+ * donc absents du schéma ajv de PATCH /notifications/preferences (une clé inconnue y est SUPPRIMÉE en
+ * silence). Parité avec l'enum Postgres : `tests/types-notification-parity.test.ts`.
+ */
+export const TYPES_NOTIFICATION_NON_DESACTIVABLES = ['FORFAIT_ECHEANCE'] as const
+
+/** Types que l'utilisateur peut désactiver. */
+export type TypeNotificationDesactivable = Exclude<
+  TypeNotification,
+  (typeof TYPES_NOTIFICATION_NON_DESACTIVABLES)[number]
+>
+
+/** Types DÉSACTIVABLES (source unique pour les préférences). */
+export const TYPES_NOTIFICATION: TypeNotificationDesactivable[] = [
   'VERSEMENT_RECU',
   'COTISATION_RETARD',
   'REUNION_RAPPEL',
 ]
 
-/** Préférences normalisées : un booléen par type (true = activé). */
-export type PreferencesNotification = Record<TypeNotification, boolean>
+/** Préférences normalisées : un booléen par type désactivable (true = activé). */
+export type PreferencesNotification = Record<TypeNotificationDesactivable, boolean>
 
 /** Levée quand la notification cible n'existe pas OU n'appartient pas au demandeur. */
 export class NotificationIntrouvableError extends Error {
@@ -87,7 +105,7 @@ export interface NotificationPrisma {
  * Un type est-il actif d'après le blob de préférences brut ? Fonction PURE.
  * Défaut = activé : seul `{ "TYPE": false }` explicite désactive (null / clé absente = ON).
  */
-export function typeActif(notificationsActives: unknown, type: TypeNotification): boolean {
+export function typeActif(notificationsActives: unknown, type: TypeNotificationDesactivable): boolean {
   if (notificationsActives && typeof notificationsActives === 'object') {
     return (notificationsActives as Record<string, unknown>)[type] !== false
   }
@@ -176,7 +194,7 @@ export async function resoudreDeviseDestinataire(
 export async function estTypeActifPour(
   prisma: NotificationPrisma,
   utilisateurId: string,
-  type: TypeNotification,
+  type: TypeNotificationDesactivable,
 ): Promise<boolean> {
   const u = await prisma.utilisateur.findUnique({
     where: { id: utilisateurId },
@@ -206,30 +224,31 @@ export async function creerNotification(
   })
 }
 
-/** Liste les notifications d'un utilisateur (les plus récentes d'abord). */
+/** Liste les notifications d'un utilisateur (les plus récentes d'abord), hors écartées. */
 export async function listerNotifications(
   prisma: NotificationPrisma,
   destinataireId: string,
 ): Promise<unknown[]> {
   return prisma.notification.findMany({
-    where: { destinataireId },
+    where: { destinataireId, masqueeLe: null },
     orderBy: { dateCreation: 'desc' },
   })
 }
 
-/** Nombre de notifications non lues d'un utilisateur (pour le badge). */
+/** Nombre de notifications non lues d'un utilisateur (pour le badge), hors écartées. */
 export async function compterNonLues(
   prisma: NotificationPrisma,
   destinataireId: string,
 ): Promise<number> {
-  return prisma.notification.count({ where: { destinataireId, lu: false } })
+  return prisma.notification.count({ where: { destinataireId, lu: false, masqueeLe: null } })
 }
 
 /**
- * Marque UNE notification comme lue — uniquement si elle appartient au demandeur.
- * On filtre par (id, destinataireId) dans un updateMany : si count === 0, la notif
- * n'existe pas OU n'est pas la sienne → NotificationIntrouvableError (route → 404, sans
- * révéler l'existence d'une notif d'autrui). Aucune lecture préalable = aucune fuite.
+ * Marque UNE notification comme lue — uniquement si elle appartient au demandeur ET n'est pas
+ * écartée (une notification masquée est « introuvable » pour son destinataire, comme une
+ * notification d'autrui). On filtre par (id, destinataireId, masqueeLe: null) dans un
+ * updateMany : si count === 0 → NotificationIntrouvableError (route → 404, sans révéler
+ * l'existence d'une notif d'autrui ou déjà écartée). Aucune lecture préalable = aucune fuite.
  */
 export async function marquerCommeLue(
   prisma: NotificationPrisma,
@@ -238,27 +257,45 @@ export async function marquerCommeLue(
   now: Date = new Date(),
 ): Promise<void> {
   const { count } = await prisma.notification.updateMany({
-    where: { id, destinataireId },
+    where: { id, destinataireId, masqueeLe: null },
     data: { lu: true, dateLecture: now },
   })
   if (count === 0) throw new NotificationIntrouvableError(id)
 }
 
 /**
- * Supprime (écarte) UNE notification — uniquement si elle appartient au demandeur. Même garde
- * que `marquerCommeLue` : `deleteMany` filtré par (id, destinataireId), `count === 0` →
- * NotificationIntrouvableError (route → 404, sans révéler l'existence d'une notif d'autrui).
+ * Écarte (suppression LOGIQUE) UNE notification — uniquement si elle appartient au demandeur
+ * et n'est pas déjà écartée. Même garde que `marquerCommeLue` : `updateMany` filtré par
+ * (id, destinataireId, masqueeLe: null), `count === 0` → NotificationIntrouvableError (route →
+ * 404, sans révéler l'existence d'une notif d'autrui ni qu'elle était déjà écartée).
+ *
+ * La ligne SURVIT (on pose `masqueeLe`, on ne `deleteMany` plus) — c'est elle qui porte la
+ * trace de dédoublonnage des relances de forfait (`forfait-relances.service.ts`) et des rappels
+ * de réunion (`notification-scheduler.ts`), tous deux basés sur un `findFirst` par
+ * (destinataireId, type, entiteType, entiteId) qui NE filtre PAS `masqueeLe` : écarter une
+ * notification ne doit pas la « réarmer » à la prochaine tâche de nuit. `masqueeLe`, `lu` ET
+ * `dateLecture` sont posés à l'instant de l'écartement — `dateLecture` est un champ informatif,
+ * on accepte de l'écraser même si elle était déjà renseignée plutôt que la complexité d'un
+ * updateMany conditionnel.
  */
 export async function supprimerNotification(
   prisma: NotificationPrisma,
   id: string,
   destinataireId: string,
+  now: Date = new Date(),
 ): Promise<void> {
-  const { count } = await prisma.notification.deleteMany({ where: { id, destinataireId } })
+  const { count } = await prisma.notification.updateMany({
+    where: { id, destinataireId, masqueeLe: null },
+    data: { masqueeLe: now, lu: true, dateLecture: now },
+  })
   if (count === 0) throw new NotificationIntrouvableError(id)
 }
 
-/** Marque toutes les non-lues d'un utilisateur comme lues. Retourne le nombre affecté. */
+/**
+ * Marque toutes les non-lues d'un utilisateur comme lues. Retourne le nombre affecté.
+ * Pas de filtre `masqueeLe` nécessaire : une notification écartée est déjà `lu: true`
+ * (posé par `supprimerNotification`), donc absente de `lu: false` — vérifié par les tests.
+ */
 export async function marquerToutesCommeLues(
   prisma: NotificationPrisma,
   destinataireId: string,

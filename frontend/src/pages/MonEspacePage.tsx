@@ -4,6 +4,7 @@ import {
   Wallet,
   ArrowDownCircle,
   CircleDollarSign,
+  CalendarClock,
   CalendarDays,
   FileText,
   Download,
@@ -89,11 +90,13 @@ const NOTIF_ICONE: Record<TypeNotification, typeof Bell> = {
   VERSEMENT_RECU: ArrowDownCircle,
   COTISATION_RETARD: Clock,
   REUNION_RAPPEL: CalendarDays,
+  FORFAIT_ECHEANCE: CalendarClock,
 }
 const NOTIF_TON: Record<TypeNotification, string> = {
   VERSEMENT_RECU: '--jade',
   COTISATION_RETARD: '--terra',
   REUNION_RAPPEL: '--brass',
+  FORFAIT_ECHEANCE: '--amber',
 }
 
 /** Namespace d'id pour la paire onglet ↔ panneau (aria-controls ↔ aria-labelledby). */

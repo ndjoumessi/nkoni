@@ -6,6 +6,7 @@ import {
   marquerToutesCommeLues,
   compterNonLues,
   listerNotifications,
+  supprimerNotification,
   NotificationIntrouvableError,
 } from '../src/services/notification.service'
 import { buildNotificationsMock } from './support/notifications-prisma-mock'
@@ -193,6 +194,48 @@ describe('CRUD notifications isolé par destinataire', () => {
     const count = await marquerToutesCommeLues(prisma, 'u-a')
     expect(count).toBe(1) // seule a1 était non lue
     expect(notifs.get('b1')?.lu).toBe(false) // celle de u-b intacte
+  })
+
+  it('supprimerNotification : ÉCARTE (suppression logique) — la ligne survit, masquée', async () => {
+    const { prisma, notifs } = seed()
+    const now = new Date('2026-06-10T09:00:00Z')
+    await supprimerNotification(prisma, 'a1', 'u-a', now)
+    // La ligne existe TOUJOURS (pas de deleteMany) : c'est elle qui porte la trace de
+    // dédoublonnage des relances/rappels.
+    expect(notifs.has('a1')).toBe(true)
+    expect(notifs.get('a1')).toMatchObject({ masqueeLe: now, lu: true, dateLecture: now })
+  })
+
+  it('supprimerNotification : l’effet — plus listée ni comptée après écartement', async () => {
+    const { prisma } = seed()
+    await supprimerNotification(prisma, 'a1', 'u-a')
+    const liste = (await listerNotifications(prisma, 'u-a')) as { id: string }[]
+    expect(liste.map((n) => n.id)).toEqual(['a2']) // a1 écartée n'apparaît plus
+    expect(await compterNonLues(prisma, 'u-a')).toBe(0) // a1 était la seule non lue de u-a
+  })
+
+  it('supprimerNotification : une 2e suppression sur la même notif → NotificationIntrouvableError', async () => {
+    const { prisma } = seed()
+    await supprimerNotification(prisma, 'a1', 'u-a')
+    await expect(supprimerNotification(prisma, 'a1', 'u-a')).rejects.toBeInstanceOf(
+      NotificationIntrouvableError,
+    )
+  })
+
+  it('supprimerNotification : REFUSE si ce n’est pas le destinataire, sans la masquer', async () => {
+    const { prisma, notifs } = seed()
+    await expect(supprimerNotification(prisma, 'a1', 'u-b')).rejects.toBeInstanceOf(
+      NotificationIntrouvableError,
+    )
+    expect(notifs.get('a1')?.masqueeLe).toBeFalsy() // inchangée
+  })
+
+  it('supprimerNotification : une notification écartée ne bloque plus marquerCommeLue non plus (introuvable)', async () => {
+    const { prisma } = seed()
+    await supprimerNotification(prisma, 'a1', 'u-a')
+    await expect(marquerCommeLue(prisma, 'a1', 'u-a')).rejects.toBeInstanceOf(
+      NotificationIntrouvableError,
+    )
   })
 
   it('creerNotification pose les champs et lu=false par défaut', async () => {

@@ -15,6 +15,7 @@
 import type { FastifyRequest } from 'fastify'
 import { fr, type CleMessage, type Messages } from '../locales/fr'
 import { en } from '../locales/en'
+import { FUSEAU_APP } from './date-app'
 
 export type Langue = 'FR' | 'EN'
 
@@ -76,6 +77,19 @@ export function formatDateHeure(date: Date, langue: Langue): string {
   return new Intl.DateTimeFormat(LOCALE_PAR_LANGUE[langue] ?? 'fr', {
     dateStyle: 'long',
     timeStyle: 'short',
+  }).format(date)
+}
+
+/**
+ * Date longue d'une ÉCHÉANCE (fin de journée à Douala) dans la langue donnée, lue dans le fuseau
+ * APPLICATIF : le process tourne en UTC, où 23:59:59 à Douala tombe encore le même jour — mais pas
+ * dans tous les fuseaux, et la règle ne doit pas dépendre de l'hébergeur. Miroir de `formatDateApp`
+ * du front (lib/utils.ts).
+ */
+export function formatDateApp(date: Date, langue: Langue): string {
+  return new Intl.DateTimeFormat(LOCALE_PAR_LANGUE[langue] ?? 'fr', {
+    dateStyle: 'long',
+    timeZone: FUSEAU_APP,
   }).format(date)
 }
 

@@ -1006,6 +1006,7 @@ enum TypeNotification {
   VERSEMENT_RECU
   COTISATION_RETARD
   REUNION_RAPPEL
+  FORFAIT_ECHEANCE // avis de service (spec 1.1 §4.1) — NON désactivable
 }
 
 model Notification {
@@ -1022,6 +1023,10 @@ model Notification {
   lu             Boolean          @default(false)
   dateCreation   DateTime         @default(now())
   dateLecture    DateTime? // renseignée au passage lu = true
+  // Écartée par le destinataire (suppression logique) : la ligne reste la trace de
+  // dédoublonnage des relances et rappels (spec 1.1 §4.1). Nullable, AUCUN backfill :
+  // `masqueeLe IS NULL` ⇒ visible, exactement l'état voulu pour toutes les lignes existantes.
+  masqueeLe      DateTime?
 
   @@index([destinataireId, lu])
   @@index([destinataireId, type, dateCreation]) // pour l'anti-spam COTISATION_RETARD (< 7 j)

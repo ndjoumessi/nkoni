@@ -12,13 +12,89 @@
 // défilée donne une image vide (zone non peinte). La capture ne démarre qu'une fois l'écran chargé :
 // ni saisie d'identifiants ni squelette de chargement à l'image.
 //
-// Usage : OUT=/chemin/sortie node scripts/demo-video/record.mjs
+// Usage : OUT=/chemin/sortie LANGUE=fr|en node scripts/demo-video/record.mjs
+// LANGUE (défaut `fr`) choisit la langue de l'INTERFACE et des légendes. La langue affichée est la
+// préférence SERVEUR de chaque compte (elle prime sur le navigateur) : on la pose par l'API avant
+// le tournage, sinon une base remplie en FR filmerait une interface française sous des légendes
+// anglaises. Les données saisies (noms, association) ne sont jamais traduites, comme dans l'app.
 import { mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { chromium } from 'playwright-core'
 import { ADMIN, MEMBRE } from './comptes.mjs'
 
 const FRONT = process.env.FRONT ?? 'http://localhost:5310'
+const API = process.env.API ?? 'http://localhost:3100'
+if (/railway|vercel|nkoni\.app/i.test(API)) throw new Error(`Refus : ${API} ressemble à la production`)
+const LANGUE = (process.env.LANGUE ?? 'fr').toLowerCase()
+
+// Libellés d'interface visés par le scénario (miroir des catalogues `frontend/src/locales/<langue>`)
+// et légendes incrustées. Un libellé qui change dans un catalogue fait échouer le tournage sur une
+// attente : c'est voulu, mieux vaut un échec qu'une vidéo tronquée.
+const TEXTES = {
+  fr: {
+    locale: 'fr-FR',
+    recouvre: 'Recouvré',
+    relancer: 'Relancer par WhatsApp',
+    ouvrirMenu: 'Ouvrir le menu',
+    membres: 'Membres',
+    saisirVersement: 'Saisir un versement',
+    enregistrerVersement: 'Enregistrer le versement',
+    genererRecu: 'Générer le reçu',
+    maSituation: 'Ma situation',
+    aJour: 'Vous êtes à jour de vos cotisations',
+    carte: 'Ma carte de membre',
+    legendes: {
+      recouvrement: 'Le recouvrement de l’association, en un coup d’œil',
+      retards: 'Les retards repérés, relancés en un geste',
+      membres: 'Chaque membre, son statut',
+      versement: 'La trésorière enregistre un versement…',
+      recu: '…et le reçu est émis',
+      aJour: 'Le membre voit aussitôt qu’il est à jour',
+      transparence: 'NKONI — la transparence, pour chaque membre',
+    },
+  },
+  en: {
+    locale: 'en-GB',
+    recouvre: 'collected',
+    relancer: 'Follow up on WhatsApp',
+    ouvrirMenu: 'Open menu',
+    membres: 'Members',
+    saisirVersement: 'Record a payment',
+    enregistrerVersement: 'Record the payment',
+    genererRecu: 'Generate the receipt',
+    maSituation: 'My situation',
+    aJour: 'You are up to date with your contributions',
+    carte: 'My member card',
+    legendes: {
+      recouvrement: 'Your association’s collection, at a glance',
+      retards: 'Late payers spotted, reminded in one tap',
+      membres: 'Every member, with their status',
+      versement: 'The treasurer records a payment…',
+      recu: '…and the receipt is issued',
+      aJour: 'Members see right away that they are up to date',
+      transparence: 'NKONI — transparency for every member',
+    },
+  },
+}
+const T = TEXTES[LANGUE]
+if (!T) throw new Error(`LANGUE inconnue : ${LANGUE} (attendu : ${Object.keys(TEXTES).join(', ')})`)
+
+/** Pose la langue PRÉFÉRÉE du compte côté serveur (celle que l'interface appliquera à la connexion). */
+async function poserLangue(compte) {
+  const appel = async (methode, chemin, corps, jeton) => {
+    const res = await fetch(`${API}${chemin}`, {
+      method: methode,
+      headers: { 'content-type': 'application/json', ...(jeton ? { authorization: `Bearer ${jeton}` } : {}) },
+      body: JSON.stringify(corps),
+    })
+    if (!res.ok) throw new Error(`${methode} ${chemin} → ${res.status} ${await res.text()}`)
+    return res.json()
+  }
+  const { accessToken } = await appel('POST', '/auth/login', { email: compte.email, password: compte.password })
+  await appel('PATCH', '/auth/me/langue', { langue: LANGUE.toUpperCase() }, accessToken)
+}
+await poserLangue(ADMIN)
+await poserLangue(MEMBRE)
 const OUT = process.env.OUT ?? new URL('./out', import.meta.url).pathname
 mkdirSync(OUT, { recursive: true })
 
@@ -76,7 +152,7 @@ async function prise(nom, compte, pret, scenes, echauffement) {
     deviceScaleFactor: 2,
     isMobile: true,
     hasTouch: true,
-    locale: 'fr-FR',
+    locale: T.locale,
     timezoneId: 'Africa/Douala',
     colorScheme: 'dark',
     reducedMotion: 'no-preference',
@@ -145,35 +221,35 @@ async function prise(nom, compte, pret, scenes, echauffement) {
 // ── Prise 1 : la trésorière ────────────────────────────────────────────────────────────────
 const tableauDeBordPret = async (page) => {
   await page.waitForURL('**/dashboard')
-  await page.getByText('Recouvré', { exact: false }).first().waitFor()
+  await page.getByText(T.recouvre, { exact: false }).first().waitFor()
 }
 await prise('tresoriere', ADMIN, tableauDeBordPret, async ({ page, pause, legende, toucher, defiler }) => {
   await pause(600)
-  await legende('Le recouvrement de l’association, en un coup d’œil')
+  await legende(T.legendes.recouvrement)
   await pause(3600)
 
-  const relance = page.getByRole('link', { name: 'Relancer par WhatsApp' }).first()
+  const relance = page.getByRole('link', { name: T.relancer }).first()
   const y = await relance.evaluate((el) => el.getBoundingClientRect().top + window.scrollY - 260)
   await defiler(y)
-  await legende('Les retards repérés, relancés en un geste')
+  await legende(T.legendes.retards)
   await pause(3400)
 
   await legende('')
   await defiler(0)
   await pause(900)
-  await toucher(page.getByRole('button', { name: 'Ouvrir le menu' }))
+  await toucher(page.getByRole('button', { name: T.ouvrirMenu }))
   await pause(700)
-  await toucher(page.locator('a[href="/membres"]:visible', { hasText: 'Membres' }).first())
+  await toucher(page.locator('a[href="/membres"]:visible', { hasText: T.membres }).first())
   await page.locator('a:visible', { hasText: 'Ngono' }).first().waitFor()
-  await legende('Chaque membre, son statut')
+  await legende(T.legendes.membres)
   await pause(2000)
   await toucher(page.locator('a:visible', { hasText: 'Ngono' }).first())
-  await page.getByRole('link', { name: 'Saisir un versement' }).waitFor()
+  await page.getByRole('link', { name: T.saisirVersement }).waitFor()
   await pause(1500)
 
-  await legende('La trésorière enregistre un versement…')
-  await toucher(page.getByRole('link', { name: 'Saisir un versement' }))
-  await page.getByRole('button', { name: 'Enregistrer le versement' }).waitFor()
+  await legende(T.legendes.versement)
+  await toucher(page.getByRole('link', { name: T.saisirVersement }))
+  await page.getByRole('button', { name: T.enregistrerVersement }).waitFor()
   await pause(900)
   const montant = page.locator('input:visible').first()
   await toucher(montant)
@@ -183,21 +259,21 @@ await prise('tresoriere', ADMIN, tableauDeBordPret, async ({ page, pause, legend
   await toucher(mode)
   await mode.selectOption('MOBILE_MONEY')
   await pause(700)
-  await toucher(page.getByRole('button', { name: 'Enregistrer le versement' }))
+  await toucher(page.getByRole('button', { name: T.enregistrerVersement }))
   await pause(2600)
 
-  await legende('…et le reçu est émis')
-  await toucher(page.getByRole('button', { name: 'Générer le reçu' }))
+  await legende(T.legendes.recu)
+  await toucher(page.getByRole('button', { name: T.genererRecu }))
   await pause(3000)
   await legende('')
   await pause(300)
 }, async (page) => {
-  await page.getByRole('button', { name: 'Ouvrir le menu' }).click()
-  await page.locator('a[href="/membres"]:visible', { hasText: 'Membres' }).first().click()
+  await page.getByRole('button', { name: T.ouvrirMenu }).click()
+  await page.locator('a[href="/membres"]:visible', { hasText: T.membres }).first().click()
   await page.locator('a:visible', { hasText: 'Ngono' }).first().click()
-  await page.getByRole('link', { name: 'Saisir un versement' }).click()
-  await page.getByRole('button', { name: 'Enregistrer le versement' }).waitFor()
-  await page.getByRole('button', { name: 'Ouvrir le menu' }).click()
+  await page.getByRole('link', { name: T.saisirVersement }).click()
+  await page.getByRole('button', { name: T.enregistrerVersement }).waitFor()
+  await page.getByRole('button', { name: T.ouvrirMenu }).click()
   await page.locator('a[href="/dashboard"]:visible').first().click()
   await page.evaluate(() => window.scrollTo(0, 0))
 })
@@ -205,20 +281,20 @@ await prise('tresoriere', ADMIN, tableauDeBordPret, async ({ page, pause, legend
 // ── Prise 2 : le membre ────────────────────────────────────────────────────────────────────
 const monEspacePret = async (page) => {
   await page.waitForURL('**/mon-espace')
-  await page.getByText('Ma situation', { exact: false }).first().waitFor()
+  await page.getByText(T.maSituation, { exact: false }).first().waitFor()
 }
 await prise('membre', MEMBRE, monEspacePret, async ({ page, pause, legende, defiler }) => {
   await pause(600)
-  await legende('Le membre voit aussitôt qu’il est à jour')
+  await legende(T.legendes.aJour)
   await pause(2800)
-  const progression = page.getByText('Vous êtes à jour de vos cotisations', { exact: false }).first()
+  const progression = page.getByText(T.aJour, { exact: false }).first()
   const y1 = await progression.evaluate((el) => el.getBoundingClientRect().top + window.scrollY - 420)
   await defiler(y1)
   await pause(2200)
-  const carte = page.getByText('Ma carte de membre', { exact: false }).first()
+  const carte = page.getByText(T.carte, { exact: false }).first()
   const y2 = await carte.evaluate((el) => el.getBoundingClientRect().top + window.scrollY - 90)
   await defiler(y2)
-  await legende('NKONI — la transparence, pour chaque membre')
+  await legende(T.legendes.transparence)
   await pause(3600)
 })
 

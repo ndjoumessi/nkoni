@@ -4,10 +4,13 @@ import { Check, Pause, Play } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { prefersReducedMotion } from '@/lib/utils'
 
-// Générés par `scripts/demo-video/` (base FICTIVE, jamais de données réelles). Hors précache PWA :
-// `globPatterns` ne couvre pas le mp4, l'application installée ne s'alourdit pas de 1,4 Mo.
-const SOURCE = '/demo/nkoni-demo.mp4'
-const APERCU = '/demo/nkoni-demo-apercu.jpg'
+// Générés par `scripts/demo-video/` (base FICTIVE, jamais de données réelles), une vidéo PAR LANGUE :
+// interface et légendes incrustées sont filmées dans la langue. Hors précache PWA : `globPatterns` ne
+// couvre pas le mp4, l'application installée ne s'alourdit pas de 1,4 Mo par langue.
+const VIDEOS = {
+  fr: { source: '/demo/nkoni-demo.mp4', apercu: '/demo/nkoni-demo-apercu.jpg' },
+  en: { source: '/demo/nkoni-demo-en.mp4', apercu: '/demo/nkoni-demo-en-apercu.jpg' },
+} as const
 const ID_TRANSCRIPTION = 'video-demo-transcription'
 
 /**
@@ -22,7 +25,9 @@ const ID_TRANSCRIPTION = 'video-demo-transcription'
  *   Une pause VOLONTAIRE n'est jamais annulée par un retour à l'écran.
  */
 export function VideoDemo() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  // Changer de langue remplace la source : la vidéo repart au début, dans la nouvelle langue.
+  const { source, apercu } = VIDEOS[i18n.language?.toLowerCase().startsWith('en') ? 'en' : 'fr']
   const video = useRef<HTMLVideoElement>(null)
   const [enLecture, setEnLecture] = useState(false)
   const pauseVolontaire = useRef(prefersReducedMotion())
@@ -100,8 +105,8 @@ export function VideoDemo() {
               <video
                 ref={video}
                 className="block aspect-[720/1558] w-full rounded-[1.9rem] bg-canvas object-cover"
-                src={SOURCE}
-                poster={APERCU}
+                src={source}
+                poster={apercu}
                 muted
                 loop
                 playsInline

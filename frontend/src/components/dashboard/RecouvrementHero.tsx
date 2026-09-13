@@ -120,7 +120,9 @@ export function RecouvrementHero({
               </span>
               {t('dashboard.hero.totalCollecte')}
             </span>
-            <span className="flex items-center gap-2">
+            {/* Mobile : l'écart N-1 passe SOUS le montant — sur une ligne, badge + montant débordaient de
+                la carte à 390 px (vécu en anglais : « FCFA1,580,000 » hors cadre). */}
+            <span className="flex flex-col-reverse items-end gap-1 sm:flex-row sm:items-center sm:gap-2">
               {deltaN1 !== null && anneeN1 !== undefined && (
                 <DeltaN1 delta={deltaN1} anneeN1={anneeN1} />
               )}

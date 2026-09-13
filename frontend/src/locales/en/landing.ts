@@ -125,7 +125,7 @@ export default {
       overline: 'Demo',
       titre: 'NKONI in action, in under a minute',
       description:
-        'From recording a contribution to issuing the receipt, then what the member sees: the full journey, on a fictional association (interface shown in French).',
+        'From recording a contribution to issuing the receipt, then what the member sees: the full journey, on a fictional association.',
       points: {
         tableauDeBord: 'Collection rate and late payers, at a glance',
         versement: 'A payment recorded and its receipt issued in a few taps',

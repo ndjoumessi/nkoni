@@ -1,6 +1,7 @@
 #!/bin/bash
 # Montage de la vidéo de démonstration à partir des prises de `record.mjs`.
-# Sortie : frontend/public/demo/nkoni-demo.mp4 (+ image d'aperçu .jpg).
+# Sortie : frontend/public/demo/nkoni-demo.mp4 (+ image d'aperçu .jpg) ; avec LANGUE=en,
+# nkoni-demo-en.mp4 / nkoni-demo-en-apercu.jpg (le français garde le nom historique).
 #
 # Choix d'encodage, et pourquoi :
 # - MP4 H.264 SEUL (pas de WebM) : lu partout, y compris sur les iPhone anciens, fréquents chez les
@@ -10,9 +11,15 @@
 # - Pas de piste audio (vidéo muette : lecture automatique permise par les navigateurs).
 # - Plage VIDÉO (`tv`) et BT.709 explicites : les captures JPEG sont en plage complète (`yuvj420p`),
 #   que certains lecteurs affichent délavée.
-# Usage : IN=/dossier/des/prises ./scripts/demo-video/build-video.sh
+# Usage : IN=/dossier/des/prises LANGUE=fr|en ./scripts/demo-video/build-video.sh
 set -euo pipefail
 IN="${IN:?IN = dossier contenant tresoriere/ et membre/}"
+LANGUE="${LANGUE:-fr}"
+case "$LANGUE" in
+  fr) NOM=nkoni-demo ;;
+  en) NOM=nkoni-demo-en ;;
+  *) echo "LANGUE inconnue : $LANGUE (fr|en)" >&2; exit 1 ;;
+esac
 RACINE="$(cd "$(dirname "$0")/../.." && pwd)"
 SORTIE="$RACINE/frontend/public/demo"
 TMP="$(mktemp -d)"
@@ -49,11 +56,11 @@ ffmpeg -loglevel error -y -i "$TMP/tresoriere.mp4" -i "$TMP/membre.mp4" -filter_
   [v]fade=t=in:st=0:d=0.35,fade=t=out:st=${SORTIE_FONDU}:d=0.45,scale=720:-2:flags=lanczos:in_range=pc:out_range=tv,format=yuv420p[out]" \
   -map "[out]" -an -c:v libx264 -profile:v high -preset slow -crf 27 -movflags +faststart \
   -pix_fmt yuv420p -color_range tv -colorspace bt709 -color_primaries bt709 -color_trc bt709 \
-  "$SORTIE/nkoni-demo.mp4"
+  "$SORTIE/$NOM.mp4"
 
 # Aperçu : le tableau de bord, anneau de recouvrement rempli, première légende visible.
-ffmpeg -loglevel error -y -ss 3.2 -i "$SORTIE/nkoni-demo.mp4" -frames:v 1 -q:v 4 "$SORTIE/nkoni-demo-apercu.jpg"
+ffmpeg -loglevel error -y -ss 3.2 -i "$SORTIE/$NOM.mp4" -frames:v 1 -q:v 4 "$SORTIE/$NOM-apercu.jpg"
 
-DUREE="$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$SORTIE/nkoni-demo.mp4")"
-echo "✓ nkoni-demo.mp4 : $(du -h "$SORTIE/nkoni-demo.mp4" | cut -f1), ${DUREE%.*} s"
-echo "✓ nkoni-demo-apercu.jpg : $(du -h "$SORTIE/nkoni-demo-apercu.jpg" | cut -f1)"
+DUREE="$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$SORTIE/$NOM.mp4")"
+echo "✓ $NOM.mp4 : $(du -h "$SORTIE/$NOM.mp4" | cut -f1), ${DUREE%.*} s"
+echo "✓ $NOM-apercu.jpg : $(du -h "$SORTIE/$NOM-apercu.jpg" | cut -f1)"

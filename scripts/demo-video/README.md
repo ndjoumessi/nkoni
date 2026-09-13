@@ -1,6 +1,7 @@
 # Vidéo de démonstration de la page d'accueil
 
-Produit `frontend/public/demo/nkoni-demo.mp4` (+ image d'aperçu), affichée par
+Produit une vidéo PAR LANGUE — `frontend/public/demo/nkoni-demo.mp4` (français) et `nkoni-demo-en.mp4`
+(anglais), chacune avec son image d'aperçu — affichée selon la langue du visiteur par
 `frontend/src/components/landing/VideoDemo.tsx`. **À régénérer quand l'interface filmée change**
 (tableau de bord, fiche membre, saisie de versement, reçu, « Mon espace ») : sinon la page d'accueil
 montre un produit qui n'existe plus.
@@ -31,12 +32,26 @@ montre un produit qui n'existe plus.
 # 3. Association fictive (12 membres, 31 versements, 21 reçus, 1 compte membre)
 API=http://localhost:3100 node scripts/demo-video/seed.mjs
 
-# 4. Tournage (images horodatées) — le scénario MODIFIE la base : repartir de l'étape 1 pour refilmer
-OUT=/tmp/nkoni-demo node scripts/demo-video/record.mjs
+# 4. Tournage (images horodatées) — le scénario MODIFIE la base : repartir de l'étape 1 pour refilmer,
+#    donc AVANT CHAQUE LANGUE. `LANGUE` pose aussi la préférence de langue des comptes par l'API.
+OUT=/tmp/nkoni-demo-fr LANGUE=fr node scripts/demo-video/record.mjs
 
-# 5. Montage → frontend/public/demo/
-IN=/tmp/nkoni-demo ./scripts/demo-video/build-video.sh
+# 5. Montage → frontend/public/demo/ (nkoni-demo.mp4 ; nkoni-demo-en.mp4 avec LANGUE=en)
+IN=/tmp/nkoni-demo-fr LANGUE=fr ./scripts/demo-video/build-video.sh
 ```
+
+Les deux langues d'affilée (serveurs de démo lancés) :
+
+```bash
+for L in fr en; do
+  ./scripts/demo-video/reset-db.sh && API=http://localhost:3100 node scripts/demo-video/seed.mjs \
+    && OUT=/tmp/nkoni-demo-$L LANGUE=$L node scripts/demo-video/record.mjs \
+    && IN=/tmp/nkoni-demo-$L LANGUE=$L ./scripts/demo-video/build-video.sh
+done
+```
+
+Les libellés d'interface visés par le scénario et les légendes vivent dans `TEXTES` (`record.mjs`) :
+un libellé renommé dans un catalogue fait échouer le tournage sur une attente — le corriger là.
 
 ## Pièges connus (et pourquoi le code est ainsi)
 

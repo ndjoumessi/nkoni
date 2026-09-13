@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { PageLegale, SectionLegale, Placeholder } from './PageLegale'
+import { PageLegale, SectionLegale } from './PageLegale'
 import { CONTACT_EMAIL } from '@/lib/contact'
 
 /**
@@ -8,8 +8,11 @@ import { CONTACT_EMAIL } from '@/lib/contact'
  *
  * Sources, et rien d'autre — document opposable, on ne publie pas de valeur fabriquée :
  * - éditeur : attestation d'immatriculation au Registre national des entreprises du 10/09/2026
- *   (dénomination DJOUMESSI, siège 71 rue de Rome, 13001 Marseille). SIREN, forme juridique,
- *   prénom et téléphone NE figurent PAS dans les données lues (page 1 = image) → Placeholders.
+ *   (siège 71 rue de Rome, 13001 Marseille), complétée le 14/09/2026 par les mentions légales
+ *   publiées par le MÊME éditeur pour son service HabaShop (fournies par le PO) : entrepreneur
+ *   individuel Nelson Djoumessi, SIREN 109 761 023, SIRET 109 761 023 00018, APE 6201Z,
+ *   téléphone. Entrepreneur individuel ⇒ nom suivi de « EI » ou « entrepreneur individuel »
+ *   (Code de commerce, art. R. 526-26).
  * - hébergeurs : identités relevées sur leurs propres CGU/politiques (12/09/2026) — Vercel Inc.
  *   (frontend + stockage des pièces jointes, Vercel Blob) et Railway Corporation (API + base
  *   PostgreSQL). Aucun des deux ne publie de numéro de téléphone : on renvoie à leur site.
@@ -19,17 +22,17 @@ import { CONTACT_EMAIL } from '@/lib/contact'
 export function MentionsLegalesPage() {
   const lien = 'text-brass underline-offset-2 hover:underline'
   return (
-    <PageLegale titre="Mentions légales" majLe="12 septembre 2026">
+    <PageLegale titre="Mentions légales" majLe="14 septembre 2026">
       <SectionLegale titre="1. Éditeur du service">
         <p>
-          Le service NKONI, accessible à l’adresse nkoni.vercel.app, est édité par l’entreprise
-          DJOUMESSI, immatriculée au Registre national des entreprises sous le numéro{' '}
-          <Placeholder>NUMÉRO SIREN</Placeholder>.
+          Le service NKONI, accessible à l’adresse nkoni.vercel.app, est édité par Nelson
+          Djoumessi EI, entrepreneur individuel immatriculé au Registre national des entreprises
+          (RNE).
         </p>
         <ul className="list-disc space-y-1 pl-5">
-          <li>
-            forme juridique : <Placeholder>FORME JURIDIQUE</Placeholder> ;
-          </li>
+          <li>forme juridique : entreprise individuelle ;</li>
+          <li>SIREN : 109 761 023 — SIRET : 109 761 023 00018 ;</li>
+          <li>code APE : 6201Z ;</li>
           <li>siège : 71 rue de Rome, 13001 Marseille, France ;</li>
           <li>
             e-mail :{' '}
@@ -39,15 +42,18 @@ export function MentionsLegalesPage() {
             ;
           </li>
           <li>
-            téléphone : <Placeholder>NUMÉRO DE TÉLÉPHONE</Placeholder>.
+            téléphone :{' '}
+            <a href="tel:+33661751923" className={lien}>
+              +33 6 61 75 19 23
+            </a>
+            .
           </li>
         </ul>
       </SectionLegale>
 
       <SectionLegale titre="2. Directeur de la publication">
         <p>
-          <Placeholder>PRÉNOM</Placeholder> DJOUMESSI, en qualité d’exploitant de l’entreprise
-          éditrice.
+          Nelson Djoumessi, en qualité d’entrepreneur individuel éditeur du service.
         </p>
       </SectionLegale>
 

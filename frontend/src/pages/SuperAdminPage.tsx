@@ -69,14 +69,17 @@ type ColonneTri = 'organisation' | 'forfait' | 'echeance' | 'membres' | 'creee' 
 /**
  * Une org « proche du plafond » = forfait plafonné ET ≥ 80 % du quota membres (signal d'attention/upsell).
  * Forfait EFFECTIF (spec 1.1) : un Pro expiré retrouve le plafond Gratuit — la console doit le montrer.
+ * `?? o.forfait` (B2) : front déployé AVANT le backend, une ancienne API ne renvoie pas encore
+ * `forfaitEffectif` (`undefined`) — retomber sur le forfait ENREGISTRÉ plutôt que sur un plafond `null`
+ * (illimité) qui masquerait le signal quota.
  */
 function estProchePlafond(o: PlatformOrganisation): boolean {
-  const max = limiteMembresForfait(o.forfaitEffectif)
+  const max = limiteMembresForfait(o.forfaitEffectif ?? o.forfait)
   return max !== null && o.nbMembres >= 0.8 * max
 }
 /** … et « au plafond » = quota atteint ou dépassé (blocage des nouveaux membres). */
 function estAuPlafond(o: PlatformOrganisation): boolean {
-  const max = limiteMembresForfait(o.forfaitEffectif)
+  const max = limiteMembresForfait(o.forfaitEffectif ?? o.forfait)
   return max !== null && o.nbMembres >= max
 }
 
@@ -579,7 +582,7 @@ export function SuperAdminPage() {
       t('superAdmin.export.echeance'),
     ]
     const lignes = triees.map((o) => {
-      const limite = limiteMembresForfait(o.forfaitEffectif)
+      const limite = limiteMembresForfait(o.forfaitEffectif ?? o.forfait)
       return [
         o.nom,
         t(cleForfait(o.forfait)),
@@ -660,7 +663,7 @@ export function SuperAdminPage() {
       numeric: true,
       sortable: true,
       cell: (o) => {
-        const max = limiteMembresForfait(o.forfaitEffectif)
+        const max = limiteMembresForfait(o.forfaitEffectif ?? o.forfait)
         return (
           <QuotaMembres
             n={o.nbMembres}
@@ -857,6 +860,7 @@ export function SuperAdminPage() {
             value={String(kpis.aRelancer)}
             hint={t('superAdmin.kpi.aRelancerFiltre')}
             onClick={() => setFiltreRelance((v) => !v)}
+            pressed={filtreRelance}
             className={cn('nk-reveal nk-d1 mt-4', filtreRelance && 'ring-2 ring-brass/50')}
           />
         )}
@@ -1086,21 +1090,25 @@ export function SuperAdminPage() {
               <div className="mt-3">
                 <QuotaMembres
                   n={detailOrg.nbMembres}
-                  max={limiteMembresForfait(detailOrg.forfaitEffectif)}
+                  max={limiteMembresForfait(detailOrg.forfaitEffectif ?? detailOrg.forfait)}
                   illimiteLabel={t('superAdmin.table.illimite')}
                   ariaLabel={t('superAdmin.table.quotaAria', {
                     n: detailOrg.nbMembres,
-                    max: limiteMembresForfait(detailOrg.forfaitEffectif) ?? t('superAdmin.table.illimite'),
+                    max: limiteMembresForfait(detailOrg.forfaitEffectif ?? detailOrg.forfait) ?? t('superAdmin.table.illimite'),
                   })}
                 />
               </div>
             </div>
 
-            {/* Échéance + prolongation (spec 1.1 §4.2) — dans la fiche, pas dans une seconde modale. */}
+            {/* Échéance + prolongation (spec 1.1 §4.2) — dans la fiche, pas dans une seconde modale.
+                `enAttente` (B3) : le sélecteur de forfait juste au-dessus vient de mettre `forfait` à
+                jour de façon optimiste ; tant que ce PATCH n'a pas confirmé en base, un aperçu partirait
+                sur l'ancien forfait et échouerait en 409 sans jamais se relancer de lui-même. */}
             {accessToken && (
               <ProlongationForfait
                 org={detailOrg}
                 accessToken={accessToken}
+                enAttente={pendingId === detailOrg.id}
                 onProlonge={(organisation) =>
                   setOrganisations((prev) =>
                     prev ? prev.map((o) => (o.id === organisation.id ? { ...o, ...organisation } : o)) : prev,

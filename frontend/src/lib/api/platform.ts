@@ -68,13 +68,22 @@ export const platformApi = {
     }),
   /**
    * Prolonge l'échéance du forfait (SUPER_ADMIN). `apercu: true` → nouvelle date calculée SANS écriture
-   * (la console affiche exactement ce que l'écriture produira). 409 si GRATUIT ou échéance modifiée.
+   * (la console affiche exactement ce que l'écriture produira). Hors aperçu, `attendu` est OBLIGATOIRE
+   * (imposé par le serveur, B1) : ce sont les valeurs `echeanceActuelle`/`nouvelleEcheance` que l'aperçu
+   * a montrées — l'écriture ne fait que les confirmer, elle ne relit rien de son côté. 409 si GRATUIT,
+   * échéance modifiée depuis l'aperçu, ou valeurs attendues périmées.
    */
-  prolongerForfait: (id: string, mois: PeriodeProlongation, apercu: boolean, accessToken: string) =>
+  prolongerForfait: (
+    id: string,
+    mois: PeriodeProlongation,
+    apercu: boolean,
+    accessToken: string,
+    attendu?: { echeanceAttendue: string | null; nouvelleEcheanceAttendue: string },
+  ) =>
     request<ApercuProlongation>(`/platform/organisations/${id}/forfait/prolonger`, {
       method: 'POST',
       accessToken,
-      json: { mois, apercu },
+      json: { mois, apercu, ...(apercu ? {} : attendu) },
     }),
   /**
    * Export COMPLET des données d'une organisation (bloquant GA 0.3). Lecture seule et idempotent.

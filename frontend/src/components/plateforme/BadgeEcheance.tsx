@@ -15,9 +15,10 @@ const TON: Record<EtatForfait, BadgeProps['tone']> = {
 const DATE_COURTE = { day: 'numeric', month: 'short', year: 'numeric' } as const
 
 interface Props {
-  etat: EtatForfait
-  joursRestants: number | null
-  expireLe: string | null
+  /** `null`/`undefined` (front déployé AVANT le backend, B2 : ancienne API sans ce champ) → neutre. */
+  etat: EtatForfait | null | undefined
+  joursRestants: number | null | undefined
+  expireLe: string | null | undefined
   /** Masque la date quand le contexte l'énonce déjà (phrase de Paramètres). */
   masquerDate?: boolean
 }
@@ -28,7 +29,7 @@ interface Props {
  */
 export function BadgeEcheance({ etat, joursRestants, expireLe, masquerDate = false }: Props) {
   const { t } = useTranslation()
-  if (etat === 'SANS_ECHEANCE' || expireLe === null || joursRestants === null) {
+  if (etat == null || etat === 'SANS_ECHEANCE' || expireLe == null || joursRestants == null) {
     return <span className="text-faint">{t('commun.echeance.sans')}</span>
   }
   const libelle =

@@ -37,4 +37,9 @@ describe('BadgeEcheance', () => {
     expect(screen.getByText('commun.echeance.expire')).toBeTruthy()
     expect(container.querySelectorAll('span.text-muted-foreground')).toHaveLength(0)
   })
+
+  it('champs undefined (B2 — front déployé avant le backend) : neutre, comme sans échéance', () => {
+    render(<BadgeEcheance etat={undefined} joursRestants={undefined} expireLe={undefined} />)
+    expect(screen.getByText('commun.echeance.sans')).toBeTruthy()
+  })
 })

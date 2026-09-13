@@ -378,7 +378,7 @@ export function SuperAdminPage() {
         case 'forfait':
           return rangForfait(a.forfait) - rangForfait(b.forfait)
         case 'echeance':
-          return comparerEcheances(a, b)
+          return comparerEcheances(a, b, tri.dir)
         case 'membres':
           return a.nbMembres - b.nbMembres
         case 'creee':
@@ -390,7 +390,8 @@ export function SuperAdminPage() {
       }
     }
     const arr = [...filtrees].sort(cmp)
-    return tri.dir === 'desc' ? arr.reverse() : arr
+    // L'échéance porte son sens elle-même (sans échéance toujours en dernier) : pas de reverse().
+    return tri.dir === 'desc' && tri.col !== 'echeance' ? arr.reverse() : arr
   }, [filtrees, tri])
 
   const trierPar = (col: string) =>

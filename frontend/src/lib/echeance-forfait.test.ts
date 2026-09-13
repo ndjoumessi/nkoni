@@ -26,4 +26,13 @@ describe('comparerEcheances', () => {
     ]
     expect([...lignes].sort(comparerEcheances).map((l) => l.id)).toEqual(['janvier', 'mars', 'sans'])
   })
+
+  it('en tri décroissant, les organisations sans échéance restent en dernier', () => {
+    const lignes = [
+      { id: 'sans', forfaitExpireLe: null },
+      { id: 'janvier', forfaitExpireLe: '2027-01-01T22:59:59.999Z' },
+      { id: 'mars', forfaitExpireLe: '2027-03-01T22:59:59.999Z' },
+    ]
+    expect([...lignes].sort((a, b) => comparerEcheances(a, b, 'desc')).map((l) => l.id)).toEqual(['mars', 'janvier', 'sans'])
+  })
 })

@@ -14,10 +14,19 @@ export function estARelancer(o: { forfait: Forfait; etatForfait: EtatForfait }):
   return o.forfait !== 'GRATUIT' && ETATS_A_RELANCER.includes(o.etatForfait)
 }
 
-/** Tri par échéance croissante ; les organisations sans échéance passent en dernier. */
-export function comparerEcheances(a: { forfaitExpireLe: string | null }, b: { forfaitExpireLe: string | null }): number {
+/**
+ * Tri par échéance dans le sens `dir` ; les organisations sans échéance passent en dernier DANS LES DEUX
+ * SENS. Le sens est porté ici plutôt que par un `reverse()` du tableau trié : inverser remonterait les
+ * « sans échéance » (hors sujet pour une relance) en tête du tri décroissant.
+ */
+export function comparerEcheances(
+  a: { forfaitExpireLe: string | null },
+  b: { forfaitExpireLe: string | null },
+  dir: 'asc' | 'desc' = 'asc',
+): number {
   if (a.forfaitExpireLe === null && b.forfaitExpireLe === null) return 0
   if (a.forfaitExpireLe === null) return 1
   if (b.forfaitExpireLe === null) return -1
-  return new Date(a.forfaitExpireLe).getTime() - new Date(b.forfaitExpireLe).getTime()
+  const ecart = new Date(a.forfaitExpireLe).getTime() - new Date(b.forfaitExpireLe).getTime()
+  return dir === 'desc' ? -ecart : ecart
 }

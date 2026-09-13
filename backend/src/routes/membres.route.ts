@@ -21,7 +21,7 @@ import {
   type CodeErreurImport,
 } from '../services/import.service'
 import { t, langueDeRequete } from '../lib/i18n'
-import { limiteMembresForfait, type Forfait } from '../lib/forfait'
+import { forfaitEffectif, limiteMembresForfait, type Forfait } from '../lib/forfait'
 import { parserFichierImport } from '../services/import-parse.service'
 import type { CleMessage } from '../locales/fr'
 import { anneeCouranteApp } from '../lib/date-app'
@@ -67,7 +67,8 @@ export const PLAFOND_MEMBRES_PLAN_GRATUIT = limiteMembresForfait('GRATUIT') ?? 5
 
 /**
  * Limite de membres de l'organisation COURANTE selon son forfait. `null` = illimité
- * (Pro/Entreprise). Lit `Organisation.forfait` (modèle NON scopé → findUnique par id).
+ * (Pro/Entreprise). Lit le forfait EFFECTIF — forfait + échéance, spec 1.1 §2.3 — de l'organisation
+ * (modèle NON scopé → findUnique par id).
  */
 async function limiteMembresOrganisation(
   app: FastifyInstance,
@@ -76,9 +77,13 @@ async function limiteMembresOrganisation(
   if (!organisationId) return limiteMembresForfait('GRATUIT')
   const org = await app.prisma.organisation.findUnique({
     where: { id: organisationId },
-    select: { forfait: true },
+    select: { forfait: true, forfaitExpireLe: true },
   })
-  return limiteMembresForfait((org?.forfait ?? 'GRATUIT') as Forfait)
+  // Forfait EFFECTIF : un Pro expiré depuis plus de 14 jours retrouve le plafond Gratuit. Ne jamais
+  // lire `forfait` brut pour décider d'une capacité.
+  return limiteMembresForfait(
+    forfaitEffectif((org?.forfait ?? 'GRATUIT') as Forfait, org?.forfaitExpireLe ?? null, new Date()),
+  )
 }
 
 const STATUT_ENUM = ['ACTIF', 'INACTIF', 'DECEDE'] as const

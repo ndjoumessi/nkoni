@@ -332,8 +332,11 @@ export async function prolongerForfaitOrganisation(
 // automatiquement par l'extension d'isolation (pas de `runUnscoped`, pas de filtre explicite).
 // ===========================================================================
 
-/** Paramètres immuables de l'organisation + volume actuel de membres et sa limite de forfait. */
-export interface OrganisationCourante {
+/**
+ * Paramètres immuables de l'organisation + volume actuel de membres et sa limite de forfait, + champs
+ * d'échéance CALCULÉS (spec 1.1 §3.2), affichés tels quels par l'écran Paramètres.
+ */
+export interface OrganisationCourante extends VueEcheance {
   id: string
   nom: string
   devise: Devise
@@ -343,7 +346,7 @@ export interface OrganisationCourante {
   forfait: Forfait
   /** Nombre de membres ACTIFS (les fiches décédées/inactives ne consomment pas le quota). */
   nbMembres: number
-  /** Plafond du forfait — pour situer `nbMembres` (ex. 42 / 50). `null` = illimité (Pro/Entreprise). */
+  /** Plafond du forfait EFFECTIF — pour situer `nbMembres` (ex. 42 / 50). `null` = illimité. */
   limiteMembres: number | null
   /** Chef de l'organisation (Membre désigné) — null si non désigné. */
   chefMembreId: string | null
@@ -370,6 +373,7 @@ export interface OrganisationCourantePrisma {
 export async function chargerOrganisationCourante(
   prisma: OrganisationCourantePrisma,
   organisationId: string,
+  now: Date = new Date(),
 ): Promise<OrganisationCourante | null> {
   const org = await prisma.organisation.findUnique({
     where: { id: organisationId },
@@ -379,6 +383,7 @@ export async function chargerOrganisationCourante(
       devise: true,
       langueDefaut: true,
       forfait: true,
+      forfaitExpireLe: true,
       createdAt: true,
       chefMembreId: true,
       chefSurnom: true,
@@ -399,7 +404,8 @@ export async function chargerOrganisationCourante(
     forfait: org.forfait,
     createdAt: org.createdAt,
     nbMembres,
-    limiteMembres: limiteMembresForfait(org.forfait),
+    ...vueEcheance(org.forfait, org.forfaitExpireLe ?? null, now),
+    limiteMembres: limiteMembresForfait(forfaitEffectif(org.forfait, org.forfaitExpireLe ?? null, now)),
     chefMembreId: org.chefMembreId ?? null,
     chefSurnom: org.chefSurnom ?? null,
     chefNom: org.chef?.nom ?? null,

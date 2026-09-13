@@ -24,7 +24,14 @@ import {
   resoudreLangueDestinataire,
   type NotificationPrisma,
 } from './notification.service'
-import type { PushEnAttente } from './push.service'
+import {
+  notifierParPush,
+  type PushClient,
+  type PushEnAttente,
+  type PushObservabilite,
+  type PushPrisma,
+} from './push.service'
+import { envoyerMessageEmail, type EmailClient } from './email.service'
 
 /** Destinataires des relances. Miroir front : `GESTION_FORFAIT` (lib/roles.ts), garde `roles-parity`. */
 export const ROLES_RELANCE_FORFAIT = ['ADMIN', 'PRESIDENT'] as const
@@ -176,4 +183,41 @@ export async function executerRelancesForfaitToutesOrgs(
     resultats.push(r)
   }
   return resultats
+}
+
+/**
+ * Livraison APRÈS le commit de la transaction de nuit : Web Push (par organisation, sous son contexte :
+ * `PushSubscription` est scopé) puis e-mails. Ne lève JAMAIS : `notifierParPush` et
+ * `envoyerMessageEmail` sont best-effort, et les notifications sont déjà en base — un envoi raté ne
+ * doit pas faire croire que la relance n'a pas eu lieu.
+ */
+export async function livrerRelancesForfait(
+  deps: {
+    prisma: PushPrisma
+    push: PushClient
+    email: EmailClient
+    observabilite?: PushObservabilite
+  },
+  resultats: RelancesForfaitResult[],
+): Promise<{ emailsEnvoyes: number }> {
+  let emailsEnvoyes = 0
+  for (const r of resultats) {
+    if (r.aPousser.length > 0) {
+      await orgContext.run({ organisationId: r.organisationId }, async () => {
+        for (const p of r.aPousser) {
+          await notifierParPush(
+            deps.prisma,
+            deps.push,
+            p.destinataireId,
+            { titre: p.titre, message: p.message, url: '/parametres' },
+            deps.observabilite,
+          )
+        }
+      })
+    }
+    for (const e of r.aEnvoyer) {
+      if (await envoyerMessageEmail(deps.email, e.email, e.sujet, e.texte)) emailsEnvoyes += 1
+    }
+  }
+  return { emailsEnvoyes }
 }

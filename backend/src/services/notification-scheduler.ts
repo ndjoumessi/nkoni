@@ -40,6 +40,11 @@ import { notifierParPush, type PushEnAttente, type PushPrisma } from './push.ser
 import { t, formatDateHeure } from '../lib/i18n'
 import { orgContext } from '../lib/org-context'
 import { anneeCouranteApp } from '../lib/date-app'
+import {
+  executerRelancesForfaitToutesOrgs,
+  livrerRelancesForfait,
+  type RelancesForfaitPrisma,
+} from './forfait-relances.service'
 
 const JOURS_ANTISPAM = 7
 const MS_PAR_JOUR = 24 * 60 * 60 * 1000
@@ -312,19 +317,23 @@ export function demarrerScheduler(app: FastifyInstance): void {
               app.log.info('Scheduler : verrou non obtenu (autre instance) → passage ignoré')
               return null
             }
-            // Deux tâches de nuit sous LE MÊME verrou : retards de cotisation + rappels de réunion.
+            // Trois tâches de nuit sous LE MÊME verrou : retards de cotisation, rappels de réunion,
+            // relances d'échéance du forfait (spec 1.1 §4.1).
             const retards = await executerVerificationRetardsToutesOrgs(
               tx as SchedulerPrisma,
               anneeCourante,
             )
             const rappels = await executerRappelsReunionsToutesOrgs(tx as SchedulerPrisma)
-            return { retards, rappels }
+            const relancesForfait = await executerRelancesForfaitToutesOrgs(
+              tx as RelancesForfaitPrisma,
+            )
+            return { retards, rappels, relancesForfait }
           },
           { timeout: 10 * 60 * 1000 },
         )
         .then(async (resultats) => {
           if (!resultats) return
-          const { retards, rappels } = resultats
+          const { retards, rappels, relancesForfait } = resultats
           // Web Push APRÈS le commit (jamais d'HTTP dans la tx) et PAR ORG (PushSubscription est
           // scopé → contexte d'isolation requis). `app.prisma` = client NON transactionnel.
           // Best-effort : `notifierParPush` ne lève jamais. No-op si les clés VAPID sont absentes.
@@ -350,13 +359,39 @@ export function demarrerScheduler(app: FastifyInstance): void {
             app.log.error({ err: errPush }, 'Envoi Web Push post-tâches de nuit échoué (notifications déjà créées)')
             app.observabilite.signaler(errPush, { source: 'scheduler', tache: 'WEB_PUSH' })
           }
+          // Relances d'échéance : push (lien /parametres) + e-mails, APRÈS le commit. Ne lève pas ;
+          // le try/catch ne protège que d'un défaut imprévu, signalé à part comme le push.
+          let emailsForfait = 0
+          try {
+            const livraison = await livrerRelancesForfait(
+              {
+                prisma: app.prisma as unknown as PushPrisma,
+                push: app.push,
+                email: app.email,
+                observabilite: app.observabilite,
+              },
+              relancesForfait,
+            )
+            emailsForfait = livraison.emailsEnvoyes
+          } catch (errRelance) {
+            app.log.error({ err: errRelance }, 'Livraison des relances de forfait échouée (notifications déjà créées)')
+            app.observabilite.signaler(errRelance, { source: 'scheduler', tache: 'FORFAIT_ECHEANCE_LIVRAISON' })
+          }
           // Log de FIN émis APRÈS l'envoi push → marque la fin RÉELLE du travail de nuit.
           const verifies = retards.reduce((s, r) => s + r.verifies, 0)
           const notifies = retards.reduce((s, r) => s + r.notifies, 0)
           const rappelsNotifies = rappels.reduce((s, r) => s + r.notifies, 0)
+          const relancesForfaitNotifiees = relancesForfait.reduce((s, r) => s + r.notifies, 0)
           app.log.info(
-            { organisations: retards.length, verifies, notifies, rappelsNotifies },
-            'Tâches de nuit terminées (retards de cotisation + rappels de réunion, toutes organisations)',
+            {
+              organisations: retards.length,
+              verifies,
+              notifies,
+              rappelsNotifies,
+              relancesForfaitNotifiees,
+              emailsForfait,
+            },
+            'Tâches de nuit terminées (retards, rappels de réunion, relances de forfait — toutes organisations)',
           )
         })
         .catch((err) => {
@@ -367,13 +402,13 @@ export function demarrerScheduler(app: FastifyInstance): void {
           // cotisation cessant simplement de partir. C'est précisément le cas que 0.1 vise.
           app.observabilite.signaler(err, {
             source: 'scheduler',
-            tache: 'COTISATION_RETARD+REUNION_RAPPEL',
+            tache: 'COTISATION_RETARD+REUNION_RAPPEL+FORFAIT_ECHEANCE',
           })
         })
     },
     { timezone: 'Africa/Douala' },
   )
   app.log.info(
-    'Scheduler notifications démarré (COTISATION_RETARD + REUNION_RAPPEL — 03:00 Africa/Douala)',
+    'Scheduler notifications démarré (COTISATION_RETARD + REUNION_RAPPEL + FORFAIT_ECHEANCE — 03:00 Africa/Douala)',
   )
 }

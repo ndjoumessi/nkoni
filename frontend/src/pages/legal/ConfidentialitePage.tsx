@@ -1,23 +1,24 @@
-import { PageLegale, SectionLegale, Placeholder } from './PageLegale'
+import { PageLegale, SectionLegale } from './PageLegale'
 import { CONTACT_EMAIL } from '@/lib/contact'
 
 /**
  * Politique de confidentialité (RGPD) — bloquant GA 0.3. Contenu ancré sur les traitements RÉELS
  * du logiciel (données membres, finances, hébergement). Identité du responsable ALIGNÉE sur
- * l'attestation d'immatriculation au Registre national des entreprises (10/09/2026) : dénomination
- * DJOUMESSI + adresse du siège. RESTE le NUMÉRO SIREN (Placeholder) — il figure sur la page 1 de
- * l'attestation, non lue — puis faire RELIRE par un juriste. Ne JAMAIS publier ici une valeur qui
- * ne vient pas de l'attestation (document opposable). Marché cible francophone → français.
+ * l'attestation d'immatriculation au Registre national des entreprises (10/09/2026) et sur les
+ * mentions légales publiées par le même éditeur (HabaShop, fournies par le PO le 14/09/2026) :
+ * Nelson Djoumessi EI, SIREN 109 761 023, siège. Reste à faire RELIRE par un juriste. Ne JAMAIS
+ * publier ici une valeur non sourcée (document opposable). Marché cible francophone → français.
  */
 export function ConfidentialitePage() {
   return (
-    <PageLegale titre="Politique de confidentialité" majLe="12 septembre 2026">
+    <PageLegale titre="Politique de confidentialité" majLe="14 septembre 2026">
       <SectionLegale titre="1. Qui est responsable de vos données">
         <p>
           NKONI est un service de gestion des cotisations et de transparence financière pour
-          associations, familles élargies et tontines. Le responsable du traitement est l’entreprise DJOUMESSI, immatriculée au Registre
-          national des entreprises sous le numéro <Placeholder>NUMÉRO SIREN</Placeholder>, dont le
-          siège est situé 71 rue de Rome, 13001 Marseille, France (ci-après « nous »).
+          associations, familles élargies et tontines. Le responsable du traitement est Nelson
+          Djoumessi EI, entrepreneur individuel immatriculé au Registre national des entreprises
+          sous le numéro SIREN 109 761 023, dont le siège est situé 71 rue de Rome, 13001
+          Marseille, France (ci-après « nous »).
         </p>
         <p>
           Nous traitons les données personnelles dans le respect du Règlement général sur la

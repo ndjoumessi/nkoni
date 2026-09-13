@@ -5,17 +5,18 @@ import { CONTACT_EMAIL } from '@/lib/contact'
  * Conditions générales d’utilisation (CGU) — bloquant GA 0.3. Ancrées sur le produit réel
  * (forfaits, attribution manuelle sans paiement, propriété des données du tenant, export/purge).
  * Éditeur ALIGNÉ sur l'attestation d'immatriculation au Registre national des entreprises
- * (10/09/2026) : dénomination DJOUMESSI + siège. À faire RELIRE par un juriste.
+ * (10/09/2026) et sur les mentions légales du même éditeur (HabaShop, 14/09/2026) : Nelson
+ * Djoumessi EI, SIREN 109 761 023, siège. À faire RELIRE par un juriste.
  */
 export function CGUPage() {
   return (
-    <PageLegale titre="Conditions générales d’utilisation" majLe="12 septembre 2026">
+    <PageLegale titre="Conditions générales d’utilisation" majLe="14 septembre 2026">
       <SectionLegale titre="1. Objet">
         <p>
           Les présentes conditions régissent l’utilisation de NKONI, service de gestion des
           cotisations et de transparence financière pour associations, familles élargies et
-          tontines, édité par l’entreprise DJOUMESSI, dont le siège est situé 71 rue de Rome, 13001
-          Marseille, France (ci-après « nous »). En créant un espace ou en utilisant le service,
+          tontines, édité par Nelson Djoumessi EI, entrepreneur individuel (SIREN 109 761 023),
+          dont le siège est situé 71 rue de Rome, 13001 Marseille, France (ci-après « nous »). En créant un espace ou en utilisant le service,
           vous acceptez ces conditions.
         </p>
       </SectionLegale>

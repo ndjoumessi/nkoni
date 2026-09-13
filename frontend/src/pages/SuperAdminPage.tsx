@@ -45,6 +45,7 @@ import { cn, formatDate, formatDateApp } from '@/lib/utils'
 import { FORFAITS, limiteMembresForfait, type Forfait } from '@/lib/forfait'
 import { comparerEcheances, estARelancer } from '@/lib/echeance-forfait'
 import { BadgeEcheance } from '@/components/plateforme/BadgeEcheance'
+import { ProlongationForfait } from '@/components/plateforme/ProlongationForfait'
 import { anneeCouranteApp, moisCourantApp } from '@/lib/date-app'
 import { cleI18n } from '@/lib/i18n'
 
@@ -1094,6 +1095,19 @@ export function SuperAdminPage() {
                 />
               </div>
             </div>
+
+            {/* Échéance + prolongation (spec 1.1 §4.2) — dans la fiche, pas dans une seconde modale. */}
+            {accessToken && (
+              <ProlongationForfait
+                org={detailOrg}
+                accessToken={accessToken}
+                onProlonge={(organisation) =>
+                  setOrganisations((prev) =>
+                    prev ? prev.map((o) => (o.id === organisation.id ? { ...o, ...organisation } : o)) : prev,
+                  )
+                }
+              />
+            )}
 
             {/*
               Zone DANGER — visible uniquement sur une organisation SUSPENDUE, en miroir de la

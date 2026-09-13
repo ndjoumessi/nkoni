@@ -15,7 +15,7 @@ const TON: Record<EtatForfait, BadgeProps['tone']> = {
 const DATE_COURTE = { day: 'numeric', month: 'short', year: 'numeric' } as const
 
 interface Props {
-  /** `null`/`undefined` (front déployé AVANT le backend, B2 : ancienne API sans ce champ) → neutre. */
+  /** `null`/`undefined` (front déployé AVANT le backend : ancienne API sans ce champ) → neutre. */
   etat: EtatForfait | null | undefined
   joursRestants: number | null | undefined
   expireLe: string | null | undefined

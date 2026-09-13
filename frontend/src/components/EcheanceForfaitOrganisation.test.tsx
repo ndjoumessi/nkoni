@@ -39,7 +39,7 @@ describe('EcheanceForfaitOrganisation', () => {
     expect(container.innerHTML).toBe('')
   })
 
-  it('champs undefined (B2 — front déployé avant le backend) : rien n’est affiché', () => {
+  it('champs undefined (front déployé avant le backend) : rien n’est affiché', () => {
     const { container } = render(
       <EcheanceForfaitOrganisation
         org={{ ...BASE, etatForfait: undefined, forfaitExpireLe: undefined } as unknown as OrganisationCourante}

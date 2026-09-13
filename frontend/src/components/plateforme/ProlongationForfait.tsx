@@ -15,7 +15,7 @@ interface Props {
   onProlonge: (organisation: ApercuProlongation['organisation']) => void
   /**
    * Un changement de forfait est en cours d'écriture ailleurs dans la fiche (sélecteur optimiste de
-   * `SuperAdminPage`, B3) : tant que c'est vrai, ne PAS lancer d'aperçu — il partirait sur un
+   * `SuperAdminPage`) : tant que c'est vrai, ne PAS lancer d'aperçu — il partirait sur un
    * `org.forfait` pas encore confirmé en base (ex. encore GRATUIT juste après un PATCH vers PRO
    * optimiste) et échouerait en 409 sans jamais se relancer tout seul. L'aperçu reprend dès que le
    * PATCH se termine (`enAttente` passe à `false`, dans les dépendances de l'effet).
@@ -28,7 +28,7 @@ interface Props {
  * étant déjà une `Modal`, pas de seconde modale : deux pièges de focus ne s'empilent pas. La nouvelle
  * date affichée vient d'un APERÇU SERVEUR (même fonction que l'écriture) : jamais d'écart entre ce qui
  * est annoncé et ce qui est écrit — l'écriture renvoie d'ailleurs EXACTEMENT les chaînes ISO de
- * l'aperçu (`echeanceActuelle`/`nouvelleEcheance`), le serveur les revérifie en ms (B1/A1).
+ * l'aperçu (`echeanceActuelle`/`nouvelleEcheance`), le serveur les revérifie en ms.
  */
 export function ProlongationForfait({ org, accessToken, onProlonge, enAttente = false }: Props) {
   const { t } = useTranslation()
@@ -43,7 +43,7 @@ export function ProlongationForfait({ org, accessToken, onProlonge, enAttente = 
   const gratuit = org.forfait === 'GRATUIT'
 
   // Aperçu à chaque durée choisie, après prolongation (l'échéance a changé → nouvel aperçu), après un
-  // échec d'écriture (`revision`), et à la fin d'un changement de forfait en attente (`enAttente`, B3).
+  // échec d'écriture (`revision`), et à la fin d'un changement de forfait en attente (`enAttente`).
   useEffect(() => {
     if (gratuit || enAttente) return
     let actif = true

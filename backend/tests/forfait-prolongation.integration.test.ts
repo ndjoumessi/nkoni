@@ -9,7 +9,7 @@ import { hashPassword } from '../src/services/auth.service'
 /**
  * PROLONGATION DE L'ÉCHÉANCE DU FORFAIT (spec 1.1 §3.1) contre une VRAIE Postgres.
  *
- * Pourquoi ce test ne peut pas être mocké (fix-wave, groupe C) : l'`updateMany` conditionnel du
+ * Pourquoi ce test ne peut pas être mocké : l'`updateMany` conditionnel du
  * service compare un `DateTime?` (`forfaitExpireLe`) — IS NULL d'un côté, égalité en MILLISECONDES
  * de l'autre (colonne `TIMESTAMP(3)`) — et un mock JS reproduit fidèlement ce qu'on lui dit de
  * reproduire, jamais ce que Postgres accepte ou refuse réellement. Même chose pour l'effacement de
@@ -172,7 +172,7 @@ describe('Prolongation du forfait — écriture liée à l’aperçu, contre une
     expect(await echeanceEnBase()).toBeNull()
 
     // Un aperçu obtenu AVANT le passage en GRATUIT (ou une valeur reconstituée à la main) ne
-    // matche plus rien : le forfait GRATUIT n'a pas d'échéance → 409 (avant même le contrôle A1).
+    // matche plus rien : le forfait GRATUIT n'a pas d'échéance → 409 (avant même le contrôle des valeurs attendues).
     const res = await prolonger({
       mois: 1,
       apercu: false,

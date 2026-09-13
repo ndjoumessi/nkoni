@@ -69,7 +69,7 @@ type ColonneTri = 'organisation' | 'forfait' | 'echeance' | 'membres' | 'creee' 
 /**
  * Une org « proche du plafond » = forfait plafonné ET ≥ 80 % du quota membres (signal d'attention/upsell).
  * Forfait EFFECTIF (spec 1.1) : un Pro expiré retrouve le plafond Gratuit — la console doit le montrer.
- * `?? o.forfait` (B2) : front déployé AVANT le backend, une ancienne API ne renvoie pas encore
+ * `?? o.forfait` : front déployé AVANT le backend, une ancienne API ne renvoie pas encore
  * `forfaitEffectif` (`undefined`) — retomber sur le forfait ENREGISTRÉ plutôt que sur un plafond `null`
  * (illimité) qui masquerait le signal quota.
  */
@@ -1101,7 +1101,7 @@ export function SuperAdminPage() {
             </div>
 
             {/* Échéance + prolongation (spec 1.1 §4.2) — dans la fiche, pas dans une seconde modale.
-                `enAttente` (B3) : le sélecteur de forfait juste au-dessus vient de mettre `forfait` à
+                `enAttente` : le sélecteur de forfait juste au-dessus vient de mettre `forfait` à
                 jour de façon optimiste ; tant que ce PATCH n'a pas confirmé en base, un aperçu partirait
                 sur l'ancien forfait et échouerait en 409 sans jamais se relancer de lui-même. */}
             {accessToken && (

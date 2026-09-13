@@ -11,7 +11,7 @@ const ETATS_A_RELANCER: readonly EtatForfait[] = ['ECHEANCE_PROCHE', 'GRACE', 'E
 
 /**
  * Organisation à relancer : forfait PAYANT enregistré, en échéance proche, en grâce ou expiré.
- * `etatForfait` tolère `undefined` (front déployé AVANT le backend, B2 : une ancienne API omet ce
+ * `etatForfait` tolère `undefined` (front déployé AVANT le backend : une ancienne API omet ce
  * champ) — traité comme « pas à relancer » plutôt que de planter ou de relancer à tort.
  */
 export function estARelancer(o: { forfait: Forfait; etatForfait: EtatForfait | null | undefined }): boolean {
@@ -22,7 +22,7 @@ export function estARelancer(o: { forfait: Forfait; etatForfait: EtatForfait | n
  * Tri par échéance dans le sens `dir` ; les organisations sans échéance passent en dernier DANS LES DEUX
  * SENS. Le sens est porté ici plutôt que par un `reverse()` du tableau trié : inverser remonterait les
  * « sans échéance » (hors sujet pour une relance) en tête du tri décroissant. `forfaitExpireLe` tolère
- * `undefined` (B2) — traité comme `null` (sans échéance), sinon `new Date(undefined)` produirait une
+ * `undefined` — traité comme `null` (sans échéance), sinon `new Date(undefined)` produirait une
  * date invalide et un comparateur incohérent.
  */
 export function comparerEcheances(

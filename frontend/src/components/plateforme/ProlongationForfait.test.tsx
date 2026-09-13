@@ -72,7 +72,7 @@ describe('ProlongationForfait', () => {
     expect(bouton.disabled).toBe(true)
   })
 
-  it('prolonger : écrit avec les valeurs de l’aperçu (B1) et remonte la vue renvoyée par le serveur', async () => {
+  it('prolonger : écrit avec les valeurs de l’aperçu et remonte la vue renvoyée par le serveur', async () => {
     const onProlonge = vi.fn()
     render(<ProlongationForfait org={ORG_PRO} accessToken="jeton" onProlonge={onProlonge} />)
     const bouton = (await screen.findByRole('button')) as HTMLButtonElement
@@ -122,7 +122,7 @@ describe('ProlongationForfait', () => {
     )
   })
 
-  describe('enAttente (B3 — changement de forfait en cours ailleurs dans la fiche)', () => {
+  describe('enAttente (changement de forfait en cours ailleurs dans la fiche)', () => {
     it('enAttente = true : aucun appel d’aperçu, bouton inactif, texte « calcul »', async () => {
       render(<ProlongationForfait org={ORG_PRO} accessToken="jeton" onProlonge={vi.fn()} enAttente />)
       await new Promise((r) => setTimeout(r, 0))

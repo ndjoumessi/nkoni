@@ -58,7 +58,7 @@ function buildMock() {
         return { ...org, ...data }
       },
       // Écriture CONDITIONNELLE de la prolongation : ne s'applique que si l'échéance lue n'a pas bougé
-      // NI le forfait (A2 — une course avec un passage en GRATUIT ne doit jamais écraser l'effacement).
+      // NI le forfait (une course avec un passage en GRATUIT ne doit jamais écraser l'effacement).
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       updateMany: async ({ where, data }: any) => {
         const org = orgs.find((o) => o.id === where.id)
@@ -278,7 +278,7 @@ describe('Routes plateforme — /platform/* (SUPER_ADMIN)', () => {
       })
     })
 
-    it('repasser en GRATUIT : la trace CHANGER_FORFAIT montre l’échéance EFFACÉE (A3)', async () => {
+    it('repasser en GRATUIT : la trace CHANGER_FORFAIT montre l’échéance EFFACÉE', async () => {
       orgA().forfait = 'PRO'
       orgA().forfaitExpireLe = new Date('2030-01-01T22:59:59.999Z')
       const res = await app.inject({
@@ -316,7 +316,7 @@ describe('Routes plateforme — /platform/* (SUPER_ADMIN)', () => {
       expect(mock.platformAudits).toHaveLength(0)
     })
 
-    it('écriture : écrit EXACTEMENT la date annoncée par l’aperçu (A1), et journalise', async () => {
+    it('écriture : écrit EXACTEMENT la date annoncée par l’aperçu, et journalise', async () => {
       const apercu = (await prolonger({ mois: 12, apercu: true })).json()
       const res = await prolonger({
         mois: 12,
@@ -338,7 +338,7 @@ describe('Routes plateforme — /platform/* (SUPER_ADMIN)', () => {
       })
     })
 
-    it('echeanceAttendue périmée (≠ échéance relue) → 409, écriture NON appelée (A1)', async () => {
+    it('echeanceAttendue périmée (≠ échéance relue) → 409, écriture NON appelée', async () => {
       const apercu = (await prolonger({ mois: 1, apercu: true })).json()
       const res = await prolonger({
         mois: 1,
@@ -351,7 +351,7 @@ describe('Routes plateforme — /platform/* (SUPER_ADMIN)', () => {
       expect(mock.platformAudits).toHaveLength(0)
     })
 
-    it('nouvelleEcheanceAttendue différente de celle recalculée → 409, écriture NON appelée (A1)', async () => {
+    it('nouvelleEcheanceAttendue différente de celle recalculée → 409, écriture NON appelée', async () => {
       const apercu = (await prolonger({ mois: 1, apercu: true })).json()
       const res = await prolonger({
         mois: 1,
@@ -389,7 +389,7 @@ describe('Routes plateforme — /platform/* (SUPER_ADMIN)', () => {
       expect(updates).toHaveLength(0)
     })
 
-    it('échéance modifiée ENTRE la lecture et l’écriture (course DB, A2) → 409, rien d’écrit ni journalisé', async () => {
+    it('échéance modifiée ENTRE la lecture et l’écriture (course DB) → 409, rien d’écrit ni journalisé', async () => {
       const apercu = (await prolonger({ mois: 1, apercu: true })).json()
       mock.etat.forcerConflit = true
       const res = await prolonger({

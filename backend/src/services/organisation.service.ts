@@ -296,13 +296,13 @@ export type OptionsProlongation =
  * passent par la MÊME fonction `nouvelleEcheance` : la console montre exactement la date écrite.
  *
  * L'écriture est liée à l'APERÇU (pas seulement à une lecture faite quelques ms plus tôt dans la
- * MÊME requête, cf. défaut A1) : l'appelant hors aperçu DOIT fournir `echeanceAttendue` (l'échéance
+ * MÊME requête) : l'appelant hors aperçu DOIT fournir `echeanceAttendue` (l'échéance
  * qu'il a vue) et `nouvelleEcheanceAttendue` (la date qui lui a été annoncée). Si l'une des deux ne
  * correspond plus à ce que la lecture fraîche calcule ici — réponse perdue, second clic, deux
  * onglets, minuit Douala franchi entre l'aperçu et le clic — rien n'est écrit
  * (`ProlongationConcurrenteError`) : l'écriture valide ce que l'aperçu a MONTRÉ, elle ne se contente
  * pas de relire une date qui aurait pu changer entre-temps. L'`updateMany.where` porte en plus
- * `forfait: org.forfait` (A2) : un passage en GRATUIT (qui efface l'échéance) entre-temps ne doit
+ * `forfait: org.forfait` : un passage en GRATUIT (qui efface l'échéance) entre-temps ne doit
  * jamais se faire écraser par une prolongation qui le croit encore payant.
  */
 export async function prolongerForfaitOrganisation(

@@ -13,7 +13,7 @@ import { formatDateApp } from '@/lib/utils'
  * par le serveur. Rien sans échéance. Hors période « actif », explication + contact de renouvellement
  * (vente assistée : pas de paiement dans l'application).
  *
- * Front déployé AVANT le backend (B2) : une ancienne API ne renvoie pas encore ces champs
+ * Front déployé AVANT le backend : une ancienne API ne renvoie pas encore ces champs
  * (`undefined`, pas `null`) — `== null` couvre les deux, alors qu'un `=== null` strict aurait laissé
  * passer un affichage incohérent (état indéfini traité comme un état connu).
  */

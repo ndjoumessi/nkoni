@@ -69,7 +69,7 @@ export const platformApi = {
   /**
    * Prolonge l'échéance du forfait (SUPER_ADMIN). `apercu: true` → nouvelle date calculée SANS écriture
    * (la console affiche exactement ce que l'écriture produira). Hors aperçu, `attendu` est OBLIGATOIRE
-   * (imposé par le serveur, B1) : ce sont les valeurs `echeanceActuelle`/`nouvelleEcheance` que l'aperçu
+   * (imposé par le serveur) : ce sont les valeurs `echeanceActuelle`/`nouvelleEcheance` que l'aperçu
    * a montrées — l'écriture ne fait que les confirmer, elle ne relit rien de son côté. 409 si GRATUIT,
    * échéance modifiée depuis l'aperçu, ou valeurs attendues périmées.
    */

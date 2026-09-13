@@ -362,7 +362,7 @@ export const platformRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
               forfaitExpireLe: avant?.forfaitExpireLe?.toISOString() ?? null,
             },
             // Le passage en GRATUIT efface l'échéance (service) : la trace doit le montrer, sinon
-            // elle laisserait croire qu'une échéance résiduelle a survécu au changement (A3).
+            // elle laisserait croire qu'une échéance résiduelle a survécu au changement.
             donneesApres: {
               forfait: req.body.forfait,
               forfaitExpireLe: org.forfaitExpireLe?.toISOString() ?? null,
@@ -386,7 +386,7 @@ export const platformRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
   // POST /platform/organisations/:id/forfait/prolonger — prolonge l'échéance du forfait (spec 1.1
   // §3.1). `apercu` est OBLIGATOIRE : `true` calcule la nouvelle date SANS écrire (la console affiche
   // exactement ce que l'écriture produira, même fonction) ; `false` ÉCRIT, et l'écriture est liée à
-  // l'APERÇU (A1) — `echeanceAttendue`/`nouvelleEcheanceAttendue` DOIVENT porter les valeurs que
+  // l'APERÇU — `echeanceAttendue`/`nouvelleEcheanceAttendue` DOIVENT porter les valeurs que
   // l'aperçu a montrées (400 si absentes hors aperçu), et le service refuse d'écrire si une lecture
   // fraîche ne les retrouve plus (409, cf. service). 404 id inconnu ; 409 forfait GRATUIT (pas
   // d'échéance) ou écriture désynchronisée de l'aperçu.

@@ -57,13 +57,14 @@ function buildMock() {
         updates.push({ id: where.id, ...data })
         return { ...org, ...data }
       },
-      // Écriture CONDITIONNELLE de la prolongation : ne s'applique que si l'échéance lue n'a pas bougé.
+      // Écriture CONDITIONNELLE de la prolongation : ne s'applique que si l'échéance lue n'a pas bougé
+      // NI le forfait (A2 — une course avec un passage en GRATUIT ne doit jamais écraser l'effacement).
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       updateMany: async ({ where, data }: any) => {
         const org = orgs.find((o) => o.id === where.id)
         const lue = where.forfaitExpireLe === null ? null : where.forfaitExpireLe.getTime()
         const actuelle = org?.forfaitExpireLe ? org.forfaitExpireLe.getTime() : null
-        if (!org || etat.forcerConflit || lue !== actuelle) return { count: 0 }
+        if (!org || etat.forcerConflit || lue !== actuelle || where.forfait !== org.forfait) return { count: 0 }
         Object.assign(org, data)
         updates.push({ id: where.id, ...data })
         return { count: 1 }
@@ -276,6 +277,24 @@ describe('Routes plateforme — /platform/* (SUPER_ADMIN)', () => {
         etatForfait: 'SANS_ECHEANCE',
       })
     })
+
+    it('repasser en GRATUIT : la trace CHANGER_FORFAIT montre l’échéance EFFACÉE (A3)', async () => {
+      orgA().forfait = 'PRO'
+      orgA().forfaitExpireLe = new Date('2030-01-01T22:59:59.999Z')
+      const res = await app.inject({
+        method: 'PATCH',
+        url: '/platform/organisations/org-a/forfait',
+        headers: superAdmin(app),
+        payload: { forfait: 'GRATUIT' },
+      })
+      expect(res.statusCode).toBe(200)
+      expect(mock.platformAudits).toHaveLength(1)
+      expect(mock.platformAudits[0]).toMatchObject({
+        action: 'CHANGER_FORFAIT',
+        donneesAvant: { forfait: 'PRO', forfaitExpireLe: '2030-01-01T22:59:59.999Z' },
+        donneesApres: { forfait: 'GRATUIT', forfaitExpireLe: null },
+      })
+    })
   })
 
   describe('Prolongation — POST /platform/organisations/:id/forfait/prolonger', () => {
@@ -297,9 +316,14 @@ describe('Routes plateforme — /platform/* (SUPER_ADMIN)', () => {
       expect(mock.platformAudits).toHaveLength(0)
     })
 
-    it('écriture : écrit EXACTEMENT la date annoncée par l’aperçu, et journalise', async () => {
+    it('écriture : écrit EXACTEMENT la date annoncée par l’aperçu (A1), et journalise', async () => {
       const apercu = (await prolonger({ mois: 12, apercu: true })).json()
-      const res = await prolonger({ mois: 12 })
+      const res = await prolonger({
+        mois: 12,
+        apercu: false,
+        echeanceAttendue: apercu.echeanceActuelle,
+        nouvelleEcheanceAttendue: apercu.nouvelleEcheance,
+      })
       expect(res.statusCode).toBe(200)
       expect(res.json().nouvelleEcheance).toBe(apercu.nouvelleEcheance)
       expect(updates).toHaveLength(1)
@@ -314,32 +338,81 @@ describe('Routes plateforme — /platform/* (SUPER_ADMIN)', () => {
       })
     })
 
+    it('echeanceAttendue périmée (≠ échéance relue) → 409, écriture NON appelée (A1)', async () => {
+      const apercu = (await prolonger({ mois: 1, apercu: true })).json()
+      const res = await prolonger({
+        mois: 1,
+        apercu: false,
+        echeanceAttendue: '2020-01-01T00:00:00.000Z',
+        nouvelleEcheanceAttendue: apercu.nouvelleEcheance,
+      })
+      expect(res.statusCode).toBe(409)
+      expect(updates).toHaveLength(0)
+      expect(mock.platformAudits).toHaveLength(0)
+    })
+
+    it('nouvelleEcheanceAttendue différente de celle recalculée → 409, écriture NON appelée (A1)', async () => {
+      const apercu = (await prolonger({ mois: 1, apercu: true })).json()
+      const res = await prolonger({
+        mois: 1,
+        apercu: false,
+        echeanceAttendue: apercu.echeanceActuelle,
+        nouvelleEcheanceAttendue: '2099-01-01T00:00:00.000Z',
+      })
+      expect(res.statusCode).toBe(409)
+      expect(updates).toHaveLength(0)
+      expect(mock.platformAudits).toHaveLength(0)
+    })
+
+    it('apercu absent → 400 (schéma), écriture NON appelée', async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/platform/organisations/org-a/forfait/prolonger',
+        headers: superAdmin(app),
+        payload: { mois: 1 },
+      })
+      expect(res.statusCode).toBe(400)
+      expect(updates).toHaveLength(0)
+    })
+
+    it('apercu:false sans valeurs attendues → 400, écriture NON appelée', async () => {
+      const res = await prolonger({ mois: 1, apercu: false })
+      expect(res.statusCode).toBe(400)
+      expect(updates).toHaveLength(0)
+    })
+
     it('forfait GRATUIT → 409, rien d’écrit', async () => {
       const org = mock.orgs.find((o) => o.id === 'org-a')
       if (org) org.forfait = 'GRATUIT'
-      const res = await prolonger({ mois: 1 })
+      const res = await prolonger({ mois: 1, apercu: true })
       expect(res.statusCode).toBe(409)
       expect(updates).toHaveLength(0)
     })
 
-    it('échéance modifiée entre lecture et écriture → 409, rien d’écrit ni journalisé', async () => {
+    it('échéance modifiée ENTRE la lecture et l’écriture (course DB, A2) → 409, rien d’écrit ni journalisé', async () => {
+      const apercu = (await prolonger({ mois: 1, apercu: true })).json()
       mock.etat.forcerConflit = true
-      const res = await prolonger({ mois: 1 })
+      const res = await prolonger({
+        mois: 1,
+        apercu: false,
+        echeanceAttendue: apercu.echeanceActuelle,
+        nouvelleEcheanceAttendue: apercu.nouvelleEcheance,
+      })
       expect(res.statusCode).toBe(409)
       expect(updates).toHaveLength(0)
       expect(mock.platformAudits).toHaveLength(0)
     })
 
     it('organisation inconnue → 404', async () => {
-      expect((await prolonger({ mois: 1 }, 'org-inconnue')).statusCode).toBe(404)
+      expect((await prolonger({ mois: 1, apercu: true }, 'org-inconnue')).statusCode).toBe(404)
     })
 
     it('durée hors liste (2 mois) → 400', async () => {
-      expect((await prolonger({ mois: 2 })).statusCode).toBe(400)
+      expect((await prolonger({ mois: 2, apercu: true })).statusCode).toBe(400)
     })
 
     it('rôle tenant (ADMIN) → 403', async () => {
-      expect((await prolonger({ mois: 1 }, 'org-a', adminTenant(app))).statusCode).toBe(403)
+      expect((await prolonger({ mois: 1, apercu: true }, 'org-a', adminTenant(app))).statusCode).toBe(403)
     })
   })
 })

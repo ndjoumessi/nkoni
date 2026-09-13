@@ -69,6 +69,17 @@ describe('nouvelleEcheance', () => {
     expect(nouvelleEcheance(fin('2026-08-29'), NOW, 1)).toEqual(fin('2026-10-13'))
   })
 
+  it('exactement à J = -14 (dernier jour de grâce) : repart ENCORE de l’ancienne échéance', () => {
+    // Borne : JOURS_GRACE = 14, condition `joursRestants >= -JOURS_GRACE` — encore vraie à -14.
+    expect(joursRestants(fin('2026-08-30'), NOW)).toBe(-14)
+    expect(nouvelleEcheance(fin('2026-08-30'), NOW, 1)).toEqual(fin('2026-09-30'))
+  })
+
+  it('exactement à J = -15 (grâce expirée la veille) : repart d’aujourd’hui', () => {
+    expect(joursRestants(fin('2026-08-29'), NOW)).toBe(-15)
+    expect(nouvelleEcheance(fin('2026-08-29'), NOW, 1)).toEqual(fin('2026-10-13'))
+  })
+
   it("sans échéance : repart d'aujourd'hui", () => {
     expect(nouvelleEcheance(null, NOW, 12)).toEqual(fin('2027-09-13'))
   })

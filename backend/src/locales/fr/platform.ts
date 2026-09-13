@@ -15,4 +15,6 @@ export const messages = {
     "Le forfait Gratuit n'a pas d'échéance : attribuez d'abord un forfait Pro ou Entreprise.",
   'platform.prolongationConcurrente':
     "L'échéance de cette organisation vient d'être modifiée : rechargez la page puis relancez la prolongation.",
+  'platform.prolongationValeursAttenduesManquantes':
+    "Hors aperçu, l'écriture doit indiquer les valeurs annoncées par l'aperçu (échéance actuelle et nouvelle échéance).",
 } as const

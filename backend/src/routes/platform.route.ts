@@ -361,7 +361,12 @@ export const platformRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
               forfait: avant?.forfait ?? null,
               forfaitExpireLe: avant?.forfaitExpireLe?.toISOString() ?? null,
             },
-            donneesApres: { forfait: req.body.forfait },
+            // Le passage en GRATUIT efface l'échéance (service) : la trace doit le montrer, sinon
+            // elle laisserait croire qu'une échéance résiduelle a survécu au changement (A3).
+            donneesApres: {
+              forfait: req.body.forfait,
+              forfaitExpireLe: org.forfaitExpireLe?.toISOString() ?? null,
+            },
           })
           return org
         })
@@ -379,35 +384,65 @@ export const platformRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
   )
 
   // POST /platform/organisations/:id/forfait/prolonger — prolonge l'échéance du forfait (spec 1.1
-  // §3.1). `apercu: true` calcule la nouvelle date SANS écrire : la console affiche exactement ce que
-  // l'écriture produira (même fonction). 404 id inconnu ; 409 forfait GRATUIT (pas d'échéance) ou
-  // échéance modifiée entre la lecture et l'écriture (écriture conditionnelle, cf. service).
-  app.post<{ Params: { id: string }; Body: { mois: PeriodeProlongation; apercu?: boolean } }>(
+  // §3.1). `apercu` est OBLIGATOIRE : `true` calcule la nouvelle date SANS écrire (la console affiche
+  // exactement ce que l'écriture produira, même fonction) ; `false` ÉCRIT, et l'écriture est liée à
+  // l'APERÇU (A1) — `echeanceAttendue`/`nouvelleEcheanceAttendue` DOIVENT porter les valeurs que
+  // l'aperçu a montrées (400 si absentes hors aperçu), et le service refuse d'écrire si une lecture
+  // fraîche ne les retrouve plus (409, cf. service). 404 id inconnu ; 409 forfait GRATUIT (pas
+  // d'échéance) ou écriture désynchronisée de l'aperçu.
+  app.post<{
+    Params: { id: string }
+    Body: {
+      mois: PeriodeProlongation
+      apercu: boolean
+      echeanceAttendue?: string | null
+      nouvelleEcheanceAttendue?: string
+    }
+  }>(
     '/platform/organisations/:id/forfait/prolonger',
     {
       ...garde,
       schema: {
         body: {
           type: 'object',
-          required: ['mois'],
+          required: ['mois', 'apercu'],
           additionalProperties: false,
           properties: {
             mois: { type: 'integer', enum: [...PERIODES_PROLONGATION] },
             apercu: { type: 'boolean' },
+            echeanceAttendue: { type: ['string', 'null'], format: 'date-time' },
+            nouvelleEcheanceAttendue: { type: 'string', format: 'date-time' },
           },
         },
       },
     },
     async (req, reply) => {
       const langue = langueDeRequete(req)
-      const apercu = req.body.apercu === true
+      const apercu = req.body.apercu
+      // Hors aperçu, les DEUX valeurs attendues sont obligatoires (`echeanceAttendue` peut valoir
+      // `null`, mais doit être PRÉSENTE) : ajv ne peut pas exprimer un « requis seulement si
+      // apercu === false » aussi lisiblement qu'un contrôle explicite ici — et un contrôle explicite
+      // ne dépend pas d'un comportement ajv implicite (cf. piège `additionalProperties:false` qui
+      // SUPPRIME en silence plutôt que de rejeter, CLAUDE.md). Asserter l'EFFET (le mock d'écriture
+      // n'est pas appelé), pas seulement le code 400.
+      if (!apercu && (req.body.echeanceAttendue === undefined || req.body.nouvelleEcheanceAttendue === undefined)) {
+        return reply.code(400).send({
+          error: 'Bad Request',
+          message: t(langue, 'platform.prolongationValeursAttenduesManquantes'),
+        })
+      }
       try {
         // `runUnscoped` : flux plateforme sans contexte d'organisation (le journal lit `Utilisateur`,
         // modèle scopé) — lecture de l'échéance, écriture conditionnelle et trace dans UN seul appel.
         return await orgContext.runUnscoped(async () => {
-          const resultat = await prolongerForfaitOrganisation(app.prisma, req.params.id, req.body.mois, {
-            apercu,
-          })
+          const options: Parameters<typeof prolongerForfaitOrganisation>[3] = apercu
+            ? { apercu: true }
+            : {
+                apercu: false,
+                echeanceAttendue: req.body.echeanceAttendue ? new Date(req.body.echeanceAttendue) : null,
+                nouvelleEcheanceAttendue: new Date(req.body.nouvelleEcheanceAttendue as string),
+              }
+          const resultat = await prolongerForfaitOrganisation(app.prisma, req.params.id, req.body.mois, options)
           if (!apercu) {
             await journaliserBestEffort({
               acteurId: req.user.sub ?? '',

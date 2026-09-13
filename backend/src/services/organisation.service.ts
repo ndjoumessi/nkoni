@@ -286,17 +286,30 @@ export interface ResultatProlongation {
   joursRestantsApres: number
 }
 
+/** Options de {@link prolongerForfaitOrganisation} : l'écriture EXIGE les valeurs montrées par l'aperçu. */
+export type OptionsProlongation =
+  | { apercu: true; now?: Date }
+  | { apercu: false; echeanceAttendue: Date | null; nouvelleEcheanceAttendue: Date; now?: Date }
+
 /**
  * Calcule — et, hors aperçu, ÉCRIT — la nouvelle échéance d'un forfait payant. Aperçu et écriture
  * passent par la MÊME fonction `nouvelleEcheance` : la console montre exactement la date écrite.
- * L'écriture est CONDITIONNELLE à l'échéance lue : si une autre prolongation l'a modifiée entre-temps,
- * rien n'est écrit (`ProlongationConcurrenteError`) plutôt que d'écraser une durée déjà payée.
+ *
+ * L'écriture est liée à l'APERÇU (pas seulement à une lecture faite quelques ms plus tôt dans la
+ * MÊME requête, cf. défaut A1) : l'appelant hors aperçu DOIT fournir `echeanceAttendue` (l'échéance
+ * qu'il a vue) et `nouvelleEcheanceAttendue` (la date qui lui a été annoncée). Si l'une des deux ne
+ * correspond plus à ce que la lecture fraîche calcule ici — réponse perdue, second clic, deux
+ * onglets, minuit Douala franchi entre l'aperçu et le clic — rien n'est écrit
+ * (`ProlongationConcurrenteError`) : l'écriture valide ce que l'aperçu a MONTRÉ, elle ne se contente
+ * pas de relire une date qui aurait pu changer entre-temps. L'`updateMany.where` porte en plus
+ * `forfait: org.forfait` (A2) : un passage en GRATUIT (qui efface l'échéance) entre-temps ne doit
+ * jamais se faire écraser par une prolongation qui le croit encore payant.
  */
 export async function prolongerForfaitOrganisation(
   prisma: PlateformePrisma,
   id: string,
   mois: PeriodeProlongation,
-  options: { apercu: boolean; now?: Date },
+  options: OptionsProlongation,
 ): Promise<ResultatProlongation> {
   const now = options.now ?? new Date()
   const org = await prisma.organisation.findUnique({
@@ -317,8 +330,16 @@ export async function prolongerForfaitOrganisation(
   })
   if (options.apercu) return resultat(org)
 
+  // AVANT d'écrire : l'échéance lue ou la nouvelle échéance calculée diffèrent-elles de ce que
+  // l'aperçu a montré à l'opérateur ? Comparaison en ms, null-safe (deux `null` sont égaux).
+  const attenduMs = options.echeanceAttendue?.getTime() ?? null
+  const actuelleMs = echeanceActuelle?.getTime() ?? null
+  if (attenduMs !== actuelleMs || options.nouvelleEcheanceAttendue.getTime() !== echeance.getTime()) {
+    throw new ProlongationConcurrenteError(id)
+  }
+
   const { count } = await prisma.organisation.updateMany({
-    where: { id, forfaitExpireLe: echeanceActuelle },
+    where: { id, forfait: org.forfait, forfaitExpireLe: echeanceActuelle },
     data: { forfaitExpireLe: echeance },
   })
   if (count !== 1) throw new ProlongationConcurrenteError(id)

@@ -33,3 +33,13 @@ export const CAPACITES_FORFAIT: Readonly<Record<Forfait, Readonly<CapacitesForfa
 export function limiteMembresForfait(forfait: Forfait): number | null {
   return CAPACITES_FORFAIT[forfait]?.limiteMembres ?? null
 }
+
+/**
+ * État de l'échéance d'un forfait (spec 1.1 §2.3) — TYPE seulement : la valeur est CALCULÉE par le
+ * serveur et affichée telle quelle, jamais recalculée ici (un miroir de logique dériverait sans garde).
+ */
+export type EtatForfait = 'SANS_ECHEANCE' | 'ACTIF' | 'ECHEANCE_PROCHE' | 'GRACE' | 'EXPIRE'
+
+/** Durées de prolongation proposées (le serveur les valide : toute autre valeur → 400). */
+export const PERIODES_PROLONGATION = [1, 3, 6, 12] as const
+export type PeriodeProlongation = (typeof PERIODES_PROLONGATION)[number]

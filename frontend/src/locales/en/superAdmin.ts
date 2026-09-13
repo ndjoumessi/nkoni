@@ -46,6 +46,7 @@ export default {
       },
       actions: {
         CHANGER_FORFAIT: 'Plan changed',
+        PROLONGER_FORFAIT: 'Plan extended',
         SUSPENDRE: 'Suspension',
         REACTIVER: 'Reactivation',
         PURGER: 'Permanent deletion',

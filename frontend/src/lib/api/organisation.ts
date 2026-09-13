@@ -1,11 +1,12 @@
 import type { Forfait } from '@/lib/forfait'
+import type { EcheanceForfait } from './platform'
 import { API_URL, leverSiErreur, request } from './core'
 
 /**
  * Paramètres de l'organisation COURANTE (§5) — vue lecture seule (nom/devise/langue immuables)
  * + volume de membres face à la limite du forfait gratuit. Accessible au bureau (pas MEMBRE_SIMPLE).
  */
-export interface OrganisationCourante {
+export interface OrganisationCourante extends EcheanceForfait {
   id: string
   nom: string
   devise: 'FCFA' | 'EUR' | 'USD' | 'CAD'

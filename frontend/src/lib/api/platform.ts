@@ -1,11 +1,23 @@
-import type { Forfait } from '@/lib/forfait'
+import type { EtatForfait, Forfait, PeriodeProlongation } from '@/lib/forfait'
 import { request } from './core'
 
 /**
  * Rôle plateforme SUPER_ADMIN (SaaS §2.3) — vue d'une organisation cliente.
  * Aucune donnée métier : uniquement statut, date de création et volume (nb membres).
  */
-export interface PlatformOrganisation {
+/** Champs d'échéance CALCULÉS par le serveur (spec 1.1 §2.3) — dates ISO. */
+export interface EcheanceForfait {
+  forfaitExpireLe: string | null
+  etatForfait: EtatForfait
+  /** `null` si `SANS_ECHEANCE`. */
+  joursRestants: number | null
+  /** Fin de la période de grâce ; `null` si `SANS_ECHEANCE`. */
+  finGraceLe: string | null
+  /** Forfait dont les capacités s'appliquent (GRATUIT après la grâce). */
+  forfaitEffectif: Forfait
+}
+
+export interface PlatformOrganisation extends EcheanceForfait {
   id: string
   nom: string
   devise: 'FCFA' | 'EUR' | 'USD' | 'CAD'
@@ -18,6 +30,15 @@ export interface PlatformOrganisation {
 
 /** Réponse des mutations de statut (organisation renvoyée sans le compteur de membres). */
 type OrganisationStatut = Omit<PlatformOrganisation, 'nbMembres'>
+
+/** Réponse de la prolongation (aperçu ou écriture) — POST /platform/organisations/:id/forfait/prolonger. */
+export interface ApercuProlongation {
+  organisation: OrganisationStatut
+  echeanceActuelle: string | null
+  nouvelleEcheance: string
+  etatApres: EtatForfait
+  joursRestantsApres: number
+}
 
 export const platformApi = {
   listOrganisations: (accessToken: string, signal?: AbortSignal) =>
@@ -41,6 +62,16 @@ export const platformApi = {
       method: 'PATCH',
       accessToken,
       json: { forfait },
+    }),
+  /**
+   * Prolonge l'échéance du forfait (SUPER_ADMIN). `apercu: true` → nouvelle date calculée SANS écriture
+   * (la console affiche exactement ce que l'écriture produira). 409 si GRATUIT ou échéance modifiée.
+   */
+  prolongerForfait: (id: string, mois: PeriodeProlongation, apercu: boolean, accessToken: string) =>
+    request<ApercuProlongation>(`/platform/organisations/${id}/forfait/prolonger`, {
+      method: 'POST',
+      accessToken,
+      json: { mois, apercu },
     }),
   /**
    * Export COMPLET des données d'une organisation (bloquant GA 0.3). Lecture seule et idempotent.
@@ -79,7 +110,13 @@ export const platformApi = {
 }
 
 /** Actions plateforme journalisées (miroir de l'enum Prisma `ActionPlateforme`). */
-export type ActionPlateforme = 'CHANGER_FORFAIT' | 'SUSPENDRE' | 'REACTIVER' | 'PURGER' | 'EXPORTER'
+export type ActionPlateforme =
+  | 'CHANGER_FORFAIT'
+  | 'PROLONGER_FORFAIT'
+  | 'SUSPENDRE'
+  | 'REACTIVER'
+  | 'PURGER'
+  | 'EXPORTER'
 
 /** Une entrée du journal d'audit plateforme (SUPER_ADMIN). Snapshots figés à l'action. */
 export interface PlatformAuditEntry {

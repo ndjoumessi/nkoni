@@ -10,7 +10,7 @@ import {
   type ActionPlateforme,
 } from '@/lib/api'
 import { cleI18n } from '@/lib/i18n'
-import { formatDateHeure, cn } from '@/lib/utils'
+import { formatDate, formatDateHeure, cn } from '@/lib/utils'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { NkoniMark } from '@/components/ui/NkoniMark'
 import { Badge, type BadgeProps } from '@/components/ui/Badge'
@@ -21,11 +21,19 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { ErrorState } from '@/components/ui/ErrorState'
 import { RowsSkeleton } from '@/components/ui/Skeleton'
 
-const ACTIONS: ActionPlateforme[] = ['CHANGER_FORFAIT', 'SUSPENDRE', 'REACTIVER', 'PURGER', 'EXPORTER']
+const ACTIONS: ActionPlateforme[] = [
+  'CHANGER_FORFAIT',
+  'PROLONGER_FORFAIT',
+  'SUSPENDRE',
+  'REACTIVER',
+  'PURGER',
+  'EXPORTER',
+]
 
 /** Teinte de badge par action (jetons du design system). */
 const TON_ACTION: Record<ActionPlateforme, BadgeProps['tone']> = {
   CHANGER_FORFAIT: 'brass',
+  PROLONGER_FORFAIT: 'jade',
   SUSPENDRE: 'terra',
   REACTIVER: 'jade',
   PURGER: 'terra',
@@ -39,6 +47,8 @@ function resumeDetails(e: PlatformAuditEntry): string {
   switch (e.action) {
     case 'CHANGER_FORFAIT':
       return `${String(av.forfait ?? '—')} → ${String(ap.forfait ?? '—')}`
+    case 'PROLONGER_FORFAIT':
+      return `${typeof av.forfaitExpireLe === 'string' ? formatDate(av.forfaitExpireLe) : '—'} → ${typeof ap.forfaitExpireLe === 'string' ? formatDate(ap.forfaitExpireLe) : '—'}`
     case 'SUSPENDRE':
       return 'actif → suspendu'
     case 'REACTIVER':

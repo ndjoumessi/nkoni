@@ -46,6 +46,7 @@ export default {
       },
       actions: {
         CHANGER_FORFAIT: 'Forfait modifié',
+        PROLONGER_FORFAIT: 'Forfait prolongé',
         SUSPENDRE: 'Suspension',
         REACTIVER: 'Réactivation',
         PURGER: 'Suppression définitive',

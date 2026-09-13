@@ -224,30 +224,31 @@ export async function creerNotification(
   })
 }
 
-/** Liste les notifications d'un utilisateur (les plus récentes d'abord). */
+/** Liste les notifications d'un utilisateur (les plus récentes d'abord), hors écartées. */
 export async function listerNotifications(
   prisma: NotificationPrisma,
   destinataireId: string,
 ): Promise<unknown[]> {
   return prisma.notification.findMany({
-    where: { destinataireId },
+    where: { destinataireId, masqueeLe: null },
     orderBy: { dateCreation: 'desc' },
   })
 }
 
-/** Nombre de notifications non lues d'un utilisateur (pour le badge). */
+/** Nombre de notifications non lues d'un utilisateur (pour le badge), hors écartées. */
 export async function compterNonLues(
   prisma: NotificationPrisma,
   destinataireId: string,
 ): Promise<number> {
-  return prisma.notification.count({ where: { destinataireId, lu: false } })
+  return prisma.notification.count({ where: { destinataireId, lu: false, masqueeLe: null } })
 }
 
 /**
- * Marque UNE notification comme lue — uniquement si elle appartient au demandeur.
- * On filtre par (id, destinataireId) dans un updateMany : si count === 0, la notif
- * n'existe pas OU n'est pas la sienne → NotificationIntrouvableError (route → 404, sans
- * révéler l'existence d'une notif d'autrui). Aucune lecture préalable = aucune fuite.
+ * Marque UNE notification comme lue — uniquement si elle appartient au demandeur ET n'est pas
+ * écartée (une notification masquée est « introuvable » pour son destinataire, comme une
+ * notification d'autrui). On filtre par (id, destinataireId, masqueeLe: null) dans un
+ * updateMany : si count === 0 → NotificationIntrouvableError (route → 404, sans révéler
+ * l'existence d'une notif d'autrui ou déjà écartée). Aucune lecture préalable = aucune fuite.
  */
 export async function marquerCommeLue(
   prisma: NotificationPrisma,
@@ -256,27 +257,44 @@ export async function marquerCommeLue(
   now: Date = new Date(),
 ): Promise<void> {
   const { count } = await prisma.notification.updateMany({
-    where: { id, destinataireId },
+    where: { id, destinataireId, masqueeLe: null },
     data: { lu: true, dateLecture: now },
   })
   if (count === 0) throw new NotificationIntrouvableError(id)
 }
 
 /**
- * Supprime (écarte) UNE notification — uniquement si elle appartient au demandeur. Même garde
- * que `marquerCommeLue` : `deleteMany` filtré par (id, destinataireId), `count === 0` →
- * NotificationIntrouvableError (route → 404, sans révéler l'existence d'une notif d'autrui).
+ * Écarte (suppression LOGIQUE) UNE notification — uniquement si elle appartient au demandeur
+ * et n'est pas déjà écartée. Même garde que `marquerCommeLue` : `updateMany` filtré par
+ * (id, destinataireId, masqueeLe: null), `count === 0` → NotificationIntrouvableError (route →
+ * 404, sans révéler l'existence d'une notif d'autrui ni qu'elle était déjà écartée).
+ *
+ * F1 : la ligne SURVIT (on pose `masqueeLe`, on ne `deleteMany` plus) — c'est elle qui porte la
+ * trace de dédoublonnage des relances de forfait (`forfait-relances.service.ts`) et des rappels
+ * de réunion (`notification-scheduler.ts`), tous deux basés sur un `findFirst` par
+ * (destinataireId, type, entiteType, entiteId) qui NE filtre PAS `masqueeLe` : écarter une
+ * notification ne doit pas la « réarmer » à la prochaine tâche de nuit. On ne touche QUE
+ * `masqueeLe` et `lu` — pas `dateLecture` si déjà renseignée (champ informatif, on accepte
+ * l'écrasement par la date d'écartement plutôt que la complexité d'un updateMany conditionnel).
  */
 export async function supprimerNotification(
   prisma: NotificationPrisma,
   id: string,
   destinataireId: string,
+  now: Date = new Date(),
 ): Promise<void> {
-  const { count } = await prisma.notification.deleteMany({ where: { id, destinataireId } })
+  const { count } = await prisma.notification.updateMany({
+    where: { id, destinataireId, masqueeLe: null },
+    data: { masqueeLe: now, lu: true, dateLecture: now },
+  })
   if (count === 0) throw new NotificationIntrouvableError(id)
 }
 
-/** Marque toutes les non-lues d'un utilisateur comme lues. Retourne le nombre affecté. */
+/**
+ * Marque toutes les non-lues d'un utilisateur comme lues. Retourne le nombre affecté.
+ * Pas de filtre `masqueeLe` nécessaire : une notification écartée est déjà `lu: true`
+ * (posé par `supprimerNotification`), donc absente de `lu: false` — vérifié par les tests.
+ */
 export async function marquerToutesCommeLues(
   prisma: NotificationPrisma,
   destinataireId: string,

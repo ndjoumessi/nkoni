@@ -65,7 +65,8 @@ const preferencesSchema = {
  *   GET   /notifications/compteur → { nonLues } (badge)
  *   PATCH /notifications/tout-lu  → marque toutes ses non-lues comme lues → { count }
  *   PATCH /notifications/:id/lu   → marque UNE des siennes comme lue (404 si pas la sienne)
- *   DELETE /notifications/:id     → supprime UNE des siennes (404 si pas la sienne)
+ *   DELETE /notifications/:id     → écarte (suppression logique) UNE des siennes (404 si pas
+ *                                    la sienne ou déjà écartée)
  */
 export const notificationsRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
   app.get('/notifications', { preHandler: [authenticate] }, async (req) => {

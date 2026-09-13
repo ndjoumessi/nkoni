@@ -395,7 +395,10 @@ export function demarrerScheduler(app: FastifyInstance): void {
           )
         })
         .catch((err) => {
-          app.log.error({ err }, 'Tâches de nuit (retards + rappels de réunion) échouées')
+          app.log.error(
+            { err },
+            'Tâches de nuit (retards + rappels de réunion + relances de forfait) échouées',
+          )
           // Observabilité (0.1) : un scheduler qui échoue est SILENCIEUX par nature — personne
           // n'attend sa sortie, et un `log.error` à 03:00 dans Railway ne réveille personne. Il
           // pourrait échouer toutes les nuits sans que quiconque le remarque, les relances de

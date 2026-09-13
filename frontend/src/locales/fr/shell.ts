@@ -2,6 +2,14 @@
 export default {
   shell: {
     organisation: 'Organisation',
+    // Bandeau d'échéance du forfait (spec 1.1 §4.4) — ADMIN/PRESIDENT seulement.
+    bandeauForfait: {
+      proche: 'Votre forfait {{forfait}} arrive à échéance le {{date}}.',
+      grace: "Forfait {{forfait}} expiré le {{date}} : ses fonctionnalités restent actives jusqu'au {{fin}}.",
+      expire: "Forfait {{forfait}} expiré : ses fonctionnalités sont suspendues, rien n'est perdu.",
+      voir: 'Voir le forfait',
+      fermer: 'Masquer ce message',
+    },
     nav: {
       ariaPrincipale: 'Navigation principale',
       titre: 'Navigation',

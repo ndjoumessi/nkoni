@@ -38,6 +38,7 @@ export const ROLES_RELANCE_FORFAIT = ['ADMIN', 'PRESIDENT'] as const
 
 export interface OrganisationRelance {
   id: string
+  nom: string
   forfait: Forfait
   forfaitExpireLe: Date | null
 }
@@ -100,9 +101,10 @@ function rediger(
 ): { titre: string; message: string } {
   const vue = vueEcheance(org.forfait, org.forfaitExpireLe, now)
   return {
-    titre: t(langue, 'notifications.forfaitEcheance.titre'),
+    titre: t(langue, 'notifications.forfaitEcheance.titre', { organisation: org.nom }),
     message: t(langue, CLE_MESSAGE[etape], {
       forfait: t(langue, CLE_NOM_FORFAIT[org.forfait]),
+      organisation: org.nom,
       date: formatDateApp(org.forfaitExpireLe, langue),
       jours: vue.joursRestants ?? 0,
       fin: vue.finGraceLe ? formatDateApp(vue.finGraceLe, langue) : '',
@@ -173,7 +175,7 @@ export async function executerRelancesForfaitToutesOrgs(
 ): Promise<RelancesForfaitResult[]> {
   const orgs = await prisma.organisation.findMany({
     where: { actif: true, forfait: { not: 'GRATUIT' }, forfaitExpireLe: { not: null } },
-    select: { id: true, forfait: true, forfaitExpireLe: true },
+    select: { id: true, nom: true, forfait: true, forfaitExpireLe: true },
   })
   const resultats: RelancesForfaitResult[] = []
   for (const org of orgs) {

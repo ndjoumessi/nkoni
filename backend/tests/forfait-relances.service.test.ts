@@ -59,7 +59,12 @@ function mock(options: { notifs?: any[]; organisations?: any[] } = {}) {
   return { prisma, notifs, appels }
 }
 
-const ORG = (expireLe: Date | null, forfait = 'PRO') => ({ id: 'org-1', forfait, forfaitExpireLe: expireLe })
+const ORG = (expireLe: Date | null, forfait = 'PRO') => ({
+  id: 'org-1',
+  nom: 'Tontine des Amis',
+  forfait,
+  forfaitExpireLe: expireLe,
+})
 
 describe('executerRelancesForfait', () => {
   it('J-7 : notifie les seuls ADMIN et PRESIDENT actifs, dans leur langue, et prépare push + e-mail', async () => {
@@ -76,8 +81,11 @@ describe('executerRelancesForfait', () => {
     const fr = notifs.find((n) => n.destinataireId === 'u-admin')
     expect(fr.message).toContain('20 septembre 2026')
     expect(fr.message).toContain('Pro')
+    expect(fr.message).toContain('Tontine des Amis') // F3 : nom de l'organisation dans le message
+    expect(fr.titre).toContain('Tontine des Amis') // F3 : et dans le titre (repris comme sujet e-mail)
     const en = notifs.find((n) => n.destinataireId === 'u-pres')
     expect(en.message).toContain('September 20, 2026')
+    expect(en.message).toContain('Tontine des Amis')
 
     expect(r.aPousser.map((p) => p.destinataireId).sort()).toEqual(['u-admin', 'u-pres'])
     expect(r.aEnvoyer.map((e) => e.email).sort()).toEqual(['admin@exemple.test', 'pres@exemple.test'])
@@ -96,6 +104,23 @@ describe('executerRelancesForfait', () => {
     expect(r.aPousser).toEqual([])
     expect(r.aEnvoyer).toEqual([])
     expect(notifs).toHaveLength(2)
+  })
+
+  it('notification écartée (masquée) entre deux nuits → la 2e nuit ne recrée rien (F1)', async () => {
+    // Un ADMIN écarte (masque) sa notification de relance dans la journée — reproduit ici en
+    // posant `masqueeLe` sur les lignes créées la 1ʳᵉ nuit, comme le ferait `supprimerNotification`.
+    // Le `where` du dédoublonnage (destinataireId/type/entiteType/entiteId) NE filtre PAS
+    // `masqueeLe` : la ligne masquée doit rester visible du `findFirst` et empêcher toute recréation.
+    const { prisma, notifs } = mock()
+    await executerRelancesForfait(prisma, ORG(fin('2026-09-20')) as any, NOW)
+    expect(notifs).toHaveLength(2)
+    for (const n of notifs) n.masqueeLe = new Date('2026-09-13T12:00:00Z')
+
+    const r = await executerRelancesForfait(prisma, ORG(fin('2026-09-20')) as any, new Date('2026-09-14T10:00:00Z'))
+    expect(r.notifies).toBe(0)
+    expect(r.aPousser).toEqual([])
+    expect(r.aEnvoyer).toEqual([])
+    expect(notifs).toHaveLength(2) // aucune ligne recréée
   })
 
   it('nuit(s) manquée(s) : seule l’étape la plus récente part, pas de rattrapage', async () => {
@@ -140,8 +165,8 @@ describe('executerRelancesForfait', () => {
 describe('executerRelancesForfaitToutesOrgs', () => {
   it('lit les organisations actives payantes avec échéance, et traite chacune DANS son contexte', async () => {
     const orgs = [
-      { id: 'org-a', forfait: 'PRO', forfaitExpireLe: fin('2026-09-20') },
-      { id: 'org-b', forfait: 'ENTREPRISE', forfaitExpireLe: fin('2026-09-12') },
+      { id: 'org-a', nom: 'Association A', forfait: 'PRO', forfaitExpireLe: fin('2026-09-20') },
+      { id: 'org-b', nom: 'Association B', forfait: 'ENTREPRISE', forfaitExpireLe: fin('2026-09-12') },
     ]
     const { prisma, appels } = mock({ organisations: orgs })
     let whereOrgs: any

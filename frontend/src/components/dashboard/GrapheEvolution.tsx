@@ -502,30 +502,35 @@ export function GrapheEvolution({
             <CorpsBarres points={points} monte={monte} />
           )}
 
-          {/* Équivalent chiffré accessible (lecteurs d'écran). */}
-          <table className="sr-only">
-            <caption>{titre}</caption>
-            <thead>
-              <tr>
-                <th scope="col">{labelColonne}</th>
-                <th scope="col">{legendeCollecte}</th>
-                <th scope="col">{legendeAttendu}</th>
-                {montreN1 && <th scope="col">{legendeN1}</th>}
-                {avecTaux && <th scope="col">%</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {points.map((p) => (
-                <tr key={p.cle}>
-                  <th scope="row">{p.label}</th>
-                  <td>{formatMontant(p.collecte)}</td>
-                  <td>{formatMontant(p.attendu)}</td>
-                  {montreN1 && <td>{formatMontant(p.collecteN1 ?? 0)}</td>}
-                  {avecTaux && <td>{p.taux !== undefined ? formatPourcent(p.taux) : ''}</td>}
+          {/* Équivalent chiffré accessible (lecteurs d'écran). `sr-only` est posé sur un DIV, pas sur la
+              table : une <table> ignore `width: 1px` et `overflow: hidden` (elle s'étale sur son contenu
+              en `white-space: nowrap`) et élargissait la page en mobile — tableau de bord à 532 px pour
+              un écran de 360. Le div, lui, se laisse réduire et rogner. */}
+          <div className="sr-only">
+            <table>
+              <caption>{titre}</caption>
+              <thead>
+                <tr>
+                  <th scope="col">{labelColonne}</th>
+                  <th scope="col">{legendeCollecte}</th>
+                  <th scope="col">{legendeAttendu}</th>
+                  {montreN1 && <th scope="col">{legendeN1}</th>}
+                  {avecTaux && <th scope="col">%</th>}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {points.map((p) => (
+                  <tr key={p.cle}>
+                    <th scope="row">{p.label}</th>
+                    <td>{formatMontant(p.collecte)}</td>
+                    <td>{formatMontant(p.attendu)}</td>
+                    {montreN1 && <td>{formatMontant(p.collecteN1 ?? 0)}</td>}
+                    {avecTaux && <td>{p.taux !== undefined ? formatPourcent(p.taux) : ''}</td>}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </Card>

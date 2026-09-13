@@ -40,6 +40,11 @@ describe('GrapheEvolution (partagé)', () => {
       expect(lignes).toHaveLength(3)
       expect(within(table).getByRole('rowheader', { name: 'janv.' })).toBeTruthy()
       expect(table.textContent).toContain('60') // taux présent → colonne %
+
+      // Masquage visuel porté par un CONTENEUR, jamais par la table : une <table> ignore la largeur de
+      // 1 px et l'`overflow: hidden` de `sr-only` et élargissait la page en mobile (532 px pour 360).
+      expect(table.classList.contains('sr-only')).toBe(false)
+      expect(table.parentElement?.classList.contains('sr-only')).toBe(true)
     })
   }
 

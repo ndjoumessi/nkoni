@@ -1006,6 +1006,7 @@ enum TypeNotification {
   VERSEMENT_RECU
   COTISATION_RETARD
   REUNION_RAPPEL
+  FORFAIT_ECHEANCE // avis de service (spec 1.1 §4.1) — NON désactivable
 }
 
 model Notification {

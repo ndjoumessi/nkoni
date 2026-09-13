@@ -19,17 +19,35 @@ import {
   type PushObservabilite,
 } from './push.service'
 
-export type TypeNotification = 'VERSEMENT_RECU' | 'COTISATION_RETARD' | 'REUNION_RAPPEL'
+export type TypeNotification =
+  | 'VERSEMENT_RECU'
+  | 'COTISATION_RETARD'
+  | 'REUNION_RAPPEL'
+  | 'FORFAIT_ECHEANCE'
 
-/** Tous les types de notification (source unique pour les préférences). */
-export const TYPES_NOTIFICATION: TypeNotification[] = [
+/**
+ * Avis de SERVICE, jamais désactivables (spec 1.1 §4.1) : l'échéance du forfait concerne la continuité
+ * du service de toute l'organisation, pas une préférence de confort. Absents de `TYPES_NOTIFICATION`,
+ * donc absents du schéma ajv de PATCH /notifications/preferences (une clé inconnue y est SUPPRIMÉE en
+ * silence). Parité avec l'enum Postgres : `tests/types-notification-parity.test.ts`.
+ */
+export const TYPES_NOTIFICATION_NON_DESACTIVABLES = ['FORFAIT_ECHEANCE'] as const
+
+/** Types que l'utilisateur peut désactiver. */
+export type TypeNotificationDesactivable = Exclude<
+  TypeNotification,
+  (typeof TYPES_NOTIFICATION_NON_DESACTIVABLES)[number]
+>
+
+/** Types DÉSACTIVABLES (source unique pour les préférences). */
+export const TYPES_NOTIFICATION: TypeNotificationDesactivable[] = [
   'VERSEMENT_RECU',
   'COTISATION_RETARD',
   'REUNION_RAPPEL',
 ]
 
-/** Préférences normalisées : un booléen par type (true = activé). */
-export type PreferencesNotification = Record<TypeNotification, boolean>
+/** Préférences normalisées : un booléen par type désactivable (true = activé). */
+export type PreferencesNotification = Record<TypeNotificationDesactivable, boolean>
 
 /** Levée quand la notification cible n'existe pas OU n'appartient pas au demandeur. */
 export class NotificationIntrouvableError extends Error {
@@ -87,7 +105,7 @@ export interface NotificationPrisma {
  * Un type est-il actif d'après le blob de préférences brut ? Fonction PURE.
  * Défaut = activé : seul `{ "TYPE": false }` explicite désactive (null / clé absente = ON).
  */
-export function typeActif(notificationsActives: unknown, type: TypeNotification): boolean {
+export function typeActif(notificationsActives: unknown, type: TypeNotificationDesactivable): boolean {
   if (notificationsActives && typeof notificationsActives === 'object') {
     return (notificationsActives as Record<string, unknown>)[type] !== false
   }
@@ -176,7 +194,7 @@ export async function resoudreDeviseDestinataire(
 export async function estTypeActifPour(
   prisma: NotificationPrisma,
   utilisateurId: string,
-  type: TypeNotification,
+  type: TypeNotificationDesactivable,
 ): Promise<boolean> {
   const u = await prisma.utilisateur.findUnique({
     where: { id: utilisateurId },

@@ -2,10 +2,9 @@ import type { EtatForfait, Forfait, PeriodeProlongation } from '@/lib/forfait'
 import { request } from './core'
 
 /**
- * Rôle plateforme SUPER_ADMIN (SaaS §2.3) — vue d'une organisation cliente.
- * Aucune donnée métier : uniquement statut, date de création et volume (nb membres).
+ * Champs d'échéance CALCULÉS par le serveur (spec 1.1 §2.3) — dates ISO, fins de journée à Douala :
+ * les afficher avec `formatDateApp`, jamais `formatDate` (fuseau du poste → décalage d'un jour).
  */
-/** Champs d'échéance CALCULÉS par le serveur (spec 1.1 §2.3) — dates ISO. */
 export interface EcheanceForfait {
   forfaitExpireLe: string | null
   etatForfait: EtatForfait
@@ -17,6 +16,10 @@ export interface EcheanceForfait {
   forfaitEffectif: Forfait
 }
 
+/**
+ * Rôle plateforme SUPER_ADMIN (SaaS §2.3) — vue d'une organisation cliente.
+ * Aucune donnée métier : uniquement statut, date de création et volume (nb membres).
+ */
 export interface PlatformOrganisation extends EcheanceForfait {
   id: string
   nom: string

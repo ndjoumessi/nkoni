@@ -1,6 +1,7 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 import i18n from "@/lib/i18n"
+import { FUSEAU_APP } from "@/lib/date-app"
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -25,6 +26,19 @@ export function formatDate(
   if (!iso) return '—'
   const d = new Date(iso)
   return Number.isNaN(d.getTime()) ? '—' : d.toLocaleDateString(locale(), options)
+}
+
+/**
+ * Formate une ÉCHÉANCE — instant de fin de journée à Douala (ex. `forfaitExpireLe`, `finGraceLe`) —
+ * dans le fuseau APPLICATIF. `formatDate` lit le fuseau du POSTE : 23:59:59 à Douala = 00:59 le
+ * LENDEMAIN à Paris l'été, la diaspora lirait une date de fin décalée d'un jour. À réserver aux
+ * dates produites par le serveur en fin de journée applicative, pas aux dates saisies.
+ */
+export function formatDateApp(
+  iso: string | null | undefined,
+  options: Intl.DateTimeFormatOptions = DATE_LONGUE,
+): string {
+  return formatDate(iso, { ...options, timeZone: FUSEAU_APP })
 }
 
 /** Formate une date+heure ISO selon la langue courante (medium/short). Repli sur `—`. */

@@ -10,7 +10,7 @@ import {
   type ActionPlateforme,
 } from '@/lib/api'
 import { cleI18n } from '@/lib/i18n'
-import { formatDate, formatDateHeure, cn } from '@/lib/utils'
+import { formatDateApp, formatDateHeure, cn } from '@/lib/utils'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { NkoniMark } from '@/components/ui/NkoniMark'
 import { Badge, type BadgeProps } from '@/components/ui/Badge'
@@ -48,7 +48,7 @@ function resumeDetails(e: PlatformAuditEntry): string {
     case 'CHANGER_FORFAIT':
       return `${String(av.forfait ?? '—')} → ${String(ap.forfait ?? '—')}`
     case 'PROLONGER_FORFAIT':
-      return `${typeof av.forfaitExpireLe === 'string' ? formatDate(av.forfaitExpireLe) : '—'} → ${typeof ap.forfaitExpireLe === 'string' ? formatDate(ap.forfaitExpireLe) : '—'}`
+      return `${typeof av.forfaitExpireLe === 'string' ? formatDateApp(av.forfaitExpireLe) : '—'} → ${typeof ap.forfaitExpireLe === 'string' ? formatDateApp(ap.forfaitExpireLe) : '—'}`
     case 'SUSPENDRE':
       return 'actif → suspendu'
     case 'REACTIVER':

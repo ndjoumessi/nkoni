@@ -79,6 +79,8 @@ export default {
       pressionQuota: 'Proches du plafond',
       pressionQuotaHint: 'quota membres ≥ 80 %',
       pressionQuotaFiltre: 'Cliquer pour filtrer les espaces concernés',
+      aRelancer: 'À relancer',
+      aRelancerFiltre: 'Échéance proche, en grâce ou expirée — cliquer pour filtrer',
     },
     filtres: {
       rechercheLabel: 'Rechercher',
@@ -92,6 +94,8 @@ export default {
       forfaitTous: 'Tous',
       quotaActif: 'Quota ≥ 80 %',
       quotaRetirer: 'Retirer le filtre de quota',
+      relanceActif: 'À relancer',
+      relanceRetirer: 'Retirer le filtre « à relancer »',
     },
     repartition: {
       titre: 'Répartition des forfaits',
@@ -105,6 +109,7 @@ export default {
       devise: 'Devise',
       langue: 'Langue',
       identifiant: 'Identifiant',
+      echeance: 'Échéance',
     },
     detail: {
       forfait: 'Forfait',
@@ -129,6 +134,7 @@ export default {
       quotaAria: 'Quota du forfait : {{n}} sur {{max}} membres',
       quotaProche: 'Proche du plafond du forfait',
       quotaAtteint: 'Plafond du forfait atteint',
+      echeance: 'Échéance',
     },
     vide: {
       titre: 'Aucune organisation',

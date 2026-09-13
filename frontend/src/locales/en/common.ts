@@ -3,6 +3,15 @@ export default {
   commun: {
     langue: { fr: 'Français', en: 'English', selecteur: 'Choose language' },
     forfaits: { GRATUIT: 'Free', PRO: 'Pro', ENTREPRISE: 'Enterprise' },
+    echeance: {
+      sans: '—',
+      actif: 'Active',
+      proche_one: 'D-{{count}}',
+      proche_other: 'D-{{count}}',
+      grace_one: 'Grace D+{{count}}',
+      grace_other: 'Grace D+{{count}}',
+      expire: 'Expired',
+    },
     // Payment modes — SINGLE SOURCE of labels (mirrors `backend/lib/modes-versement.ts`).
     modesVersement: { ESPECES: 'Cash', TIERS: 'Third party', MOBILE_MONEY: 'Mobile Money', AUTRE: 'Other' },
     surnom: '“{{surnom}}”',

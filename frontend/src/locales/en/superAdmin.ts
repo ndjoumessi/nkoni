@@ -79,6 +79,8 @@ export default {
       pressionQuota: 'Near their limit',
       pressionQuotaHint: 'member quota ≥ 80%',
       pressionQuotaFiltre: 'Click to filter the affected spaces',
+      aRelancer: 'To follow up',
+      aRelancerFiltre: 'Ending soon, in grace or expired — click to filter',
     },
     filtres: {
       rechercheLabel: 'Search',
@@ -92,6 +94,8 @@ export default {
       forfaitTous: 'All',
       quotaActif: 'Quota ≥ 80%',
       quotaRetirer: 'Remove quota filter',
+      relanceActif: 'To follow up',
+      relanceRetirer: 'Remove the follow-up filter',
     },
     repartition: {
       titre: 'Plan breakdown',
@@ -105,6 +109,7 @@ export default {
       devise: 'Currency',
       langue: 'Language',
       identifiant: 'Identifier',
+      echeance: 'End date',
     },
     detail: {
       forfait: 'Plan',
@@ -129,6 +134,7 @@ export default {
       quotaAria: 'Plan quota: {{n}} of {{max}} members',
       quotaProche: 'Close to the plan limit',
       quotaAtteint: 'Plan limit reached',
+      echeance: 'End date',
     },
     vide: {
       titre: 'No organisation',

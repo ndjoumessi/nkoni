@@ -6,6 +6,8 @@
  * L'attribution d'un forfait est une action PLATEFORME réservée au SUPER_ADMIN (activation manuelle
  * depuis la console, pas de paiement en ligne à ce stade).
  */
+import { ajouterMoisApp, finDeJourneeApp, joursCalendairesEntreApp } from './date-app'
+
 export const FORFAITS = ['GRATUIT', 'PRO', 'ENTREPRISE'] as const
 export type Forfait = (typeof FORFAITS)[number]
 
@@ -35,4 +37,77 @@ export const CAPACITES_FORFAIT: Readonly<Record<Forfait, Readonly<CapacitesForfa
 /** Plafond de membres ACTIFS du forfait — DÉRIVÉ de `CAPACITES_FORFAIT` (appelants inchangés). */
 export function limiteMembresForfait(forfait: Forfait): number | null {
   return CAPACITES_FORFAIT[forfait].limiteMembres
+}
+
+// ===========================================================================
+// Échéance du forfait (spec 1.1 §2.3–§2.5) — état, forfait EFFECTIF et prolongation, tous CALCULÉS
+// (jamais stockés ni rétrogradés par une tâche de nuit : une tâche en échec prolongerait l'accès en
+// silence). Horloge `now` INJECTÉE partout. Une seule mesure du temps : les jours CALENDAIRES à Douala.
+// ===========================================================================
+
+/** État de l'échéance d'un forfait. */
+export type EtatForfait = 'SANS_ECHEANCE' | 'ACTIF' | 'ECHEANCE_PROCHE' | 'GRACE' | 'EXPIRE'
+
+/** Au plus ce nombre de jours avant l'échéance : « échéance proche ». */
+export const JOURS_ECHEANCE_PROCHE = 30
+/** Jours de grâce APRÈS l'échéance, capacités du forfait conservées. */
+export const JOURS_GRACE = 14
+
+/** Durées de prolongation proposées à l'opérateur (validées par la route). */
+export const PERIODES_PROLONGATION = [1, 3, 6, 12] as const
+export type PeriodeProlongation = (typeof PERIODES_PROLONGATION)[number]
+
+/** Jours calendaires (Douala) jusqu'à l'échéance : 0 = dernier jour payé, négatif = échéance passée. */
+export function joursRestants(expireLe: Date, now: Date): number {
+  return joursCalendairesEntreApp(now, expireLe)
+}
+
+/** État de l'échéance. GRATUIT ou sans date → `SANS_ECHEANCE`. */
+export function etatForfait(forfait: Forfait, expireLe: Date | null, now: Date): EtatForfait {
+  if (forfait === 'GRATUIT' || expireLe === null) return 'SANS_ECHEANCE'
+  const j = joursRestants(expireLe, now)
+  if (j > JOURS_ECHEANCE_PROCHE) return 'ACTIF'
+  if (j >= 0) return 'ECHEANCE_PROCHE'
+  if (j >= -JOURS_GRACE) return 'GRACE'
+  return 'EXPIRE'
+}
+
+/** Forfait dont les CAPACITÉS s'appliquent : GRATUIT une fois la grâce écoulée, sinon le forfait enregistré. */
+export function forfaitEffectif(forfait: Forfait, expireLe: Date | null, now: Date): Forfait {
+  return etatForfait(forfait, expireLe, now) === 'EXPIRE' ? 'GRATUIT' : forfait
+}
+
+/**
+ * Nouvelle échéance après prolongation de `mois` mois. Base = l'ancienne échéance tant que la grâce
+ * court (la grâce n'est pas du temps offert, payer en avance ne fait perdre aucun jour), sinon
+ * aujourd'hui (échéance absente ou expirée).
+ */
+export function nouvelleEcheance(expireLe: Date | null, now: Date, mois: PeriodeProlongation): Date {
+  const base = expireLe !== null && joursRestants(expireLe, now) >= -JOURS_GRACE ? expireLe : now
+  return finDeJourneeApp(ajouterMoisApp(base, mois))
+}
+
+/** Valeurs d'échéance CALCULÉES renvoyées par l'API (le front les affiche sans les recalculer). */
+export interface VueEcheance {
+  forfaitExpireLe: Date | null
+  etatForfait: EtatForfait
+  /** `null` si `SANS_ECHEANCE`. */
+  joursRestants: number | null
+  /** Fin de la période de grâce (fin de journée Douala) ; `null` si `SANS_ECHEANCE`. */
+  finGraceLe: Date | null
+  forfaitEffectif: Forfait
+}
+
+export function vueEcheance(forfait: Forfait, expireLe: Date | null, now: Date): VueEcheance {
+  const etat = etatForfait(forfait, expireLe, now)
+  const avecEcheance = etat !== 'SANS_ECHEANCE' && expireLe !== null
+  return {
+    forfaitExpireLe: expireLe,
+    etatForfait: etat,
+    joursRestants: avecEcheance ? joursRestants(expireLe, now) : null,
+    // Jours ENTIERS ajoutés à une fin de journée : Douala est à décalage fixe (UTC+1), la date reste
+    // une fin de journée ; `finDeJourneeApp` renormalise par sécurité.
+    finGraceLe: avecEcheance ? finDeJourneeApp(new Date(expireLe.getTime() + JOURS_GRACE * 86_400_000)) : null,
+    forfaitEffectif: forfaitEffectif(forfait, expireLe, now),
+  }
 }

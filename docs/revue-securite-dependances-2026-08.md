@@ -121,3 +121,24 @@ cd frontend && npm audit
 
 Le chiffre brut remontera : c'est normal, il compte l'outillage. **Refaire le tri du §1 avant de
 conclure** — le nombre d'alertes n'est pas une mesure de risque.
+
+---
+
+## 7. Réaudit backend du 2026-09-13 — montée de Fastify 5.12.4
+
+`npm audit --omit=dev` (backend) : **13 alertes (5 High, 8 Moderate, 0 critique)**. Les correctifs de la PR
+#120 tenaient, mais de **nouveaux avis** ont été publiés sur les mêmes paquets. Tri selon le §1 :
+
+| Paquet | Gravité | Chemin | Décision |
+|---|---|---|---|
+| `fastify` ≤ 5.12.0 | 🟠 Moderate ×2 | **Production** — contournement de validation de schéma par coercition d'un primitif racine ; usurpation `X-Forwarded-*` avec `trustProxy` en nombre de sauts (nous utilisons `trustProxy: true`, mais c'est le code qui calcule l'IP du rate-limit) | ✅ **CORRIGÉ** — `fastify` 5.12.0 → **5.12.4** (`^5.12.4` dans `package.json`). |
+| `fast-uri` 3.1.5 / 4.1.2 | 🔴 High | **Production** — via `ajv` (validation de toutes les routes) et `fast-json-stringify` : confusion d'hôte et SSRF par normalisation d'URI. Exploitabilité faible (aucun schéma ne valide d'URI fournie par l'utilisateur), mais code exécuté à chaque requête | ✅ **CORRIGÉ** — **deux emplacements** : racine 3.1.5 → **3.1.7**, `fastify/node_modules/fast-uri` 4.1.2 → **4.1.4**. `find-my-way` monté au passage 9.8.0 → **9.9.0**. |
+| `undici` 6.27.0 | 🟠 Moderate | **Production** — client HTTP de `@vercel/blob` (téléversement/lecture des documents) : désynchronisation via l'intercepteur de réessai, injection CRLF par le `type` d'un corps blob, injection d'attributs de cookie | **À traiter** (prochaine hygiène) — `npm update undici` (6.28.1 dans la plage). Exposition faible : les requêtes vont vers l'API Blob avec des corps et en-têtes construits par le serveur, sans cookie. |
+| `hono`, `@hono/node-server`, `valibot` | 🟠 Moderate | `prisma` → `@prisma/dev` : serveur `prisma dev` (Postgres local de développement), **jamais lancé** en production — seul `prisma migrate deploy` s'exécute au démarrage | **Sans objet en exécution.** Le « correctif » npm est un **downgrade** `prisma` 7 → 6.19 (cassant) : écarté. Suivre les versions de `prisma`. |
+| `mysql2`, `deepmerge-ts` | 🔴 High | `prisma` (pilote MySQL embarqué par le CLI ; `@prisma/config`) — la base est **PostgreSQL**, le pilote MySQL n'est jamais chargé ; `deepmerge-ts` ne fusionne que la configuration Prisma du dépôt | **Sans objet.** Même faux correctif (downgrade `prisma` 6.19) : écarté. |
+| `uuid` < 11.1.1 | 🟠 Moderate | `exceljs` | **Sans objet**, déjà tranché au §3 (API `uuid` non utilisée ; le correctif npm rétrograde `exceljs`). |
+
+**Contrôle de l'effet** (le §2 l'exige) : versions relues dans `node_modules` puis `npm audit --omit=dev` —
+les avis `fastify` et `fast-uri` ont **disparu** ; restent les 7 paquets ci-dessus. Build, 969 tests unitaires
+et **74 tests d'intégration** (11 fichiers, base jetable) au vert : la montée touche le routeur et la validation
+ajv, les mocks n'auraient rien prouvé.

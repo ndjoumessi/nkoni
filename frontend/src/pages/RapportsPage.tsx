@@ -699,7 +699,10 @@ export function RapportsPage() {
           <Card className="nk-reveal nk-d2 mt-7 p-5">
             <div className="flex flex-wrap items-end gap-4">
               <div
-                className="inline-flex rounded-xl border border-hairline bg-surface/60 p-1"
+                // Mobile : 3 onglets icône + libellé débordaient la carte à 360 px (« Détail par membre ») →
+                // sous `sm`, grille 2 colonnes (le 3ᵉ onglet sur toute la largeur), icônes masquées ;
+                // barre en ligne dès `sm`.
+                className="grid w-full grid-cols-2 gap-1 rounded-xl border border-hairline bg-surface/60 p-1 sm:inline-flex sm:w-auto sm:gap-0"
                 role="tablist"
                 aria-label={t('rapports.mode.aria')}
                 onKeyDown={onOngletsKeyDown}
@@ -712,13 +715,13 @@ export function RapportsPage() {
                   aria-selected={mode === 'evolution'}
                   onClick={() => setMode('evolution')}
                   className={cn(
-                    'inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-sm font-medium transition-colors',
+                    'inline-flex items-center justify-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium transition-colors sm:px-3.5',
                     mode === 'evolution'
                       ? 'bg-surface-2 text-foreground'
                       : 'text-muted-foreground hover:text-foreground',
                   )}
                 >
-                  <BarChart3 className="h-4 w-4" aria-hidden="true" />
+                  <BarChart3 className="hidden h-4 w-4 sm:block" aria-hidden="true" />
                   {t('rapports.mode.evolution')}
                 </button>
                 <button
@@ -729,13 +732,13 @@ export function RapportsPage() {
                   aria-selected={mode === 'comparaison'}
                   onClick={() => setMode('comparaison')}
                   className={cn(
-                    'inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-sm font-medium transition-colors',
+                    'inline-flex items-center justify-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium transition-colors sm:px-3.5',
                     mode === 'comparaison'
                       ? 'bg-surface-2 text-foreground'
                       : 'text-muted-foreground hover:text-foreground',
                   )}
                 >
-                  <ArrowLeftRight className="h-4 w-4" aria-hidden="true" />
+                  <ArrowLeftRight className="hidden h-4 w-4 sm:block" aria-hidden="true" />
                   {t('rapports.mode.comparaison')}
                 </button>
                 <button
@@ -746,13 +749,13 @@ export function RapportsPage() {
                   aria-selected={mode === 'detail'}
                   onClick={() => setMode('detail')}
                   className={cn(
-                    'inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-sm font-medium transition-colors',
+                    'col-span-2 inline-flex items-center justify-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium transition-colors sm:col-span-1 sm:px-3.5',
                     mode === 'detail'
                       ? 'bg-surface-2 text-foreground'
                       : 'text-muted-foreground hover:text-foreground',
                   )}
                 >
-                  <Users className="h-4 w-4" aria-hidden="true" />
+                  <Users className="hidden h-4 w-4 sm:block" aria-hidden="true" />
                   {t('rapports.mode.detail')}
                 </button>
               </div>

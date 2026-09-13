@@ -9,7 +9,7 @@ export const messages = {
     'The audit log is temporarily unavailable: deletion cancelled (no data erased). Please retry.',
   'platform.prolongationForfaitGratuit': 'The Free plan has no end date: assign a Pro or Enterprise plan first.',
   'platform.prolongationConcurrente':
-    "This organisation's end date has just changed: reload the page and extend it again.",
+    'The extension preview is out of date (end date changed or a new day started): check the new date and confirm again.',
   'platform.prolongationValeursAttenduesManquantes':
     'Outside preview, the write must carry the values shown by the preview (current end date and new end date).',
 }

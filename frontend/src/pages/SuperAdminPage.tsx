@@ -844,6 +844,7 @@ export function SuperAdminPage() {
                     : t('superAdmin.kpi.pressionQuotaHint')
                 }
                 onClick={kpis.proches > 0 ? () => setFiltreQuota((v) => !v) : undefined}
+                pressed={kpis.proches > 0 ? filtreQuota : undefined}
                 className={filtreQuota ? 'ring-2 ring-brass/50' : undefined}
               />
             </>

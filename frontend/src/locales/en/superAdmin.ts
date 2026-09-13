@@ -46,6 +46,7 @@ export default {
       },
       actions: {
         CHANGER_FORFAIT: 'Plan changed',
+        PROLONGER_FORFAIT: 'Plan extended',
         SUSPENDRE: 'Suspension',
         REACTIVER: 'Reactivation',
         PURGER: 'Permanent deletion',
@@ -78,6 +79,8 @@ export default {
       pressionQuota: 'Near their limit',
       pressionQuotaHint: 'member quota ≥ 80%',
       pressionQuotaFiltre: 'Click to filter the affected spaces',
+      aRelancer: 'To follow up',
+      aRelancerFiltre: 'Ending soon, in grace or expired — click to filter',
     },
     filtres: {
       rechercheLabel: 'Search',
@@ -91,6 +94,8 @@ export default {
       forfaitTous: 'All',
       quotaActif: 'Quota ≥ 80%',
       quotaRetirer: 'Remove quota filter',
+      relanceActif: 'To follow up',
+      relanceRetirer: 'Remove the follow-up filter',
     },
     repartition: {
       titre: 'Plan breakdown',
@@ -104,10 +109,24 @@ export default {
       devise: 'Currency',
       langue: 'Language',
       identifiant: 'Identifier',
+      echeance: 'End date',
     },
     detail: {
       forfait: 'Plan',
       fermer: 'Close',
+    },
+    prolongation: {
+      titre: 'End date',
+      gratuit: 'The Free plan has no end date.',
+      duree: 'Extend by',
+      mois_one: '{{count}} month',
+      mois_other: '{{count}} months',
+      calcul: 'Computing the new end date…',
+      apercu: 'New end date: {{date}}',
+      bouton_one: 'Extend by {{count}} month',
+      bouton_other: 'Extend by {{count}} months',
+      succes: 'Plan extended',
+      echec: 'Could not extend the plan',
     },
     table: {
       caption: 'Client organisations',
@@ -128,6 +147,7 @@ export default {
       quotaAria: 'Plan quota: {{n}} of {{max}} members',
       quotaProche: 'Close to the plan limit',
       quotaAtteint: 'Plan limit reached',
+      echeance: 'End date',
     },
     vide: {
       titre: 'No organisation',

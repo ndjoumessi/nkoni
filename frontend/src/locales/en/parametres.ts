@@ -31,6 +31,17 @@ export default {
       restants_other: '{{count}} seats remaining',
       limiteAtteinte: 'Plan limit reached',
     },
+    forfait: {
+      valableJusquau: '{{forfait}} plan valid until {{date}}',
+      echuLe: '{{forfait}} plan ended on {{date}}',
+      renouveler: 'Contact us to renew',
+      sujetRenouvellement: 'NKONI — plan renewal for {{nom}}',
+      explication: {
+        ECHEANCE_PROCHE: 'Your {{forfait}} plan ends on {{date}}. Contact us to renew it without interruption.',
+        GRACE: 'Your {{forfait}} plan expired on {{date}}. Its features remain active until {{fin}}: renew it before then.',
+        EXPIRE: 'Your {{forfait}} plan expired on {{date}}: its features are suspended and your data is intact. Contact us to renew it.',
+      },
+    },
     export: {
       titre: 'Export my data',
       description:

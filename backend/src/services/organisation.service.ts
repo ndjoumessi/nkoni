@@ -1,6 +1,17 @@
 import { hashPassword } from './auth.service'
 import type { AuthenticatedUser } from './auth.service'
-import { limiteMembresForfait, type Forfait } from '../lib/forfait'
+import {
+  etatForfait,
+  forfaitEffectif,
+  joursRestants,
+  limiteMembresForfait,
+  nouvelleEcheance,
+  vueEcheance,
+  type EtatForfait,
+  type Forfait,
+  type PeriodeProlongation,
+  type VueEcheance,
+} from '../lib/forfait'
 
 /**
  * Auto-inscription (§3.1) — création d'une nouvelle organisation et de son premier
@@ -108,8 +119,11 @@ export async function inscrireOrganisation(
 // `orgContext.runUnscoped`. `Organisation` n'est PAS un modèle scopé → lecture directe.
 // ===========================================================================
 
-/** Vue plateforme d'une organisation cliente (aucune donnée métier interne). */
-export interface OrganisationResume {
+/**
+ * Vue plateforme d'une organisation cliente (aucune donnée métier interne). Porte les champs
+ * d'échéance CALCULÉS (spec 1.1 §2.3) : la console les affiche sans les recalculer.
+ */
+export interface OrganisationResume extends VueEcheance {
   id: string
   nom: string
   devise: Devise
@@ -126,7 +140,9 @@ export interface OrganisationResume {
 export interface PlateformePrisma {
   organisation: {
     findMany(args: any): Promise<any[]>
+    findUnique(args: any): Promise<any>
     update(args: any): Promise<any>
+    updateMany(args: any): Promise<{ count: number }>
   }
   membre: { groupBy(args: any): Promise<any[]> }
 }
@@ -135,6 +151,33 @@ export interface OrganisationActifPrisma {
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
+/** Colonnes d'une vue plateforme d'organisation — échéance comprise, pour calculer `VueEcheance`. */
+const SELECT_ORGANISATION_PLATEFORME = {
+  id: true,
+  nom: true,
+  devise: true,
+  langueDefaut: true,
+  actif: true,
+  forfait: true,
+  forfaitExpireLe: true,
+  createdAt: true,
+} as const
+
+/** Ligne lue avec `SELECT_ORGANISATION_PLATEFORME` → vue plateforme (sans compteur de membres). */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function versVuePlateforme(o: any, now: Date): Omit<OrganisationResume, 'nbMembres'> {
+  return {
+    id: o.id,
+    nom: o.nom,
+    devise: o.devise,
+    langueDefaut: o.langueDefaut,
+    actif: o.actif,
+    forfait: o.forfait,
+    createdAt: o.createdAt,
+    ...vueEcheance(o.forfait, o.forfaitExpireLe ?? null, now),
+  }
+}
+
 /**
  * Liste les organisations clientes avec leur statut, date de création et nombre de membres.
  * Le comptage passe par un `groupBy` unique (Membre scopé → l'appelant est en `runUnscoped`),
@@ -142,17 +185,10 @@ export interface OrganisationActifPrisma {
  */
 export async function listerOrganisations(
   prisma: PlateformePrisma,
+  now: Date = new Date(),
 ): Promise<OrganisationResume[]> {
   const orgs = await prisma.organisation.findMany({
-    select: {
-      id: true,
-      nom: true,
-      devise: true,
-      langueDefaut: true,
-      actif: true,
-      forfait: true,
-      createdAt: true,
-    },
+    select: SELECT_ORGANISATION_PLATEFORME,
     orderBy: { createdAt: 'desc' },
   })
 
@@ -168,16 +204,7 @@ export async function listerOrganisations(
     compteur.set(ligne.organisationId, ligne._count?._all ?? 0)
   }
 
-  return orgs.map((o) => ({
-    id: o.id,
-    nom: o.nom,
-    devise: o.devise,
-    langueDefaut: o.langueDefaut,
-    actif: o.actif,
-    forfait: o.forfait,
-    createdAt: o.createdAt,
-    nbMembres: compteur.get(o.id) ?? 0,
-  }))
+  return orgs.map((o) => ({ ...versVuePlateforme(o, now), nbMembres: compteur.get(o.id) ?? 0 }))
 }
 
 /**
@@ -189,21 +216,14 @@ export async function definirStatutOrganisation(
   prisma: PlateformePrisma,
   id: string,
   actif: boolean,
+  now: Date = new Date(),
 ): Promise<Omit<OrganisationResume, 'nbMembres'>> {
   const org = await prisma.organisation.update({
     where: { id },
     data: { actif },
-    select: {
-      id: true,
-      nom: true,
-      devise: true,
-      langueDefaut: true,
-      actif: true,
-      forfait: true,
-      createdAt: true,
-    },
+    select: SELECT_ORGANISATION_PLATEFORME,
   })
-  return org
+  return versVuePlateforme(org, now)
 }
 
 /**
@@ -216,22 +236,114 @@ export async function definirForfaitOrganisation(
   prisma: PlateformePrisma,
   id: string,
   forfait: Forfait,
+  now: Date = new Date(),
 ): Promise<Omit<OrganisationResume, 'nbMembres'>> {
   const org = await prisma.organisation.update({
     where: { id },
-    // FK/scalaire directe (Organisation n'est pas un modèle scopé).
-    data: { forfait },
-    select: {
-      id: true,
-      nom: true,
-      devise: true,
-      langueDefaut: true,
-      actif: true,
-      forfait: true,
-      createdAt: true,
-    },
+    // FK/scalaire directe (Organisation n'est pas un modèle scopé). Repasser en GRATUIT EFFACE
+    // l'échéance (spec 1.1 §2.5) : le Gratuit n'en a jamais, et une date résiduelle ressusciterait
+    // un état « expiré » trompeur si l'organisation redevenait Pro plus tard.
+    data: forfait === 'GRATUIT' ? { forfait, forfaitExpireLe: null } : { forfait },
+    select: SELECT_ORGANISATION_PLATEFORME,
   })
-  return org
+  return versVuePlateforme(org, now)
+}
+
+// ===========================================================================
+// Prolongation de l'échéance du forfait (spec 1.1 §2.5/§3.1) — action PLATEFORME (SUPER_ADMIN).
+// ===========================================================================
+
+/** Organisation inconnue (→ 404). */
+export class OrganisationIntrouvableError extends Error {
+  constructor(readonly organisationId: string) {
+    super(`Organisation introuvable : ${organisationId}`)
+    this.name = 'OrganisationIntrouvableError'
+  }
+}
+
+/** Le forfait GRATUIT n'a pas d'échéance : rien à prolonger (→ 409). */
+export class ProlongationForfaitGratuitError extends Error {
+  constructor(readonly organisationId: string) {
+    super(`Forfait GRATUIT sans échéance : ${organisationId}`)
+    this.name = 'ProlongationForfaitGratuitError'
+  }
+}
+
+/** L'échéance a changé entre la lecture et l'écriture — prolongation concurrente (→ 409). */
+export class ProlongationConcurrenteError extends Error {
+  constructor(readonly organisationId: string) {
+    super(`Échéance modifiée pendant la prolongation : ${organisationId}`)
+    this.name = 'ProlongationConcurrenteError'
+  }
+}
+
+export interface ResultatProlongation {
+  /** Vue de l'organisation APRÈS prolongation (inchangée en aperçu). */
+  organisation: Omit<OrganisationResume, 'nbMembres'>
+  echeanceActuelle: Date | null
+  nouvelleEcheance: Date
+  etatApres: EtatForfait
+  joursRestantsApres: number
+}
+
+/** Options de {@link prolongerForfaitOrganisation} : l'écriture EXIGE les valeurs montrées par l'aperçu. */
+export type OptionsProlongation =
+  | { apercu: true; now?: Date }
+  | { apercu: false; echeanceAttendue: Date | null; nouvelleEcheanceAttendue: Date; now?: Date }
+
+/**
+ * Calcule — et, hors aperçu, ÉCRIT — la nouvelle échéance d'un forfait payant. Aperçu et écriture
+ * passent par la MÊME fonction `nouvelleEcheance` : la console montre exactement la date écrite.
+ *
+ * L'écriture est liée à l'APERÇU (pas seulement à une lecture faite quelques ms plus tôt dans la
+ * MÊME requête) : l'appelant hors aperçu DOIT fournir `echeanceAttendue` (l'échéance
+ * qu'il a vue) et `nouvelleEcheanceAttendue` (la date qui lui a été annoncée). Si l'une des deux ne
+ * correspond plus à ce que la lecture fraîche calcule ici — réponse perdue, second clic, deux
+ * onglets, minuit Douala franchi entre l'aperçu et le clic — rien n'est écrit
+ * (`ProlongationConcurrenteError`) : l'écriture valide ce que l'aperçu a MONTRÉ, elle ne se contente
+ * pas de relire une date qui aurait pu changer entre-temps. L'`updateMany.where` porte en plus
+ * `forfait: org.forfait` : un passage en GRATUIT (qui efface l'échéance) entre-temps ne doit
+ * jamais se faire écraser par une prolongation qui le croit encore payant.
+ */
+export async function prolongerForfaitOrganisation(
+  prisma: PlateformePrisma,
+  id: string,
+  mois: PeriodeProlongation,
+  options: OptionsProlongation,
+): Promise<ResultatProlongation> {
+  const now = options.now ?? new Date()
+  const org = await prisma.organisation.findUnique({
+    where: { id },
+    select: SELECT_ORGANISATION_PLATEFORME,
+  })
+  if (!org) throw new OrganisationIntrouvableError(id)
+  if (org.forfait === 'GRATUIT') throw new ProlongationForfaitGratuitError(id)
+
+  const echeanceActuelle: Date | null = org.forfaitExpireLe ?? null
+  const echeance = nouvelleEcheance(echeanceActuelle, now, mois)
+  const resultat = (ligne: unknown): ResultatProlongation => ({
+    organisation: versVuePlateforme(ligne, now),
+    echeanceActuelle,
+    nouvelleEcheance: echeance,
+    etatApres: etatForfait(org.forfait, echeance, now),
+    joursRestantsApres: joursRestants(echeance, now),
+  })
+  if (options.apercu) return resultat(org)
+
+  // AVANT d'écrire : l'échéance lue ou la nouvelle échéance calculée diffèrent-elles de ce que
+  // l'aperçu a montré à l'opérateur ? Comparaison en ms, null-safe (deux `null` sont égaux).
+  const attenduMs = options.echeanceAttendue?.getTime() ?? null
+  const actuelleMs = echeanceActuelle?.getTime() ?? null
+  if (attenduMs !== actuelleMs || options.nouvelleEcheanceAttendue.getTime() !== echeance.getTime()) {
+    throw new ProlongationConcurrenteError(id)
+  }
+
+  const { count } = await prisma.organisation.updateMany({
+    where: { id, forfait: org.forfait, forfaitExpireLe: echeanceActuelle },
+    data: { forfaitExpireLe: echeance },
+  })
+  if (count !== 1) throw new ProlongationConcurrenteError(id)
+  return resultat({ ...org, forfaitExpireLe: echeance })
 }
 
 // ===========================================================================
@@ -241,8 +353,11 @@ export async function definirForfaitOrganisation(
 // automatiquement par l'extension d'isolation (pas de `runUnscoped`, pas de filtre explicite).
 // ===========================================================================
 
-/** Paramètres immuables de l'organisation + volume actuel de membres et sa limite de forfait. */
-export interface OrganisationCourante {
+/**
+ * Paramètres immuables de l'organisation + volume actuel de membres et sa limite de forfait, + champs
+ * d'échéance CALCULÉS (spec 1.1 §3.2), affichés tels quels par l'écran Paramètres.
+ */
+export interface OrganisationCourante extends VueEcheance {
   id: string
   nom: string
   devise: Devise
@@ -252,7 +367,7 @@ export interface OrganisationCourante {
   forfait: Forfait
   /** Nombre de membres ACTIFS (les fiches décédées/inactives ne consomment pas le quota). */
   nbMembres: number
-  /** Plafond du forfait — pour situer `nbMembres` (ex. 42 / 50). `null` = illimité (Pro/Entreprise). */
+  /** Plafond du forfait EFFECTIF — pour situer `nbMembres` (ex. 42 / 50). `null` = illimité. */
   limiteMembres: number | null
   /** Chef de l'organisation (Membre désigné) — null si non désigné. */
   chefMembreId: string | null
@@ -279,6 +394,7 @@ export interface OrganisationCourantePrisma {
 export async function chargerOrganisationCourante(
   prisma: OrganisationCourantePrisma,
   organisationId: string,
+  now: Date = new Date(),
 ): Promise<OrganisationCourante | null> {
   const org = await prisma.organisation.findUnique({
     where: { id: organisationId },
@@ -288,6 +404,7 @@ export async function chargerOrganisationCourante(
       devise: true,
       langueDefaut: true,
       forfait: true,
+      forfaitExpireLe: true,
       createdAt: true,
       chefMembreId: true,
       chefSurnom: true,
@@ -308,7 +425,8 @@ export async function chargerOrganisationCourante(
     forfait: org.forfait,
     createdAt: org.createdAt,
     nbMembres,
-    limiteMembres: limiteMembresForfait(org.forfait),
+    ...vueEcheance(org.forfait, org.forfaitExpireLe ?? null, now),
+    limiteMembres: limiteMembresForfait(forfaitEffectif(org.forfait, org.forfaitExpireLe ?? null, now)),
     chefMembreId: org.chefMembreId ?? null,
     chefSurnom: org.chefSurnom ?? null,
     chefNom: org.chef?.nom ?? null,

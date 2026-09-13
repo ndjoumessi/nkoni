@@ -27,6 +27,7 @@ export function StatCard({
   tone = 'neutral',
   to,
   onClick,
+  pressed,
   className,
 }: {
   label: string
@@ -39,6 +40,8 @@ export function StatCard({
   to?: string
   /** Action SUR PLACE (ex. poser un filtre de la page courante) — quand la navigation ne convient pas. */
   onClick?: () => void
+  /** Avec `onClick` : expose `aria-pressed` (bouton à bascule, ex. carte-filtre « À relancer »). */
+  pressed?: boolean
   className?: string
 }) {
   const carte = (
@@ -64,7 +67,12 @@ export function StatCard({
   }
   if (onClick) {
     return (
-      <button type="button" onClick={onClick} className="block w-full rounded-2xl text-left">
+      <button
+        type="button"
+        onClick={onClick}
+        aria-pressed={pressed}
+        className="block w-full rounded-2xl text-left"
+      >
         {carte}
       </button>
     )

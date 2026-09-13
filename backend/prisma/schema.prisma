@@ -100,6 +100,7 @@ model RefreshToken {
 /** Actions PLATEFORME journalisées (SUPER_ADMIN, dette roadmap 0.3). */
 enum ActionPlateforme {
   CHANGER_FORFAIT
+  PROLONGER_FORFAIT
   SUSPENDRE
   REACTIVER
   PURGER
@@ -167,6 +168,10 @@ model Organisation {
   // Forfait courant (SaaS §3.1). Défaut GRATUIT → les orgs existantes le deviennent au backfill.
   // Attribué par le SUPER_ADMIN (console plateforme) ; borne la limite de membres (cf. lib/forfait).
   forfait      Forfait  @default(GRATUIT)
+  // Échéance du forfait (spec 1.1 §2.1) : fin de la période payée (fin de journée Africa/Douala).
+  // NULL = pas d'échéance (GRATUIT, ou Pro historique). L'état et le forfait EFFECTIF sont CALCULÉS
+  // (lib/forfait.ts), jamais stockés : ne JAMAIS lire `forfait` brut pour décider d'une capacité.
+  forfaitExpireLe DateTime?
   createdAt    DateTime @default(now())
 
   // Chef de l'organisation (dirigeant) — Membre désigné, ACTION MUTABLE réservée ADMIN/PRESIDENT

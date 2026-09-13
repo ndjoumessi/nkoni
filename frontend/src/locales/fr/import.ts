@@ -54,6 +54,7 @@ export default {
       erreurs_one: '{{count}} ligne en erreur',
       erreurs_other: '{{count}} lignes en erreur',
       quotaOk: 'Quota : {{actuel}} + {{aCreer}} / {{plafond}} membres actifs',
+      quotaIllimite: 'Quota : {{actuel}} + {{aCreer}} membres actifs (forfait sans plafond)',
       quotaDepasse:
         'Quota dépassé : {{actuel}} + {{aCreer}} dépasserait la limite de {{plafond}} membres actifs (plan gratuit).',
       colonneLigne: 'Ligne',

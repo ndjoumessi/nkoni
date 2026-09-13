@@ -10,4 +10,11 @@ export const messages = {
   // Fail-closed : la trace d'audit de la purge n'a pas pu être écrite → rien n'a été supprimé.
   'platform.auditIndisponible':
     "Le journal d'audit est momentanément indisponible : la suppression est annulée (aucune donnée effacée). Réessayez.",
+  // Prolongation d'échéance (spec 1.1 §3.1).
+  'platform.prolongationForfaitGratuit':
+    "Le forfait Gratuit n'a pas d'échéance : attribuez d'abord un forfait Pro ou Entreprise.",
+  'platform.prolongationConcurrente':
+    "L'aperçu de la prolongation n'est plus à jour (échéance modifiée ou changement de jour) : vérifiez la nouvelle date puis confirmez à nouveau.",
+  'platform.prolongationValeursAttenduesManquantes':
+    "Hors aperçu, l'écriture doit indiquer les valeurs annoncées par l'aperçu (échéance actuelle et nouvelle échéance).",
 } as const

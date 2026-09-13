@@ -31,6 +31,17 @@ export default {
       restants_other: '{{count}} places restantes',
       limiteAtteinte: 'Limite du forfait atteinte',
     },
+    forfait: {
+      valableJusquau: 'Forfait {{forfait}} valable jusqu’au {{date}}',
+      echuLe: 'Forfait {{forfait}} arrivé à échéance le {{date}}',
+      renouveler: 'Nous contacter pour renouveler',
+      sujetRenouvellement: 'NKONI — renouvellement du forfait de {{nom}}',
+      explication: {
+        ECHEANCE_PROCHE: 'Votre forfait {{forfait}} arrive à échéance le {{date}}. Contactez-nous pour le renouveler sans interruption.',
+        GRACE: 'Votre forfait {{forfait}} a expiré le {{date}}. Ses fonctionnalités restent actives jusqu’au {{fin}} : renouvelez-le d’ici là.',
+        EXPIRE: 'Votre forfait {{forfait}} a expiré le {{date}} : ses fonctionnalités sont suspendues, vos données sont intactes. Contactez-nous pour le renouveler.',
+      },
+    },
     export: {
       titre: 'Exporter mes données',
       description:

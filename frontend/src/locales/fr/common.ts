@@ -3,6 +3,16 @@ export default {
   commun: {
     langue: { fr: 'Français', en: 'English', selecteur: 'Choisir la langue' },
     forfaits: { GRATUIT: 'Gratuit', PRO: 'Pro', ENTREPRISE: 'Entreprise' },
+    // États d'échéance d'un forfait (spec 1.1) — badge partagé console plateforme / Paramètres.
+    echeance: {
+      sans: '—',
+      actif: 'Actif',
+      proche_one: 'J-{{count}}',
+      proche_other: 'J-{{count}}',
+      grace_one: 'Grâce J+{{count}}',
+      grace_other: 'Grâce J+{{count}}',
+      expire: 'Expiré',
+    },
     // Modes de versement — SOURCE UNIQUE des libellés (miroir de `backend/lib/modes-versement.ts`).
     // Autrefois recopiés dans versements/cagnottes/amendes ; consommés via `commun.modesVersement.<mode>`.
     modesVersement: { ESPECES: 'Espèces', TIERS: 'Tiers', MOBILE_MONEY: 'Mobile Money', AUTRE: 'Autre' },

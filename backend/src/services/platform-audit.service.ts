@@ -16,7 +16,7 @@
  * c'est l'appelant qui décide de rattraper (best-effort) ou de propager (fail-closed).
  */
 
-export type ActionPlateforme = 'CHANGER_FORFAIT' | 'SUSPENDRE' | 'REACTIVER' | 'PURGER' | 'EXPORTER'
+export type ActionPlateforme = 'CHANGER_FORFAIT' | 'PROLONGER_FORFAIT' | 'SUSPENDRE' | 'REACTIVER' | 'PURGER' | 'EXPORTER'
 
 /** Surface Prisma minimale (mockable en test). */
 export interface PlatformAuditPrisma {

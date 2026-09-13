@@ -285,7 +285,8 @@ export interface RapportImport {
   valides: number
   doublons: DoublonImport[]
   erreurs: ErreurImport[]
-  quota: { actuel: number; plafond: number; aCreer: number; depasse: boolean }
+  /** `plafond: null` = forfait sans plafond (Pro/Entreprise). */
+  quota: { actuel: number; plafond: number | null; aCreer: number; depasse: boolean }
 }
 export interface ResultatImport {
   crees: number

@@ -13,6 +13,7 @@ import {
   Eye,
   Fingerprint,
   Gauge,
+  BellRing,
   Languages,
   LogOut,
   PauseCircle,
@@ -40,8 +41,11 @@ import { ErrorState } from '@/components/ui/ErrorState'
 import { RowsSkeleton, StatCardSkeleton } from '@/components/ui/Skeleton'
 import { NkoniMark } from '@/components/ui/NkoniMark'
 import { Input } from '@/components/ui/Field'
-import { cn, formatDate } from '@/lib/utils'
+import { cn, formatDate, formatDateApp } from '@/lib/utils'
 import { FORFAITS, limiteMembresForfait, type Forfait } from '@/lib/forfait'
+import { comparerEcheances, estARelancer } from '@/lib/echeance-forfait'
+import { BadgeEcheance } from '@/components/plateforme/BadgeEcheance'
+import { ProlongationForfait } from '@/components/plateforme/ProlongationForfait'
 import { anneeCouranteApp, moisCourantApp } from '@/lib/date-app'
 import { cleI18n } from '@/lib/i18n'
 
@@ -60,16 +64,22 @@ const TEINTE_FORFAIT: Record<Forfait, { barre: string; texte: string }> = {
 
 type FiltreStatut = 'tous' | 'actives' | 'suspendues'
 type FiltreForfait = 'tous' | Forfait
-type ColonneTri = 'organisation' | 'forfait' | 'membres' | 'creee' | 'statut'
+type ColonneTri = 'organisation' | 'forfait' | 'echeance' | 'membres' | 'creee' | 'statut'
 
-/** Une org « proche du plafond » = forfait plafonné ET ≥ 80 % du quota membres (signal d'attention/upsell). */
+/**
+ * Une org « proche du plafond » = forfait plafonné ET ≥ 80 % du quota membres (signal d'attention/upsell).
+ * Forfait EFFECTIF (spec 1.1) : un Pro expiré retrouve le plafond Gratuit — la console doit le montrer.
+ * `?? o.forfait` : front déployé AVANT le backend, une ancienne API ne renvoie pas encore
+ * `forfaitEffectif` (`undefined`) — retomber sur le forfait ENREGISTRÉ plutôt que sur un plafond `null`
+ * (illimité) qui masquerait le signal quota.
+ */
 function estProchePlafond(o: PlatformOrganisation): boolean {
-  const max = limiteMembresForfait(o.forfait)
+  const max = limiteMembresForfait(o.forfaitEffectif ?? o.forfait)
   return max !== null && o.nbMembres >= 0.8 * max
 }
 /** … et « au plafond » = quota atteint ou dépassé (blocage des nouveaux membres). */
 function estAuPlafond(o: PlatformOrganisation): boolean {
-  const max = limiteMembresForfait(o.forfait)
+  const max = limiteMembresForfait(o.forfaitEffectif ?? o.forfait)
   return max !== null && o.nbMembres >= max
 }
 
@@ -83,6 +93,7 @@ type PrefsConsole = {
   statut: FiltreStatut
   forfait: FiltreForfait
   quota: boolean
+  relance: boolean
   tri: { col: ColonneTri; dir: SortDir }
 }
 function chargerPrefs(): Partial<PrefsConsole> {
@@ -242,6 +253,7 @@ export function SuperAdminPage() {
   const [filtreStatut, setFiltreStatut] = useState<FiltreStatut>(() => chargerPrefs().statut ?? 'tous')
   const [filtreForfait, setFiltreForfait] = useState<FiltreForfait>(() => chargerPrefs().forfait ?? 'tous')
   const [filtreQuota, setFiltreQuota] = useState<boolean>(() => chargerPrefs().quota ?? false)
+  const [filtreRelance, setFiltreRelance] = useState<boolean>(() => chargerPrefs().relance ?? false)
   const [tri, setTri] = useState<{ col: ColonneTri; dir: SortDir }>(
     () => chargerPrefs().tri ?? { col: 'creee', dir: 'desc' },
   )
@@ -286,12 +298,12 @@ export function SuperAdminPage() {
     try {
       localStorage.setItem(
         PREFS_KEY,
-        JSON.stringify({ statut: filtreStatut, forfait: filtreForfait, quota: filtreQuota, tri }),
+        JSON.stringify({ statut: filtreStatut, forfait: filtreForfait, quota: filtreQuota, relance: filtreRelance, tri }),
       )
     } catch {
       /* localStorage indisponible (navigation privée / quota) : on ignore, non bloquant. */
     }
-  }, [filtreStatut, filtreForfait, filtreQuota, tri])
+  }, [filtreStatut, filtreForfait, filtreQuota, filtreRelance, tri])
 
   // Raccourci « / » : focus le champ de recherche, sauf si l'on frappe déjà dans un champ éditable.
   useEffect(() => {
@@ -342,6 +354,8 @@ export function SuperAdminPage() {
       // Pression de quota : proches (≥ 80 %) et au plafond (≥ 100 %) — signal d'attention/upsell.
       proches: liste.filter(estProchePlafond).length,
       auPlafond: liste.filter(estAuPlafond).length,
+      // Échéance (spec 1.1 §4.2) : forfaits payants en échéance proche, en grâce ou expirés.
+      aRelancer: liste.filter(estARelancer).length,
     }
   }, [organisations])
 
@@ -355,9 +369,10 @@ export function SuperAdminPage() {
       if (filtreStatut === 'suspendues' && o.actif) return false
       if (filtreForfait !== 'tous' && o.forfait !== filtreForfait) return false
       if (filtreQuota && !estProchePlafond(o)) return false
+      if (filtreRelance && !estARelancer(o)) return false
       return true
     })
-  }, [organisations, recherche, filtreStatut, filtreForfait, filtreQuota])
+  }, [organisations, recherche, filtreStatut, filtreForfait, filtreQuota, filtreRelance])
 
   // Tri client.
   const triees = useMemo(() => {
@@ -366,6 +381,8 @@ export function SuperAdminPage() {
       switch (tri.col) {
         case 'forfait':
           return rangForfait(a.forfait) - rangForfait(b.forfait)
+        case 'echeance':
+          return comparerEcheances(a, b, tri.dir)
         case 'membres':
           return a.nbMembres - b.nbMembres
         case 'creee':
@@ -377,7 +394,8 @@ export function SuperAdminPage() {
       }
     }
     const arr = [...filtrees].sort(cmp)
-    return tri.dir === 'desc' ? arr.reverse() : arr
+    // L'échéance porte son sens elle-même (sans échéance toujours en dernier) : pas de reverse().
+    return tri.dir === 'desc' && tri.col !== 'echeance' ? arr.reverse() : arr
   }, [filtrees, tri])
 
   const trierPar = (col: string) =>
@@ -392,6 +410,7 @@ export function SuperAdminPage() {
     setFiltreStatut('tous')
     setFiltreForfait('tous')
     setFiltreQuota(false)
+    setFiltreRelance(false)
   }
 
   const detailOrg = useMemo(
@@ -518,7 +537,12 @@ export function SuperAdminPage() {
     )
     setPendingId(org.id)
     try {
-      await platformApi.changerForfait(org.id, forfait, accessToken)
+      const { organisation } = await platformApi.changerForfait(org.id, forfait, accessToken)
+      // Reprend l'état RENVOYÉ par le serveur : repasser en GRATUIT efface l'échéance et recalcule
+      // l'état — la mise à jour optimiste ne touchait que `forfait` et laissait une échéance périmée.
+      setOrganisations((prev) =>
+        prev ? prev.map((o) => (o.id === org.id ? { ...o, ...organisation } : o)) : prev,
+      )
       toast.success(t('superAdmin.toast.forfaitMisAJour'), org.nom)
     } catch (err) {
       setOrganisations((prev) =>
@@ -555,9 +579,10 @@ export function SuperAdminPage() {
       t('superAdmin.export.langue'),
       t('superAdmin.export.identifiant'),
       t('superAdmin.table.creeeLe'),
+      t('superAdmin.export.echeance'),
     ]
     const lignes = triees.map((o) => {
-      const limite = limiteMembresForfait(o.forfait)
+      const limite = limiteMembresForfait(o.forfaitEffectif ?? o.forfait)
       return [
         o.nom,
         t(cleForfait(o.forfait)),
@@ -568,6 +593,7 @@ export function SuperAdminPage() {
         o.langueDefaut,
         o.id,
         formatDate(o.createdAt, DATE_LONGUE),
+        o.forfaitExpireLe ? formatDateApp(o.forfaitExpireLe, DATE_LONGUE) : '—',
       ]
     })
     const csv = [entetes, ...lignes].map((row) => row.map(celluleCsv).join(',')).join('\r\n')
@@ -624,13 +650,20 @@ export function SuperAdminPage() {
       ),
     },
     {
+      key: 'echeance',
+      header: t('superAdmin.table.echeance'),
+      width: '10rem',
+      sortable: true,
+      cell: (o) => <BadgeEcheance etat={o.etatForfait} joursRestants={o.joursRestants} expireLe={o.forfaitExpireLe} />,
+    },
+    {
       key: 'membres',
       header: t('superAdmin.table.membres'),
       width: '10rem',
       numeric: true,
       sortable: true,
       cell: (o) => {
-        const max = limiteMembresForfait(o.forfait)
+        const max = limiteMembresForfait(o.forfaitEffectif ?? o.forfait)
         return (
           <QuotaMembres
             n={o.nbMembres}
@@ -811,11 +844,27 @@ export function SuperAdminPage() {
                     : t('superAdmin.kpi.pressionQuotaHint')
                 }
                 onClick={kpis.proches > 0 ? () => setFiltreQuota((v) => !v) : undefined}
+                pressed={kpis.proches > 0 ? filtreQuota : undefined}
                 className={filtreQuota ? 'ring-2 ring-brass/50' : undefined}
               />
             </>
           )}
         </div>
+
+        {/* À relancer (spec 1.1 §4.2) : bande pleine largeur, affichée SEULEMENT s'il y a des espaces
+            concernés — une tuile permanente à zéro serait du bruit. Cliquable : bascule le filtre. */}
+        {!loading && !error && kpis.aRelancer > 0 && (
+          <StatCard
+            icon={BellRing}
+            tone="amber"
+            label={t('superAdmin.kpi.aRelancer')}
+            value={String(kpis.aRelancer)}
+            hint={t('superAdmin.kpi.aRelancerFiltre')}
+            onClick={() => setFiltreRelance((v) => !v)}
+            pressed={filtreRelance}
+            className={cn('nk-reveal nk-d1 mt-4', filtreRelance && 'ring-2 ring-brass/50')}
+          />
+        )}
 
         {/* Répartition des forfaits — barre empilée + légende chiffrée. */}
         {!loading && !error && kpis.total > 0 && (
@@ -905,6 +954,17 @@ export function SuperAdminPage() {
                 className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-amber/40 bg-amber/[0.08] px-3 py-1.5 text-xs font-medium text-amber transition-colors hover:bg-amber/[0.14] focus:outline-none focus-visible:ring-2 focus-visible:ring-brass/60"
               >
                 {t('superAdmin.filtres.quotaActif')}
+                <X className="h-3.5 w-3.5" aria-hidden="true" />
+              </button>
+            )}
+            {filtreRelance && (
+              <button
+                type="button"
+                onClick={() => setFiltreRelance(false)}
+                aria-label={t('superAdmin.filtres.relanceRetirer')}
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-amber/40 bg-amber/[0.08] px-3 py-1.5 text-xs font-medium text-amber transition-colors hover:bg-amber/[0.14] focus:outline-none focus-visible:ring-2 focus-visible:ring-brass/60"
+              >
+                {t('superAdmin.filtres.relanceActif')}
                 <X className="h-3.5 w-3.5" aria-hidden="true" />
               </button>
             )}
@@ -1031,15 +1091,32 @@ export function SuperAdminPage() {
               <div className="mt-3">
                 <QuotaMembres
                   n={detailOrg.nbMembres}
-                  max={limiteMembresForfait(detailOrg.forfait)}
+                  max={limiteMembresForfait(detailOrg.forfaitEffectif ?? detailOrg.forfait)}
                   illimiteLabel={t('superAdmin.table.illimite')}
                   ariaLabel={t('superAdmin.table.quotaAria', {
                     n: detailOrg.nbMembres,
-                    max: limiteMembresForfait(detailOrg.forfait) ?? t('superAdmin.table.illimite'),
+                    max: limiteMembresForfait(detailOrg.forfaitEffectif ?? detailOrg.forfait) ?? t('superAdmin.table.illimite'),
                   })}
                 />
               </div>
             </div>
+
+            {/* Échéance + prolongation (spec 1.1 §4.2) — dans la fiche, pas dans une seconde modale.
+                `enAttente` : le sélecteur de forfait juste au-dessus vient de mettre `forfait` à
+                jour de façon optimiste ; tant que ce PATCH n'a pas confirmé en base, un aperçu partirait
+                sur l'ancien forfait et échouerait en 409 sans jamais se relancer de lui-même. */}
+            {accessToken && (
+              <ProlongationForfait
+                org={detailOrg}
+                accessToken={accessToken}
+                enAttente={pendingId === detailOrg.id}
+                onProlonge={(organisation) =>
+                  setOrganisations((prev) =>
+                    prev ? prev.map((o) => (o.id === organisation.id ? { ...o, ...organisation } : o)) : prev,
+                  )
+                }
+              />
+            )}
 
             {/*
               Zone DANGER — visible uniquement sur une organisation SUSPENDUE, en miroir de la

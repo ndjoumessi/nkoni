@@ -169,6 +169,44 @@ describe('quota de membres — les fiches inactives ne consomment pas le quota',
     expect(orgs.find((o) => o.id === ORG)?.nbMembres).toBe(3)
   })
 
+  it('forfait PRO EXPIRÉ au-delà de la grâce : le plafond Gratuit s’applique de nouveau (création 403)', async () => {
+    // Relit la colonne `forfaitExpireLe` : un mock renvoyant l'objet entier masquerait son oubli dans le
+    // `select` — d'où ce cas en intégration (spec 1.1 §3.3, forfait EFFECTIF).
+    await preparer(PLAFOND, 0)
+    await base.organisation.update({
+      where: { id: ORG },
+      data: { forfait: 'PRO', forfaitExpireLe: new Date(Date.now() - 20 * 86_400_000) },
+    })
+    try {
+      const res = await app.inject({
+        method: 'POST', url: '/membres', headers: entetes(),
+        payload: { nom: 'Apres', prenom: 'Expiration', anneeAdhesion: 2024 },
+      })
+      expect(res.statusCode).toBe(403)
+      const moi = await app.inject({ method: 'GET', url: '/organisations/moi', headers: entetes() })
+      expect(moi.json()).toMatchObject({ forfait: 'PRO', etatForfait: 'EXPIRE', forfaitEffectif: 'GRATUIT', limiteMembres: PLAFOND })
+    } finally {
+      await base.organisation.update({ where: { id: ORG }, data: { forfait: 'GRATUIT', forfaitExpireLe: null } })
+    }
+  })
+
+  it('forfait PRO à échéance future : aucun plafond (création 201)', async () => {
+    await preparer(PLAFOND, 0)
+    await base.organisation.update({
+      where: { id: ORG },
+      data: { forfait: 'PRO', forfaitExpireLe: new Date(Date.now() + 60 * 86_400_000) },
+    })
+    try {
+      const res = await app.inject({
+        method: 'POST', url: '/membres', headers: entetes(),
+        payload: { nom: 'Pro', prenom: 'Actif', anneeAdhesion: 2024 },
+      })
+      expect(res.statusCode).toBe(201)
+    } finally {
+      await base.organisation.update({ where: { id: ORG }, data: { forfait: 'GRATUIT', forfaitExpireLe: null } })
+    }
+  })
+
   it('import : 50 actifs → importer 1 actif reste un dépassement (403 au commit)', async () => {
     await preparer(PLAFOND, 0)
     const res = await app.inject({

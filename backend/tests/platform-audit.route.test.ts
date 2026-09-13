@@ -215,6 +215,21 @@ describe('GET /platform/audit-log — vue Historique', () => {
     expect(res.json().items.map((r: any) => r.id)).toEqual(['e1', 'e3'])
   })
 
+  it('le filtre accepte PROLONGER_FORFAIT (liste d’actions du schéma alignée sur l’enum)', async () => {
+    const lignes = [
+      ...rows,
+      { id: 'e4', action: 'PROLONGER_FORFAIT', organisationCibleId: 'org-a', acteurEmail: 'sa@n', dateAction: new Date() },
+    ]
+    app = await appAvec(buildMock({ auditRows: lignes }))
+    const res = await app.inject({
+      method: 'GET',
+      url: '/platform/audit-log?action=PROLONGER_FORFAIT',
+      headers: superAdmin(app),
+    })
+    expect(res.statusCode).toBe(200)
+    expect(res.json().items.map((r: any) => r.id)).toEqual(['e4'])
+  })
+
   it('filtre par organisation ciblée', async () => {
     app = await appAvec(buildMock({ auditRows: rows }))
     const res = await app.inject({

@@ -44,8 +44,10 @@ const APPROUVES: Record<string, number> = {
   // référence l'org ciblée par un snapshot scalaire `organisationCibleId`, SANS relation, hors
   // `SCOPED_MODELS`) — donc l'accès hors-tenant est légitime. Les ÉCRITURES de trace (à chaque
   // action) N'ajoutent PAS d'appel : elles sont imbriquées dans les `runUnscoped` déjà comptés
-  // ci-dessus. 6 appels au total.
-  'routes/platform.route.ts': 6,
+  // ci-dessus. + PROLONGATION du forfait (spec 1.1 §3.1) : lecture de l'échéance, écriture
+  // CONDITIONNELLE et trace dans un seul appel (même justification : pas de contexte org pour le
+  // SUPER_ADMIN, `Organisation` lue par id). 7 appels au total.
+  'routes/platform.route.ts': 7,
   // Lien PUBLIC signé — carte de statut (§4.7) : résolution de l'org du membre AVANT `orgContext.run`.
   'routes/cartes.route.ts': 1,
   // Lien PUBLIC signé — reçu PDF public (§4.6) : résolution de l'org du reçu, idem.

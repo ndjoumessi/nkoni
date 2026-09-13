@@ -352,7 +352,9 @@ export function ImportMembresPage() {
           <p className={`mt-3 text-sm ${rapport.quota.depasse ? 'text-terra' : 'text-muted-foreground'}`}>
             {rapport.quota.depasse
               ? t('import.apercu.quotaDepasse', rapport.quota)
-              : t('import.apercu.quotaOk', rapport.quota)}
+              : rapport.quota.plafond === null
+                ? t('import.apercu.quotaIllimite', rapport.quota)
+                : t('import.apercu.quotaOk', rapport.quota)}
           </p>
           {rapport.erreurs.length > 0 && (
             <p className="mt-1 text-sm text-terra">{t('import.apercu.corrigez')}</p>

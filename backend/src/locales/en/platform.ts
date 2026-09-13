@@ -7,4 +7,7 @@ export const messages = {
     "The confirmation name does not match the organisation's name: deletion cancelled.",
   'platform.auditIndisponible':
     'The audit log is temporarily unavailable: deletion cancelled (no data erased). Please retry.',
+  'platform.prolongationForfaitGratuit': 'The Free plan has no end date: assign a Pro or Enterprise plan first.',
+  'platform.prolongationConcurrente':
+    "This organisation's end date has just changed: reload the page and extend it again.",
 }

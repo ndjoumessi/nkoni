@@ -18,6 +18,7 @@ function buildMock() {
       langueDefaut: 'FR',
       actif: true,
       forfait: 'GRATUIT',
+      forfaitExpireLe: null as Date | null,
       createdAt: new Date('2026-01-01T00:00:00Z'),
     },
     {
@@ -27,6 +28,7 @@ function buildMock() {
       langueDefaut: 'FR',
       actif: true,
       forfait: 'GRATUIT',
+      forfaitExpireLe: null as Date | null,
       createdAt: new Date('2026-02-01T00:00:00Z'),
     },
   ]
@@ -34,6 +36,8 @@ function buildMock() {
   const updates: { id: string; [k: string]: any }[] = []
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const platformAudits: any[] = []
+  /** `forcerConflit` simule une échéance modifiée entre la lecture et l'écriture conditionnelle. */
+  const etat = { forcerConflit: false }
   const prisma: any = {
     organisation: {
       findMany: async () => orgs.map((o) => ({ ...o })),
@@ -53,6 +57,17 @@ function buildMock() {
         updates.push({ id: where.id, ...data })
         return { ...org, ...data }
       },
+      // Écriture CONDITIONNELLE de la prolongation : ne s'applique que si l'échéance lue n'a pas bougé.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      updateMany: async ({ where, data }: any) => {
+        const org = orgs.find((o) => o.id === where.id)
+        const lue = where.forfaitExpireLe === null ? null : where.forfaitExpireLe.getTime()
+        const actuelle = org?.forfaitExpireLe ? org.forfaitExpireLe.getTime() : null
+        if (!org || etat.forcerConflit || lue !== actuelle) return { count: 0 }
+        Object.assign(org, data)
+        updates.push({ id: where.id, ...data })
+        return { count: 1 }
+      },
     },
     membre: {
       // groupBy : org-a a 3 membres, org-b en a 1.
@@ -68,7 +83,7 @@ function buildMock() {
       create: async (a: any) => (platformAudits.push(a.data), { id: 'pa-1', ...a.data }),
     },
   }
-  return { prisma, updates, platformAudits }
+  return { prisma, updates, platformAudits, orgs, etat }
 }
 
 async function appAvec(prisma: unknown): Promise<FastifyInstance> {
@@ -92,8 +107,10 @@ describe('Routes plateforme — /platform/* (SUPER_ADMIN)', () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let updates: { id: string; [k: string]: any }[]
 
+  let mock: ReturnType<typeof buildMock>
+
   beforeEach(async () => {
-    const mock = buildMock()
+    mock = buildMock()
     updates = mock.updates
     app = await appAvec(mock.prisma)
   })
@@ -218,6 +235,111 @@ describe('Routes plateforme — /platform/* (SUPER_ADMIN)', () => {
         payload: { forfait: 'ENTREPRISE' },
       })
       expect(res.statusCode).toBe(404)
+    })
+  })
+
+  describe('Échéance — vues plateforme (spec 1.1)', () => {
+    const orgA = () => {
+      const org = mock.orgs.find((o) => o.id === 'org-a')
+      if (!org) throw new Error('org-a absente du mock')
+      return org
+    }
+
+    it('la liste porte l’état CALCULÉ et le forfait EFFECTIF', async () => {
+      orgA().forfait = 'PRO'
+      orgA().forfaitExpireLe = new Date('2020-01-01T22:59:59.999Z') // expirée depuis longtemps
+      const res = await app.inject({ method: 'GET', url: '/platform/organisations', headers: superAdmin(app) })
+      expect(res.statusCode).toBe(200)
+      const vue = res.json().organisations.find((o: { id: string }) => o.id === 'org-a')
+      expect(vue).toMatchObject({
+        forfait: 'PRO',
+        forfaitExpireLe: '2020-01-01T22:59:59.999Z',
+        etatForfait: 'EXPIRE',
+        forfaitEffectif: 'GRATUIT',
+      })
+    })
+
+    it('repasser en GRATUIT efface l’échéance', async () => {
+      orgA().forfait = 'PRO'
+      orgA().forfaitExpireLe = new Date('2030-01-01T22:59:59.999Z')
+      const res = await app.inject({
+        method: 'PATCH',
+        url: '/platform/organisations/org-a/forfait',
+        headers: superAdmin(app),
+        payload: { forfait: 'GRATUIT' },
+      })
+      expect(res.statusCode).toBe(200)
+      expect(updates).toContainEqual({ id: 'org-a', forfait: 'GRATUIT', forfaitExpireLe: null })
+      expect(res.json().organisation).toMatchObject({
+        forfait: 'GRATUIT',
+        forfaitExpireLe: null,
+        etatForfait: 'SANS_ECHEANCE',
+      })
+    })
+  })
+
+  describe('Prolongation — POST /platform/organisations/:id/forfait/prolonger', () => {
+    const prolonger = (payload: Record<string, unknown>, id = 'org-a', entetes = superAdmin(app)) =>
+      app.inject({ method: 'POST', url: `/platform/organisations/${id}/forfait/prolonger`, headers: entetes, payload })
+
+    beforeEach(() => {
+      const org = mock.orgs.find((o) => o.id === 'org-a')
+      if (!org) throw new Error('org-a absente du mock')
+      org.forfait = 'PRO'
+      org.forfaitExpireLe = null
+    })
+
+    it('aperçu : calcule la nouvelle échéance SANS rien écrire ni journaliser', async () => {
+      const res = await prolonger({ mois: 3, apercu: true })
+      expect(res.statusCode).toBe(200)
+      expect(res.json().nouvelleEcheance).toMatch(/T22:59:59\.999Z$/) // fin de journée Douala
+      expect(updates).toHaveLength(0)
+      expect(mock.platformAudits).toHaveLength(0)
+    })
+
+    it('écriture : écrit EXACTEMENT la date annoncée par l’aperçu, et journalise', async () => {
+      const apercu = (await prolonger({ mois: 12, apercu: true })).json()
+      const res = await prolonger({ mois: 12 })
+      expect(res.statusCode).toBe(200)
+      expect(res.json().nouvelleEcheance).toBe(apercu.nouvelleEcheance)
+      expect(updates).toHaveLength(1)
+      expect(updates[0]?.forfaitExpireLe.toISOString()).toBe(apercu.nouvelleEcheance)
+      expect(res.json().organisation).toMatchObject({ forfaitExpireLe: apercu.nouvelleEcheance, etatForfait: 'ACTIF' })
+      expect(mock.platformAudits).toHaveLength(1)
+      expect(mock.platformAudits[0]).toMatchObject({
+        action: 'PROLONGER_FORFAIT',
+        organisationCibleId: 'org-a',
+        donneesAvant: { forfait: 'PRO', forfaitExpireLe: null },
+        donneesApres: { forfaitExpireLe: apercu.nouvelleEcheance, mois: 12 },
+      })
+    })
+
+    it('forfait GRATUIT → 409, rien d’écrit', async () => {
+      const org = mock.orgs.find((o) => o.id === 'org-a')
+      if (org) org.forfait = 'GRATUIT'
+      const res = await prolonger({ mois: 1 })
+      expect(res.statusCode).toBe(409)
+      expect(updates).toHaveLength(0)
+    })
+
+    it('échéance modifiée entre lecture et écriture → 409, rien d’écrit ni journalisé', async () => {
+      mock.etat.forcerConflit = true
+      const res = await prolonger({ mois: 1 })
+      expect(res.statusCode).toBe(409)
+      expect(updates).toHaveLength(0)
+      expect(mock.platformAudits).toHaveLength(0)
+    })
+
+    it('organisation inconnue → 404', async () => {
+      expect((await prolonger({ mois: 1 }, 'org-inconnue')).statusCode).toBe(404)
+    })
+
+    it('durée hors liste (2 mois) → 400', async () => {
+      expect((await prolonger({ mois: 2 })).statusCode).toBe(400)
+    })
+
+    it('rôle tenant (ADMIN) → 403', async () => {
+      expect((await prolonger({ mois: 1 }, 'org-a', adminTenant(app))).statusCode).toBe(403)
     })
   })
 })

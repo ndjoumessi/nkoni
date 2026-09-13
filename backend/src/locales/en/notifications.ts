@@ -8,7 +8,7 @@ export const messages = {
   'notifications.reunionRappel.titre': 'Upcoming meeting',
   'notifications.reunionRappel.message': 'Meeting on {date} at {lieu}.',
   // Plan end date (spec 1.1 §4.1) — recipients ADMIN/PRESIDENT, service notice.
-  // Organisation name included (F3) : the same person can manage several associations, and a
+  // Organisation name included : the same person can manage several associations, and a
   // commercial-looking reminder without an organisation name reads like phishing.
   'notifications.forfaitEcheance.titre': 'NKONI plan end date — {organisation}',
   'notifications.forfaitEcheance.J30':

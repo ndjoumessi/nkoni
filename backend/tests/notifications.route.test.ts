@@ -87,7 +87,7 @@ describe('Routes Notifications (§5)', () => {
     expect(notifs.get('b1')?.lu).toBe(false) // inchangée
   })
 
-  it('DELETE /notifications/:id écarte la sienne (204) : disparaît de la liste, LA LIGNE SURVIT (F1)', async () => {
+  it('DELETE /notifications/:id écarte la sienne (204) : disparaît de la liste, LA LIGNE SURVIT', async () => {
     const res = await app.inject({
       method: 'DELETE',
       url: '/notifications/a1',

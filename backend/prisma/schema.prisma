@@ -1024,7 +1024,7 @@ model Notification {
   dateCreation   DateTime         @default(now())
   dateLecture    DateTime? // renseignée au passage lu = true
   // Écartée par le destinataire (suppression logique) : la ligne reste la trace de
-  // dédoublonnage des relances et rappels (F1, spec 1.1 §4.1). Nullable, AUCUN backfill :
+  // dédoublonnage des relances et rappels (spec 1.1 §4.1). Nullable, AUCUN backfill :
   // `masqueeLe IS NULL` ⇒ visible, exactement l'état voulu pour toutes les lignes existantes.
   masqueeLe      DateTime?
 

@@ -269,13 +269,14 @@ export async function marquerCommeLue(
  * (id, destinataireId, masqueeLe: null), `count === 0` → NotificationIntrouvableError (route →
  * 404, sans révéler l'existence d'une notif d'autrui ni qu'elle était déjà écartée).
  *
- * F1 : la ligne SURVIT (on pose `masqueeLe`, on ne `deleteMany` plus) — c'est elle qui porte la
+ * La ligne SURVIT (on pose `masqueeLe`, on ne `deleteMany` plus) — c'est elle qui porte la
  * trace de dédoublonnage des relances de forfait (`forfait-relances.service.ts`) et des rappels
  * de réunion (`notification-scheduler.ts`), tous deux basés sur un `findFirst` par
  * (destinataireId, type, entiteType, entiteId) qui NE filtre PAS `masqueeLe` : écarter une
- * notification ne doit pas la « réarmer » à la prochaine tâche de nuit. On ne touche QUE
- * `masqueeLe` et `lu` — pas `dateLecture` si déjà renseignée (champ informatif, on accepte
- * l'écrasement par la date d'écartement plutôt que la complexité d'un updateMany conditionnel).
+ * notification ne doit pas la « réarmer » à la prochaine tâche de nuit. `masqueeLe`, `lu` ET
+ * `dateLecture` sont posés à l'instant de l'écartement — `dateLecture` est un champ informatif,
+ * on accepte de l'écraser même si elle était déjà renseignée plutôt que la complexité d'un
+ * updateMany conditionnel.
  */
 export async function supprimerNotification(
   prisma: NotificationPrisma,

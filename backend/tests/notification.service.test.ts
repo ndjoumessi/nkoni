@@ -196,7 +196,7 @@ describe('CRUD notifications isolé par destinataire', () => {
     expect(notifs.get('b1')?.lu).toBe(false) // celle de u-b intacte
   })
 
-  it('supprimerNotification (F1) : ÉCARTE (suppression logique) — la ligne survit, masquée', async () => {
+  it('supprimerNotification : ÉCARTE (suppression logique) — la ligne survit, masquée', async () => {
     const { prisma, notifs } = seed()
     const now = new Date('2026-06-10T09:00:00Z')
     await supprimerNotification(prisma, 'a1', 'u-a', now)
@@ -206,7 +206,7 @@ describe('CRUD notifications isolé par destinataire', () => {
     expect(notifs.get('a1')).toMatchObject({ masqueeLe: now, lu: true, dateLecture: now })
   })
 
-  it('supprimerNotification (F1) : l’effet — plus listée ni comptée après écartement', async () => {
+  it('supprimerNotification : l’effet — plus listée ni comptée après écartement', async () => {
     const { prisma } = seed()
     await supprimerNotification(prisma, 'a1', 'u-a')
     const liste = (await listerNotifications(prisma, 'u-a')) as { id: string }[]
@@ -214,7 +214,7 @@ describe('CRUD notifications isolé par destinataire', () => {
     expect(await compterNonLues(prisma, 'u-a')).toBe(0) // a1 était la seule non lue de u-a
   })
 
-  it('supprimerNotification (F1) : une 2e suppression sur la même notif → NotificationIntrouvableError', async () => {
+  it('supprimerNotification : une 2e suppression sur la même notif → NotificationIntrouvableError', async () => {
     const { prisma } = seed()
     await supprimerNotification(prisma, 'a1', 'u-a')
     await expect(supprimerNotification(prisma, 'a1', 'u-a')).rejects.toBeInstanceOf(
@@ -222,7 +222,7 @@ describe('CRUD notifications isolé par destinataire', () => {
     )
   })
 
-  it('supprimerNotification (F1) : REFUSE si ce n’est pas le destinataire, sans la masquer', async () => {
+  it('supprimerNotification : REFUSE si ce n’est pas le destinataire, sans la masquer', async () => {
     const { prisma, notifs } = seed()
     await expect(supprimerNotification(prisma, 'a1', 'u-b')).rejects.toBeInstanceOf(
       NotificationIntrouvableError,
@@ -230,7 +230,7 @@ describe('CRUD notifications isolé par destinataire', () => {
     expect(notifs.get('a1')?.masqueeLe).toBeFalsy() // inchangée
   })
 
-  it('supprimerNotification (F1) : une notification écartée ne bloque plus marquerCommeLue non plus (introuvable)', async () => {
+  it('supprimerNotification : une notification écartée ne bloque plus marquerCommeLue non plus (introuvable)', async () => {
     const { prisma } = seed()
     await supprimerNotification(prisma, 'a1', 'u-a')
     await expect(marquerCommeLue(prisma, 'a1', 'u-a')).rejects.toBeInstanceOf(

@@ -11,7 +11,7 @@ export const messages = {
   'notifications.reunionRappel.titre': 'Réunion à venir',
   'notifications.reunionRappel.message': 'Réunion le {date} à {lieu}.',
   // Échéance du forfait (spec 1.1 §4.1) — destinataires ADMIN/PRESIDENT, avis de service.
-  // Nom de l'organisation inclus (F3) : un même responsable peut gérer plusieurs associations,
+  // Nom de l'organisation inclus : un même responsable peut gérer plusieurs associations,
   // et un rappel commercial sans nom d'organisation ressemble à de l'hameçonnage.
   'notifications.forfaitEcheance.titre': 'Échéance du forfait NKONI — {organisation}',
   'notifications.forfaitEcheance.J30':

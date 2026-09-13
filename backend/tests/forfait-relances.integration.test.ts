@@ -10,7 +10,7 @@ import { finDeJourneeApp } from '../src/lib/date-app'
 import { executerRelancesForfaitToutesOrgs } from '../src/services/forfait-relances.service'
 
 /**
- * F1 (fix-wave, spec 1.1 §4.1) — ÉCARTER une relance de forfait ne doit plus la RÉARMER la nuit
+ * Fix-wave (spec 1.1 §4.1) — ÉCARTER une relance de forfait ne doit plus la RÉARMER la nuit
  * suivante. Avant le correctif, `supprimerNotification` faisait un `deleteMany` : le dédoublonnage
  * de `executerRelancesForfait` (`findFirst` sur destinataireId/type/entiteType/entiteId) ne
  * trouvait alors plus la ligne et recréait la notification à la prochaine tâche de nuit.
@@ -89,7 +89,7 @@ afterAll(async () => {
 
 const entetes = () => ({ authorization: `Bearer ${jetonAdmin}` })
 
-describe('Relances de forfait — écarter une notification ne la réarme plus (F1)', () => {
+describe('Relances de forfait — écarter une notification ne la réarme plus', () => {
   beforeEach(async () => {
     await base.notification.deleteMany({ where: { destinataireId: adminId } })
   })

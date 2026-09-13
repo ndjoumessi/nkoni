@@ -81,8 +81,8 @@ describe('executerRelancesForfait', () => {
     const fr = notifs.find((n) => n.destinataireId === 'u-admin')
     expect(fr.message).toContain('20 septembre 2026')
     expect(fr.message).toContain('Pro')
-    expect(fr.message).toContain('Tontine des Amis') // F3 : nom de l'organisation dans le message
-    expect(fr.titre).toContain('Tontine des Amis') // F3 : et dans le titre (repris comme sujet e-mail)
+    expect(fr.message).toContain('Tontine des Amis') // nom de l'organisation dans le message
+    expect(fr.titre).toContain('Tontine des Amis') // et dans le titre (repris comme sujet e-mail)
     const en = notifs.find((n) => n.destinataireId === 'u-pres')
     expect(en.message).toContain('September 20, 2026')
     expect(en.message).toContain('Tontine des Amis')
@@ -106,7 +106,7 @@ describe('executerRelancesForfait', () => {
     expect(notifs).toHaveLength(2)
   })
 
-  it('notification écartée (masquée) entre deux nuits → la 2e nuit ne recrée rien (F1)', async () => {
+  it('notification écartée (masquée) entre deux nuits → la 2e nuit ne recrée rien', async () => {
     // Un ADMIN écarte (masque) sa notification de relance dans la journée — reproduit ici en
     // posant `masqueeLe` sur les lignes créées la 1ʳᵉ nuit, comme le ferait `supprimerNotification`.
     // Le `where` du dédoublonnage (destinataireId/type/entiteType/entiteId) NE filtre PAS

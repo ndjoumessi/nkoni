@@ -104,7 +104,7 @@ describe('BandeauForfait (spec 1.1 §4.4)', () => {
     expect(container.innerHTML).toBe('')
   })
 
-  it('F4 : sur /parametres, rien — même en grâce (la carte d’échéance y dit déjà la même chose)', async () => {
+  it('sur /parametres, rien — même en grâce (la carte d’échéance y dit déjà la même chose)', async () => {
     moi.mockResolvedValue({ ...ORG, etatForfait: 'GRACE', joursRestants: -3 })
     const { container } = rendre(['/parametres'])
     await waitFor(() => expect(moi).toHaveBeenCalled())

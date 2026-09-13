@@ -42,7 +42,7 @@ export function BandeauForfait() {
   }, [autorise, accessToken])
 
   if (!autorise || !org) return null
-  // F4 : la carte d'échéance de /parametres dit déjà la même chose (lien redondant vers soi-même).
+  // La carte d'échéance de /parametres dit déjà la même chose (lien redondant vers soi-même).
   if (pathname === '/parametres') return null
   const vue = bandeauForfait(org)
   if (!vue) return null

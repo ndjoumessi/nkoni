@@ -74,3 +74,17 @@ describe('parité inter-couches : roles.ts ↔ gardes requireRoles serveur', () 
     expect(front).toEqual(serveur)
   })
 })
+
+describe('parité inter-couches : bandeau d’échéance ↔ destinataires des relances', () => {
+  // Le bandeau (front) et les relances de nuit (back) s'adressent aux MÊMES rôles (spec 1.1 §4.1/§4.4).
+  const SERVICE_TS = resolve(ICI, '../../../backend/src/services/forfait-relances.service.ts')
+
+  it('GESTION_FORFAIT miroite ROLES_RELANCE_FORFAIT', () => {
+    const service = readFileSync(SERVICE_TS, 'utf8')
+    const m = service.match(/const ROLES_RELANCE_FORFAIT\s*=\s*\[([^\]]*)\]/)
+    if (!m) throw new Error('ROLES_RELANCE_FORFAIT introuvable dans forfait-relances.service.ts')
+    const serveur = rolesDe(m[1])
+    expect(serveur.length).toBeGreaterThan(0)
+    expect(rolesFront(readFileSync(ROLES_TS, 'utf8'), 'GESTION_FORFAIT')).toEqual(serveur)
+  })
+})

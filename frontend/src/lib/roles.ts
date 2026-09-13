@@ -70,6 +70,17 @@ export function peutConfigurerPaiement(role: string | undefined): boolean {
   return role !== undefined && CONFIG_PAIEMENT.includes(role)
 }
 
+/**
+ * Miroir des DESTINATAIRES des relances d'échéance (`ROLES_RELANCE_FORFAIT`,
+ * backend/src/services/forfait-relances.service.ts) — pas d'une route. Parité : `roles-parity.test.ts`.
+ */
+const GESTION_FORFAIT = ['ADMIN', 'PRESIDENT']
+
+/** Voit le bandeau d'échéance du forfait (spec 1.1 §4.4) : le bureau dirigeant, jamais les membres. */
+export function peutGererForfait(role: string | undefined): boolean {
+  return role !== undefined && GESTION_FORFAIT.includes(role)
+}
+
 /** Rôles autorisés à saisir un versement et à ouvrir une année (Contribution/Versement CRUD §2). */
 const GESTION_FINANCE = ['ADMIN', 'TRESORIERE']
 

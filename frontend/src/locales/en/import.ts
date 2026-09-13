@@ -54,6 +54,7 @@ export default {
       erreurs_one: '{{count}} row in error',
       erreurs_other: '{{count}} rows in error',
       quotaOk: 'Quota: {{actuel}} + {{aCreer}} / {{plafond}} active members',
+      quotaIllimite: 'Quota: {{actuel}} + {{aCreer}} active members (no limit on this plan)',
       quotaDepasse:
         'Quota exceeded: {{actuel}} + {{aCreer}} would pass the limit of {{plafond}} active members (free plan).',
       colonneLigne: 'Row',

@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/auth-context'
 import { organisationApi, messageErreur, type OrganisationCourante } from '@/lib/api'
 import { peutVoirParametres, peutExporterDonnees, peutConfigurerPaiement } from '@/lib/roles'
 import { ConfigPaiement } from '@/components/ConfigPaiement'
+import { EcheanceForfaitOrganisation } from '@/components/EcheanceForfaitOrganisation'
 import { cn, formatDate } from '@/lib/utils'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, Overline } from '@/components/ui/Card'
@@ -187,6 +188,8 @@ export function ParametresPage() {
                 {t(cleI18n(`commun.forfaits.${org.forfait}`))}
               </span>
             </div>
+
+            <EcheanceForfaitOrganisation org={org} />
 
             {illimite ? (
               <p className="mt-2 text-xs text-muted-foreground">

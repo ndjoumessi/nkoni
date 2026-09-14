@@ -172,6 +172,10 @@ model Organisation {
   // NULL = pas d'échéance (GRATUIT, ou Pro historique). L'état et le forfait EFFECTIF sont CALCULÉS
   // (lib/forfait.ts), jamais stockés : ne JAMAIS lire `forfait` brut pour décider d'une capacité.
   forfaitExpireLe DateTime?
+  // Mesure transitoire (spec 1.1 §1.3) : une organisation qui avait DÉJÀ configuré le paiement en
+  // ligne à la livraison des quotas le CONSERVE quel que soit son forfait (couper un flux d'argent en
+  // service serait brutal). Posé par le backfill de la migration, jamais par du code à date.
+  paiementEnLigneAcquis Boolean @default(false)
   createdAt    DateTime @default(now())
 
   // Chef de l'organisation (dirigeant) — Membre désigné, ACTION MUTABLE réservée ADMIN/PRESIDENT

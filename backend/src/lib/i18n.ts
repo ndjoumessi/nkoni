@@ -93,6 +93,24 @@ export function formatDateApp(date: Date, langue: Langue): string {
   }).format(date)
 }
 
+const MO = 1024 * 1024
+const GO = 1024 * MO
+
+/**
+ * Taille lisible d'un volume de stockage dans la langue donnée (quota de documents, spec 1.1 §4.5) :
+ * mégaoctets sous un gigaoctet, gigaoctets au-delà, une décimale au plus. Unités BINAIRES, comme
+ * `CAPACITES_FORFAIT` (lib/forfait.ts). FR « 480 Mo » / EN « 480 MB ».
+ */
+export function formatTailleOctets(octets: number, langue: Langue): string {
+  const enGo = octets >= GO
+  const valeur = enGo ? octets / GO : octets / MO
+  const unite = enGo ? (langue === 'EN' ? 'GB' : 'Go') : langue === 'EN' ? 'MB' : 'Mo'
+  const nombre = new Intl.NumberFormat(LOCALE_PAR_LANGUE[langue] ?? 'fr', {
+    maximumFractionDigits: 1,
+  }).format(valeur)
+  return `${nombre} ${unite}`
+}
+
 /** Remplace les jetons `{nom}` d'un gabarit par les paramètres fournis. */
 function interpole(gabarit: string, params?: Record<string, string | number>): string {
   if (!params) return gabarit

@@ -4,7 +4,7 @@ import { CONTACT_EMAIL } from '@/lib/contact'
 /**
  * Conditions générales d’utilisation (CGU) — bloquant GA 0.3. Ancrées sur le produit réel
  * (forfaits, attribution manuelle sans paiement, propriété des données du tenant, export/purge).
- * Éditeur ALIGNÉ sur l’attestation d’immatriculation au Registre national des entreprises
+ * Éditeur ALIGNÉ sur l'attestation d'immatriculation au Registre national des entreprises
  * (10/09/2026) et sur les mentions légales du même éditeur (HabaShop, 14/09/2026) : Nelson
  * Djoumessi EI, SIREN 109 761 023, siège. À faire RELIRE par un juriste.
  * §4 aligné sur la spec forfaits (docs/superpowers/specs/2026-09-12-forfaits-echeance-design.md §1.2, §4.6).

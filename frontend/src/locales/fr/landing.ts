@@ -84,7 +84,7 @@ export default {
       overline: 'Forfaits',
       titre: 'Commencez gratuitement, évoluez à votre rythme',
       description:
-        'Le forfait Gratuit est disponible dès aujourd’hui. Les offres Pro et Entreprise s’activent sur demande — écrivez-nous pour lever les limites (pas de paiement en ligne pour l’instant).',
+        'Le forfait Gratuit est disponible dès aujourd’hui. Les offres Pro et Entreprise s’activent sur demande — écrivez-nous pour lever les limites (les forfaits ne se règlent pas encore en ligne).',
       disponible: 'Disponible',
       bientot: 'Sur demande',
       gratuit: {
@@ -113,7 +113,7 @@ export default {
         prix: 'Sur devis',
         bouton: 'Nous contacter',
         f1: 'Tout le forfait Pro',
-        f2: 'Accompagnement dédié à l’onboarding',
+        f2: 'Accompagnement dédié et support prioritaire',
         f3: 'Facturation annuelle, stockage au-delà de 20 Go sur devis',
       },
       mailto: {

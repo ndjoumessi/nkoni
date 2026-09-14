@@ -114,6 +114,9 @@ Attendu, toutes vertes :
 
 ## Rotation des secrets
 
+Vue d'ensemble de TOUS les secrets (Railway, GitHub, Vercel) et de l'effet de chaque rotation :
+[`RUNBOOK_rotation_secrets.md`](./RUNBOOK_rotation_secrets.md).
+
 ### `DATABASE_URL`
 Change quand le mot de passe Postgres de prod est réinitialisé. Reposer le secret avec la commande
 de la §1.

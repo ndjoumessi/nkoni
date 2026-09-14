@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { chiffrerSecret, dechiffrerSecret, chiffrementPspDisponible } from '../src/lib/crypto-secret'
+import { chiffrerSecret, dechiffrerSecret, chiffrementPspDisponible, rechiffrerSecret } from '../src/lib/crypto-secret'
 
 /** Chiffrement des secrets PSP (AES-256-GCM). Pur, sans base : on pose une clé de test 32 octets. */
 beforeAll(() => {
@@ -54,5 +54,77 @@ describe('crypto-secret (AES-256-GCM + AAD + version)', () => {
     } finally {
       process.env['PSP_ENCRYPTION_KEY'] = sauve
     }
+  })
+})
+
+/**
+ * Rotation de la clé maître (`docs/RUNBOOK_rotation_secrets.md`) : ancienne clé en
+ * `PSP_ENCRYPTION_KEY_PRECEDENTE`, nouvelle en `PSP_ENCRYPTION_KEY`.
+ */
+describe('crypto-secret — rotation de la clé maître', () => {
+  const ANCIENNE = Buffer.alloc(32, 7).toString('base64')
+  const NOUVELLE = Buffer.alloc(32, 9).toString('hex')
+
+  const avecCles = <T>(courante: string, precedente: string | undefined, fn: () => T): T => {
+    const sauve = { c: process.env['PSP_ENCRYPTION_KEY'], p: process.env['PSP_ENCRYPTION_KEY_PRECEDENTE'] }
+    process.env['PSP_ENCRYPTION_KEY'] = courante
+    if (precedente === undefined) delete process.env['PSP_ENCRYPTION_KEY_PRECEDENTE']
+    else process.env['PSP_ENCRYPTION_KEY_PRECEDENTE'] = precedente
+    try {
+      return fn()
+    } finally {
+      process.env['PSP_ENCRYPTION_KEY'] = sauve.c
+      if (sauve.p === undefined) delete process.env['PSP_ENCRYPTION_KEY_PRECEDENTE']
+      else process.env['PSP_ENCRYPTION_KEY_PRECEDENTE'] = sauve.p
+    }
+  }
+
+  const ancienSecret = () => avecCles(ANCIENNE, undefined, () => chiffrerSecret('identifiants', ORG))
+
+  it('nouvelle clé SANS clé précédente : un ancien secret est illisible (le danger que la rotation évite)', () => {
+    const enc = ancienSecret()
+    avecCles(NOUVELLE, undefined, () => expect(() => dechiffrerSecret(enc, ORG)).toThrow())
+  })
+
+  it('pendant la bascule : ancien secret lisible via la clé précédente, nouveaux secrets sous la courante', () => {
+    const enc = ancienSecret()
+    avecCles(NOUVELLE, ANCIENNE, () => {
+      expect(dechiffrerSecret(enc, ORG)).toBe('identifiants')
+      const neuf = chiffrerSecret('neuf', ORG)
+      expect(avecCles(NOUVELLE, undefined, () => dechiffrerSecret(neuf, ORG))).toBe('neuf')
+    })
+  })
+
+  it('la clé précédente ne contourne ni l’AAD ni le tag GCM', () => {
+    const enc = ancienSecret()
+    avecCles(NOUVELLE, ANCIENNE, () => {
+      expect(() => dechiffrerSecret(enc, 'autre-org')).toThrow()
+      const [v, iv, tag] = enc.split(':')
+      expect(() => dechiffrerSecret([v, iv, tag, Buffer.from('falsifie').toString('base64')].join(':'), ORG)).toThrow()
+    })
+  })
+
+  it('rechiffrerSecret : ancien → RECHIFFRE, lisible ensuite SANS la clé précédente', () => {
+    const enc = ancienSecret()
+    const r = avecCles(NOUVELLE, ANCIENNE, () => rechiffrerSecret(enc, ORG))
+    expect(r.statut).toBe('RECHIFFRE')
+    if (r.statut !== 'RECHIFFRE') return
+    expect(avecCles(NOUVELLE, undefined, () => dechiffrerSecret(r.chiffre, ORG))).toBe('identifiants')
+  })
+
+  it('rechiffrerSecret : secret déjà sous la clé courante → DEJA_A_JOUR (idempotent)', () => {
+    const enc = avecCles(NOUVELLE, undefined, () => chiffrerSecret('x', ORG))
+    expect(avecCles(NOUVELLE, ANCIENNE, () => rechiffrerSecret(enc, ORG))).toEqual({ statut: 'DEJA_A_JOUR' })
+  })
+
+  it('rechiffrerSecret : illisible avec les deux clés → lève (nouvelle saisie requise)', () => {
+    const enc = avecCles(Buffer.alloc(32, 3).toString('base64'), undefined, () => chiffrerSecret('x', ORG))
+    avecCles(NOUVELLE, ANCIENNE, () => expect(() => rechiffrerSecret(enc, ORG)).toThrow())
+    avecCles(NOUVELLE, undefined, () => expect(() => rechiffrerSecret(enc, ORG)).toThrow())
+  })
+
+  it('clé précédente mal formée → lève (une rotation mal saisie se voit tout de suite)', () => {
+    const enc = ancienSecret()
+    avecCles(NOUVELLE, 'trop-courte', () => expect(() => dechiffrerSecret(enc, ORG)).toThrow(/PSP_ENCRYPTION_KEY_PRECEDENTE/))
   })
 })

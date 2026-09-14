@@ -15,18 +15,39 @@ import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto'
  *      défense en profondeur au-delà de l'extension d'isolation.
  *
  * Format : `v1:iv:tag:ciphertext` (segments base64).
+ *
+ * ROTATION de la clé maître (`docs/RUNBOOK_rotation_secrets.md`) : poser la nouvelle clé dans
+ * `PSP_ENCRYPTION_KEY` et l'ancienne dans `PSP_ENCRYPTION_KEY_PRECEDENTE`. Le chiffrement utilise
+ * TOUJOURS la clé courante ; le déchiffrement essaie la courante puis la précédente, donc aucune
+ * configuration ne devient illisible pendant la bascule. `rechiffrerSecret` (script
+ * `prisma/rechiffrer-secrets-psp.ts`) réécrit ensuite chaque secret sous la clé courante, après quoi
+ * la clé précédente est retirée.
  */
 
 const VERSION = 'v1'
 const SEP = ':'
 
-/** Résout la clé maître (32 octets) depuis l'env — accepte base64 (44 car.) ou hex (64 car.). */
+/** Décode une clé 32 octets — accepte base64 (44 car.) ou hex (64 car.). */
+function decoderCle(brut: string, nom: string): Buffer {
+  const cle = brut.length === 64 ? Buffer.from(brut, 'hex') : Buffer.from(brut, 'base64')
+  if (cle.length !== 32) throw new Error(`${nom} doit décoder en 32 octets (AES-256).`)
+  return cle
+}
+
+/** Résout la clé maître COURANTE (32 octets) depuis l'env. */
 function cleMaitre(): Buffer {
   const brut = process.env['PSP_ENCRYPTION_KEY'] ?? ''
   if (!brut) throw new Error('PSP_ENCRYPTION_KEY manquant — chiffrement des secrets PSP impossible.')
-  const cle = brut.length === 64 ? Buffer.from(brut, 'hex') : Buffer.from(brut, 'base64')
-  if (cle.length !== 32) throw new Error('PSP_ENCRYPTION_KEY doit décoder en 32 octets (AES-256).')
-  return cle
+  return decoderCle(brut, 'PSP_ENCRYPTION_KEY')
+}
+
+/**
+ * Clé PRÉCÉDENTE, posée seulement pendant une rotation. Absente → `null`. Mal formée → lève : une
+ * rotation mal saisie doit se voir tout de suite, pas au premier paiement.
+ */
+function clePrecedente(): Buffer | null {
+  const brut = process.env['PSP_ENCRYPTION_KEY_PRECEDENTE'] ?? ''
+  return brut ? decoderCle(brut, 'PSP_ENCRYPTION_KEY_PRECEDENTE') : null
 }
 
 /**
@@ -42,15 +63,50 @@ export function chiffrerSecret(clair: string, aad: string): string {
   return [VERSION, iv.toString('base64'), tag.toString('base64'), chiffre.toString('base64')].join(SEP)
 }
 
-/** Déchiffre `v1:iv:tag:ciphertext` avec le MÊME `aad`. Lève si format/version/AAD/contenu ne collent pas. */
-export function dechiffrerSecret(enc: string, aad: string): string {
+function dechiffrerAvec(cle: Buffer, enc: string, aad: string): string {
   const parts = enc.split(SEP)
   if (parts.length !== 4 || parts[0] !== VERSION) throw new Error('Format ou version de secret chiffré invalide.')
   const [, ivB64, tagB64, dataB64] = parts as [string, string, string, string]
-  const decipher = createDecipheriv('aes-256-gcm', cleMaitre(), Buffer.from(ivB64, 'base64'))
+  const decipher = createDecipheriv('aes-256-gcm', cle, Buffer.from(ivB64, 'base64'))
   decipher.setAAD(Buffer.from(aad, 'utf8'))
   decipher.setAuthTag(Buffer.from(tagB64, 'base64'))
   return Buffer.concat([decipher.update(Buffer.from(dataB64, 'base64')), decipher.final()]).toString('utf8')
+}
+
+/**
+ * Déchiffre `v1:iv:tag:ciphertext` avec le MÊME `aad` : clé courante d'abord, puis clé précédente si
+ * une rotation est en cours. Lève si aucune ne convient (format/version/AAD/contenu).
+ */
+export function dechiffrerSecret(enc: string, aad: string): string {
+  try {
+    return dechiffrerAvec(cleMaitre(), enc, aad)
+  } catch (err) {
+    const precedente = clePrecedente()
+    if (!precedente) throw err
+    return dechiffrerAvec(precedente, enc, aad)
+  }
+}
+
+export type ResultatRechiffrement = { statut: 'DEJA_A_JOUR' } | { statut: 'RECHIFFRE'; chiffre: string }
+
+/**
+ * Rotation : renvoie `DEJA_A_JOUR` si `enc` se déchiffre avec la clé COURANTE, sinon le déchiffre avec
+ * la clé PRÉCÉDENTE et le rechiffre sous la courante (vérifié par un aller-retour avant d'être rendu).
+ * Lève si aucune clé ne convient : ce secret-là exige une nouvelle saisie par l'organisation.
+ */
+export function rechiffrerSecret(enc: string, aad: string): ResultatRechiffrement {
+  const courante = cleMaitre()
+  try {
+    dechiffrerAvec(courante, enc, aad)
+    return { statut: 'DEJA_A_JOUR' }
+  } catch {
+    const precedente = clePrecedente()
+    if (!precedente) throw new Error('Secret illisible avec la clé courante, et aucune clé précédente posée.')
+    const clair = dechiffrerAvec(precedente, enc, aad)
+    const chiffre = chiffrerSecret(clair, aad)
+    if (dechiffrerAvec(courante, chiffre, aad) !== clair) throw new Error('Vérification du rechiffrement échouée.')
+    return { statut: 'RECHIFFRE', chiffre }
+  }
 }
 
 /** True si une clé de chiffrement PSP valide est configurée (sinon la config paiement est indisponible). */

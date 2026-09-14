@@ -140,6 +140,15 @@ export function ParametresPage() {
     org?.capacites && org.stockageUtiliseOctets !== undefined && org.capacites.quotaStockageOctets > 0
       ? Math.min(100, Math.round((org.stockageUtiliseOctets / org.capacites.quotaStockageOctets) * 100))
       : 0
+  // Même texte pour le compteur visible et `aria-valuetext` de la jauge : un lecteur d'écran ne doit
+  // pas énoncer des octets bruts là où l'œil lit « 120 Mo utilisés sur 500 Mo ».
+  const compteurStockageLabel =
+    org?.capacites && org.stockageUtiliseOctets !== undefined
+      ? t('parametres.stockage.compteur', {
+          utilise: formatTailleOctets(org.stockageUtiliseOctets),
+          quota: formatTailleOctets(org.capacites.quotaStockageOctets),
+        })
+      : ''
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -242,12 +251,7 @@ export function ParametresPage() {
               <div className="mt-5 border-t border-hairline pt-4">
                 <div className="flex items-center gap-2">
                   <HardDrive className="h-4 w-4 text-brass" aria-hidden="true" />
-                  <p className="text-sm font-medium text-foreground">
-                    {t('parametres.stockage.compteur', {
-                      utilise: formatTailleOctets(org.stockageUtiliseOctets),
-                      quota: formatTailleOctets(org.capacites.quotaStockageOctets),
-                    })}
-                  </p>
+                  <p className="text-sm font-medium text-foreground">{compteurStockageLabel}</p>
                 </div>
                 <div
                   className="mt-2 h-2 w-full overflow-hidden rounded-full bg-surface-2"
@@ -255,6 +259,7 @@ export function ParametresPage() {
                   aria-valuenow={org.stockageUtiliseOctets}
                   aria-valuemin={0}
                   aria-valuemax={org.capacites.quotaStockageOctets}
+                  aria-valuetext={compteurStockageLabel}
                   aria-label={t('parametres.stockage.titre')}
                 >
                   <div

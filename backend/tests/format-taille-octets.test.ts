@@ -19,4 +19,9 @@ describe('formatTailleOctets', () => {
   it('zéro', () => {
     expect(formatTailleOctets(0, 'FR')).toBe('0 Mo')
   })
+
+  it('choisit l’unité APRÈS arrondi : juste sous 1 Go ne doit pas afficher 1024 Mo', () => {
+    expect(formatTailleOctets(GO - 1, 'FR')).toBe('1 Go')
+    expect(formatTailleOctets(GO - 1, 'EN')).toBe('1 GB')
+  })
 })

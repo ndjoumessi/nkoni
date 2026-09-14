@@ -3,7 +3,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { PrismaClient } from '../src/generated/prisma/client'
 import { prisma as prismaEtendu } from '../src/lib/prisma'
-import { purgerRetention, type RetentionPrisma } from '../src/services/retention.service'
+import { purgerRetention, seuilRetention, type RetentionPrisma } from '../src/services/retention.service'
 
 /**
  * Purge de rétention (GA 0.3, politique §2.4) contre une VRAIE Postgres, via le client ÉTENDU
@@ -11,12 +11,16 @@ import { purgerRetention, type RetentionPrisma } from '../src/services/retention
  * peut pas : les comparaisons de dates en base, le scoping réel de chaque `deleteMany`, et qu'aucune
  * ligne récente ni aucune ligne d'une autre organisation ne disparaît.
  *
- * Exige `DATABASE_URL` (base JETABLE, JAMAIS `nkoni`).
+ * Exige `DATABASE_URL` (base JETABLE, JAMAIS `nkoni`). ⚠️ La purge parcourt TOUTES les organisations
+ * et tout le journal plateforme de la base visée : le test REFUSE de tourner si le nom de la base ne
+ * désigne pas une base de test (`_it_` ou `test`), pour ne jamais purger une base de développement
+ * pointée par `.env`.
  */
 
 const ORG_A = 'e7000000-0000-4000-8000-000000000071'
 const ORG_B = 'e7000000-0000-4000-8000-000000000072'
-const NOW = new Date('2026-09-14T01:00:00Z')
+// Horloge RÉELLE : la purge compare l'horloge du process à celle de Postgres.
+const NOW = new Date()
 const ACTEUR_PLATEFORME = 'e7000000-0000-4000-8000-0000000000ff'
 
 const base = new PrismaClient({ adapter: new PrismaPg({ connectionString: process.env['DATABASE_URL'] }) })
@@ -27,6 +31,13 @@ const il_y_a = (mois: number, jours = 0): Date => {
   d.setUTCMonth(d.getUTCMonth() - mois)
   d.setUTCDate(d.getUTCDate() - jours)
   return d
+}
+
+function exigerBaseDeTest(): void {
+  const nom = new URL(process.env['DATABASE_URL'] ?? 'postgresql://x/inconnue').pathname.slice(1)
+  if (!/_it_|test/.test(nom)) {
+    throw new Error(`retention.integration : base « ${nom} » refusée (la purge est globale) — utiliser une base jetable`)
+  }
 }
 
 async function nettoyer(): Promise<void> {
@@ -45,12 +56,15 @@ async function semer(org: string): Promise<void> {
   const notif = (titre: string, dateCreation: Date) => ({
     organisationId: org, destinataireId: u.id, type: 'COTISATION_RETARD' as const, titre, message: 'fictif', dateCreation,
   })
+  const seuil = seuilRetention(NOW, 12)
   await base.notification.createMany({
     data: [
       notif('vieille', il_y_a(12, 2)),
-      notif('masquée vieille', il_y_a(13)),
+      { ...notif('masquée vieille', il_y_a(13)), masqueeLe: il_y_a(12, 20) },
+      notif('juste expirée', new Date(seuil.getTime() - 1000)),
+      notif('juste conservée', new Date(seuil.getTime() + 1000)),
+      notif('douze mois moins une heure', new Date(il_y_a(12).getTime() + 3_600_000)),
       notif('récente', il_y_a(11)),
-      notif('limite récente', il_y_a(11, -25)),
     ],
   })
   const audit = (entiteId: string, dateAction: Date) => ({
@@ -62,6 +76,7 @@ async function semer(org: string): Promise<void> {
 }
 
 beforeAll(async () => {
+  exigerBaseDeTest()
   await nettoyer()
   await base.organisation.create({ data: { id: ORG_A, nom: 'Rétention A (fictive)', devise: 'FCFA' } })
   await base.organisation.create({ data: { id: ORG_B, nom: 'Rétention B (fictive)', devise: 'FCFA', actif: false } })
@@ -77,8 +92,9 @@ beforeAll(async () => {
 })
 
 afterAll(async () => {
-  await nettoyer()
+  if (/_it_|test/.test(new URL(process.env['DATABASE_URL'] ?? 'postgresql://x/inconnue').pathname)) await nettoyer()
   await base.$disconnect()
+  await prismaEtendu.$disconnect()
 })
 
 describe('purgerRetention — vraie Postgres, client étendu', () => {
@@ -87,11 +103,11 @@ describe('purgerRetention — vraie Postgres, client étendu', () => {
 
     for (const org of [ORG_A, ORG_B]) {
       const notifs = await base.notification.findMany({ where: { organisationId: org }, select: { titre: true } })
-      expect(notifs.map((n) => n.titre).sort()).toEqual(['limite récente', 'récente'])
+      expect(notifs.map((n) => n.titre).sort()).toEqual(['douze mois moins une heure', 'juste conservée', 'récente'])
       const audits = await base.auditLog.findMany({ where: { organisationId: org }, select: { entiteId: true } })
       expect(audits.map((a) => a.entiteId)).toEqual(['récent'])
       const resultat = r.organisations.find((o) => o.organisationId === org)
-      expect(resultat).toEqual({ organisationId: org, notifications: 2, auditLogs: 1 })
+      expect(resultat).toEqual({ organisationId: org, notifications: 3, auditLogs: 1 })
     }
 
     const traces = await base.platformAuditLog.findMany({
@@ -109,6 +125,6 @@ describe('purgerRetention — vraie Postgres, client étendu', () => {
         organisationId: org, notifications: 0, auditLogs: 0,
       })
     }
-    expect(await base.notification.count({ where: { organisationId: { in: [ORG_A, ORG_B] } } })).toBe(4)
+    expect(await base.notification.count({ where: { organisationId: { in: [ORG_A, ORG_B] } } })).toBe(6)
   })
 })

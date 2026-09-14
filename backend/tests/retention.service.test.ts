@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { orgContext } from '../src/lib/org-context'
 import {
-  HorlogeRetentionInvalideError,
+  DERIVE_HORLOGE_MAX_MS,
+  RetentionRefuseeError,
   RETENTION_MOIS,
   purgerRetention,
   seuilRetention,
@@ -22,7 +23,7 @@ interface Appel {
   contexte: string | undefined
 }
 
-function prismaEspion(orgs: string[]): { prisma: RetentionPrisma; appels: Appel[] } {
+function prismaEspion(orgs: string[], horlogeBase: Date = NOW): { prisma: RetentionPrisma; appels: Appel[] } {
   const appels: Appel[] = []
   const deleteMany = (modele: string) => async ({ where }: { where: Record<string, unknown> }) => {
     appels.push({ modele, where, contexte: orgContext.organisationId() })
@@ -31,6 +32,7 @@ function prismaEspion(orgs: string[]): { prisma: RetentionPrisma; appels: Appel[
   return {
     appels,
     prisma: {
+      $queryRaw: async () => [{ ms: horlogeBase.getTime() }],
       organisation: { findMany: async () => orgs.map((id) => ({ id })) },
       notification: { deleteMany: deleteMany('notification') },
       auditLog: { deleteMany: deleteMany('auditLog') },
@@ -40,10 +42,19 @@ function prismaEspion(orgs: string[]): { prisma: RetentionPrisma; appels: Appel[
 }
 
 describe('seuilRetention', () => {
-  it('recule du nombre de mois calendaires (jour applicatif Douala)', () => {
-    expect(seuilRetention(NOW, 12).toISOString().slice(0, 10)).toBe('2025-09-14')
-    expect(seuilRetention(NOW, 24).toISOString().slice(0, 10)).toBe('2024-09-14')
-    expect(seuilRetention(NOW, 60).toISOString().slice(0, 10)).toBe('2021-09-14')
+  it('début (00:00 Douala) du jour situé N mois plus tôt', () => {
+    expect(seuilRetention(NOW, 12).toISOString()).toBe('2025-09-13T23:00:00.000Z')
+    expect(seuilRetention(NOW, 24).toISOString()).toBe('2024-09-13T23:00:00.000Z')
+    expect(seuilRetention(NOW, 60).toISOString()).toBe('2021-09-13T23:00:00.000Z')
+  })
+
+  it('jamais en avance : une ligne âgée de 12 mois moins une heure, ou de 12 mois pile, est conservée', () => {
+    const douzeMoisPile = new Date('2025-09-14T01:00:00Z')
+    const douzeMoisMoinsUneHeure = new Date('2025-09-14T02:00:00Z')
+    expect(douzeMoisPile.getTime()).toBeGreaterThanOrEqual(seuilRetention(NOW, 12).getTime())
+    expect(douzeMoisMoinsUneHeure.getTime()).toBeGreaterThanOrEqual(seuilRetention(NOW, 12).getTime())
+    // Tard le soir à Douala (23 h 30 le 14 = 22 h 30 Z) : le seuil reste le début du 14 un an plus tôt.
+    expect(seuilRetention(new Date('2026-09-14T22:30:00Z'), 12).toISOString()).toBe('2025-09-13T23:00:00.000Z')
   })
 
   it('durées de la politique : 12 / 24 / 60 mois', () => {
@@ -57,7 +68,7 @@ describe('seuilRetention', () => {
     ['durée négative', NOW, -12],
     ['durée non entière', NOW, 12.5],
   ])('refuse : %s', (_nom, now, mois) => {
-    expect(() => seuilRetention(now, mois)).toThrow(HorlogeRetentionInvalideError)
+    expect(() => seuilRetention(now, mois)).toThrow(RetentionRefuseeError)
   })
 })
 
@@ -101,7 +112,23 @@ describe('purgerRetention', () => {
 
   it('horloge invalide : AUCUNE suppression, erreur remontée au scheduler', async () => {
     const { prisma, appels } = prismaEspion(['org-a'])
-    await expect(purgerRetention(prisma, new Date(Number.NaN))).rejects.toThrow(HorlogeRetentionInvalideError)
+    await expect(purgerRetention(prisma, new Date(Number.NaN))).rejects.toThrow(RetentionRefuseeError)
     expect(appels).toHaveLength(0)
+  })
+
+  it.each([
+    ['process en avance (horloge sautée dans le futur)', new Date(NOW.getTime() - DERIVE_HORLOGE_MAX_MS - 1000)],
+    ['process en retard', new Date(NOW.getTime() + DERIVE_HORLOGE_MAX_MS + 1000)],
+    ['horloge de la base illisible', new Date(Number.NaN)],
+  ])('écart d’horloge avec Postgres (%s) : AUCUNE suppression', async (_nom, horlogeBase) => {
+    const { prisma, appels } = prismaEspion(['org-a'], horlogeBase)
+    await expect(purgerRetention(prisma, NOW)).rejects.toThrow(RetentionRefuseeError)
+    expect(appels).toHaveLength(0)
+  })
+
+  it('écart d’horloge dans la tolérance : purge effectuée', async () => {
+    const { prisma, appels } = prismaEspion(['org-a'], new Date(NOW.getTime() - DERIVE_HORLOGE_MAX_MS + 1000))
+    await purgerRetention(prisma, NOW)
+    expect(appels.length).toBeGreaterThan(0)
   })
 })

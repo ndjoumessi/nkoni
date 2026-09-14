@@ -300,6 +300,9 @@ export function demarrerScheduler(app: FastifyInstance): void {
     '0 3 * * *',
     () => {
       const anneeCourante = anneeCouranteApp()
+      // Posé DANS la transaction dès que le verrou est obtenu : la purge de rétention ne tourne que
+      // sur l'instance qui détient le tour, même si les tâches de nuit ont échoué ensuite.
+      let verrouObtenu = false
       // MULTI-INSTANCE (audit M4) : toute l'exécution tourne dans UNE transaction protégée par un
       // verrou consultatif TRANSACTION-SCOPÉ (`pg_try_advisory_xact_lock`, libéré au commit, fiable
       // avec le pool contrairement à un verrou de session). Si une autre instance le détient déjà
@@ -318,6 +321,7 @@ export function demarrerScheduler(app: FastifyInstance): void {
               app.log.info('Scheduler : verrou non obtenu (autre instance) → passage ignoré')
               return null
             }
+            verrouObtenu = true
             // Trois tâches de nuit sous LE MÊME verrou : retards de cotisation, rappels de réunion,
             // relances d'échéance du forfait (spec 1.1 §4.1).
             const retards = await executerVerificationRetardsToutesOrgs(
@@ -378,24 +382,6 @@ export function demarrerScheduler(app: FastifyInstance): void {
             app.log.error({ err: errRelance }, 'Livraison des relances de forfait échouée (notifications déjà créées)')
             app.observabilite.signaler(errRelance, { source: 'scheduler', tache: 'FORFAIT_ECHEANCE_LIVRAISON' })
           }
-          // Rétention (GA 0.3, politique §2.4) : purge des notifications > 12 mois, AuditLog > 24 mois,
-          // PlatformAuditLog > 5 ans. HORS de la transaction des relances (un volume de suppression ne
-          // doit ni la ralentir ni la faire échouer) mais sous le même tour : seule l'instance qui a
-          // obtenu le verrou arrive ici. Try/catch DÉDIÉ : un échec de purge n'annule rien de ce qui
-          // précède ; il est signalé à part (une purge qui cesse en silence contredirait la politique
-          // publiée).
-          let retention = { notifications: 0, auditLogs: 0, platformAuditLogs: 0 }
-          try {
-            const r = await purgerRetention(app.prisma as unknown as RetentionPrisma)
-            retention = {
-              notifications: r.organisations.reduce((s, o) => s + o.notifications, 0),
-              auditLogs: r.organisations.reduce((s, o) => s + o.auditLogs, 0),
-              platformAuditLogs: r.platformAuditLogs,
-            }
-          } catch (errRetention) {
-            app.log.error({ err: errRetention }, 'Purge de rétention échouée')
-            app.observabilite.signaler(errRetention, { source: 'scheduler', tache: 'RETENTION' })
-          }
           // Log de FIN émis APRÈS l'envoi push → marque la fin RÉELLE du travail de nuit.
           const verifies = retards.reduce((s, r) => s + r.verifies, 0)
           const notifies = retards.reduce((s, r) => s + r.notifies, 0)
@@ -409,9 +395,8 @@ export function demarrerScheduler(app: FastifyInstance): void {
               rappelsNotifies,
               relancesForfaitNotifiees,
               emailsForfait,
-              retention,
             },
-            'Tâches de nuit terminées (retards, rappels de réunion, relances de forfait, rétention — toutes organisations)',
+            'Tâches de nuit terminées (retards, rappels de réunion, relances de forfait — toutes organisations)',
           )
         })
         .catch((err) => {
@@ -427,6 +412,28 @@ export function demarrerScheduler(app: FastifyInstance): void {
             source: 'scheduler',
             tache: 'COTISATION_RETARD+REUNION_RAPPEL+FORFAIT_ECHEANCE',
           })
+        })
+        // Rétention (GA 0.3, politique §2.4) : purge des notifications > 12 mois, AuditLog > 24 mois,
+        // PlatformAuditLog > 5 ans. Étape DISTINCTE, après les tâches de nuit qu'elles aient réussi ou
+        // non (un échec des relances ne doit pas suspendre en silence une durée publiée), HORS de leur
+        // transaction (un volume de suppression ne doit ni la ralentir ni la faire échouer), et seulement
+        // sur l'instance qui a obtenu le verrou. Échec signalé à part (`tache: RETENTION`).
+        .then(async () => {
+          if (!verrouObtenu) return
+          try {
+            const r = await purgerRetention(app.prisma as unknown as RetentionPrisma)
+            app.log.info(
+              {
+                notifications: r.organisations.reduce((s, o) => s + o.notifications, 0),
+                auditLogs: r.organisations.reduce((s, o) => s + o.auditLogs, 0),
+                platformAuditLogs: r.platformAuditLogs,
+              },
+              'Purge de rétention terminée',
+            )
+          } catch (errRetention) {
+            app.log.error({ err: errRetention }, 'Purge de rétention échouée')
+            app.observabilite.signaler(errRetention, { source: 'scheduler', tache: 'RETENTION' })
+          }
         })
     },
     { timezone: 'Africa/Douala' },

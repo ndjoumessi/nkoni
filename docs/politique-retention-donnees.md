@@ -118,19 +118,26 @@ sortant conteste ou récupère l'export. Aujourd'hui la suppression est manuelle
 ## 5. Application automatique des durées techniques
 
 Les trois durées de §2.4 (`Notification` 12 mois, `AuditLog` 24 mois, `PlatformAuditLog` 5 ans) sont
-**appliquées chaque nuit** par `backend/src/services/retention.service.ts`, appelé en fin de tâche de
-nuit (`notification-scheduler.ts`, 03:00 Africa/Douala) :
+**appliquées chaque nuit** par `backend/src/services/retention.service.ts`, étape distincte lancée
+après les autres tâches de nuit (`notification-scheduler.ts`, 03:00 Africa/Douala) — qu'elles aient
+réussi ou non :
 
 - **organisation par organisation**, sous son contexte d'isolation, chaque suppression portant en plus
   un filtre `organisationId` construit par le service — jamais un `deleteMany({})` ; les organisations
   suspendues sont purgées comme les autres (la durée ne dépend pas de l'abonnement) ;
-- **seuil borné** : une horloge invalide ou une durée inférieure à 12 mois refuse la purge entière
-  plutôt que d'effacer des données encore dans leur durée de conservation ;
-- **observable** : les volumes supprimés figurent dans le journal de fin de tâche (`retention`), un échec
-  est signalé à Sentry (`tache: RETENTION`) sans annuler les autres tâches de nuit ;
-- vérifié contre une vraie Postgres (`backend/tests/retention.integration.test.ts`).
+- **jamais en avance** : le seuil est le début (00:00, heure de Douala) du jour situé 12, 24 ou 60 mois
+  plus tôt — une ligne est conservée au moins sa durée entière, jusqu'à un jour de plus ;
+- **refus plutôt que purge trop large** : horloge du serveur écartée de plus de 5 minutes de celle de
+  la base, date invalide ou durée inférieure à 12 mois → aucune suppression ;
+- **observable** : volumes supprimés journalisés (« Purge de rétention terminée »), échec signalé à
+  Sentry (`tache: RETENTION`) ;
+- vérifié contre une vraie Postgres (`backend/tests/retention.integration.test.ts`, lignes à la seconde
+  près autour du seuil).
 
-La purge ne touche jamais les données financières (§2.3).
+La purge ne supprime aucune donnée financière (§2.3). En revanche, l'`AuditLog` contient des
+**instantanés** des écritures financières (création, modification ou suppression d'un versement, d'une
+dépense…) : ces **traces** disparaissent après 24 mois comme le reste du journal, y compris celle d'un
+versement supprimé. La donnée financière elle-même, et les reçus numérotés, restent conservés.
 
 ---
 

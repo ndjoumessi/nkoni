@@ -248,7 +248,7 @@ export function AnalyseMembres() {
       </Card>
       {reponse?.tronque && (
         <p className="text-xs text-muted-foreground lg:col-span-2">
-          {t('membres.liste.tronque', { plafond: reponse.items.length, total: reponse.total })}
+          {t('dashboard.analyse.tronque', { plafond: reponse.items.length, total: reponse.total })}
         </p>
       )}
     </div>

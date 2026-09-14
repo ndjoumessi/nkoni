@@ -105,11 +105,13 @@ export async function calculerStatutsMembres(
 
 /**
  * Plafond de `/membres/options`. Dix fois celui des statuts : une ligne ne porte que l'identité
- * (~100 octets), aucun calcul ne dépend du volume. Au-delà, `tronque` le signale.
+ * (~100 octets), aucun calcul ne dépend du volume. `tronque` est renvoyé mais le front
+ * (`membresApi.listOptions`) ne l'exploite pas : ce plafond est dix fois la cible à 12 mois
+ * (décision PO 2026-09-14). Si une organisation l'approche, afficher le signal dans les sélecteurs.
  */
 export const PLAFOND_OPTIONS_MEMBRES = 10_000
 
-export interface MembreOption {
+export interface OptionMembre {
   id: string
   nom: string
   prenom: string
@@ -118,7 +120,7 @@ export interface MembreOption {
 }
 
 export interface OptionsMembresResultat {
-  items: MembreOption[]
+  items: OptionMembre[]
   total: number
   tronque: boolean
 }

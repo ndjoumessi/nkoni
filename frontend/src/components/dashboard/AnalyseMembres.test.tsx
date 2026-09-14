@@ -30,7 +30,7 @@ describe('AnalyseMembres — plafond des statuts calculés', () => {
   it('liste tronquée par le serveur : l’analyse le dit (plafond et total réel)', async () => {
     listStatutsPage.mockResolvedValue({ items: [membre], total: 1500, tronque: true })
     render(<MemoryRouter><AnalyseMembres /></MemoryRouter>)
-    const note = await screen.findByText(/membres\.liste\.tronque/)
+    const note = await screen.findByText(/dashboard\.analyse\.tronque/)
     expect(note.textContent).toContain('"plafond":1')
     expect(note.textContent).toContain('"total":1500')
   })
@@ -39,6 +39,6 @@ describe('AnalyseMembres — plafond des statuts calculés', () => {
     listStatutsPage.mockResolvedValue({ items: [membre], total: 1, tronque: false })
     render(<MemoryRouter><AnalyseMembres /></MemoryRouter>)
     await waitFor(() => expect(screen.getByText('Tchoupa Bernard', { exact: false })).toBeTruthy())
-    expect(screen.queryByText(/membres\.liste\.tronque/)).toBeNull()
+    expect(screen.queryByText(/dashboard\.analyse\.tronque/)).toBeNull()
   })
 })

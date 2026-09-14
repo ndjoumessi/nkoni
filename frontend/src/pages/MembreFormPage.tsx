@@ -112,7 +112,9 @@ export function MembreFormPage() {
       try {
         const [b, m] = await Promise.all([
           branchesApi.list(accessToken, signal),
-          membresApi.listOptions(accessToken, signal),
+          // Best-effort comme les autres sélecteurs : sans liste, seul le choix du chef de
+          // sous-famille reste vide — le formulaire, lui, doit rester utilisable.
+          membresApi.listOptions(accessToken, signal).catch(() => [] as OptionMembre[]),
         ])
         if (active) {
           setBranches(b)

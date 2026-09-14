@@ -81,6 +81,8 @@ export default {
       pressionQuotaFiltre: 'Click to filter the affected spaces',
       aRelancer: 'To follow up',
       aRelancerFiltre: 'Ending soon, in grace or expired — click to filter',
+      sansEcheance: 'Paid without end date',
+      sansEcheanceFiltre: 'Pro or Enterprise with no end date — click to filter',
     },
     filtres: {
       rechercheLabel: 'Search',
@@ -96,6 +98,8 @@ export default {
       quotaRetirer: 'Remove quota filter',
       relanceActif: 'To follow up',
       relanceRetirer: 'Remove the follow-up filter',
+      sansEcheanceActif: 'Paid without end date',
+      sansEcheanceRetirer: 'Remove the paid-without-end-date filter',
     },
     repartition: {
       titre: 'Plan breakdown',

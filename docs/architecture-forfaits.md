@@ -51,6 +51,11 @@ quelque part :
 - `nouvelleEcheance(expireLe, now, mois)` — prolongation (mois ∈ {1, 3, 6, 12}) : base = l'**ancienne**
   échéance tant que `J ≥ -14` (la grâce n'est pas du temps offert : payer en avance ne fait perdre aucun
   jour), sinon aujourd'hui (état `EXPIRE` ou `expireLe = NULL`). Résultat = `finDeJourneeApp(base + mois)`.
+  **Fin de mois bornée, sans mémoire d'ancrage** (`ajouterMoisApp`) : 31 janvier + 1 mois = 28 (ou 29)
+  février, puis + 1 mois = **28 mars**, et l'échéance reste ensuite calée sur le 28. Le client perd au
+  plus 3 jours, une seule fois. **Décision PO (2026-09-14)** : on garde ce comportement — prévisible,
+  sans colonne de « jour d'ancrage » à maintenir, et l'aperçu de prolongation montre déjà la date exacte
+  avant écriture. Ne pas « corriger » vers le 31 sans rouvrir la décision.
 
 `vueEcheance(...)` assemble ces champs (`forfaitExpireLe`, `etatForfait`, `joursRestants`,
 `finGraceLe`, `forfaitEffectif`) en une vue **renvoyée telle quelle** par `GET /organisations/moi` : le
@@ -68,6 +73,14 @@ pas une date qui aurait pu changer entre-temps. `updateMany.where` porte aussi `
 un passage en GRATUIT (qui efface l'échéance, §4.6) entre-temps ne se fait jamais écraser par une
 prolongation qui le croit encore payant. 409 sur GRATUIT (rien à prolonger), trace plateforme
 `PROLONGER_FORFAIT` (snapshot avant/après).
+
+**Payants sans échéance** (console super-admin, `lib/echeance-forfait.ts::estPayantSansEcheance`) : un
+PRO/ENTREPRISE à `expireLe = NULL` (état `SANS_ECHEANCE`) n'expire jamais, donc n'est **pas** « à
+relancer » (`estARelancer`) — mais il reste payant sans que rien ne le rappelle. **Décision PO
+(2026-09-14)** : signal DISTINCT, carte-filtre « Payants sans échéance » à côté de « À relancer »,
+affichée seulement si le compte est non nul, pour qu'on leur pose une échéance. Les deux ensembles sont
+disjoints (vérifié exhaustivement dans `echeance-forfait.test.ts`), donc les deux filtres s'**excluent** :
+combinés, le tableau serait toujours vide (`SuperAdminPage.test.tsx`).
 
 ## 3. Relances et bandeau
 

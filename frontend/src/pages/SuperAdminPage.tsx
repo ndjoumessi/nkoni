@@ -14,6 +14,7 @@ import {
   Fingerprint,
   Gauge,
   BellRing,
+  CalendarOff,
   Languages,
   LogOut,
   PauseCircle,
@@ -43,7 +44,7 @@ import { NkoniMark } from '@/components/ui/NkoniMark'
 import { Input } from '@/components/ui/Field'
 import { cn, formatDate, formatDateApp } from '@/lib/utils'
 import { FORFAITS, limiteMembresForfait, type Forfait } from '@/lib/forfait'
-import { comparerEcheances, estARelancer } from '@/lib/echeance-forfait'
+import { comparerEcheances, estARelancer, estPayantSansEcheance } from '@/lib/echeance-forfait'
 import { BadgeEcheance } from '@/components/plateforme/BadgeEcheance'
 import { ProlongationForfait } from '@/components/plateforme/ProlongationForfait'
 import { anneeCouranteApp, moisCourantApp } from '@/lib/date-app'
@@ -94,6 +95,7 @@ type PrefsConsole = {
   forfait: FiltreForfait
   quota: boolean
   relance: boolean
+  sansEcheance: boolean
   tri: { col: ColonneTri; dir: SortDir }
 }
 function chargerPrefs(): Partial<PrefsConsole> {
@@ -254,6 +256,10 @@ export function SuperAdminPage() {
   const [filtreForfait, setFiltreForfait] = useState<FiltreForfait>(() => chargerPrefs().forfait ?? 'tous')
   const [filtreQuota, setFiltreQuota] = useState<boolean>(() => chargerPrefs().quota ?? false)
   const [filtreRelance, setFiltreRelance] = useState<boolean>(() => chargerPrefs().relance ?? false)
+  // Exclusif avec « à relancer » (ensembles disjoints : combinés, le tableau serait toujours vide).
+  const [filtreSansEcheance, setFiltreSansEcheance] = useState<boolean>(
+    () => !(chargerPrefs().relance ?? false) && (chargerPrefs().sansEcheance ?? false),
+  )
   const [tri, setTri] = useState<{ col: ColonneTri; dir: SortDir }>(
     () => chargerPrefs().tri ?? { col: 'creee', dir: 'desc' },
   )
@@ -298,12 +304,12 @@ export function SuperAdminPage() {
     try {
       localStorage.setItem(
         PREFS_KEY,
-        JSON.stringify({ statut: filtreStatut, forfait: filtreForfait, quota: filtreQuota, relance: filtreRelance, tri }),
+        JSON.stringify({ statut: filtreStatut, forfait: filtreForfait, quota: filtreQuota, relance: filtreRelance, sansEcheance: filtreSansEcheance, tri }),
       )
     } catch {
       /* localStorage indisponible (navigation privée / quota) : on ignore, non bloquant. */
     }
-  }, [filtreStatut, filtreForfait, filtreQuota, filtreRelance, tri])
+  }, [filtreStatut, filtreForfait, filtreQuota, filtreRelance, filtreSansEcheance, tri])
 
   // Raccourci « / » : focus le champ de recherche, sauf si l'on frappe déjà dans un champ éditable.
   useEffect(() => {
@@ -356,6 +362,8 @@ export function SuperAdminPage() {
       auPlafond: liste.filter(estAuPlafond).length,
       // Échéance (spec 1.1 §4.2) : forfaits payants en échéance proche, en grâce ou expirés.
       aRelancer: liste.filter(estARelancer).length,
+      // Forfaits payants sans échéance : rien n'expire, mais une échéance reste à poser.
+      sansEcheance: liste.filter(estPayantSansEcheance).length,
     }
   }, [organisations])
 
@@ -370,9 +378,10 @@ export function SuperAdminPage() {
       if (filtreForfait !== 'tous' && o.forfait !== filtreForfait) return false
       if (filtreQuota && !estProchePlafond(o)) return false
       if (filtreRelance && !estARelancer(o)) return false
+      if (filtreSansEcheance && !estPayantSansEcheance(o)) return false
       return true
     })
-  }, [organisations, recherche, filtreStatut, filtreForfait, filtreQuota, filtreRelance])
+  }, [organisations, recherche, filtreStatut, filtreForfait, filtreQuota, filtreRelance, filtreSansEcheance])
 
   // Tri client.
   const triees = useMemo(() => {
@@ -411,6 +420,7 @@ export function SuperAdminPage() {
     setFiltreForfait('tous')
     setFiltreQuota(false)
     setFiltreRelance(false)
+    setFiltreSansEcheance(false)
   }
 
   const detailOrg = useMemo(
@@ -851,19 +861,42 @@ export function SuperAdminPage() {
           )}
         </div>
 
-        {/* À relancer (spec 1.1 §4.2) : bande pleine largeur, affichée SEULEMENT s'il y a des espaces
-            concernés — une tuile permanente à zéro serait du bruit. Cliquable : bascule le filtre. */}
-        {!loading && !error && kpis.aRelancer > 0 && (
-          <StatCard
-            icon={BellRing}
-            tone="amber"
-            label={t('superAdmin.kpi.aRelancer')}
-            value={String(kpis.aRelancer)}
-            hint={t('superAdmin.kpi.aRelancerFiltre')}
-            onClick={() => setFiltreRelance((v) => !v)}
-            pressed={filtreRelance}
-            className={cn('nk-reveal nk-d1 mt-4', filtreRelance && 'ring-2 ring-brass/50')}
-          />
+        {/* Suivi des échéances (spec 1.1 §4.2) : « à relancer » et « payants sans échéance », affichés
+            SEULEMENT s'ils ne sont pas vides — une tuile permanente à zéro serait du bruit. Côte à côte
+            quand les deux existent, pleine largeur sinon. Cliquables : filtres EXCLUSIFS l'un de l'autre. */}
+        {!loading && !error && (kpis.aRelancer > 0 || kpis.sansEcheance > 0) && (
+          <div className={cn('nk-reveal nk-d1 mt-4 grid gap-4', kpis.aRelancer > 0 && kpis.sansEcheance > 0 && 'sm:grid-cols-2')}>
+            {kpis.aRelancer > 0 && (
+              <StatCard
+                icon={BellRing}
+                tone="amber"
+                label={t('superAdmin.kpi.aRelancer')}
+                value={String(kpis.aRelancer)}
+                hint={t('superAdmin.kpi.aRelancerFiltre')}
+                onClick={() => {
+                  setFiltreRelance((v) => !v)
+                  setFiltreSansEcheance(false)
+                }}
+                pressed={filtreRelance}
+                className={cn(filtreRelance && 'ring-2 ring-brass/50')}
+              />
+            )}
+            {kpis.sansEcheance > 0 && (
+              <StatCard
+                icon={CalendarOff}
+                tone="neutral"
+                label={t('superAdmin.kpi.sansEcheance')}
+                value={String(kpis.sansEcheance)}
+                hint={t('superAdmin.kpi.sansEcheanceFiltre')}
+                onClick={() => {
+                  setFiltreSansEcheance((v) => !v)
+                  setFiltreRelance(false)
+                }}
+                pressed={filtreSansEcheance}
+                className={cn(filtreSansEcheance && 'ring-2 ring-brass/50')}
+              />
+            )}
+          </div>
         )}
 
         {/* Répartition des forfaits — barre empilée + légende chiffrée. */}
@@ -965,6 +998,17 @@ export function SuperAdminPage() {
                 className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-amber/40 bg-amber/[0.08] px-3 py-1.5 text-xs font-medium text-amber transition-colors hover:bg-amber/[0.14] focus:outline-none focus-visible:ring-2 focus-visible:ring-brass/60"
               >
                 {t('superAdmin.filtres.relanceActif')}
+                <X className="h-3.5 w-3.5" aria-hidden="true" />
+              </button>
+            )}
+            {filtreSansEcheance && (
+              <button
+                type="button"
+                onClick={() => setFiltreSansEcheance(false)}
+                aria-label={t('superAdmin.filtres.sansEcheanceRetirer')}
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-amber/40 bg-amber/[0.08] px-3 py-1.5 text-xs font-medium text-amber transition-colors hover:bg-amber/[0.14] focus:outline-none focus-visible:ring-2 focus-visible:ring-brass/60"
+              >
+                {t('superAdmin.filtres.sansEcheanceActif')}
                 <X className="h-3.5 w-3.5" aria-hidden="true" />
               </button>
             )}

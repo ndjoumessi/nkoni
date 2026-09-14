@@ -42,8 +42,8 @@ function cleMaitre(): Buffer {
 }
 
 /**
- * Clé PRÉCÉDENTE, posée seulement pendant une rotation. Absente → `null`. Mal formée → lève : une
- * rotation mal saisie doit se voir tout de suite, pas au premier paiement.
+ * Clé PRÉCÉDENTE, posée seulement pendant une rotation. Absente → `null`. Mal formée → lève (au
+ * premier déchiffrement qui en a besoin) ; `validerClesPsp` permet de le constater dès le démarrage.
  */
 function clePrecedente(): Buffer | null {
   const brut = process.env['PSP_ENCRYPTION_KEY_PRECEDENTE'] ?? ''
@@ -107,6 +107,38 @@ export function rechiffrerSecret(enc: string, aad: string): ResultatRechiffremen
     if (dechiffrerAvec(courante, chiffre, aad) !== clair) throw new Error('Vérification du rechiffrement échouée.')
     return { statut: 'RECHIFFRE', chiffre }
   }
+}
+
+export interface EtatClesPsp {
+  /** Clé courante absente ou mal formée → message, sinon `null`. */
+  erreurCourante: string | null
+  /** Clé précédente posée mais mal formée → message, sinon `null`. */
+  erreurPrecedente: string | null
+  /** Une clé précédente valide est posée : rotation en cours. */
+  rotationEnCours: boolean
+}
+
+/**
+ * Contrôle de forme des deux clés, SANS rien déchiffrer ni afficher de valeur (seuls les noms de
+ * variables apparaissent dans les messages). Utilisé par les avertissements de démarrage (`env.ts`) et
+ * par le script de rechiffrement, qui doit échouer net plutôt que classer toutes les configurations
+ * « illisibles » à cause d'une clé mal saisie.
+ */
+export function validerClesPsp(): EtatClesPsp {
+  let erreurCourante: string | null = null
+  let erreurPrecedente: string | null = null
+  try {
+    cleMaitre()
+  } catch (err) {
+    erreurCourante = err instanceof Error ? err.message : 'PSP_ENCRYPTION_KEY invalide.'
+  }
+  let precedente: Buffer | null = null
+  try {
+    precedente = clePrecedente()
+  } catch (err) {
+    erreurPrecedente = err instanceof Error ? err.message : 'PSP_ENCRYPTION_KEY_PRECEDENTE invalide.'
+  }
+  return { erreurCourante, erreurPrecedente, rotationEnCours: precedente !== null }
 }
 
 /** True si une clé de chiffrement PSP valide est configurée (sinon la config paiement est indisponible). */

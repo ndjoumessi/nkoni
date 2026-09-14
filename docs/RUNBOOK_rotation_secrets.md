@@ -26,7 +26,12 @@ que sa rotation casse, dans quel ordre la faire et comment vérifier qu'elle a p
    - `https://nkoni.vercel.app/api/ready` → 200 ;
    - le contrôle fonctionnel propre au secret (tableaux ci-dessous).
 5. **Journaliser** chaque rotation en §6 : date, secret, motif, auteur — **jamais la valeur**.
-6. **Rotation d'urgence** (fuite avérée ou suspectée, départ d'une personne ayant eu accès) : tout
+6. **Pas de rollback par le tableau de bord pendant ou après une rotation.** Sur Railway, « Redeploy »
+   d'un ancien déploiement restaure **son image ET ses variables** : revenir à un déploiement antérieur
+   à la rotation remet l'**ancienne** valeur du secret — sans alerte. Pour `PSP_ENCRYPTION_KEY`, cela
+   rend illisibles toutes les configurations déjà rechiffrées. Après une rotation, un rollback passe par
+   `git revert` (`RUNBOOK_incidents.md` §4.1, voie A), ou les variables sont reposées juste après.
+7. **Rotation d'urgence** (fuite avérée ou suspectée, départ d'une personne ayant eu accès) : tout
    secret exposé est tourné **le jour même**, en commençant par ceux qui donnent accès à des données
    (`DATABASE_URL`, `BLOB_READ_WRITE_TOKEN`, `PSP_ENCRYPTION_KEY`, `JWT_REFRESH_SECRET`).
 
@@ -34,7 +39,7 @@ que sa rotation casse, dans quel ordre la faire et comment vérifier qu'elle a p
 
 ## 1. Inventaire
 
-### 1.1 Railway — service `nkoni-backend`
+### 1.1 Railway — service `nkoni` (projet `nkoni`)
 
 | Variable | Nature | Effet d'une rotation | Planifiée ? |
 |---|---|---|---|
@@ -47,6 +52,7 @@ que sa rotation casse, dans quel ordre la faire et comment vérifier qu'elle a p
 | `RESEND_API_KEY` | Clé API | Repli e-mail muet tant que la nouvelle clé n'est pas posée | Annuelle |
 | `WHATSAPP_TOKEN` | Jeton Meta | Canal WhatsApp muet tant que le nouveau jeton n'est pas posé | Selon expiration Meta |
 | `VAPID_PRIVATE_KEY` / `VAPID_PUBLIC_KEY` | Paire de clés | **Tous les abonnements push existants deviennent inutilisables** ; chaque appareil doit réactiver le push | **Jamais en routine** |
+| `PSP_ENCRYPTION_KEY_PRECEDENTE` | Clé maître précédente | **Temporaire** : posée seulement pendant une rotation (§3), à retirer ensuite — un avertissement `[env]` le rappelle à chaque démarrage | — |
 | `SENTRY_DSN` | Identifiant d'envoi (peu sensible) | Aucun, si la nouvelle clé client est créée avant la désactivation de l'ancienne | Sur abus (spam d'événements) |
 
 Configuration **non secrète** (aucune rotation) : `NODE_ENV`, `CORS_ORIGIN`, `JWT_ACCESS_TTL`,
@@ -142,7 +148,7 @@ vérification.
 
 Les identifiants de prestataire de paiement de chaque organisation sont chiffrés en base avec cette clé
 (AES-256-GCM, lié à l'organisation). Changer la clé sans procédure rend **toutes** les configurations
-illisibles : le bouton « Payer » disparaît pour tous les membres jusqu'à ce que chaque bureau ressaisisse
+illisibles : paiements impossibles à démarrer et à confirmer jusqu'à ce que chaque bureau ressaisisse
 ses identifiants.
 
 Le backend accepte, **pendant la bascule**, une clé précédente : il chiffre avec
@@ -150,28 +156,46 @@ Le backend accepte, **pendant la bascule**, une clé précédente : il chiffre a
 (`backend/src/lib/crypto-secret.ts`). Le script `prisma/rechiffrer-secrets-psp.ts` réécrit ensuite
 chaque configuration sous la nouvelle clé.
 
+**Prérequis** : le déploiement actif contient ce mécanisme (`railway status` : déploiement postérieur à
+l'ajout de `PSP_ENCRYPTION_KEY_PRECEDENTE`), et le poste qui lance le script est sur le **même commit**
+que la production, avec son client Prisma généré (`npx prisma generate`).
+
+**Si la rotation fait suite à une fuite** : pendant la fenêtre de bascule, un secret chiffré avec
+l'ancienne clé est accepté puis rechiffré. Un tiers qui aurait eu la clé ET un accès en écriture à la
+base pourrait y avoir déposé ses propres identifiants. Garder la fenêtre courte, et faire confirmer à
+chaque bureau, après l'étape 6, l'identifiant affiché dans Paramètres.
+
 1. **Générer** la nouvelle clé : `openssl rand -base64 32`. La ranger dans le gestionnaire de mots de
    passe **à côté de l'ancienne**.
 2. **Railway** : `PSP_ENCRYPTION_KEY_PRECEDENTE` = l'**ancienne** valeur, `PSP_ENCRYPTION_KEY` = la
    **nouvelle**. Enregistrer les deux dans la même modification, `railway redeploy`.
-3. **Contrôle** : aucun avertissement `[env]` au démarrage ; sur une organisation qui a une
-   configuration de paiement, Paramètres affiche toujours le récapitulatif ; « Payer » apparaît
-   toujours dans l'espace membre.
-4. **Dry-run** du rechiffrement, depuis `backend/`, avec les variables du service et l'URL **publique**
-   de la base (le `DATABASE_URL` du service pointe sur le réseau privé Railway) :
+3. **Contrôle** :
+   - logs de démarrage : l'avertissement `[env] … rotation de clé EN COURS` est présent, **aucun**
+     avertissement « doit décoder en 32 octets » ;
+   - sur une organisation qui a une configuration de paiement, Paramètres affiche le badge
+     **Environnement** et l'**identifiant masqué**, et non « — » (c'est la seule lecture qui déchiffre :
+     le bouton « Payer » s'affiche même quand le déchiffrement échoue).
+4. **Dry-run** du rechiffrement, depuis `backend/`, sans jamais coller l'URL de la base (elle resterait
+   dans l'historique du shell) :
    ```bash
-   railway run -- sh -c 'DATABASE_URL="<URL publique Postgres>" npm run rechiffrer:psp'
+   railway run --service nkoni -- sh -c 'DATABASE_URL="$(railway variables --service Postgres --kv | grep "^DATABASE_PUBLIC_URL=" | cut -d= -f2-)" npm run rechiffrer:psp'
    ```
-   Lire le bilan : `À rechiffrer : N`, `Illisibles : 0` attendu. Aucune valeur n'est affichée.
-5. **Application** : même commande avec `-- --apply` à la fin de `npm run rechiffrer:psp`.
-6. **Relancer le dry-run** : `Déjà sous la clé courante : N`, `À rechiffrer : 0`.
-7. **Retirer** `PSP_ENCRYPTION_KEY_PRECEDENTE` de Railway, `railway redeploy`, refaire le contrôle
-   du point 3.
-8. Supprimer l'ancienne clé du gestionnaire de mots de passe **après** la prochaine sauvegarde
-   hebdomadaire réussie. Un dump antérieur restauré contiendra des configurations chiffrées avec
-   l'ancienne clé : les restaurer exige de reposer temporairement cette clé comme clé précédente, puis
-   de relancer le script. Conserver donc l'ancienne clé aussi longtemps que les dumps qui en dépendent
-   (§4, rétention des sauvegardes).
+   Attendu au premier passage : `À rechiffrer` = nombre d'organisations ayant une configuration de
+   paiement, `Illisibles : 0`, code de sortie 0. Aucune valeur n'est affichée.
+   - « `PSP_ENCRYPTION_KEY_PRECEDENTE` absente » (sortie 1) : mauvais service ou variable non posée.
+   - « Toutes les configurations sont déjà sous la clé courante » au premier passage : les deux
+     variables sont probablement **inversées** — corriger avant d'aller plus loin.
+5. **Application** : même commande, en terminant par `npm run rechiffrer:psp -- --apply`. Code de sortie
+   0 = terminé ; 2 = une organisation a modifié sa configuration pendant le script (relancer le
+   dry-run) ; 1 = erreur ou configuration illisible.
+   Le rechiffrement met à jour la date « dernière mise à jour » affichée au bureau dans Paramètres.
+6. **Relancer le dry-run** : `Déjà sous la clé courante` = total, `À rechiffrer : 0`.
+7. **Retirer** `PSP_ENCRYPTION_KEY_PRECEDENTE` de Railway, `railway redeploy` ; refaire le contrôle du
+   point 3 (cette fois **sans** l'avertissement de rotation).
+8. **Conserver l'ancienne clé**, marquée « ne plus poser en production », aussi longtemps qu'existe un
+   dump chiffré qui contient des configurations sous cette clé (rétention des sauvegardes :
+   `RUNBOOK_sauvegardes_restauration.md` §2.3, jusqu'à 12 mois). Restaurer un tel dump exige de la
+   reposer temporairement en `PSP_ENCRYPTION_KEY_PRECEDENTE` puis de relancer le script.
 
 **Organisation « illisible »** (clé perdue, donnée corrompue) : le script sort en erreur et la liste.
 Ne pas retirer la clé précédente ; demander au bureau concerné de ressaisir ses identifiants dans

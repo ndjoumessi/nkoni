@@ -196,6 +196,11 @@ git push                                # déclenche un déploiement propre
 #    urgence, et à régulariser par un revert dans la foulée.
 ```
 
+> ⚠️ **La voie B restaure aussi les VARIABLES du déploiement visé**, pas seulement son image. Si un secret
+> a été tourné depuis (`RUNBOOK_rotation_secrets.md`), le rollback remet l'**ancienne** valeur sans
+> alerte — pour `PSP_ENCRYPTION_KEY`, les configurations de paiement déjà rechiffrées deviennent
+> illisibles. Après une rotation, préférer la voie A, ou reposer les variables juste après.
+
 > ⚠️ **Un rollback de code NE rollback PAS les migrations.** `migrate deploy` a déjà tourné : le
 > schéma reste celui de la version fautive. Un rollback n'est donc sûr que si la migration est
 > **additive** (colonne nullable, table ajoutée, index). Si elle est **destructive** (DROP, NOT NULL,

@@ -1,7 +1,7 @@
 import 'dotenv/config'
 import { prisma } from '../src/lib/prisma'
 import { orgContext } from '../src/lib/org-context'
-import { rechiffrerSecret } from '../src/lib/crypto-secret'
+import { rechiffrerSecret, validerClesPsp } from '../src/lib/crypto-secret'
 
 /**
  * ROTATION de `PSP_ENCRYPTION_KEY` — réécrit les identifiants PSP de chaque organisation sous la clé
@@ -17,6 +17,9 @@ import { rechiffrerSecret } from '../src/lib/crypto-secret'
  *   Dry-run   : npm run rechiffrer:psp
  *   Appliquer : npm run rechiffrer:psp -- --apply
  *
+ * Codes de sortie : 0 = terminé ; 1 = clés absentes/mal formées, configuration illisible ou erreur ;
+ * 2 = au moins une configuration modifiée pendant l'application (relancer le dry-run).
+ *
  * N'affiche JAMAIS de secret, ni chiffré ni en clair : seulement des identifiants d'organisation et des
  * comptes.
  *
@@ -29,11 +32,23 @@ import { rechiffrerSecret } from '../src/lib/crypto-secret'
  * hors de l'allowlist `runUnscoped` (même statut que `backfill-mode-mobile-money.ts`).
  */
 
-const APPLIQUER = process.argv.includes('--apply') || process.env['APPLY'] === '1'
+// Écriture UNIQUEMENT sur l'argument explicite : aucune variable d'environnement ne bascule en écriture.
+const APPLIQUER = process.argv.includes('--apply')
 
 async function main(): Promise<void> {
-  if (!process.env['PSP_ENCRYPTION_KEY_PRECEDENTE']) {
-    console.log('PSP_ENCRYPTION_KEY_PRECEDENTE absente : aucune rotation en cours, rien à rechiffrer.')
+  // Contrôle de forme AVANT toute lecture : une clé mal saisie classerait sinon toutes les
+  // configurations « illisibles » et inviterait à faire ressaisir des identifiants qui sont intacts.
+  const cles = validerClesPsp()
+  if (cles.erreurCourante || cles.erreurPrecedente) {
+    console.error(`Clés invalides : ${[cles.erreurCourante, cles.erreurPrecedente].filter(Boolean).join(' ')}`)
+    process.exitCode = 1
+    return
+  }
+  if (!cles.rotationEnCours) {
+    // Le script ne sert que pendant une rotation : son absence signale un mauvais service ou une
+    // variable oubliée, pas un succès.
+    console.error('PSP_ENCRYPTION_KEY_PRECEDENTE absente : mauvais service Railway, ou variable non posée. Rien n’a été lu.')
+    process.exitCode = 1
     return
   }
   await orgContext.runUnscoped(async () => {
@@ -84,12 +99,20 @@ async function main(): Promise<void> {
     console.log(`${APPLIQUER ? 'Rechiffrées' : 'À rechiffrer'} : ${rechiffrees}`)
     if (modifieesEntreTemps > 0) console.log(`Modifiées pendant le script : ${modifieesEntreTemps} (relancer pour vérifier)`)
     console.log(`Illisibles : ${illisibles.length}`)
+    if (aJour === configs.length && configs.length > 0 && !APPLIQUER) {
+      console.log(
+        '\n⚠️  Toutes les configurations sont déjà sous la clé courante. Premier passage ? Vérifier que les deux ' +
+          'variables n’ont pas été inversées (nouvelle clé = PSP_ENCRYPTION_KEY, ancienne = PSP_ENCRYPTION_KEY_PRECEDENTE).',
+      )
+    }
     if (illisibles.length > 0) {
       console.log(
         '\n⚠️  Ne PAS retirer PSP_ENCRYPTION_KEY_PRECEDENTE avant d’avoir traité les organisations illisibles ' +
           '(identifiants à ressaisir par leur bureau dans Paramètres).',
       )
       process.exitCode = 1
+    } else if (modifieesEntreTemps > 0) {
+      process.exitCode = 2
     } else if (APPLIQUER) {
       console.log('\nRelancer une fois en dry-run : « À rechiffrer : 0 » confirme que la clé précédente peut être retirée.')
     } else if (rechiffrees > 0) {

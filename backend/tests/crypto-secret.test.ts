@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { chiffrerSecret, dechiffrerSecret, chiffrementPspDisponible, rechiffrerSecret } from '../src/lib/crypto-secret'
+import { chiffrerSecret, dechiffrerSecret, chiffrementPspDisponible, rechiffrerSecret, validerClesPsp } from '../src/lib/crypto-secret'
 
 /** Chiffrement des secrets PSP (AES-256-GCM). Pur, sans base : on pose une clé de test 32 octets. */
 beforeAll(() => {
@@ -73,7 +73,9 @@ describe('crypto-secret — rotation de la clé maître', () => {
     try {
       return fn()
     } finally {
-      process.env['PSP_ENCRYPTION_KEY'] = sauve.c
+      // `process.env[x] = undefined` stockerait la chaîne « undefined » : on supprime explicitement.
+      if (sauve.c === undefined) delete process.env['PSP_ENCRYPTION_KEY']
+      else process.env['PSP_ENCRYPTION_KEY'] = sauve.c
       if (sauve.p === undefined) delete process.env['PSP_ENCRYPTION_KEY_PRECEDENTE']
       else process.env['PSP_ENCRYPTION_KEY_PRECEDENTE'] = sauve.p
     }
@@ -121,6 +123,25 @@ describe('crypto-secret — rotation de la clé maître', () => {
     const enc = avecCles(Buffer.alloc(32, 3).toString('base64'), undefined, () => chiffrerSecret('x', ORG))
     avecCles(NOUVELLE, ANCIENNE, () => expect(() => rechiffrerSecret(enc, ORG)).toThrow())
     avecCles(NOUVELLE, undefined, () => expect(() => rechiffrerSecret(enc, ORG)).toThrow())
+  })
+
+  it('clé précédente mal formée : un secret sous la clé COURANTE reste lisible (courante essayée d’abord)', () => {
+    const enc = avecCles(NOUVELLE, undefined, () => chiffrerSecret('courant', ORG))
+    avecCles(NOUVELLE, 'trop-courte', () => expect(dechiffrerSecret(enc, ORG)).toBe('courant'))
+  })
+
+  it('validerClesPsp : état des deux clés, sans jamais exposer de valeur', () => {
+    expect(avecCles(NOUVELLE, undefined, () => validerClesPsp())).toEqual({
+      erreurCourante: null, erreurPrecedente: null, rotationEnCours: false,
+    })
+    expect(avecCles(NOUVELLE, ANCIENNE, () => validerClesPsp())).toEqual({
+      erreurCourante: null, erreurPrecedente: null, rotationEnCours: true,
+    })
+    const casse = avecCles('courte', 'aussi-courte', () => validerClesPsp())
+    expect(casse.erreurCourante).toMatch(/PSP_ENCRYPTION_KEY /)
+    expect(casse.erreurPrecedente).toMatch(/PSP_ENCRYPTION_KEY_PRECEDENTE/)
+    expect(casse.rotationEnCours).toBe(false)
+    expect(JSON.stringify(casse)).not.toMatch(/courte/)
   })
 
   it('clé précédente mal formée → lève (une rotation mal saisie se voit tout de suite)', () => {

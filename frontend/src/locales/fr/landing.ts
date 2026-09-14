@@ -65,7 +65,7 @@ export default {
         paiement: {
           titre: 'Paiement Mobile Money',
           texte:
-            'Les membres règlent tout ou partie de leur cotisation par MTN ou Orange Money ; l’argent va directement sur le compte de l’organisation.',
+            'Les membres règlent tout ou partie de leur cotisation par MTN ou Orange Money (forfaits Pro et Entreprise) ; l’argent va directement sur le compte de l’organisation.',
         },
         tontine: {
           titre: 'Tontines intégrées',
@@ -177,7 +177,7 @@ export default {
     capacites: {
       titre: 'Et tout ce qu’il faut pour gérer au quotidien',
       description: 'Une seule application, du recouvrement à la reddition de comptes.',
-      paiementEnLigne: 'Paiement Mobile Money en ligne',
+      paiementEnLigne: 'Paiement Mobile Money en ligne (forfaits Pro et Entreprise)',
       reunions: 'Réunions & présences',
       resolutions: 'Résolutions & fonctions',
       cagnottes: 'Cagnottes d’événement',
@@ -216,7 +216,7 @@ export default {
       },
       paiement: {
         q: 'Les membres peuvent-ils payer leurs cotisations en ligne ?',
-        r: 'Oui. Chaque organisation peut activer le paiement par Mobile Money (MTN, Orange) : les membres règlent tout ou partie de leur cotisation depuis leur espace, et l’argent est versé directement sur le compte du prestataire de l’organisation — NKONI ne détient jamais les fonds.',
+        r: 'Oui, sur les forfaits Pro et Entreprise : l’organisation peut alors activer le paiement par Mobile Money (MTN, Orange) — les membres règlent tout ou partie de leur cotisation depuis leur espace, et l’argent est versé directement sur le compte du prestataire de l’organisation, NKONI ne détient jamais les fonds.',
       },
       modules: {
         q: 'NKONI gère-t-il autre chose que les cotisations ?',

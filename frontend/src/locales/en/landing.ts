@@ -64,7 +64,7 @@ export default {
         paiement: {
           titre: 'Mobile Money payments',
           texte:
-            'Members pay all or part of their dues via MTN or Orange Money; the money goes straight to the organisation’s account.',
+            'Members pay all or part of their dues via MTN or Orange Money (Pro and Enterprise plans); the money goes straight to the organisation’s account.',
         },
         tontine: {
           titre: 'Built-in tontines',
@@ -176,7 +176,7 @@ export default {
     capacites: {
       titre: 'And everything you need to run things day to day',
       description: 'One single app, from collection to accountability.',
-      paiementEnLigne: 'Online Mobile Money payment',
+      paiementEnLigne: 'Online Mobile Money payment (Pro and Enterprise plans)',
       reunions: 'Meetings & attendance',
       resolutions: 'Resolutions & roles',
       cagnottes: 'Event funds',
@@ -215,7 +215,7 @@ export default {
       },
       paiement: {
         q: 'Can members pay their contributions online?',
-        r: 'Yes. Each organization can enable Mobile Money payment (MTN, Orange): members pay all or part of their contribution from their own space, and the money goes straight to the organization’s provider account — NKONI never holds the funds.',
+        r: 'Yes, on the Pro and Enterprise plans: the organization can then enable Mobile Money payment (MTN, Orange) — members pay all or part of their contribution from their own space, and the money goes straight to the organization’s provider account; NKONI never holds the funds.',
       },
       modules: {
         q: 'Does NKONI handle more than contributions?',

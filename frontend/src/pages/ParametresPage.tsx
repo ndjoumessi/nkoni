@@ -267,7 +267,10 @@ export function ParametresPage() {
                     style={{ width: `${pctStockage}%` }}
                   />
                 </div>
-                {pctStockage >= 100 && (
+                {/* Comparaison sur les OCTETS BRUTS, pas le pourcentage arrondi (`pctStockage`) : à
+                    99,5 % un arrondi affichait déjà « Espace plein » alors qu'il restait de la marge.
+                    La largeur de la jauge, elle, reste sur le pourcentage arrondi (cosmétique). */}
+                {org.stockageUtiliseOctets >= org.capacites.quotaStockageOctets && (
                   <p className="mt-2 text-xs text-terra">{t('parametres.stockage.plein')}</p>
                 )}
               </div>

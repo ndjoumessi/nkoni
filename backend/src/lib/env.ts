@@ -1,4 +1,5 @@
 import 'dotenv/config'
+import { validerClesPsp } from './crypto-secret'
 
 /**
  * Lecture + validation centralisée de la configuration d'environnement.
@@ -104,6 +105,17 @@ if (isProd) {
     avertir(
       'PSP_ENCRYPTION_KEY non défini → la configuration de paiement en ligne (§ paiement) sera indisponible : les identifiants PSP ne peuvent être ni chiffrés ni déchiffrés. Posez une clé 32 octets sur Railway.',
     )
+  } else {
+    // Rotation (docs/RUNBOOK_rotation_secrets.md §3) : une clé mal saisie ne lèverait qu'au premier
+    // paiement ; la clé précédente laissée en place prolongerait la fenêtre d'une clé peut-être fuitée.
+    const cles = validerClesPsp()
+    if (cles.erreurCourante) avertir(`${cles.erreurCourante} La configuration de paiement en ligne est indisponible.`)
+    if (cles.erreurPrecedente) avertir(`${cles.erreurPrecedente} Les configurations encore chiffrées avec l'ancienne clé sont illisibles.`)
+    if (cles.rotationEnCours) {
+      avertir(
+        'PSP_ENCRYPTION_KEY_PRECEDENTE est posée : rotation de clé EN COURS. Lancer le rechiffrement (npm run rechiffrer:psp) puis retirer cette variable (RUNBOOK_rotation_secrets §3).',
+      )
+    }
   }
   // Canal de notification (§4.6, bloquant GA 0.4) : reçus et relances partent par WhatsApp d'abord,
   // email (Resend) en repli. Si AUCUN des deux n'est configuré, rien ne part — le plus utile est

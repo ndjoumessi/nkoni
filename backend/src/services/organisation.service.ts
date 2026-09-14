@@ -1,17 +1,21 @@
 import { hashPassword } from './auth.service'
 import type { AuthenticatedUser } from './auth.service'
 import {
+  capacitesEffectives,
   etatForfait,
   forfaitEffectif,
   joursRestants,
   limiteMembresForfait,
   nouvelleEcheance,
+  paiementEnLigneAutorise,
   vueEcheance,
+  type CapacitesForfait,
   type EtatForfait,
   type Forfait,
   type PeriodeProlongation,
   type VueEcheance,
 } from '../lib/forfait'
+import { stockageUtiliseOctets } from './capacites-organisation.service'
 
 /**
  * Auto-inscription (§3.1) — création d'une nouvelle organisation et de son premier
@@ -369,6 +373,14 @@ export interface OrganisationCourante extends VueEcheance {
   nbMembres: number
   /** Plafond du forfait EFFECTIF — pour situer `nbMembres` (ex. 42 / 50). `null` = illimité. */
   limiteMembres: number | null
+  /** Capacités du forfait EFFECTIF (spec 1.1 §3.2) — affichées telles quelles, jamais recalculées. */
+  capacites: Readonly<CapacitesForfait>
+  /** Stockage consommé : Σ `Document.tailleOctets` (photos et reçus hors quota). */
+  stockageUtiliseOctets: number
+  /** Droit acquis au paiement en ligne (mesure transitoire §1.3). */
+  paiementEnLigneAcquis: boolean
+  /** Paiement en ligne permis : capacité effective OU droit acquis. */
+  paiementEnLigneInclus: boolean
   /** Chef de l'organisation (Membre désigné) — null si non désigné. */
   chefMembreId: string | null
   /** Surnom / titre honorifique du chef, affiché à côté de son nom. Null si absent. */
@@ -382,6 +394,7 @@ export interface OrganisationCourante extends VueEcheance {
 export interface OrganisationCourantePrisma {
   organisation: { findUnique(args: any): Promise<any> }
   membre: { count(args?: any): Promise<number> }
+  document: { aggregate(args: any): Promise<{ _sum: { tailleOctets: number | null } }> }
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
@@ -406,6 +419,7 @@ export async function chargerOrganisationCourante(
       forfait: true,
       forfaitExpireLe: true,
       createdAt: true,
+      paiementEnLigneAcquis: true,
       chefMembreId: true,
       chefSurnom: true,
       // Nom/prénom du chef pour l'affichage. Le chef appartient toujours à cette org (garanti à
@@ -416,7 +430,12 @@ export async function chargerOrganisationCourante(
   if (!org) return null
   // Quota du forfait = membres ACTIFS uniquement (les fiches DECEDE/INACTIF, conservées pour
   // l'historique, ne comptent pas). Comptage scopé par le contexte org (extension d'isolation).
-  const nbMembres = await prisma.membre.count({ where: { statut: 'ACTIF' } })
+  const [nbMembres, stockageUtilise] = await Promise.all([
+    prisma.membre.count({ where: { statut: 'ACTIF' } }),
+    stockageUtiliseOctets(prisma),
+  ])
+  const capacites = capacitesEffectives(org.forfait, org.forfaitExpireLe ?? null, now)
+  const paiementEnLigneAcquis = Boolean(org.paiementEnLigneAcquis)
   return {
     id: org.id,
     nom: org.nom,
@@ -427,6 +446,10 @@ export async function chargerOrganisationCourante(
     nbMembres,
     ...vueEcheance(org.forfait, org.forfaitExpireLe ?? null, now),
     limiteMembres: limiteMembresForfait(forfaitEffectif(org.forfait, org.forfaitExpireLe ?? null, now)),
+    capacites,
+    stockageUtiliseOctets: stockageUtilise,
+    paiementEnLigneAcquis,
+    paiementEnLigneInclus: paiementEnLigneAutorise(capacites, paiementEnLigneAcquis),
     chefMembreId: org.chefMembreId ?? null,
     chefSurnom: org.chefSurnom ?? null,
     chefNom: org.chef?.nom ?? null,

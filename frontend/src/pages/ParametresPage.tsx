@@ -2,13 +2,26 @@ import { useEffect, useState, type ComponentType } from 'react'
 import { useTranslation } from 'react-i18next'
 import { cleI18n } from '@/lib/i18n'
 import { Navigate } from 'react-router-dom'
-import { Building2, CalendarDays, Coins, Crown, Download, Languages, Lock, Users, type LucideProps } from 'lucide-react'
+import {
+  Building2,
+  CalendarDays,
+  Coins,
+  CreditCard,
+  Crown,
+  Download,
+  HardDrive,
+  Languages,
+  Lock,
+  Users,
+  type LucideProps,
+} from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
 import { organisationApi, messageErreur, type OrganisationCourante } from '@/lib/api'
 import { peutVoirParametres, peutExporterDonnees, peutConfigurerPaiement } from '@/lib/roles'
 import { ConfigPaiement } from '@/components/ConfigPaiement'
 import { EcheanceForfaitOrganisation } from '@/components/EcheanceForfaitOrganisation'
 import { cn, formatDate } from '@/lib/utils'
+import { formatTailleOctets } from '@/lib/format'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, Overline } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -123,6 +136,19 @@ export function ParametresPage() {
   const pct = org && !illimite && limiteNum > 0 ? Math.min(100, Math.round((org.nbMembres / limiteNum) * 100)) : 0
   const restants = org && !illimite ? Math.max(0, limiteNum - org.nbMembres) : 0
   const limiteAtteinte = org != null && !illimite && org.nbMembres >= limiteNum
+  const pctStockage =
+    org?.capacites && org.stockageUtiliseOctets !== undefined && org.capacites.quotaStockageOctets > 0
+      ? Math.min(100, Math.round((org.stockageUtiliseOctets / org.capacites.quotaStockageOctets) * 100))
+      : 0
+  // Même texte pour le compteur visible et `aria-valuetext` de la jauge : un lecteur d'écran ne doit
+  // pas énoncer des octets bruts là où l'œil lit « 120 Mo utilisés sur 500 Mo ».
+  const compteurStockageLabel =
+    org?.capacites && org.stockageUtiliseOctets !== undefined
+      ? t('parametres.stockage.compteur', {
+          utilise: formatTailleOctets(org.stockageUtiliseOctets),
+          quota: formatTailleOctets(org.capacites.quotaStockageOctets),
+        })
+      : ''
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -218,6 +244,48 @@ export function ParametresPage() {
                 </p>
               </>
             )}
+
+            {/* Stockage et paiement en ligne (spec 1.1 §4.3) — valeurs calculées serveur ; rien si l'API
+                ne les fournit pas encore. */}
+            {org.capacites && org.stockageUtiliseOctets !== undefined && (
+              <div className="mt-5 border-t border-hairline pt-4">
+                <div className="flex items-center gap-2">
+                  <HardDrive className="h-4 w-4 text-brass" aria-hidden="true" />
+                  <p className="text-sm font-medium text-foreground">{compteurStockageLabel}</p>
+                </div>
+                <div
+                  className="mt-2 h-2 w-full overflow-hidden rounded-full bg-surface-2"
+                  role="progressbar"
+                  aria-valuenow={org.stockageUtiliseOctets}
+                  aria-valuemin={0}
+                  aria-valuemax={org.capacites.quotaStockageOctets}
+                  aria-valuetext={compteurStockageLabel}
+                  aria-label={t('parametres.stockage.titre')}
+                >
+                  <div
+                    className={cn('h-full rounded-full transition-all', couleurJauge(pctStockage))}
+                    style={{ width: `${pctStockage}%` }}
+                  />
+                </div>
+                {/* Comparaison sur les OCTETS BRUTS, pas le pourcentage arrondi (`pctStockage`) : à
+                    99,5 % un arrondi affichait déjà « Espace plein » alors qu'il restait de la marge.
+                    La largeur de la jauge, elle, reste sur le pourcentage arrondi (cosmétique). */}
+                {org.stockageUtiliseOctets >= org.capacites.quotaStockageOctets && (
+                  <p className="mt-2 text-xs text-terra">{t('parametres.stockage.plein')}</p>
+                )}
+              </div>
+            )}
+            {org.paiementEnLigneInclus !== undefined && (
+              <div className="mt-4 flex items-center gap-2 text-sm">
+                <CreditCard className="h-4 w-4 text-brass" aria-hidden="true" />
+                <span className="text-muted-foreground">{t('parametres.paiementEnLigne.libelle')}</span>
+                <span className={cn('font-medium', org.paiementEnLigneInclus ? 'text-jade' : 'text-faint')}>
+                  {org.paiementEnLigneInclus
+                    ? t('parametres.paiementEnLigne.inclus')
+                    : t('parametres.paiementEnLigne.nonInclus')}
+                </span>
+              </div>
+            )}
           </Card>
 
           {/* Export self-service (portabilité RGPD, GA 0.3) — bureau dirigeant uniquement. */}
@@ -242,7 +310,9 @@ export function ParametresPage() {
           )}
 
           {/* Config paiement en ligne (§ paiement) — bureau dirigeant uniquement. */}
-          {peutConfigurerPaiement(user?.role) && <ConfigPaiement />}
+          {peutConfigurerPaiement(user?.role) && (
+            <ConfigPaiement inclus={org.paiementEnLigneInclus !== false} />
+          )}
         </div>
       ) : null}
     </div>

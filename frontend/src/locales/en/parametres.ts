@@ -31,6 +31,16 @@ export default {
       restants_other: '{{count}} seats remaining',
       limiteAtteinte: 'Plan limit reached',
     },
+    stockage: {
+      titre: 'Document storage',
+      compteur: '{{utilise}} used of {{quota}}',
+      plein: 'Storage full: uploading documents is blocked, existing documents remain available.',
+    },
+    paiementEnLigne: {
+      libelle: 'Online payment:',
+      inclus: 'included',
+      nonInclus: 'not included',
+    },
     forfait: {
       valableJusquau: '{{forfait}} plan valid until {{date}}',
       echuLe: '{{forfait}} plan ended on {{date}}',
@@ -71,6 +81,9 @@ export default {
       inactif: 'Inactive',
       avertissementTitulaire:
         'Make sure the provider account is opened in the organisation’s name, not a leader’s personal account: that account will receive your members’ contributions.',
+      reserveForfaitPro: 'Included in the Pro plan',
+      reserveForfaitProDetail:
+        'Paying contributions by Mobile Money is available with the Pro and Enterprise plans. Contact us to change your plan.',
       identifiant: 'Identifier',
       secret: 'Secret',
       secretDefini: 'Set',

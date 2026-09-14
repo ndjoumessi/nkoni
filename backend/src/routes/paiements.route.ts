@@ -3,6 +3,7 @@ import { authenticate } from '../middlewares/authenticate'
 import { orgContext } from '../lib/org-context'
 import { env } from '../lib/env'
 import { t, langueDeRequete } from '../lib/i18n'
+import { chargerCapacitesOrganisation } from '../services/capacites-organisation.service'
 import {
   demarrerPaiement,
   confirmerPaiement,
@@ -20,6 +21,17 @@ import {
  *   POST /webhooks/fapshi       → PUBLIC : déclencheur de confirmation (re-vérifie le statut auprès du PSP)
  */
 export const paiementsRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
+  /**
+   * Paiement en ligne permis pour l'organisation (forfait effectif OU droit acquis). Ne s'applique qu'au
+   * DÉMARRAGE et à l'indice d'UI — JAMAIS à la confirmation (webhooks, réconciliation) : un membre qui a
+   * payé voit toujours son versement enregistré (spec 1.1 §3.3).
+   */
+  const paiementInclus = async (organisationId: string | undefined): Promise<boolean> => {
+    if (!organisationId) return false
+    const capacites = await chargerCapacitesOrganisation(app.prisma, organisationId)
+    return capacites?.paiementEnLigneInclus ?? false
+  }
+
   /** Fiche du compte connecté (scopée). */
   const ficheDe = async (sub: string | undefined) => {
     if (!sub) return null
@@ -51,6 +63,12 @@ export const paiementsRoutes: FastifyPluginAsync = async (app: FastifyInstance) 
       const organisationId = req.user.organisationId
       if (!organisationId) {
         return reply.code(404).send({ error: 'Not Found', message: t(langueDeRequete(req), 'organisations.introuvable') })
+      }
+      // Hors forfait (ni capacité ni droit acquis) : refus NEUTRE, pas le message commercial
+      // (`paiement.reserveForfaitPro`, réservé au bureau sur PUT /organisations/moi/paiement) — un
+      // MEMBRE_SIMPLE qui clique « Payer » ne doit jamais voir de discours de vente (spec 1.1 §1.1).
+      if (!(await paiementInclus(organisationId))) {
+        return reply.code(403).send({ error: 'Forbidden', message: t(langueDeRequete(req), 'paiement.nonConfigure') })
       }
       try {
         const r = await demarrerPaiement(
@@ -90,9 +108,14 @@ export const paiementsRoutes: FastifyPluginAsync = async (app: FastifyInstance) 
   // indice d'UI (aucun secret) : le front n'affiche « Payer » que si `actif`. Scopé par le contexte.
   // Renvoie AUSSI le montant minimum : c'est la SOURCE UNIQUE (env serveur), le front ne le déduit plus
   // d'une variable de build (fini le couplage build-time front/back).
-  app.get('/moi/paiement-disponible', { preHandler: [authenticate] }, async () => {
-    const config = await app.prisma.parametrePaiement.findFirst({ select: { actif: true } })
-    return { actif: Boolean(config?.actif), montantMin: env.PAIEMENT_MONTANT_MIN }
+  // Hors forfait (ni capacité ni droit acquis) : `actif: false`, SANS message — le bouton disparaît et le
+  // membre ne voit jamais de message commercial (spec 1.1 §1.1).
+  app.get('/moi/paiement-disponible', { preHandler: [authenticate] }, async (req) => {
+    const [config, inclus] = await Promise.all([
+      app.prisma.parametrePaiement.findFirst({ select: { actif: true } }),
+      paiementInclus(req.user.organisationId),
+    ])
+    return { actif: Boolean(config?.actif) && inclus, montantMin: env.PAIEMENT_MONTANT_MIN }
   })
 
   // GET /moi/paiements/:id — statut d'un paiement du membre (page de retour après redirection).

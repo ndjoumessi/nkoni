@@ -65,7 +65,7 @@ export default {
         paiement: {
           titre: 'Paiement Mobile Money',
           texte:
-            'Les membres règlent tout ou partie de leur cotisation par MTN ou Orange Money ; l’argent va directement sur le compte de l’organisation.',
+            'Les membres règlent tout ou partie de leur cotisation par MTN ou Orange Money (forfaits Pro et Entreprise) ; l’argent va directement sur le compte de l’organisation.',
         },
         tontine: {
           titre: 'Tontines intégrées',
@@ -84,7 +84,7 @@ export default {
       overline: 'Forfaits',
       titre: 'Commencez gratuitement, évoluez à votre rythme',
       description:
-        'Le forfait Gratuit est disponible dès aujourd’hui. Les offres Pro et Entreprise s’activent sur demande — écrivez-nous pour lever les limites (pas de paiement en ligne pour l’instant).',
+        'Le forfait Gratuit est disponible dès aujourd’hui. Les offres Pro et Entreprise s’activent sur demande — écrivez-nous pour lever les limites (les forfaits ne se règlent pas encore en ligne).',
       disponible: 'Disponible',
       bientot: 'Sur demande',
       gratuit: {
@@ -96,6 +96,7 @@ export default {
         f3: 'Réunions, fonctions & résolutions',
         f4: 'Rapports financiers & exports',
         f5: 'Espace sécurisé, isolé des autres',
+        f6: '500 Mo de stockage de documents',
       },
       pro: {
         nom: 'Pro',
@@ -103,18 +104,17 @@ export default {
         prix: 'Tarif à venir',
         bouton: 'Être prévenu du lancement',
         f1: 'Membres illimités',
-        f2: 'Documents illimités',
-        f3: 'Support prioritaire',
-        f4: 'Export avancé',
+        f2: 'Cotisations payées en ligne par Mobile Money',
+        f3: '20 Go de stockage de documents',
       },
       entreprise: {
         nom: 'Entreprise',
         tagline: 'Sur mesure',
         prix: 'Sur devis',
         bouton: 'Nous contacter',
-        f1: 'Grandes structures & fédérations',
-        f2: 'Accompagnement dédié à l’onboarding',
-        f3: 'Sans engagement',
+        f1: 'Tout le forfait Pro',
+        f2: 'Accompagnement dédié et support prioritaire',
+        f3: 'Facturation annuelle, stockage au-delà de 20 Go sur devis',
       },
       mailto: {
         proSujet: 'NKONI Pro — être prévenu du lancement',
@@ -177,7 +177,7 @@ export default {
     capacites: {
       titre: 'Et tout ce qu’il faut pour gérer au quotidien',
       description: 'Une seule application, du recouvrement à la reddition de comptes.',
-      paiementEnLigne: 'Paiement Mobile Money en ligne',
+      paiementEnLigne: 'Paiement Mobile Money en ligne (forfaits Pro et Entreprise)',
       reunions: 'Réunions & présences',
       resolutions: 'Résolutions & fonctions',
       cagnottes: 'Cagnottes d’événement',
@@ -216,7 +216,7 @@ export default {
       },
       paiement: {
         q: 'Les membres peuvent-ils payer leurs cotisations en ligne ?',
-        r: 'Oui. Chaque organisation peut activer le paiement par Mobile Money (MTN, Orange) : les membres règlent tout ou partie de leur cotisation depuis leur espace, et l’argent est versé directement sur le compte du prestataire de l’organisation — NKONI ne détient jamais les fonds.',
+        r: 'Oui, sur les forfaits Pro et Entreprise : l’organisation peut alors activer le paiement par Mobile Money (MTN, Orange) — les membres règlent tout ou partie de leur cotisation depuis leur espace, et l’argent est versé directement sur le compte du prestataire de l’organisation, NKONI ne détient jamais les fonds.',
       },
       modules: {
         q: 'NKONI gère-t-il autre chose que les cotisations ?',

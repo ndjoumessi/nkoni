@@ -257,6 +257,72 @@ describe('televerserDocument', () => {
     expect(blob.dels).toHaveLength(1) // le blob poussé a été supprimé
     expect(blob.dels[0]).toBe(blob.puts[0].url)
   })
+
+  /* --- verifierQuota : contrôlé APRÈS l'autorisation (étape 3), AVANT le blob (étape 4) ------ */
+  describe('paramètre verifierQuota', () => {
+    it('appelé avec la taille du fichier, APRÈS autorisation et AVANT blob.put', async () => {
+      const prisma = buildDocumentsMock()
+      const blob = buildBlobMock()
+      const appels: number[] = []
+      const doc = await televerserDocument(
+        prisma as any,
+        blob.client,
+        params(),
+        bureau,
+        async (tailleOctets) => {
+          appels.push(tailleOctets)
+          // Le blob n'a pas encore été poussé au moment où le quota est contrôlé.
+          expect(blob.puts).toHaveLength(0)
+        },
+      )
+      expect(appels).toEqual([FICHIERS.pdf.length])
+      expect(doc).toMatchObject({ entiteType: 'COMMEMORATION' })
+      expect(blob.puts).toHaveLength(1)
+    })
+
+    it("rôle non autorisé → verifierQuota N'EST PAS appelé (pas de fuite d'usage du quota avant le refus d'accès)", async () => {
+      const prisma = buildDocumentsMock()
+      const blob = buildBlobMock()
+      const verifierQuota = async () => {
+        throw new Error('verifierQuota ne doit pas être appelé avant l’autorisation')
+      }
+      await expect(
+        televerserDocument(prisma as any, blob.client, params(), { id: 'u-membre', role: 'MEMBRE_SIMPLE' }, verifierQuota),
+      ).rejects.toBeInstanceOf(AccesDocumentRefuseError)
+      expect(blob.puts).toHaveLength(0)
+    })
+
+    it("type de fichier invalide → verifierQuota N'EST PAS appelé (validation du fichier prime, étape 1)", async () => {
+      const prisma = buildDocumentsMock()
+      const blob = buildBlobMock()
+      const verifierQuota = async () => {
+        throw new Error('verifierQuota ne doit pas être appelé sur un fichier invalide')
+      }
+      await expect(
+        televerserDocument(
+          prisma as any,
+          blob.client,
+          params({ fichier: { buffer: FICHIERS.texte, mimetype: MIME.texte } }),
+          bureau,
+          verifierQuota,
+        ),
+      ).rejects.toBeInstanceOf(TypeFichierNonAutoriseError)
+      expect(blob.puts).toHaveLength(0)
+    })
+
+    it('verifierQuota qui refuse → son erreur remonte telle quelle (service i18n-agnostique), aucun blob.put', async () => {
+      const prisma = buildDocumentsMock()
+      const blob = buildBlobMock()
+      class QuotaDepasseFactice extends Error {}
+      const verifierQuota = async () => {
+        throw new QuotaDepasseFactice('quota dépassé')
+      }
+      await expect(
+        televerserDocument(prisma as any, blob.client, params(), bureau, verifierQuota),
+      ).rejects.toBeInstanceOf(QuotaDepasseFactice)
+      expect(blob.puts).toHaveLength(0)
+    })
+  })
 })
 
 /* ==========================================================================

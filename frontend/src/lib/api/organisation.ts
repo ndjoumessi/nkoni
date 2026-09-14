@@ -1,4 +1,4 @@
-import type { Forfait } from '@/lib/forfait'
+import type { Forfait, CapacitesForfait } from '@/lib/forfait'
 import type { EcheanceForfait } from './platform'
 import { API_URL, leverSiErreur, request } from './core'
 
@@ -16,6 +16,13 @@ export interface OrganisationCourante extends EcheanceForfait {
   nbMembres: number
   /** Plafond du forfait — `null` = illimité (Pro/Entreprise). */
   limiteMembres: number | null
+  /** Capacités du forfait EFFECTIF, calculées serveur (absentes si l'API n'est pas encore déployée). */
+  capacites?: CapacitesForfait
+  /** Σ tailles des documents, en octets. */
+  stockageUtiliseOctets?: number
+  paiementEnLigneAcquis?: boolean
+  /** Paiement en ligne permis (capacité OU droit acquis), calculé serveur. */
+  paiementEnLigneInclus?: boolean
   /** Chef de l'organisation (Membre désigné) — null si non désigné. */
   chefMembreId: string | null
   chefSurnom: string | null

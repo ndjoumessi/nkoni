@@ -139,3 +139,27 @@ export function etapeRelanceForfait(
   if (j <= 7) return 'J7'
   return 'J30'
 }
+
+// ===========================================================================
+// Capacités APPLIQUÉES (spec 1.1 §2.3, étape 3) — toujours celles du forfait EFFECTIF.
+// ===========================================================================
+
+/** Capacités qui s'appliquent : celles du forfait EFFECTIF (GRATUIT une fois la grâce écoulée). */
+export function capacitesEffectives(
+  forfait: Forfait,
+  expireLe: Date | null,
+  now: Date,
+): Readonly<CapacitesForfait> {
+  return CAPACITES_FORFAIT[forfaitEffectif(forfait, expireLe, now)]
+}
+
+/**
+ * Paiement en ligne permis : capacité du forfait effectif, OU droit acquis (organisation qui l'avait
+ * déjà configuré à la livraison des quotas, spec §1.3). Le droit acquis survit à l'expiration.
+ */
+export function paiementEnLigneAutorise(
+  capacites: Pick<CapacitesForfait, 'paiementEnLigne'>,
+  acquis: boolean,
+): boolean {
+  return capacites.paiementEnLigne || acquis
+}

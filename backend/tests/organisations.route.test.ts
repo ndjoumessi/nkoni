@@ -160,6 +160,7 @@ function buildMoiMock(membres: { statut: string }[] = MEMBRES_TEST) {
         langueDefaut: 'FR',
         forfait: 'GRATUIT',
         createdAt: new Date('2026-01-15T10:00:00.000Z'),
+        paiementEnLigneAcquis: false,
       }),
     },
     membre: {
@@ -169,6 +170,10 @@ function buildMoiMock(membres: { statut: string }[] = MEMBRES_TEST) {
         const statut = args?.where?.statut
         return membres.filter((m) => (statut ? m.statut === statut : true)).length
       },
+    },
+    document: {
+      // Σ tailleOctets de l'org en contexte (aggregate scopé en vrai) : 12 Mo.
+      aggregate: async () => ({ _sum: { tailleOctets: 12 * 1024 * 1024 } }),
     },
   }
   return prisma
@@ -192,6 +197,10 @@ describe('Paramètres organisation — GET /organisations/moi', () => {
       forfait: 'GRATUIT',
       nbMembres: 42, // et non 45 : les fiches décédées/inactives ne consomment pas le quota
       limiteMembres: 50,
+      capacites: { limiteMembres: 50, quotaStockageOctets: 500 * 1024 * 1024, paiementEnLigne: false },
+      stockageUtiliseOctets: 12 * 1024 * 1024,
+      paiementEnLigneAcquis: false,
+      paiementEnLigneInclus: false,
     })
     await app.close()
   })

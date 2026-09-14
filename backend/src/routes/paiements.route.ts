@@ -64,8 +64,11 @@ export const paiementsRoutes: FastifyPluginAsync = async (app: FastifyInstance) 
       if (!organisationId) {
         return reply.code(404).send({ error: 'Not Found', message: t(langueDeRequete(req), 'organisations.introuvable') })
       }
+      // Hors forfait (ni capacité ni droit acquis) : refus NEUTRE, pas le message commercial
+      // (`paiement.reserveForfaitPro`, réservé au bureau sur PUT /organisations/moi/paiement) — un
+      // MEMBRE_SIMPLE qui clique « Payer » ne doit jamais voir de discours de vente (spec 1.1 §1.1).
       if (!(await paiementInclus(organisationId))) {
-        return reply.code(403).send({ error: 'Forbidden', message: t(langueDeRequete(req), 'paiement.reserveForfaitPro') })
+        return reply.code(403).send({ error: 'Forbidden', message: t(langueDeRequete(req), 'paiement.nonConfigure') })
       }
       try {
         const r = await demarrerPaiement(

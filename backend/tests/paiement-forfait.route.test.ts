@@ -2,6 +2,7 @@
 import { describe, expect, it } from 'vitest'
 import type { FastifyInstance } from 'fastify'
 import { buildApp } from '../src/app'
+import { t } from '../src/lib/i18n'
 
 /** Paiement en ligne selon le forfait (spec 1.1 §3.3). Mocks : aucune base. */
 
@@ -39,13 +40,14 @@ describe('GET /moi/paiement-disponible', () => {
   it('PRO mais config inactive → actif false', async () => {
     const app = await appAvec(prisma(PRO, false))
     const res = await app.inject({ method: 'GET', url: '/moi/paiement-disponible', headers: jeton(app, 'MEMBRE_SIMPLE') })
+    expect(res.statusCode).toBe(200)
     expect(res.json().actif).toBe(false)
     await app.close()
   })
 })
 
 describe('POST /moi/paiements — démarrage réservé', () => {
-  it('GRATUIT sans droit acquis → 403 paiement.reserveForfaitPro, rien n’est démarré', async () => {
+  it('GRATUIT sans droit acquis → 403 NEUTRE (paiement.nonConfigure), rien n’est démarré', async () => {
     let contributionLue = false
     const app = await appAvec({
       membre: { findFirst: async () => ({ id: 'm1' }) },
@@ -57,6 +59,9 @@ describe('POST /moi/paiements — démarrage réservé', () => {
       payload: { contributionId: 'c1', montant: 12000 },
     })
     expect(res.statusCode).toBe(403)
+    // Message NEUTRE, pas le discours commercial : un MEMBRE_SIMPLE ne voit jamais
+    // « paiement.reserveForfaitPro » (spec 1.1 §1.1, réservé au bureau sur le PUT de config).
+    expect(res.json().message).toBe(t('FR', 'paiement.nonConfigure'))
     expect(contributionLue).toBe(false)
     await app.close()
   })
@@ -73,6 +78,7 @@ describe('PUT /organisations/moi/paiement — configuration réservée', () => {
     })
     const res = await app.inject({ method: 'PUT', url: '/organisations/moi/paiement', headers: jeton(app, 'ADMIN'), payload: corps })
     expect(res.statusCode).toBe(403)
+    expect(res.json().message).toBe(t('FR', 'paiement.reserveForfaitPro'))
     expect(ecrit).toBe(false)
     await app.close()
   })

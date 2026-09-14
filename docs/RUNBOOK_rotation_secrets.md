@@ -178,18 +178,20 @@ chaque bureau, après l'étape 6, l'identifiant affiché dans Paramètres.
 4. **Dry-run** du rechiffrement, depuis `backend/`, sans jamais coller l'URL de la base (elle resterait
    dans l'historique du shell) :
    ```bash
-   railway run --service nkoni -- sh -c 'DATABASE_URL="$(railway variables --service Postgres --kv | grep "^DATABASE_PUBLIC_URL=" | cut -d= -f2-)" npm run rechiffrer:psp'
+   railway run --service nkoni -- sh -c 'u="$(railway variables --service Postgres --kv | grep "^DATABASE_PUBLIC_URL=" | cut -d= -f2-)"; [ -n "$u" ] || { echo "URL de la base introuvable"; exit 1; }; DATABASE_URL="$u" npm run rechiffrer:psp'
    ```
    Attendu au premier passage : `À rechiffrer` = nombre d'organisations ayant une configuration de
    paiement, `Illisibles : 0`, code de sortie 0. Aucune valeur n'est affichée.
    - « `PSP_ENCRYPTION_KEY_PRECEDENTE` absente » (sortie 1) : mauvais service ou variable non posée.
    - « Toutes les configurations sont déjà sous la clé courante » au premier passage : les deux
      variables sont probablement **inversées** — corriger avant d'aller plus loin.
-5. **Application** : même commande, en terminant par `npm run rechiffrer:psp -- --apply`. Code de sortie
+5. **Application** : même commande, en remplaçant `npm run rechiffrer:psp` par `npm run rechiffrer:psp -- --apply`. Code de sortie
    0 = terminé ; 2 = une organisation a modifié sa configuration pendant le script (relancer le
    dry-run) ; 1 = erreur ou configuration illisible.
    Le rechiffrement met à jour la date « dernière mise à jour » affichée au bureau dans Paramètres.
-6. **Relancer le dry-run** : `Déjà sous la clé courante` = total, `À rechiffrer : 0`.
+6. **Relancer le dry-run** : `Déjà sous la clé courante` = total, `À rechiffrer : 0`. L'avertissement
+   « Toutes les configurations sont déjà sous la clé courante » est **attendu ici** (il ne signale une
+   inversion qu'au premier passage, étape 4).
 7. **Retirer** `PSP_ENCRYPTION_KEY_PRECEDENTE` de Railway, `railway redeploy` ; refaire le contrôle du
    point 3 (cette fois **sans** l'avertissement de rotation).
 8. **Conserver l'ancienne clé**, marquée « ne plus poser en production », aussi longtemps qu'existe un

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { CreditCard, Check, ShieldCheck, Pencil } from 'lucide-react'
+import { CreditCard, Check, ShieldCheck, Pencil, Lock } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
 import {
   organisationApi,
@@ -38,7 +38,7 @@ function masquerIdentifiant(id: string | null): string {
   return `${id.slice(0, 6)}••••••${id.slice(-4)}`
 }
 
-export function ConfigPaiement() {
+export function ConfigPaiement({ inclus = true }: { inclus?: boolean }) {
   const { t } = useTranslation()
   const { accessToken } = useAuth()
   const toast = useToast()
@@ -59,7 +59,7 @@ export function ConfigPaiement() {
   const [editionOuverte, setEditionOuverte] = useState(false)
 
   useEffect(() => {
-    if (!accessToken) return
+    if (!accessToken || !inclus) return
     const controller = new AbortController()
     let vivant = true
     organisationApi
@@ -79,7 +79,7 @@ export function ConfigPaiement() {
       vivant = false
       controller.abort()
     }
-  }, [accessToken])
+  }, [accessToken, inclus])
 
   // Toute modification invalide la confirmation précédente et efface l'erreur (retour visuel honnête :
   // le bandeau « enregistré » ne doit pas survivre à un changement non sauvegardé).
@@ -120,6 +120,26 @@ export function ConfigPaiement() {
 
   const envLabel = (env: EnvironnementPsp) =>
     env === 'LIVE' ? t('parametres.paiement.live') : t('parametres.paiement.sandbox')
+
+  // Hors forfait (ni capacité ni droit acquis, spec 1.1 §4.5) : carte verrouillée, sans formulaire ni
+  // lecture de la configuration. Les paiements déjà démarrés se confirment toujours côté serveur.
+  if (!inclus) {
+    return (
+      <Card className="nk-reveal nk-d4 p-6">
+        <div className="flex items-center gap-2">
+          <CreditCard className="h-4 w-4 text-brass" aria-hidden="true" />
+          <Overline>{t('parametres.paiement.titre')}</Overline>
+        </div>
+        <div className="mt-3 flex items-start gap-3 rounded-xl border border-hairline bg-surface-2/40 p-4">
+          <Lock className="mt-0.5 h-4 w-4 shrink-0 text-faint" aria-hidden="true" />
+          <div>
+            <p className="text-sm font-medium text-foreground">{t('parametres.paiement.reserveForfaitPro')}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{t('parametres.paiement.reserveForfaitProDetail')}</p>
+          </div>
+        </div>
+      </Card>
+    )
+  }
 
   return (
     <Card className="nk-reveal nk-d4 p-6">

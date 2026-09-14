@@ -57,6 +57,24 @@ export function formatNombre(n: number): string {
   return new Intl.NumberFormat(locale()).format(n)
 }
 
+const MO = 1024 * 1024
+const GO = 1024 * MO
+
+/**
+ * Taille lisible d'un volume de stockage dans la langue courante — miroir de `formatTailleOctets` du
+ * backend (lib/i18n.ts) : Mo sous 1 Go, Go au-delà, une décimale au plus, unités binaires. L'UNITÉ est
+ * choisie APRÈS arrondi à la décimale Mo (pas avant) : sans ça, un volume juste sous 1 Go (ex.
+ * `GO - 1`) arrondirait à « 1024,0 Mo » au lieu de basculer en Go.
+ */
+export function formatTailleOctets(octets: number): string {
+  const mo = Math.round((octets / MO) * 10) / 10
+  const enGo = octets >= GO || mo >= 1024
+  const valeur = enGo ? octets / GO : mo
+  const en = locale() === 'en'
+  const unite = enGo ? (en ? 'GB' : 'Go') : en ? 'MB' : 'Mo'
+  return `${new Intl.NumberFormat(locale(), { maximumFractionDigits: 1 }).format(valeur)} ${unite}`
+}
+
 /**
  * Pourcentage locale-aware. `valeur` est déjà un pourcentage (ex. `50` = 50 %), donc on divise
  * par 100 pour le style `percent` d'`Intl` (qui multiplie par 100) : FR → « 50 % », EN → « 50% ».

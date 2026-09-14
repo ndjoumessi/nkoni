@@ -31,6 +31,16 @@ export default {
       restants_other: '{{count}} places restantes',
       limiteAtteinte: 'Limite du forfait atteinte',
     },
+    stockage: {
+      titre: 'Stockage des documents',
+      compteur: '{{utilise}} utilisés sur {{quota}}',
+      plein: 'Espace plein : l’envoi de documents est bloqué, les documents existants restent consultables.',
+    },
+    paiementEnLigne: {
+      libelle: 'Paiement en ligne :',
+      inclus: 'inclus',
+      nonInclus: 'non inclus',
+    },
     forfait: {
       valableJusquau: 'Forfait {{forfait}} valable jusqu’au {{date}}',
       echuLe: 'Forfait {{forfait}} arrivé à échéance le {{date}}',
@@ -71,6 +81,9 @@ export default {
       inactif: 'Inactif',
       avertissementTitulaire:
         'Assurez-vous que le compte du prestataire est ouvert au nom de l’organisation, et non d’un dirigeant à titre personnel : c’est ce compte qui recevra les cotisations de vos membres.',
+      reserveForfaitPro: 'Inclus dans le forfait Pro',
+      reserveForfaitProDetail:
+        'Le paiement des cotisations par Mobile Money est disponible avec les forfaits Pro et Entreprise. Contactez-nous pour changer de forfait.',
       identifiant: 'Identifiant',
       secret: 'Secret',
       secretDefini: 'Défini',

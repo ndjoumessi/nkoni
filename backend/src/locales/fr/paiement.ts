@@ -9,4 +9,6 @@ export const messages = {
   'paiement.contributionIntrouvable': 'Contribution introuvable.',
   'paiement.telephoneRequis':
     'Numéro de téléphone requis pour ce mode de paiement. Renseignez votre numéro Mobile Money puis réessayez.',
+  'paiement.reserveForfaitPro':
+    'Le paiement en ligne est inclus dans les forfaits Pro et Entreprise. Contactez-nous pour changer de forfait.',
 } as const

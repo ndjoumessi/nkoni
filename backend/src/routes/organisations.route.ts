@@ -13,6 +13,7 @@ import {
   MembreHorsOrganisationError,
 } from '../services/organisation.service'
 import { assemblerExportOrganisation } from '../services/organisation-purge.service'
+import { chargerCapacitesOrganisation } from '../services/capacites-organisation.service'
 import {
   lireConfigPaiement,
   enregistrerConfigPaiement,
@@ -240,6 +241,15 @@ export const organisationsRoutes: FastifyPluginAsync = async (app: FastifyInstan
         return reply
           .code(404)
           .send({ error: 'Not Found', message: t(langueDeRequete(req), 'organisations.introuvable') })
+      }
+      // Configuration réservée aux forfaits payants, sauf droit acquis (spec 1.1 §1.3/§3.3). Une
+      // organisation qui ne l'a plus ne peut pas reconfigurer ; les paiements déjà démarrés se
+      // confirment toujours (la confirmation ne lit jamais le forfait).
+      const capacites = await chargerCapacitesOrganisation(app.prisma, organisationId)
+      if (!capacites?.paiementEnLigneInclus) {
+        return reply
+          .code(403)
+          .send({ error: 'Forbidden', message: t(langueDeRequete(req), 'paiement.reserveForfaitPro') })
       }
       try {
         return await enregistrerConfigPaiement(app.prisma, organisationId, {

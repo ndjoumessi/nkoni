@@ -59,8 +59,14 @@ describe('GET /moi/paiement-disponible', () => {
   })
 
   it('config active → { actif: true, montantMin } ; absente → { actif: false, montantMin }', async () => {
+    // PRO : le test porte sur la config active/absente, pas sur le forfait (cf. paiement-forfait.route.test.ts).
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const appActif = await appAvec({ parametrePaiement: { findFirst: async () => ({ actif: true }) } } as any)
+    const org = { forfait: 'PRO', forfaitExpireLe: null, paiementEnLigneAcquis: false }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const appActif = await appAvec({
+      organisation: { findUnique: async () => org },
+      parametrePaiement: { findFirst: async () => ({ actif: true }) },
+    } as any)
     const rA = await appActif.inject({ method: 'GET', url: '/moi/paiement-disponible', headers: auth(appActif) })
     // Le montant minimum (source unique serveur) accompagne toujours la disponibilité.
     expect(rA.json()).toMatchObject({ actif: true })
@@ -68,7 +74,10 @@ describe('GET /moi/paiement-disponible', () => {
     await appActif.close()
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const appVide = await appAvec({ parametrePaiement: { findFirst: async () => null } } as any)
+    const appVide = await appAvec({
+      organisation: { findUnique: async () => org },
+      parametrePaiement: { findFirst: async () => null },
+    } as any)
     const rV = await appVide.inject({ method: 'GET', url: '/moi/paiement-disponible', headers: auth(appVide) })
     expect(rV.json()).toMatchObject({ actif: false })
     expect(typeof rV.json().montantMin).toBe('number')

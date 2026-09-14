@@ -9,4 +9,6 @@ export const messages = {
   'paiement.contributionIntrouvable': 'Contribution not found.',
   'paiement.telephoneRequis':
     'A phone number is required for this payment method. Add your Mobile Money number, then try again.',
+  'paiement.reserveForfaitPro':
+    'Online payment is included in the Pro and Enterprise plans. Contact us to change your plan.',
 } as const

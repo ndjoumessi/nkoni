@@ -10,7 +10,7 @@ import {
   ApiError,
   messageErreur,
   type CagnotteInput,
-  type MembreStatut,
+  type OptionMembre,
   type TypeCagnotte,
 } from '@/lib/api'
 import { peutGererCagnotte } from '@/lib/roles'
@@ -43,7 +43,7 @@ export function CagnotteFormPage() {
   const [benefMembreId, setBenefMembreId] = useState('')
   const [benefNom, setBenefNom] = useState('')
 
-  const [membres, setMembres] = useState<MembreStatut[]>([])
+  const [membres, setMembres] = useState<OptionMembre[]>([])
   const [loading, setLoading] = useState(editing)
   const [submitting, setSubmitting] = useState(false)
   const [errTitre, setErrTitre] = useState<string | undefined>(undefined)
@@ -57,8 +57,8 @@ export function CagnotteFormPage() {
     let active = true
     void (async () => {
       const liste = await membresApi
-        .listStatuts(accessToken, controller.signal)
-        .catch(() => [] as MembreStatut[])
+        .listOptions(accessToken, controller.signal)
+        .catch(() => [] as OptionMembre[])
       if (active) setMembres(liste)
 
       if (editing && id) {

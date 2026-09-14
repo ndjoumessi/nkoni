@@ -11,7 +11,7 @@ import {
   MODES_VERSEMENT,
   type Amende,
   type AmendesReponse,
-  type MembreStatut,
+  type OptionMembre,
   type ModeVersement,
   type StatutAmende,
   type TypeAmende,
@@ -55,7 +55,7 @@ export function AmendesPage() {
   const [data, setData] = useState<AmendesReponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [membres, setMembres] = useState<MembreStatut[]>([])
+  const [membres, setMembres] = useState<OptionMembre[]>([])
 
   const [fStatut, setFStatut] = useState<StatutAmende | ''>('')
   const [fMembre, setFMembre] = useState('')
@@ -103,7 +103,7 @@ export function AmendesPage() {
         const [, liste] = await Promise.all([
           charger(controller.signal),
           membres.length === 0
-            ? membresApi.listStatuts(accessToken, controller.signal).catch(() => [] as MembreStatut[])
+            ? membresApi.listOptions(accessToken, controller.signal).catch(() => [] as OptionMembre[])
             : Promise.resolve(membres),
         ])
         if (active && liste) setMembres(liste)

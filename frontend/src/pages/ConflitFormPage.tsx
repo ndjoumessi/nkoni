@@ -10,7 +10,7 @@ import {
   ApiError,
   messageErreur,
   type ConflitUtilisateurRef,
-  type MembreStatut,
+  type OptionMembre,
   type NiveauConfidentialite,
 } from '@/lib/api'
 import { peutDeclarerConflit } from '@/lib/roles'
@@ -41,7 +41,7 @@ export function ConflitFormPage() {
   const [errDescription, setErrDescription] = useState<string | undefined>(undefined)
   const formRef = useRef<HTMLFormElement>(null)
 
-  const [membres, setMembres] = useState<MembreStatut[]>([])
+  const [membres, setMembres] = useState<OptionMembre[]>([])
   const [responsables, setResponsables] = useState<ConflitUtilisateurRef[]>([])
 
   const autorise = peutDeclarerConflit(user?.role)
@@ -52,7 +52,7 @@ export function ConflitFormPage() {
     let active = true
     void (async () => {
       const [m, r] = await Promise.all([
-        membresApi.listStatuts(accessToken, controller.signal).catch(() => [] as MembreStatut[]),
+        membresApi.listOptions(accessToken, controller.signal).catch(() => [] as OptionMembre[]),
         conflitsApi.responsables(accessToken, controller.signal).catch(() => [] as ConflitUtilisateurRef[]),
       ])
       if (active) {

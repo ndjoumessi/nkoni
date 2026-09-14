@@ -91,7 +91,7 @@ export function CommandPalette() {
       if (!estMembreSimple(role)) {
         jobs.push(
           membresApi
-            .listStatuts(accessToken)
+            .listOptions(accessToken)
             .then((l) =>
               l.forEach((m) =>
                 acc.push({

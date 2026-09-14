@@ -30,6 +30,25 @@ export interface MembreStatut {
   totalValoriseCumule: number
 }
 
+/**
+ * Ligne LÉGÈRE de GET /membres/options (§1.3) : identité seule, SANS statut de cotisation.
+ * Pour les sélecteurs et la palette ⌘K, qui n'ont qu'un nom à proposer.
+ */
+export interface OptionMembre {
+  id: string
+  nom: string
+  prenom: string
+  statut: StatutMembre
+  branche: { id: string; nom: string } | null
+}
+
+/** Réponse BORNÉE de GET /membres/options : plafond serveur 10 000, `tronque` au-delà. */
+export interface OptionsMembres {
+  items: OptionMembre[]
+  total: number
+  tronque: boolean
+}
+
 /** Réponse BORNÉE de GET /membres/statuts (audit m4) : liste + total réel + drapeau de troncature. */
 export interface StatutsMembres {
   items: MembreStatut[]
@@ -124,18 +143,18 @@ export interface Contribution {
 
 export const membresApi = {
   /**
-   * Réponse BORNÉE serveur `{ items, total, tronque }` (audit m4 : plus de liste non paginée).
-   * Utile quand l'appelant a besoin du signal de troncature (page Membres principale).
+   * Statuts de cotisation CALCULÉS, réponse BORNÉE serveur `{ items, total, tronque }` (plafond
+   * 1000, audit m4). Réservée aux vues qui exploitent le statut (analyse du dashboard), qui doivent
+   * afficher `tronque`. Un sélecteur ou une recherche de nom passe par `listOptions`.
    */
   listStatutsPage: (accessToken: string, signal?: AbortSignal) =>
     request<StatutsMembres>('/membres/statuts', { accessToken, signal }),
   /**
-   * Variante « tableau seul » : déballe `.items` pour les nombreux appelants (sélecteurs,
-   * dashboard, ⌘K…) qui n'exploitent pas la troncature. La borne serveur (1000) s'applique
-   * quand même — largement au-delà des besoins de ces vues.
+   * Identité des membres (id, nom, prénom, statut, branche) pour les sélecteurs et ⌘K — déballe
+   * `.items`. Aucun statut de cotisation : ne pas l'utiliser pour une vue qui en a besoin.
    */
-  listStatuts: (accessToken: string, signal?: AbortSignal) =>
-    request<StatutsMembres>('/membres/statuts', { accessToken, signal }).then((r) => r.items),
+  listOptions: (accessToken: string, signal?: AbortSignal) =>
+    request<OptionsMembres>('/membres/options', { accessToken, signal }).then((r) => r.items),
   /**
    * Liste PAGINÉE (§1.3) — recherche, filtres et tri côté SERVEUR, page bornée. Renvoie aussi la
    * synthèse et les branches (sur l'ensemble non filtré). Pour la page Membres des grosses orgs.

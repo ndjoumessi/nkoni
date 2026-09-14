@@ -131,6 +131,7 @@ export default {
       tousAJour: 'Tous les membres actifs sont à jour. 🎉',
       reste: 'Reste {{montant}}',
       voirTous: 'Voir tous les membres à relancer',
+      tronque: 'Analyse calculée sur les {{plafond}} premiers membres (ordre alphabétique) sur {{total}}.',
       relancerWhatsApp: 'Relancer par WhatsApp',
       relanceMessage:
         'Bonjour {{prenom}}, petit rappel : il vous reste {{montant}} à régler pour vos cotisations. Merci !',

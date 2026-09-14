@@ -11,7 +11,7 @@ import {
   ApiError,
   messageErreur,
   type Utilisateur,
-  type MembreStatut,
+  type OptionMembre,
 } from '@/lib/api'
 import { peutGererUtilisateurs, ROLES } from '@/lib/roles'
 import { focusPremierChampInvalide } from '@/lib/utils'
@@ -40,7 +40,7 @@ export function UtilisateursPage() {
   const toast = useToast()
 
   const [utilisateurs, setUtilisateurs] = useState<Utilisateur[] | null>(null)
-  const [membres, setMembres] = useState<MembreStatut[]>([])
+  const [membres, setMembres] = useState<OptionMembre[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -78,7 +78,7 @@ export function UtilisateursPage() {
         // Les membres alimentent le select « membre lié » ; best-effort (non bloquant).
         const [us, ms] = await Promise.all([
           utilisateursApi.list(accessToken, signal),
-          membresApi.listStatuts(accessToken, signal).catch(() => [] as MembreStatut[]),
+          membresApi.listOptions(accessToken, signal).catch(() => [] as OptionMembre[]),
         ])
         if (!active) return
         setUtilisateurs(us)

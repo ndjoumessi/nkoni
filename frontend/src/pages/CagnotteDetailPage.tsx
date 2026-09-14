@@ -11,7 +11,7 @@ import {
   MODES_VERSEMENT,
   type CagnotteDetail,
   type DonCagnotte,
-  type MembreStatut,
+  type OptionMembre,
   type ModeVersement,
 } from '@/lib/api'
 import { peutVoirCagnottes, peutGererCagnotte, peutSaisirDon } from '@/lib/roles'
@@ -51,7 +51,7 @@ export function CagnotteDetailPage() {
   const [c, setC] = useState<CagnotteDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [membres, setMembres] = useState<MembreStatut[]>([])
+  const [membres, setMembres] = useState<OptionMembre[]>([])
 
   const [modal, setModal] = useState<'don' | 'cloture' | 'suppr' | null>(null)
   const [donASupprimer, setDonASupprimer] = useState<DonCagnotte | null>(null)
@@ -86,7 +86,7 @@ export function CagnotteDetailPage() {
       try {
         const [data, liste] = await Promise.all([
           cagnottesApi.get(id, accessToken, controller.signal),
-          membresApi.listStatuts(accessToken, controller.signal).catch(() => [] as MembreStatut[]),
+          membresApi.listOptions(accessToken, controller.signal).catch(() => [] as OptionMembre[]),
         ])
         if (!active) return
         setC(data)

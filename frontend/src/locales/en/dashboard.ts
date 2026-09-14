@@ -131,6 +131,7 @@ export default {
       tousAJour: 'All active members are up to date. 🎉',
       reste: 'Remaining {{montant}}',
       voirTous: 'See all members to follow up',
+      tronque: 'Analysis based on the first {{plafond}} members (alphabetical order) out of {{total}}.',
       relancerWhatsApp: 'Follow up on WhatsApp',
       relanceMessage:
         'Hello {{prenom}}, a friendly reminder: {{montant}} remaining on your contributions. Thank you!',

@@ -117,7 +117,10 @@ export const organisationsRoutes: FastifyPluginAsync = async (app: FastifyInstan
           .code(404)
           .send({ error: 'Not Found', message: t(langueDeRequete(req), 'organisations.introuvable') })
       }
-      const organisation = await chargerOrganisationCourante(app.prisma, organisationId)
+      const organisation = await chargerOrganisationCourante(
+        app.prisma as unknown as Parameters<typeof chargerOrganisationCourante>[0],
+        organisationId,
+      )
       if (!organisation) {
         return reply
           .code(404)

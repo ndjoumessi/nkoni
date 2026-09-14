@@ -201,7 +201,7 @@ describe('Plafond de membres du plan gratuit (§10.2)', () => {
     await app.close()
   })
 
-  it('50 membres → création du 51e BLOQUÉE (403, message plan gratuit)', async () => {
+  it('50 membres → création du 51e BLOQUÉE (403, message forfait Gratuit)', async () => {
     const app = await appAvec(50)
     const res = await app.inject({
       method: 'POST',
@@ -211,7 +211,7 @@ describe('Plafond de membres du plan gratuit (§10.2)', () => {
     })
     expect(res.statusCode).toBe(403)
     expect(res.json()).toMatchObject({ error: 'Forbidden' })
-    expect(res.json().message).toMatch(/plan gratuit/i)
+    expect(res.json().message).toMatch(/forfait Gratuit/i)
     await app.close()
   })
 })

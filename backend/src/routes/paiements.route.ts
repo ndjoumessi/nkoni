@@ -111,6 +111,9 @@ export const paiementsRoutes: FastifyPluginAsync = async (app: FastifyInstance) 
   // Hors forfait (ni capacité ni droit acquis) : `actif: false`, SANS message — le bouton disparaît et le
   // membre ne voit jamais de message commercial (spec 1.1 §1.1).
   app.get('/moi/paiement-disponible', { preHandler: [authenticate] }, async (req) => {
+    // Compte sans organisation (SUPER_ADMIN) : rien à payer. Répondre AVANT la lecture de
+    // `parametrePaiement`, modèle scopé qui lève hors contexte org (fail-closed → 500 sinon).
+    if (!req.user.organisationId) return { actif: false, montantMin: env.PAIEMENT_MONTANT_MIN }
     const [config, inclus] = await Promise.all([
       app.prisma.parametrePaiement.findFirst({ select: { actif: true } }),
       paiementInclus(req.user.organisationId),

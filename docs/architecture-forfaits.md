@@ -119,12 +119,16 @@ paiementEnLigneAcquis` — le droit acquis, §1.3, survit à l'expiration).
   taille d'un fichier (10 Mo, `TAILLE_MAX_OCTETS` de `document.service.ts`) — assumé : le quota protège
   un coût de stockage, pas un invariant financier, contrairement au solde de trésorerie.
 - **Paiement en ligne** : contrôlé à quatre endroits distincts — la **configuration**
-  (`PUT /organisations/moi/paiement`, refusée y compris pour désactiver une config existante — choix
-  de simplicité fidèle à la spec, la plateforme peut le faire au besoin), le **démarrage**
+  (`PUT /organisations/moi/paiement`, refusée y compris pour désactiver une config existante — sans
+  conséquence : une config restée `actif` est INERTE tant que le forfait ne l'inclut pas (démarrage et
+  indice refusés), et elle reprend telle quelle au renouvellement du forfait, sans ressaisie), le **démarrage**
   (`POST /moi/paiements`, message **neutre** au membre — jamais `paiement.reserveForfaitPro`, réservé au
   bureau sur le PUT : la spec §1.1 « un membre ne voit jamais de message commercial » prime), l'**indice** `GET /moi/paiement-disponible` (`{ actif: false }` sans explication —
   le bouton « Payer » disparaît simplement) et la carte `ConfigPaiement` verrouillée côté Paramètres
-  (« inclus dans le forfait Pro »). **⚠️ La confirmation d'un paiement ne les lit jamais** :
+  (« inclus dans le forfait Pro ») ; l'astuce « activer le paiement en ligne » du guide « Premiers pas »
+  du tableau de bord (`GuideDemarrage`) est masquée dans ce cas, pour ne pas mener à la carte verrouillée.
+  L'indice répond `{ actif: false }` à un compte sans organisation (SUPER_ADMIN) AVANT de lire
+  `parametrePaiement`, modèle scopé qui lèverait hors contexte (500). **⚠️ La confirmation d'un paiement ne les lit jamais** :
   webhooks Fapshi/CamPay, réconciliation `*/15` et `confirmerPaiement` créent le versement sans consulter
   le forfait — un membre qui a payé voit son versement enregistré même si l'abonnement de son
   association a expiré entre le démarrage et la confirmation (spec §3.3, invariant critique).

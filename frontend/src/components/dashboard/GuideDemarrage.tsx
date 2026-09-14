@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   ArrowRight,
@@ -14,6 +14,8 @@ import {
 } from 'lucide-react'
 import { Card, Overline } from '@/components/ui/Card'
 import { ButtonLink, Button } from '@/components/ui/Button'
+import { useAuth } from '@/contexts/auth-context'
+import { organisationApi } from '@/lib/api'
 import { cn } from '@/lib/utils'
 
 /** État de configuration de l'espace — dérivé des données du dashboard (aucun appel dédié). */
@@ -53,10 +55,27 @@ export function GuideDemarrage({
   etapes: EtapesDemarrage
   /** Affiche l'astuce OPTIONNELLE « activer le paiement en ligne » (config PSP par org). Réservée
    * au bureau (ADMIN/PRESIDENT, seul à pouvoir configurer) : non comptée dans la progression, car le
-   * paiement en ligne est facultatif et son état « configuré » n'est pas porté par le dashboard. */
+   * paiement en ligne est facultatif et son état « configuré » n'est pas porté par le dashboard.
+   * Masquée si le forfait effectif ne l'inclut pas (`paiementEnLigneInclus === false`). */
   montrerPaiement?: boolean
 }) {
   const { t } = useTranslation()
+  const { accessToken } = useAuth()
+  // Le paiement en ligne n'est inclus qu'aux forfaits Pro/Entreprise (ou par droit acquis, spec 1.1
+  // §1.3) : l'astuce ne doit pas envoyer une org Gratuite vers une carte verrouillée. `chargement` →
+  // rien (pas de clignotement) ; lecture en échec ou API sans le champ → comportement antérieur.
+  const [paiementInclus, setPaiementInclus] = useState<boolean | 'chargement'>(montrerPaiement ? 'chargement' : false)
+  useEffect(() => {
+    if (!montrerPaiement || !accessToken) return
+    const controleur = new AbortController()
+    organisationApi
+      .moi(accessToken, controleur.signal)
+      .then((org) => setPaiementInclus(org.paiementEnLigneInclus !== false))
+      .catch(() => {
+        if (!controleur.signal.aborted) setPaiementInclus(true)
+      })
+    return () => controleur.abort()
+  }, [montrerPaiement, accessToken])
   const [masque, setMasque] = useState(() => {
     try {
       return localStorage.getItem(CLE_MASQUE) === '1'
@@ -152,7 +171,7 @@ export function GuideDemarrage({
       {/* Astuce OPTIONNELLE — hors checklist (pas de coche, pas comptée dans la progression) : le
           paiement en ligne est facultatif et son activation dépend d'une config PSP par org. Guidée
           vers /parametres, réservée à qui peut la configurer (ADMIN/PRESIDENT). */}
-      {montrerPaiement && (
+      {montrerPaiement && paiementInclus === true && (
         <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-dashed border-hairline bg-surface/40 px-4 py-3.5">
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-surface-2 text-brass">
             <Smartphone className="h-4 w-4" aria-hidden="true" />

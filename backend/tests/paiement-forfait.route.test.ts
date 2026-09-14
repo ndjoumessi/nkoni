@@ -37,6 +37,22 @@ describe('GET /moi/paiement-disponible', () => {
     await app.close()
   })
 
+  it('compte sans organisation (SUPER_ADMIN) → 200 actif false, sans lecture scopée hors contexte', async () => {
+    // En production, `parametrePaiement` est scopé : le lire sans contexte org lève (fail-closed) → 500.
+    // Le mock le simule en levant ; la route doit répondre AVANT toute lecture.
+    const app = await appAvec({
+      organisation: { findUnique: async () => PRO },
+      parametrePaiement: { findFirst: async () => { throw new Error('TenantContextError simulée') } },
+    })
+    const res = await app.inject({
+      method: 'GET', url: '/moi/paiement-disponible',
+      headers: { authorization: `Bearer ${app.jwt.sign({ sub: 'sa', role: 'SUPER_ADMIN', organisationId: null })}` },
+    })
+    expect(res.statusCode).toBe(200)
+    expect(res.json().actif).toBe(false)
+    await app.close()
+  })
+
   it('PRO mais config inactive → actif false', async () => {
     const app = await appAvec(prisma(PRO, false))
     const res = await app.inject({ method: 'GET', url: '/moi/paiement-disponible', headers: jeton(app, 'MEMBRE_SIMPLE') })

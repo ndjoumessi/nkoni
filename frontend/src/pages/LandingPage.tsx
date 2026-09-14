@@ -241,6 +241,7 @@ export function LandingPage() {
               t('landing.forfaits.gratuit.f3'),
               t('landing.forfaits.gratuit.f4'),
               t('landing.forfaits.gratuit.f5'),
+              t('landing.forfaits.gratuit.f6'),
             ]}
           >
             <ButtonLink to="/inscription" className="w-full">
@@ -258,7 +259,6 @@ export function LandingPage() {
               t('landing.forfaits.pro.f1'),
               t('landing.forfaits.pro.f2'),
               t('landing.forfaits.pro.f3'),
-              t('landing.forfaits.pro.f4'),
             ]}
           >
             <a href={mailtoPro} className={cn(buttonVariants({ variant: 'outline' }), 'w-full')}>

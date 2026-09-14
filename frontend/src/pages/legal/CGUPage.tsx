@@ -4,9 +4,10 @@ import { CONTACT_EMAIL } from '@/lib/contact'
 /**
  * Conditions générales d’utilisation (CGU) — bloquant GA 0.3. Ancrées sur le produit réel
  * (forfaits, attribution manuelle sans paiement, propriété des données du tenant, export/purge).
- * Éditeur ALIGNÉ sur l'attestation d'immatriculation au Registre national des entreprises
+ * Éditeur ALIGNÉ sur l’attestation d’immatriculation au Registre national des entreprises
  * (10/09/2026) et sur les mentions légales du même éditeur (HabaShop, 14/09/2026) : Nelson
  * Djoumessi EI, SIREN 109 761 023, siège. À faire RELIRE par un juriste.
+ * §4 aligné sur la spec forfaits (docs/superpowers/specs/2026-09-12-forfaits-echeance-design.md §1.2, §4.6).
  */
 export function CGUPage() {
   return (
@@ -45,11 +46,22 @@ export function CGUPage() {
 
       <SectionLegale titre="4. Forfaits">
         <p>
-          NKONI propose plusieurs forfaits (Gratuit, Pro, Entreprise) dont les limites — notamment
-          le nombre de membres — sont propres à chaque forfait. Le forfait Gratuit est limité en
-          nombre de membres ; les forfaits Pro et Entreprise lèvent cette limite. L’attribution
-          d’un forfait est, à ce jour, réalisée manuellement par nos soins, sans paiement en ligne.
-          Les modalités commerciales pourront évoluer et seront alors précisées.
+          NKONI propose trois forfaits : Gratuit, Pro et Entreprise. La transparence envers les
+          membres (situation, reçus, espace membre, carte de membre) est incluse dans tous les
+          forfaits. Le forfait Gratuit est limité à 50 membres actifs et à 500 Mo de stockage de
+          documents. Les forfaits Pro et Entreprise lèvent la limite de membres, portent le stockage à
+          20 Go et incluent le paiement des cotisations en ligne par Mobile Money ; le forfait
+          Entreprise ajoute un accompagnement et une facturation annuelle.
+        </p>
+        <p>
+          L’attribution d’un forfait est, à ce jour, réalisée par nos soins sur demande, sans
+          paiement en ligne du forfait. Un forfait payant court jusqu’à une date d’échéance ; à son
+          terme, ses fonctionnalités restent actives pendant une période de grâce de 14 jours, puis
+          l’organisation retrouve les limites du forfait Gratuit. Aucune donnée n’est alors supprimée :
+          les membres et documents existants restent consultables et exportables, seuls l’ajout de
+          membres ou de documents au-delà des limites et le paiement en ligne sont suspendus. Une
+          organisation qui avait configuré le paiement en ligne avant l’introduction de ces limites le
+          conserve.
         </p>
       </SectionLegale>
 

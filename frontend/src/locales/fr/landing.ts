@@ -21,8 +21,8 @@ export default {
         cotisationsAJour: 'Cotisations à jour',
       },
       apercu: {
-        titre: 'Aperçu d’un espace',
-        sousTitre: 'Données d’exemple — vitrine',
+        titre: 'Aperçu d\'un espace',
+        sousTitre: 'Données d\'exemple — vitrine',
         actif: 'Actif',
         membres: 'Membres',
         branches: 'Branches',
@@ -47,12 +47,12 @@ export default {
       overline: 'Pourquoi NKONI',
       titre: 'Pensé pour les familles et les associations',
       description:
-        'Chaque groupe dispose de son propre espace, sécurisé et isolé : NKONI donne à chacun une vue claire et partagée de ses finances collectives, sans zone d’ombre — et aucune donnée n’est jamais partagée entre espaces.',
+        'Chaque groupe dispose de son propre espace, sécurisé et isolé : NKONI donne à chacun une vue claire et partagée de ses finances collectives, sans zone d\'ombre — et aucune donnée n\'est jamais partagée entre espaces.',
       cards: {
         statuts: {
           titre: 'Statuts transparents',
           texte:
-            'Chaque membre voit s’il est à jour, partiel ou non à jour, en temps réel.',
+            'Chaque membre voit s\'il est à jour, partiel ou non à jour, en temps réel.',
         },
         recus: {
           titre: 'Reçus archivés',
@@ -65,7 +65,7 @@ export default {
         paiement: {
           titre: 'Paiement Mobile Money',
           texte:
-            'Les membres règlent tout ou partie de leur cotisation par MTN ou Orange Money ; l’argent va directement sur le compte de l’organisation.',
+            'Les membres règlent tout ou partie de leur cotisation par MTN ou Orange Money ; l\'argent va directement sur le compte de l\'organisation.',
         },
         tontine: {
           titre: 'Tontines intégrées',
@@ -84,18 +84,19 @@ export default {
       overline: 'Forfaits',
       titre: 'Commencez gratuitement, évoluez à votre rythme',
       description:
-        'Le forfait Gratuit est disponible dès aujourd’hui. Les offres Pro et Entreprise s’activent sur demande — écrivez-nous pour lever les limites (pas de paiement en ligne pour l’instant).',
+        'Le forfait Gratuit est disponible dès aujourd\'hui. Les offres Pro et Entreprise s\'activent sur demande — écrivez-nous pour lever les limites (les forfaits ne se règlent pas encore en ligne).',
       disponible: 'Disponible',
       bientot: 'Sur demande',
       gratuit: {
         nom: 'Gratuit',
         tagline: 'Pour commencer',
         prix: 'Gratuit',
-        f1: 'Jusqu’à 50 membres',
+        f1: 'Jusqu\'à 50 membres',
         f2: 'Membres, cotisations & versements',
         f3: 'Réunions, fonctions & résolutions',
         f4: 'Rapports financiers & exports',
         f5: 'Espace sécurisé, isolé des autres',
+        f6: '500 Mo de stockage de documents',
       },
       pro: {
         nom: 'Pro',
@@ -103,32 +104,31 @@ export default {
         prix: 'Tarif à venir',
         bouton: 'Être prévenu du lancement',
         f1: 'Membres illimités',
-        f2: 'Documents illimités',
-        f3: 'Support prioritaire',
-        f4: 'Export avancé',
+        f2: 'Cotisations payées en ligne par Mobile Money',
+        f3: '20 Go de stockage de documents',
       },
       entreprise: {
         nom: 'Entreprise',
         tagline: 'Sur mesure',
         prix: 'Sur devis',
         bouton: 'Nous contacter',
-        f1: 'Grandes structures & fédérations',
-        f2: 'Accompagnement dédié à l’onboarding',
-        f3: 'Sans engagement',
+        f1: 'Tout le forfait Pro',
+        f2: 'Accompagnement dédié et support prioritaire',
+        f3: 'Facturation annuelle, stockage au-delà de 20 Go sur devis',
       },
       mailto: {
         proSujet: 'NKONI Pro — être prévenu du lancement',
         entrepriseSujet: 'NKONI Entreprise — demande de renseignements',
       },
-      note: 'Les forfaits Pro et Entreprise s’activent sur demande (contactez-nous). Les fonctionnalités annoncées sont indicatives et pourront évoluer.',
+      note: 'Les forfaits Pro et Entreprise s\'activent sur demande (contactez-nous). Les fonctionnalités annoncées sont indicatives et pourront évoluer.',
     },
     demo: {
       overline: 'Démonstration',
-      titre: 'NKONI en action, en moins d’une minute',
+      titre: 'NKONI en action, en moins d\'une minute',
       description:
-        'De l’encaissement d’une cotisation au reçu, puis à ce que voit le membre : le parcours complet, sur une association fictive.',
+        'De l\'encaissement d\'une cotisation au reçu, puis à ce que voit le membre : le parcours complet, sur une association fictive.',
       points: {
-        tableauDeBord: 'Le recouvrement et les retards, en un coup d’œil',
+        tableauDeBord: 'Le recouvrement et les retards, en un coup d\'œil',
         versement: 'Un versement enregistré et son reçu émis en quelques gestes',
         membre: 'Chaque membre voit aussitôt sa situation à jour',
       },
@@ -136,16 +136,16 @@ export default {
       pause: 'Pause',
       videoLabel: 'Vidéo de démonstration de NKONI sur téléphone',
       transcription:
-        'La vidéo montre, sur téléphone : le tableau de bord d’une association fictive, avec son taux de recouvrement et la liste des membres à relancer par WhatsApp ; la trésorière qui ouvre la fiche d’une membre, enregistre un versement de 15 000 FCFA par Mobile Money et génère le reçu ; puis l’espace de cette membre, où elle voit sa situation à jour et sa carte de membre.',
+        'La vidéo montre, sur téléphone : le tableau de bord d\'une association fictive, avec son taux de recouvrement et la liste des membres à relancer par WhatsApp ; la trésorière qui ouvre la fiche d\'une membre, enregistre un versement de 15 000 FCFA par Mobile Money et génère le reçu ; puis l\'espace de cette membre, où elle voit sa situation à jour et sa carte de membre.',
     },
     etapes: {
       overline: 'Prise en main',
       titre: 'Opérationnel en trois étapes',
       description:
-        'Pas d’installation, pas de tableur à maintenir. Créez votre espace et invitez vos membres en quelques minutes.',
+        'Pas d\'installation, pas de tableur à maintenir. Créez votre espace et invitez vos membres en quelques minutes.',
       creer: {
         titre: 'Créez votre espace',
-        texte: 'Nommez votre association, famille ou tontine et choisissez votre devise. C’est gratuit et immédiat.',
+        texte: 'Nommez votre association, famille ou tontine et choisissez votre devise. C\'est gratuit et immédiat.',
       },
       inviter: {
         titre: 'Ajoutez vos membres',
@@ -160,7 +160,7 @@ export default {
       overline: 'Pour qui',
       titre: 'Un espace pour chaque forme de collectif',
       description:
-        'NKONI s’adapte à la réalité des groupes qui reposent sur la confiance et la contribution de chacun.',
+        'NKONI s\'adapte à la réalité des groupes qui reposent sur la confiance et la contribution de chacun.',
       associations: {
         titre: 'Associations',
         texte: 'Cotisations annuelles, réunions, fonctions et résolutions — toute la vie associative au même endroit.',
@@ -171,16 +171,16 @@ export default {
       },
       tontines: {
         titre: 'Tontines',
-        texte: 'Suivez les mises de chacun et les mouvements de caisse, sans zone d’ombre ni cahier perdu.',
+        texte: 'Suivez les mises de chacun et les mouvements de caisse, sans zone d\'ombre ni cahier perdu.',
       },
     },
     capacites: {
-      titre: 'Et tout ce qu’il faut pour gérer au quotidien',
+      titre: 'Et tout ce qu\'il faut pour gérer au quotidien',
       description: 'Une seule application, du recouvrement à la reddition de comptes.',
       paiementEnLigne: 'Paiement Mobile Money en ligne',
       reunions: 'Réunions & présences',
       resolutions: 'Résolutions & fonctions',
-      cagnottes: 'Cagnottes d’événement',
+      cagnottes: 'Cagnottes d\'événement',
       amendes: 'Amendes & pénalités',
       cartes: 'Cartes de membre + QR',
       rapports: 'Rapports & exports PDF/Excel',
@@ -191,16 +191,16 @@ export default {
     },
     securite: {
       overline: 'Sécurité & transparence',
-      titre: 'Vos finances collectives, à l’abri et vérifiables',
+      titre: 'Vos finances collectives, à l\'abri et vérifiables',
       description:
         'La confiance se construit sur la preuve : chaque espace est cloisonné et chaque mouvement laisse une trace.',
       isolation: {
         titre: 'Isolation totale',
-        texte: 'Chaque groupe a son espace dédié. Aucune donnée n’est jamais partagée ni visible entre organisations.',
+        texte: 'Chaque groupe a son espace dédié. Aucune donnée n\'est jamais partagée ni visible entre organisations.',
       },
       tracabilite: {
         titre: 'Traçabilité intégrale',
-        texte: 'Chaque versement, dépense et modification est horodaté et consultable dans un journal d’audit.',
+        texte: 'Chaque versement, dépense et modification est horodaté et consultable dans un journal d\'audit.',
       },
       exports: {
         titre: 'Vos données restent les vôtres',
@@ -209,29 +209,29 @@ export default {
     },
     faq: {
       overline: 'Questions fréquentes',
-      titre: 'Ce qu’on nous demande souvent',
+      titre: 'Ce qu\'on nous demande souvent',
       cout: {
         q: 'NKONI est-il vraiment gratuit ?',
-        r: 'Oui. Le forfait Gratuit couvre jusqu’à 50 membres avec toutes les fonctions essentielles, sans carte bancaire.',
+        r: 'Oui. Le forfait Gratuit couvre jusqu\'à 50 membres avec toutes les fonctions essentielles, sans carte bancaire.',
       },
       paiement: {
         q: 'Les membres peuvent-ils payer leurs cotisations en ligne ?',
-        r: 'Oui. Chaque organisation peut activer le paiement par Mobile Money (MTN, Orange) : les membres règlent tout ou partie de leur cotisation depuis leur espace, et l’argent est versé directement sur le compte du prestataire de l’organisation — NKONI ne détient jamais les fonds.',
+        r: 'Oui. Chaque organisation peut activer le paiement par Mobile Money (MTN, Orange) : les membres règlent tout ou partie de leur cotisation depuis leur espace, et l\'argent est versé directement sur le compte du prestataire de l\'organisation — NKONI ne détient jamais les fonds.',
       },
       modules: {
         q: 'NKONI gère-t-il autre chose que les cotisations ?',
-        r: 'Oui : cagnottes d’événement (deuil, mariage, naissance…), amendes et pénalités, cartes de membre avec QR de vérification, relevés de compte PDF, réunions et rapports — le tout dans le même espace.',
+        r: 'Oui : cagnottes d\'événement (deuil, mariage, naissance…), amendes et pénalités, cartes de membre avec QR de vérification, relevés de compte PDF, réunions et rapports — le tout dans le même espace.',
       },
       donnees: {
         q: 'Mes données sont-elles isolées des autres groupes ?',
-        r: 'Absolument. Chaque organisation dispose d’un espace cloisonné : aucune donnée n’est jamais partagée entre espaces.',
+        r: 'Absolument. Chaque organisation dispose d\'un espace cloisonné : aucune donnée n\'est jamais partagée entre espaces.',
       },
       horsLigne: {
         q: 'Puis-je saisir sans connexion Internet ?',
-        r: 'Oui. NKONI s’installe comme une application et enregistre vos saisies hors-ligne, puis les synchronise sans doublon dès le retour du réseau.',
+        r: 'Oui. NKONI s\'installe comme une application et enregistre vos saisies hors-ligne, puis les synchronise sans doublon dès le retour du réseau.',
       },
       langues: {
-        q: 'L’application est-elle disponible en plusieurs langues ?',
+        q: 'L\'application est-elle disponible en plusieurs langues ?',
         r: 'Oui, en français et en anglais, avec les formats de dates et de montants adaptés à votre devise.',
       },
     },

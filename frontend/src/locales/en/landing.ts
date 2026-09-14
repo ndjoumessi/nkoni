@@ -59,12 +59,12 @@ export default {
         },
         cartes: {
           titre: 'Member cards',
-          texte: 'Cards with photo and QR: a scan verifies the member’s status live.',
+          texte: 'Cards with photo and QR: a scan verifies the member\'s status live.',
         },
         paiement: {
           titre: 'Mobile Money payments',
           texte:
-            'Members pay all or part of their dues via MTN or Orange Money; the money goes straight to the organisation’s account.',
+            'Members pay all or part of their dues via MTN or Orange Money; the money goes straight to the organisation\'s account.',
         },
         tontine: {
           titre: 'Built-in tontines',
@@ -83,7 +83,7 @@ export default {
       overline: 'Plans',
       titre: 'Start for free, grow at your own pace',
       description:
-        'The Free plan is available today. The Pro and Enterprise plans are activated on request — write to us to lift the limits (no online payment for now).',
+        'The Free plan is available today. The Pro and Enterprise plans are activated on request — write to us to lift the limits (plans cannot be paid online yet).',
       disponible: 'Available',
       bientot: 'On request',
       gratuit: {
@@ -95,6 +95,7 @@ export default {
         f3: 'Meetings, positions & resolutions',
         f4: 'Financial reports & exports',
         f5: 'Secure space, isolated from others',
+        f6: '500 MB of document storage',
       },
       pro: {
         nom: 'Pro',
@@ -102,18 +103,17 @@ export default {
         prix: 'Pricing coming soon',
         bouton: 'Get notified at launch',
         f1: 'Unlimited members',
-        f2: 'Unlimited documents',
-        f3: 'Priority support',
-        f4: 'Advanced export',
+        f2: 'Contributions paid online by Mobile Money',
+        f3: '20 GB of document storage',
       },
       entreprise: {
         nom: 'Enterprise',
         tagline: 'Tailor-made',
         prix: 'On quote',
         bouton: 'Contact us',
-        f1: 'Large structures & federations',
-        f2: 'Dedicated onboarding support',
-        f3: 'No commitment',
+        f1: 'Everything in Pro',
+        f2: 'Dedicated onboarding and priority support',
+        f3: 'Annual billing, storage beyond 20 GB on quote',
       },
       mailto: {
         proSujet: 'NKONI Pro — get notified at launch',
@@ -135,7 +135,7 @@ export default {
       pause: 'Pause',
       videoLabel: 'NKONI demo video on a phone',
       transcription:
-        'The video shows, on a phone: the dashboard of a fictional association, with its collection rate and the list of members to remind via WhatsApp; the treasurer opening a member’s profile, recording a 15,000 FCFA Mobile Money payment and generating the receipt; then that member’s own space, where she sees she is up to date and her membership card.',
+        'The video shows, on a phone: the dashboard of a fictional association, with its collection rate and the list of members to remind via WhatsApp; the treasurer opening a member\'s profile, recording a 15,000 FCFA Mobile Money payment and generating the receipt; then that member\'s own space, where she sees she is up to date and her membership card.',
     },
     etapes: {
       overline: 'Getting started',
@@ -144,7 +144,7 @@ export default {
         'No setup, no spreadsheet to maintain. Create your space and invite your members in minutes.',
       creer: {
         titre: 'Create your space',
-        texte: 'Name your association, family or tontine and pick your currency. It’s free and instant.',
+        texte: 'Name your association, family or tontine and pick your currency. It\'s free and instant.',
       },
       inviter: {
         titre: 'Add your members',
@@ -156,13 +156,13 @@ export default {
       },
     },
     pourQui: {
-      overline: 'Who it’s for',
+      overline: 'Who it\'s for',
       titre: 'A space for every kind of collective',
       description:
-        'NKONI fits the reality of groups built on trust and everyone’s contribution.',
+        'NKONI fits the reality of groups built on trust and everyone\'s contribution.',
       associations: {
         titre: 'Associations',
-        texte: 'Annual dues, meetings, roles and resolutions — all of your association’s life in one place.',
+        texte: 'Annual dues, meetings, roles and resolutions — all of your association\'s life in one place.',
       },
       familles: {
         titre: 'Extended families',
@@ -170,7 +170,7 @@ export default {
       },
       tontines: {
         titre: 'Tontines',
-        texte: 'Track everyone’s stakes and cash movements, with no blind spots or lost notebooks.',
+        texte: 'Track everyone\'s stakes and cash movements, with no blind spots or lost notebooks.',
       },
     },
     capacites: {
@@ -215,7 +215,7 @@ export default {
       },
       paiement: {
         q: 'Can members pay their contributions online?',
-        r: 'Yes. Each organization can enable Mobile Money payment (MTN, Orange): members pay all or part of their contribution from their own space, and the money goes straight to the organization’s provider account — NKONI never holds the funds.',
+        r: 'Yes. Each organization can enable Mobile Money payment (MTN, Orange): members pay all or part of their contribution from their own space, and the money goes straight to the organization\'s provider account — NKONI never holds the funds.',
       },
       modules: {
         q: 'Does NKONI handle more than contributions?',

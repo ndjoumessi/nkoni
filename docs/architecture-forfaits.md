@@ -112,14 +112,13 @@ paiementEnLigneAcquis` — le droit acquis, §1.3, survit à l'expiration).
   refuse un envoi qui **dépasserait** le quota (limite incluse : atteindre exactement le quota passe),
   et une organisation introuvable retombe sur le quota GRATUIT — le plus restrictif, jamais d'ouverture
   par défaut. **Non atomique** face à deux envois simultanés : un dépassement possible est borné à la
-  taille d'un fichier (10 Mo, plafond `@fastify/multipart`) — assumé (ledger Task 2/3) : le quota protège
+  taille d'un fichier (10 Mo, `TAILLE_MAX_OCTETS` de `document.service.ts`) — assumé : le quota protège
   un coût de stockage, pas un invariant financier, contrairement au solde de trésorerie.
 - **Paiement en ligne** : contrôlé à quatre endroits distincts — la **configuration**
-  (`PUT /organisations/moi/paiement`, refusée y compris pour désactiver une config existante, ruling
-  pré-vol : simplicité fidèle à la spec, un super-admin/PO peut le faire au besoin), le **démarrage**
+  (`PUT /organisations/moi/paiement`, refusée y compris pour désactiver une config existante — choix
+  de simplicité fidèle à la spec, la plateforme peut le faire au besoin), le **démarrage**
   (`POST /moi/paiements`, message **neutre** au membre — jamais `paiement.reserveForfaitPro`, réservé au
-  bureau sur le PUT : la spec §1.1 « un membre ne voit jamais de message commercial » prime sur le texte
-  d'origine du plan), l'**indice** `GET /moi/paiement-disponible` (`{ actif: false }` sans explication —
+  bureau sur le PUT : la spec §1.1 « un membre ne voit jamais de message commercial » prime), l'**indice** `GET /moi/paiement-disponible` (`{ actif: false }` sans explication —
   le bouton « Payer » disparaît simplement) et la carte `ConfigPaiement` verrouillée côté Paramètres
   (« inclus dans le forfait Pro »). **⚠️ La confirmation d'un paiement ne les lit jamais** :
   webhooks Fapshi/CamPay, réconciliation `*/15` et `confirmerPaiement` créent le versement sans consulter
@@ -156,8 +155,7 @@ paiementEnLigneAcquis` — le droit acquis, §1.3, survit à l'expiration).
   aurait pu prolonger deux fois. Résolu par l'écriture liée à l'aperçu (§2) ; verrouillé en intégration —
   `backend/tests/forfait-prolongation.integration.test.ts` (cas 2 : rejouer exactement le même corps →
   409, la date en base ne bouge pas).
-- **Front déployé avant le backend** : un déploiement Vercel/Railway décorrélé (regarde le pattern
-  Watch Path de CLAUDE.md) peut afficher un front qui attend `capacites`/`etatForfait`/
+- **Front déployé avant le backend** : un déploiement Vercel/Railway décorrélé (cf. Watch Path dans `CLAUDE.md`) peut afficher un front qui attend `capacites`/`etatForfait`/
   `stockageUtiliseOctets` alors que l'API ne les renvoie pas encore. Toutes les lectures de ces champs
   sont gardées par `!== undefined`/`== null` (jamais un accès direct qui lèverait) — `ParametresPage.tsx`
   et `lib/bandeau-forfait.ts::bandeauForfait` (« API pas encore déployée »). Verrouillé par
@@ -177,8 +175,7 @@ paiementEnLigneAcquis` — le droit acquis, §1.3, survit à l'expiration).
   `frontend/src/lib/format-taille.test.ts` (cas GO-1, juste sous 1 Go).
 - **Jauge de stockage sans texte accessible** : la barre de progression `/parametres` n'exposait qu'un
   pourcentage via ARIA (`aria-valuenow`/`aria-valuemax`), illisible pour un lecteur d'écran sans faire le
-  calcul. Un `aria-valuetext` explicite (« 480 Mo sur 500 Mo ») a été ajouté ; visuel vérifié à 390 et
-  1280 px (contrôleur, step 5 de cette tâche).
+  calcul. Un `aria-valuetext` explicite (« 480 Mo sur 500 Mo ») a été ajouté.
 - **Non atomique, quota de stockage** (assumé, pas corrigé) : deux envois simultanés proches du quota
   peuvent tous deux passer le contrôle avant que l'un des deux n'écrive — le dépassement possible reste
   borné à la taille d'un fichier (10 Mo). Documenté en commentaire (`capacites-organisation.service.ts`)
@@ -190,17 +187,20 @@ paiementEnLigneAcquis` — le droit acquis, §1.3, survit à l'expiration).
 - **Unitaires purs** — `backend/tests/forfait.test.ts`, `forfait-echeance.test.ts`,
   `forfait-relance-etape.test.ts`, `forfait-capacites-effectives.test.ts` : `joursRestants` aux bornes
   exactes (`J = 31, 30, 0, -1, -14, -15`), `etatForfait`, `forfaitEffectif`, `nouvelleEcheance` (avant
-  échéance, en grâce, après grâce, `NULL`), `etapeRelanceForfait`, `finDeJourneeApp`.
+  échéance, en grâce, après grâce, `NULL`), `etapeRelanceForfait`, `capacitesEffectives` ;
+  `finDeJourneeApp` dans `date-app.test.ts`, `formatTailleOctets` dans `format-taille-octets.test.ts`.
   Front : `frontend/src/lib/forfait.test.ts`, `echeance-forfait.test.ts`, `bandeau-forfait.test.ts`,
   `format-taille.test.ts`.
 - **Parité inter-couches** — `frontend/src/lib/forfait-parity.test.ts` (`CAPACITES_FORFAIT` back ↔
-  front) ; `backend/tests` : garde `types-notification-parity.test.ts`
-  (`TYPES_NOTIFICATION ∪ {FORFAIT_ECHEANCE}` ↔ enum Postgres) ; `roles-parity.test.ts`
-  (`peutGererForfait`/`ROLES_RELANCE_FORFAIT`).
-- **Routes (mocks)** — `backend/tests/forfait-relances.service.test.ts`,
+  front) et `frontend/src/lib/roles-parity.test.ts` (`peutGererForfait` ↔ `ROLES_RELANCE_FORFAIT`) ;
+  `backend/tests/types-notification-parity.test.ts` (`TYPES_NOTIFICATION ∪ {FORFAIT_ECHEANCE}` ↔ enum
+  Postgres).
+- **Services et routes (mocks)** — `backend/tests/capacites-organisation.service.test.ts`,
+  `forfait-relances.service.test.ts`,
   `forfait-relances-livraison.test.ts` (destinataires ADMIN/PRESIDENT seulement, dédoublonnage,
   livraison après commit) ; `documents-quota.route.test.ts` (403 avec utilisé/quota, aucun envoi au
   Blob) ; `paiement-forfait.route.test.ts` (configuration/démarrage refusés, message neutre au membre).
+  Aucune de ces routes ne prouve les `where` : les mocks d'`aggregate`/`count` ignorent leurs arguments.
 - **Intégration (vraie Postgres)** —
   `documents-quota.integration.test.ts` (`aggregate` scopé, somme > 2³¹, forfait Pro expiré) ;
   `membres-quota.integration.test.ts` (actifs seulement, réactivation, forfait effectif expiré) ;
@@ -209,4 +209,5 @@ paiementEnLigneAcquis` — le droit acquis, §1.3, survit à l'expiration).
   `paiement-forfait-expire.integration.test.ts` (confirmation de paiement jamais bloquée par un forfait
   expiré — le test critique de la spec §3.3).
 - **Front (jsdom)** — `BandeauForfait.test.tsx`, `EcheanceForfaitOrganisation.test.tsx`,
-  `plateforme/ProlongationForfait.test.tsx` (rôles, états, fermeture de session, `role="status"`).
+  `plateforme/ProlongationForfait.test.tsx` (rôles, états, fermeture de session, `role="status"`),
+  `ConfigPaiement.test.tsx` (carte verrouillée quand le paiement en ligne n'est pas inclus).

@@ -40,6 +40,7 @@ import { notifierParPush, type PushEnAttente, type PushPrisma } from './push.ser
 import { t, formatDateHeure } from '../lib/i18n'
 import { orgContext } from '../lib/org-context'
 import { anneeCouranteApp } from '../lib/date-app'
+import { purgerRetention, type RetentionPrisma } from './retention.service'
 import {
   executerRelancesForfaitToutesOrgs,
   livrerRelancesForfait,
@@ -377,6 +378,24 @@ export function demarrerScheduler(app: FastifyInstance): void {
             app.log.error({ err: errRelance }, 'Livraison des relances de forfait échouée (notifications déjà créées)')
             app.observabilite.signaler(errRelance, { source: 'scheduler', tache: 'FORFAIT_ECHEANCE_LIVRAISON' })
           }
+          // Rétention (GA 0.3, politique §2.4) : purge des notifications > 12 mois, AuditLog > 24 mois,
+          // PlatformAuditLog > 5 ans. HORS de la transaction des relances (un volume de suppression ne
+          // doit ni la ralentir ni la faire échouer) mais sous le même tour : seule l'instance qui a
+          // obtenu le verrou arrive ici. Try/catch DÉDIÉ : un échec de purge n'annule rien de ce qui
+          // précède ; il est signalé à part (une purge qui cesse en silence contredirait la politique
+          // publiée).
+          let retention = { notifications: 0, auditLogs: 0, platformAuditLogs: 0 }
+          try {
+            const r = await purgerRetention(app.prisma as unknown as RetentionPrisma)
+            retention = {
+              notifications: r.organisations.reduce((s, o) => s + o.notifications, 0),
+              auditLogs: r.organisations.reduce((s, o) => s + o.auditLogs, 0),
+              platformAuditLogs: r.platformAuditLogs,
+            }
+          } catch (errRetention) {
+            app.log.error({ err: errRetention }, 'Purge de rétention échouée')
+            app.observabilite.signaler(errRetention, { source: 'scheduler', tache: 'RETENTION' })
+          }
           // Log de FIN émis APRÈS l'envoi push → marque la fin RÉELLE du travail de nuit.
           const verifies = retards.reduce((s, r) => s + r.verifies, 0)
           const notifies = retards.reduce((s, r) => s + r.notifies, 0)
@@ -390,8 +409,9 @@ export function demarrerScheduler(app: FastifyInstance): void {
               rappelsNotifies,
               relancesForfaitNotifiees,
               emailsForfait,
+              retention,
             },
-            'Tâches de nuit terminées (retards, rappels de réunion, relances de forfait — toutes organisations)',
+            'Tâches de nuit terminées (retards, rappels de réunion, relances de forfait, rétention — toutes organisations)',
           )
         })
         .catch((err) => {
@@ -412,6 +432,6 @@ export function demarrerScheduler(app: FastifyInstance): void {
     { timezone: 'Africa/Douala' },
   )
   app.log.info(
-    'Scheduler notifications démarré (COTISATION_RETARD + REUNION_RAPPEL + FORFAIT_ECHEANCE — 03:00 Africa/Douala)',
+    'Scheduler notifications démarré (COTISATION_RETARD + REUNION_RAPPEL + FORFAIT_ECHEANCE + RÉTENTION — 03:00 Africa/Douala)',
   )
 }

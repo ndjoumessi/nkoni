@@ -67,10 +67,10 @@ C'est la donnée financière qui est durable ; le reste ne l'est pas.
 
 | Donnée | Durée cible | Application |
 |---|---|---|
-| `Notification` (in-app) | **12 mois** | ⚠️ **Pas encore outillé** — purge à ajouter au scheduler nocturne. Le membre peut déjà supprimer les siennes à l'unité. |
+| `Notification` (in-app) | **12 mois** | ✅ **Automatique** — purge de la tâche de nuit (03:00 Douala), notifications écartées comprises. Le membre peut aussi écarter les siennes à l'unité. |
 | `PushSubscription` | Jusqu'à révocation | ✅ **Automatique** — un abonnement mort (404/410 du service push) est purgé au premier envoi qui échoue. |
-| `AuditLog` (tenant) | **24 mois** | ⚠️ **Pas encore outillé** — durée choisie pour couvrir deux exercices comptables. |
-| `PlatformAuditLog` (super-admin) | **5 ans** | ⚠️ Pas encore outillé. Durée longue assumée : il trace les suspensions et **purges** d'organisations — c'est la seule preuve qu'une destruction a été demandée et par qui. Ne contient aucune PII de membre (snapshots : nom d'organisation, action, acteur). |
+| `AuditLog` (tenant) | **24 mois** | ✅ **Automatique** — purge de la tâche de nuit. Durée choisie pour couvrir deux exercices comptables. |
+| `PlatformAuditLog` (super-admin) | **5 ans** | ✅ **Automatique** — purge de la tâche de nuit. Durée longue assumée : il trace les suspensions et **purges** d'organisations — c'est la seule preuve qu'une destruction a été demandée et par qui. Ne contient aucune PII de membre (snapshots : nom d'organisation, action, acteur). |
 | Journaux d'infrastructure (Railway, Vercel) | Rétention du fournisseur | Hors de notre maîtrise ; ne contiennent pas de corps de requête (`sendDefaultPii: false` côté Sentry). |
 | Rapports d'erreur (Sentry) | 90 j (plan) | `sendDefaultPii: false` des deux côtés : ni corps de requête, ni identifiants. |
 
@@ -115,18 +115,22 @@ sortant conteste ou récupère l'export. Aujourd'hui la suppression est manuelle
 
 ---
 
-## 5. Ce qui reste à outiller
+## 5. Application automatique des durées techniques
 
-Les trois durées marquées ⚠️ (`Notification` 12 mois, `AuditLog` 24 mois, `PlatformAuditLog` 5 ans)
-sont **annoncées mais pas appliquées automatiquement**. Deux voies honnêtes :
+Les trois durées de §2.4 (`Notification` 12 mois, `AuditLog` 24 mois, `PlatformAuditLog` 5 ans) sont
+**appliquées chaque nuit** par `backend/src/services/retention.service.ts`, appelé en fin de tâche de
+nuit (`notification-scheduler.ts`, 03:00 Africa/Douala) :
 
-- **soit** ajouter une purge au scheduler nocturne (`notification-scheduler.ts`, qui tourne déjà à
-  03:00 par organisation) — quelques `deleteMany` bornés par date, à écrire **avec le même soin
-  d'isolation que la purge d'organisation** : sous contexte org, jamais un `deleteMany({})` ;
-- **soit** requalifier ces durées en « objectif » dans le texte public tant que l'automatisation
-  n'existe pas.
+- **organisation par organisation**, sous son contexte d'isolation, chaque suppression portant en plus
+  un filtre `organisationId` construit par le service — jamais un `deleteMany({})` ; les organisations
+  suspendues sont purgées comme les autres (la durée ne dépend pas de l'abonnement) ;
+- **seuil borné** : une horloge invalide ou une durée inférieure à 12 mois refuse la purge entière
+  plutôt que d'effacer des données encore dans leur durée de conservation ;
+- **observable** : les volumes supprimés figurent dans le journal de fin de tâche (`retention`), un échec
+  est signalé à Sentry (`tache: RETENTION`) sans annuler les autres tâches de nuit ;
+- vérifié contre une vraie Postgres (`backend/tests/retention.integration.test.ts`).
 
-**La seule option exclue est de publier ces durées comme des garanties sans les tenir.**
+La purge ne touche jamais les données financières (§2.3).
 
 ---
 

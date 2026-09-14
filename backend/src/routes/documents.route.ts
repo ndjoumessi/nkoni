@@ -158,30 +158,18 @@ export const documentsRoutes: FastifyPluginAsync = async (app: FastifyInstance) 
       })
     }
 
-    // Quota de stockage du forfait EFFECTIF (spec 1.1 §3.3) — AVANT l'envoi au Blob : un refus ne
-    // laisse aucun fichier orphelin. Seul l'ENVOI est bloqué ; lecture et téléchargement restent libres.
+    // Quota de stockage du forfait EFFECTIF (spec 1.1 §3.3) — contrôlé PAR le service, APRÈS
+    // l'autorisation (étape 3) et AVANT l'envoi au Blob (étape 4) : un rôle non autorisé ou un
+    // type de fichier invalide ne doit jamais apprendre l'usage de stockage de l'organisation.
     const organisationId = req.user.organisationId
-    if (organisationId) {
-      try {
-        await verifierQuotaStockage(
-          app.prisma as unknown as Parameters<typeof verifierQuotaStockage>[0],
-          organisationId,
-          fichier.buffer.length,
-        )
-      } catch (err) {
-        if (err instanceof QuotaStockageDepasseError) {
-          const langue = langueDeRequete(req)
-          return reply.code(403).send({
-            error: 'Forbidden',
-            message: t(langue, 'documents.quotaStockage', {
-              utilise: formatTailleOctets(err.utiliseOctets, langue),
-              quota: formatTailleOctets(err.quotaOctets, langue),
-            }),
-          })
-        }
-        throw err
-      }
-    }
+    const verifierQuota = organisationId
+      ? (tailleOctets: number) =>
+          verifierQuotaStockage(
+            app.prisma as unknown as Parameters<typeof verifierQuotaStockage>[0],
+            organisationId,
+            tailleOctets,
+          )
+      : undefined
 
     try {
       const cree = await televerserDocument(
@@ -195,9 +183,20 @@ export const documentsRoutes: FastifyPluginAsync = async (app: FastifyInstance) 
           fichier: { buffer: fichier.buffer, mimetype: fichier.mimetype },
         },
         demandeur(req),
+        verifierQuota,
       )
       return reply.code(201).send(cree)
     } catch (err) {
+      if (err instanceof QuotaStockageDepasseError) {
+        const langue = langueDeRequete(req)
+        return reply.code(403).send({
+          error: 'Forbidden',
+          message: t(langue, 'documents.quotaStockage', {
+            utilise: formatTailleOctets(err.utiliseOctets, langue),
+            quota: formatTailleOctets(err.quotaOctets, langue),
+          }),
+        })
+      }
       if (reply4xxSiMetier(err, reply)) return
       throw err
     }

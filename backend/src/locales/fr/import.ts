@@ -11,7 +11,7 @@ export const messages = {
   'import.erreur.dateInvalide': 'Date invalide (format attendu AAAA-MM-JJ).',
   'import.erreur.brancheInconnue': "Branche inconnue dans l'organisation.",
   'import.quotaDepasse':
-    'Import refusé : {aCreer} membre(s) actif(s) à créer porterai(en)t le total au-delà de {plafond} membres actifs (plan gratuit ; {actuel} actuellement).',
+    'Import refusé : {aCreer} membre(s) actif(s) à créer porterai(en)t le total au-delà de {plafond} membres actifs (plan gratuit ; {actuel} actuellement). Les fiches inactives ou décédées ne comptent pas. Consultez la page Paramètres pour faire évoluer votre forfait.',
   'import.aucuneLigne': 'Aucune ligne à importer.',
   'import.fichierInvalide': 'Fichier illisible. Vérifiez le format (.xlsx ou .csv).',
 } as const

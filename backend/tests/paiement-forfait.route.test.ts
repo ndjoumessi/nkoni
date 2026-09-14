@@ -89,7 +89,12 @@ describe('PUT /organisations/moi/paiement — configuration réservée', () => {
       parametrePaiement: { upsert: async () => ({}), findUnique: async () => null, findFirst: async () => null },
     })
     const res = await app.inject({ method: 'PUT', url: '/organisations/moi/paiement', headers: jeton(app, 'ADMIN'), payload: corps })
-    expect(res.statusCode).not.toBe(403)
+    // Le droit acquis passe la garde du FORFAIT : la porte suivante (chiffrement PSP, indépendant
+    // du forfait — `PSP_ENCRYPTION_KEY` absent en test) renvoie 503, jamais le refus 403 commercial.
+    // `not.toBe(403)` seul laissait passer un 500 (régression silencieuse) ; on fixe le code ET on
+    // vérifie que ce n'est pas le message commercial réservé au forfait Gratuit sans droit acquis.
+    expect(res.statusCode).toBe(503)
+    expect(res.json().message).not.toBe(t('FR', 'paiement.reserveForfaitPro'))
     await app.close()
   })
 })

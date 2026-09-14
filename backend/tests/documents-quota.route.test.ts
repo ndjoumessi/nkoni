@@ -74,4 +74,44 @@ describe('POST /documents — quota de stockage', () => {
     expect(res.statusCode).toBe(201)
     expect(blob.puts).toHaveLength(1)
   })
+
+  it("quota atteint + rôle non autorisé à téléverser → refus d'accès (pas la fuite d'usage du quota), aucun envoi au Blob", async () => {
+    await demarrer(500 * MO)
+    const res = await app.inject({
+      method: 'POST',
+      url: '/documents',
+      headers: {
+        // MEMBRE_SIMPLE n'a que READ sur Commemoration (pas update) → peutGererDocumentPourEntite
+        // refuse AVANT que le quota ne soit consulté (autorisation à l'étape 3, quota à l'étape 3bis).
+        authorization: `Bearer ${app.jwt.sign({ sub: 'u-membre', role: 'MEMBRE_SIMPLE', organisationId: 'org-1' })}`,
+        'content-type': `multipart/form-data; boundary=${BOUNDARY}`,
+      },
+      payload: multipart(
+        { entiteType: 'COMMEMORATION', entiteId: 'cm-1', nom: 'acte.pdf' },
+        { name: 'fichier', filename: 'acte.pdf', mime: MIME.pdf, buffer: FICHIERS.pdf },
+      ),
+    })
+    expect(res.statusCode).toBe(403)
+    expect(res.json().message).not.toMatch(/Mo sur|utilisé/i)
+    expect(blob.puts).toHaveLength(0)
+  })
+
+  it('quota atteint + type de fichier invalide → erreur de type (pas la fuite du quota)', async () => {
+    await demarrer(500 * MO)
+    const res = await app.inject({
+      method: 'POST',
+      url: '/documents',
+      headers: {
+        authorization: `Bearer ${app.jwt.sign({ sub: 'u-sec', role: 'SECRETAIRE', organisationId: 'org-1' })}`,
+        'content-type': `multipart/form-data; boundary=${BOUNDARY}`,
+      },
+      payload: multipart(
+        { entiteType: 'COMMEMORATION', entiteId: 'cm-1', nom: 'notes.txt' },
+        { name: 'fichier', filename: 'notes.txt', mime: MIME.texte, buffer: FICHIERS.texte },
+      ),
+    })
+    expect(res.statusCode).toBe(400)
+    expect(res.json().message).not.toMatch(/Mo sur|utilisé/i)
+    expect(blob.puts).toHaveLength(0)
+  })
 })

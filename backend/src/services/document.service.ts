@@ -276,14 +276,15 @@ export interface TeleverserDocumentParams {
 
 /**
  * Téléverse un document : valide le fichier, vérifie l'existence + l'accès au parent,
- * pousse le blob, puis crée l'enregistrement DB. Si l'écriture DB échoue APRÈS l'upload
- * blob, on nettoie le blob orphelin (best-effort + log).
+ * contrôle le quota de stockage, pousse le blob, puis crée l'enregistrement DB. Si l'écriture
+ * DB échoue APRÈS l'upload blob, on nettoie le blob orphelin (best-effort + log).
  */
 export async function televerserDocument(
   prisma: DocumentPrisma,
   blob: BlobClient,
   params: TeleverserDocumentParams,
   uploader: DemandeurDocument,
+  verifierQuota?: (tailleOctets: number) => Promise<void>,
 ) {
   // 1. Fichier (taille + type par magic bytes).
   validerFichier(params.fichier.buffer, params.fichier.mimetype)
@@ -301,6 +302,13 @@ export async function televerserDocument(
     throw new AccesDocumentRefuseError()
   }
   if (!uploader.id) throw new AccesDocumentRefuseError()
+
+  // 3bis. Quota de stockage du forfait EFFECTIF (spec 1.1 §3.3) — APRÈS l'autorisation, AVANT
+  //       l'envoi au Blob : un rôle non autorisé ou un type de fichier invalide ne doit JAMAIS
+  //       apprendre l'usage de stockage de l'organisation (fuite d'info) ; un refus ne laisse
+  //       par ailleurs aucun fichier orphelin. Le service reste i18n-agnostique : il laisse
+  //       remonter `QuotaStockageDepasseError` telle quelle, la route la mappe en 403.
+  if (verifierQuota) await verifierQuota(params.fichier.buffer.length)
 
   // 4. Upload blob (chemin unique, insensible au nom).
   const pathname = `documents/${params.entiteType}/${params.entiteId}/${randomId()}`

@@ -87,6 +87,13 @@ function decalageAppMs(instant: Date): number {
   return murale - Math.floor(instant.getTime() / 1000) * 1000
 }
 
+/** Première milliseconde (00:00:00.000, heure applicative) du jour calendaire contenant `instant`. */
+export function debutDeJourneeApp(instant: Date): Date {
+  const [annee, mois, jour] = partiesDate(dateCalendaireApp(instant))
+  const debutMural = Date.UTC(annee, mois - 1, jour, 0, 0, 0, 0)
+  return new Date(debutMural - decalageAppMs(new Date(debutMural)))
+}
+
 /** Dernière milliseconde (23:59:59.999, heure applicative) du jour calendaire contenant `instant`. */
 export function finDeJourneeApp(instant: Date): Date {
   const [annee, mois, jour] = partiesDate(dateCalendaireApp(instant))

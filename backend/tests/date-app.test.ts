@@ -3,6 +3,7 @@ import {
   ajouterMoisApp,
   anneeCouranteApp,
   dateCalendaireApp,
+  debutDeJourneeApp,
   finDeJourneeApp,
   FUSEAU_APP,
   joursCalendairesEntreApp,
@@ -61,6 +62,12 @@ describe('date-app — dates calendaires (échéance des forfaits, spec 1.1 §2.
     expect(finDeJourneeApp(new Date('2026-09-13T10:00:00Z')).toISOString()).toBe('2026-09-13T22:59:59.999Z')
     // 00 h 30 le 14 à Douala (23 h 30 Z le 13) : c'est la fin du 14 qui est rendue.
     expect(finDeJourneeApp(new Date('2026-09-13T23:30:00Z')).toISOString()).toBe('2026-09-14T22:59:59.999Z')
+  })
+
+  it('debutDeJourneeApp rend 00:00:00.000 heure de Douala du jour applicatif', () => {
+    expect(debutDeJourneeApp(new Date('2026-09-13T10:00:00Z')).toISOString()).toBe('2026-09-12T23:00:00.000Z')
+    // 00 h 30 le 14 à Douala (23 h 30 Z le 13) : c'est le début du 14 qui est rendu.
+    expect(debutDeJourneeApp(new Date('2026-09-13T23:30:00Z')).toISOString()).toBe('2026-09-13T23:00:00.000Z')
   })
 
   it("ajouterMoisApp borne au dernier jour du mois d'arrivée", () => {

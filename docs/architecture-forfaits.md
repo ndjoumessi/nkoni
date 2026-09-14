@@ -108,8 +108,12 @@ paiementEnLigneAcquis` — le droit acquis, §1.3, survit à l'expiration).
 
 - **Stockage** (`POST /documents`, `verifierQuotaStockage`) : `stockageUtiliseOctets` agrège
   `Σ Document.tailleOctets` **côté Postgres** (`document.aggregate`, sûr sur un modèle scopé — CLAUDE.md,
-  ne pas rapatrier les lignes) ; photos et reçus sont hors quota (Documents seulement). Le contrôle
-  refuse un envoi qui **dépasserait** le quota (limite incluse : atteindre exactement le quota passe),
+  ne pas rapatrier les lignes) ; photos et reçus sont hors quota (Documents seulement). **Contrôlé APRÈS
+  l'autorisation (rôle + visibilité du parent) et AVANT l'envoi au Blob** — passé en paramètre optionnel
+  à `televerserDocument` (`verifierQuota`), appelé entre les deux : un rôle non autorisé ou un type de
+  fichier invalide ne doit jamais apprendre l'usage de stockage de l'organisation (fuite d'info corrigée,
+  cf. `tests/documents-quota.route.test.ts`). Le contrôle refuse un envoi qui **dépasserait** le quota
+  (limite incluse : atteindre exactement le quota passe),
   et une organisation introuvable retombe sur le quota GRATUIT — le plus restrictif, jamais d'ouverture
   par défaut. **Non atomique** face à deux envois simultanés : un dépassement possible est borné à la
   taille d'un fichier (10 Mo, `TAILLE_MAX_OCTETS` de `document.service.ts`) — assumé : le quota protège

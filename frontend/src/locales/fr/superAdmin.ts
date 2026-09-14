@@ -81,6 +81,8 @@ export default {
       pressionQuotaFiltre: 'Cliquer pour filtrer les espaces concernés',
       aRelancer: 'À relancer',
       aRelancerFiltre: 'Échéance proche, en grâce ou expirée — cliquer pour filtrer',
+      sansEcheance: 'Payants sans échéance',
+      sansEcheanceFiltre: 'Pro ou Entreprise sans date de fin — cliquer pour filtrer',
     },
     filtres: {
       rechercheLabel: 'Rechercher',
@@ -96,6 +98,8 @@ export default {
       quotaRetirer: 'Retirer le filtre de quota',
       relanceActif: 'À relancer',
       relanceRetirer: 'Retirer le filtre « à relancer »',
+      sansEcheanceActif: 'Payants sans échéance',
+      sansEcheanceRetirer: 'Retirer le filtre « payants sans échéance »',
     },
     repartition: {
       titre: 'Répartition des forfaits',

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { comparerEcheances, estARelancer } from './echeance-forfait'
+import { comparerEcheances, estARelancer, estPayantSansEcheance } from './echeance-forfait'
 
 // Env `node` (défaut des *.test.ts) : fonctions pures.
 describe('estARelancer', () => {
@@ -14,6 +14,34 @@ describe('estARelancer', () => {
 
   it('forfait GRATUIT → jamais à relancer', () => {
     expect(estARelancer({ forfait: 'GRATUIT', etatForfait: 'EXPIRE' })).toBe(false)
+  })
+})
+
+describe('estPayantSansEcheance', () => {
+  it.each(['PRO', 'ENTREPRISE'] as const)('%s sans échéance → signalé', (forfait) => {
+    expect(estPayantSansEcheance({ forfait, etatForfait: 'SANS_ECHEANCE' })).toBe(true)
+  })
+
+  it('GRATUIT (toujours sans échéance) → jamais signalé', () => {
+    expect(estPayantSansEcheance({ forfait: 'GRATUIT', etatForfait: 'SANS_ECHEANCE' })).toBe(false)
+  })
+
+  it.each(['ACTIF', 'ECHEANCE_PROCHE', 'GRACE', 'EXPIRE'] as const)('payant avec échéance (%s) → non signalé', (etat) => {
+    expect(estPayantSansEcheance({ forfait: 'PRO', etatForfait: etat })).toBe(false)
+  })
+
+  it('état absent (front déployé avant le backend) → non signalé', () => {
+    expect(estPayantSansEcheance({ forfait: 'PRO', etatForfait: undefined })).toBe(false)
+    expect(estPayantSansEcheance({ forfait: 'PRO', etatForfait: null })).toBe(false)
+  })
+
+  it('jamais à la fois « à relancer » et « sans échéance » (filtres exclusifs sans perte)', () => {
+    for (const forfait of ['GRATUIT', 'PRO', 'ENTREPRISE'] as const) {
+      for (const etatForfait of ['SANS_ECHEANCE', 'ACTIF', 'ECHEANCE_PROCHE', 'GRACE', 'EXPIRE'] as const) {
+        const o = { forfait, etatForfait }
+        expect(estARelancer(o) && estPayantSansEcheance(o)).toBe(false)
+      }
+    }
   })
 })
 

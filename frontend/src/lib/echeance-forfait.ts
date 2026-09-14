@@ -19,6 +19,16 @@ export function estARelancer(o: { forfait: Forfait; etatForfait: EtatForfait | n
 }
 
 /**
+ * Forfait PAYANT sans échéance (les Pro historiques, jamais rétrogradés) : rien n'expire, donc hors
+ * « à relancer », mais signalé à part pour qu'on leur pose une échéance plutôt qu'ils restent payants
+ * gratuitement sans que personne ne le voie (décision PO 2026-09-14). S'appuie sur l'état SERVEUR
+ * `SANS_ECHEANCE` ; un état absent (ancienne API) n'est pas signalé.
+ */
+export function estPayantSansEcheance(o: { forfait: Forfait; etatForfait: EtatForfait | null | undefined }): boolean {
+  return o.forfait !== 'GRATUIT' && o.etatForfait === 'SANS_ECHEANCE'
+}
+
+/**
  * Tri par échéance dans le sens `dir` ; les organisations sans échéance passent en dernier DANS LES DEUX
  * SENS. Le sens est porté ici plutôt que par un `reverse()` du tableau trié : inverser remonterait les
  * « sans échéance » (hors sujet pour une relance) en tête du tri décroissant. `forfaitExpireLe` tolère

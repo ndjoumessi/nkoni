@@ -7,6 +7,7 @@ import { requirePermission } from '../middlewares/permissions'
 import {
   calculerStatutsMembres,
   calculerStatutsMembresPage,
+  listerOptionsMembres,
   PLAFOND_STATUTS_MEMBRES,
   type ColonneTriMembre,
   type StatutMembreValue,
@@ -256,7 +257,7 @@ export const membresRoutes: FastifyPluginAsync = async (app: FastifyInstance) =>
           ? { compteUtilisateurId: req.user.sub ?? '' }
           : undefined
       // Réponse BORNÉE (audit m4) : { items, total, tronque }. `tronque` = plus de membres que le
-      // plafond → le front affiche un bandeau. Aucune org réelle ne l'atteint aujourd'hui.
+      // plafond → l'analyse du dashboard le signale. Aucune org réelle ne l'atteint aujourd'hui.
       return calculerStatutsMembres(app.prisma, anneeCourante(), where, PLAFOND_STATUTS_MEMBRES)
     },
   )
@@ -313,6 +314,21 @@ export const membresRoutes: FastifyPluginAsync = async (app: FastifyInstance) =>
         page,
         pageSize,
       })
+    },
+  )
+
+  // GET /membres/options — identité seule (id, nom, prénom, statut, branche) pour les sélecteurs
+  // et la palette ⌘K : aucun statut de cotisation calculé, plafond 10 000 (cf. service).
+  // MEMBRE_SIMPLE : même restriction que les deux routes de statuts.
+  app.get(
+    '/membres/options',
+    { preHandler: [authenticate, perm('read')] },
+    async (req) => {
+      const where =
+        req.user.role === 'MEMBRE_SIMPLE'
+          ? { compteUtilisateurId: req.user.sub ?? '' }
+          : undefined
+      return listerOptionsMembres(app.prisma, where)
     },
   )
 

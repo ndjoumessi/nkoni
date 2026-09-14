@@ -19,7 +19,7 @@ import {
   messageErreur,
   type FonctionDetail,
   type Affectation,
-  type MembreStatut,
+  type OptionMembre,
 } from '@/lib/api'
 import { peutVoirFonctions, peutGererFonctions, peutSupprimerFonction } from '@/lib/roles'
 import { formatDate, focusPremierChampInvalide } from '@/lib/utils'
@@ -55,7 +55,7 @@ export function FonctionDetailPage() {
   const peutSupprimer = peutSupprimerFonction(user?.role)
 
   const [fonction, setFonction] = useState<FonctionDetail | null>(null)
-  const [membres, setMembres] = useState<MembreStatut[]>([])
+  const [membres, setMembres] = useState<OptionMembre[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -95,8 +95,8 @@ export function FonctionDetailPage() {
         // Liste des membres pour le sélecteur de titulaire (réservé aux gestionnaires).
         if (gestion) {
           const liste = await membresApi
-            .listStatuts(accessToken, controller.signal)
-            .catch(() => [] as MembreStatut[])
+            .listOptions(accessToken, controller.signal)
+            .catch(() => [] as OptionMembre[])
           if (active) setMembres(liste)
         }
       } catch (e) {

@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { ArrowRight, BellRing, GitBranch, MessageCircle } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
-import { membresApi, type MembreStatut } from '@/lib/api'
+import { membresApi, type StatutsMembres } from '@/lib/api'
 import { formatMontant, formatPourcent } from '@/lib/format'
 import { Card, Overline } from '@/components/ui/Card'
 import { Badge, type BadgeProps } from '@/components/ui/Badge'
@@ -48,7 +48,10 @@ function cleNiveau(taux: number) {
 export function AnalyseMembres() {
   const { t } = useTranslation()
   const { accessToken } = useAuth()
-  const [membres, setMembres] = useState<MembreStatut[] | null>(null)
+  // Réponse BORNÉE (plafond serveur 1000) : au-delà, branches et relances ne portent que sur les
+  // premiers membres de l'ordre alphabétique — l'analyse doit le dire plutôt que se taire.
+  const [reponse, setReponse] = useState<StatutsMembres | null>(null)
+  const membres = reponse?.items ?? null
   const [failed, setFailed] = useState(false)
 
   useEffect(() => {
@@ -57,8 +60,8 @@ export function AnalyseMembres() {
     let active = true
     void (async () => {
       try {
-        const data = await membresApi.listStatuts(accessToken, controller.signal)
-        if (active) setMembres(data)
+        const data = await membresApi.listStatutsPage(accessToken, controller.signal)
+        if (active) setReponse(data)
       } catch (e) {
         if (e instanceof DOMException && e.name === 'AbortError') return
         if (active) setFailed(true)
@@ -243,6 +246,11 @@ export function AnalyseMembres() {
           </>
         )}
       </Card>
+      {reponse?.tronque && (
+        <p className="text-xs text-muted-foreground lg:col-span-2">
+          {t('membres.liste.tronque', { plafond: reponse.items.length, total: reponse.total })}
+        </p>
+      )}
     </div>
   )
 }

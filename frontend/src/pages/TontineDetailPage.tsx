@@ -10,7 +10,7 @@ import {
   type TontineDetail,
   type CycleTontine,
   type TourTontine,
-  type MembreStatut,
+  type OptionMembre,
 } from '@/lib/api'
 import { peutVoirTontines, peutGererTontines, peutFluxArgentTontine } from '@/lib/roles'
 import { cleI18n } from '@/lib/i18n'
@@ -43,7 +43,7 @@ export function TontineDetailPage() {
   const fluxArgent = peutFluxArgentTontine(user?.role)
 
   const [tontine, setTontine] = useState<TontineDetail | null>(null)
-  const [membres, setMembres] = useState<MembreStatut[]>([])
+  const [membres, setMembres] = useState<OptionMembre[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -68,7 +68,7 @@ export function TontineDetailPage() {
     if (!accessToken) return
     const [detail, liste] = await Promise.all([
       tontinesApi.get(id, accessToken, signal),
-      membresApi.listStatuts(accessToken, signal).catch(() => [] as MembreStatut[]),
+      membresApi.listOptions(accessToken, signal).catch(() => [] as OptionMembre[]),
     ])
     setTontine(detail)
     setMembres(liste)

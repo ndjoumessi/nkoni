@@ -56,8 +56,8 @@ export interface StatutsMembresResultat {
 /**
  * Plafond du nombre de membres renvoyés par `/membres/statuts` (audit m4 : borne la réponse
  * pour ne pas sérialiser une liste illimitée sur un gros forfait). Généreux : aucune org réelle
- * ne l'approche ; au-delà, `tronque` le signale (une vraie pagination serveur avec recherche
- * viendra quand une org PRO dépassera ce volume — elle exige de matérialiser le statut calculé).
+ * ne l'approche ; au-delà, `tronque` le signale. La page Membres passe par la version paginée
+ * (`calculerStatutsMembresPage`, non plafonnée) et les sélecteurs par `listerOptionsMembres`.
  */
 export const PLAFOND_STATUTS_MEMBRES = 1000
 
@@ -97,6 +97,59 @@ export async function calculerStatutsMembres(
 
   const items = membres.map((m) => construireMembreAvecStatut(m, baremes, anneeCourante))
   return { items, total, tronque: limite != null && total > limite }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Options légères pour les sélecteurs (§1.3)                                  */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Plafond de `/membres/options`. Dix fois celui des statuts : une ligne ne porte que l'identité
+ * (~100 octets), aucun calcul ne dépend du volume. Au-delà, `tronque` le signale.
+ */
+export const PLAFOND_OPTIONS_MEMBRES = 10_000
+
+export interface MembreOption {
+  id: string
+  nom: string
+  prenom: string
+  statut: StatutMembreValue
+  branche: { id: string; nom: string } | null
+}
+
+export interface OptionsMembresResultat {
+  items: MembreOption[]
+  total: number
+  tronque: boolean
+}
+
+/**
+ * Identité des membres pour les sélecteurs et la palette ⌘K, SANS statut de cotisation.
+ * Ces écrans n'affichent qu'un nom à choisir : leur servir `calculerStatutsMembres` chargeait
+ * toutes les contributions et recalculait chaque statut, et les bornait à 1000 — au-delà, les
+ * derniers membres de l'ordre alphabétique disparaissaient des sélecteurs sans avertissement.
+ * Le `select` ne doit donc jamais inclure `contributions` (verrou : `membres-options.route.test.ts`).
+ */
+export async function listerOptionsMembres(
+  prisma: MembreStatutPrisma,
+  where?: Record<string, unknown>,
+): Promise<OptionsMembresResultat> {
+  const [total, items] = await Promise.all([
+    prisma.membre.count(where ? { where } : undefined),
+    prisma.membre.findMany({
+      where,
+      orderBy: [{ nom: 'asc' }, { prenom: 'asc' }],
+      take: PLAFOND_OPTIONS_MEMBRES,
+      select: {
+        id: true,
+        nom: true,
+        prenom: true,
+        statut: true,
+        branche: { select: { id: true, nom: true } },
+      },
+    }),
+  ])
+  return { items, total, tronque: total > PLAFOND_OPTIONS_MEMBRES }
 }
 
 /* -------------------------------------------------------------------------- */

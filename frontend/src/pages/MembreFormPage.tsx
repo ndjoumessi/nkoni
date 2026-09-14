@@ -10,7 +10,7 @@ import {
   ApiError,
   type Branche,
   type MembreInput,
-  type MembreStatut,
+  type OptionMembre,
   type StatutMembre,
 } from '@/lib/api'
 import { peutGererMembres } from '@/lib/roles'
@@ -69,7 +69,7 @@ export function MembreFormPage() {
 
   const [form, setForm] = useState<FormState>(VIDE)
   const [branches, setBranches] = useState<Branche[]>([])
-  const [membres, setMembres] = useState<MembreStatut[]>([])
+  const [membres, setMembres] = useState<OptionMembre[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   // Erreur serveur PERSISTANTE, en plus du toast : un toast dure 8 s et, raté, l'information est
@@ -112,7 +112,7 @@ export function MembreFormPage() {
       try {
         const [b, m] = await Promise.all([
           branchesApi.list(accessToken, signal),
-          membresApi.listStatuts(accessToken, signal),
+          membresApi.listOptions(accessToken, signal),
         ])
         if (active) {
           setBranches(b)

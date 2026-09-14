@@ -7,6 +7,8 @@ export const messages = {
   'documents.typeFichierNonAutorise':
     'Type de fichier non autorisé (PDF, JPEG, PNG ou DOCX uniquement).',
   'documents.fichierTropVolumineux': 'Fichier trop volumineux (10 Mo maximum).',
+  'documents.quotaStockage':
+    'Espace de stockage plein ({utilise} sur {quota}). Les documents existants restent consultables.',
   'documents.fichierIndisponible': 'Fichier indisponible.',
   'documents.aucunFichier': 'Aucun fichier fourni.',
   'documents.champsRequisManquants':

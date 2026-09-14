@@ -1,6 +1,10 @@
 import type { FastifyInstance, FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify'
 import { authenticate } from '../middlewares/authenticate'
-import { t, langueDeRequete } from '../lib/i18n'
+import { t, langueDeRequete, formatTailleOctets } from '../lib/i18n'
+import {
+  verifierQuotaStockage,
+  QuotaStockageDepasseError,
+} from '../services/capacites-organisation.service'
 import {
   televerserDocument,
   listerDocumentsVisibles,
@@ -152,6 +156,31 @@ export const documentsRoutes: FastifyPluginAsync = async (app: FastifyInstance) 
         error: 'Bad Request',
         message: t(langueDeRequete(req), 'documents.champsRequisManquants'),
       })
+    }
+
+    // Quota de stockage du forfait EFFECTIF (spec 1.1 §3.3) — AVANT l'envoi au Blob : un refus ne
+    // laisse aucun fichier orphelin. Seul l'ENVOI est bloqué ; lecture et téléchargement restent libres.
+    const organisationId = req.user.organisationId
+    if (organisationId) {
+      try {
+        await verifierQuotaStockage(
+          app.prisma as unknown as Parameters<typeof verifierQuotaStockage>[0],
+          organisationId,
+          fichier.buffer.length,
+        )
+      } catch (err) {
+        if (err instanceof QuotaStockageDepasseError) {
+          const langue = langueDeRequete(req)
+          return reply.code(403).send({
+            error: 'Forbidden',
+            message: t(langue, 'documents.quotaStockage', {
+              utilise: formatTailleOctets(err.utiliseOctets, langue),
+              quota: formatTailleOctets(err.quotaOctets, langue),
+            }),
+          })
+        }
+        throw err
+      }
     }
 
     try {

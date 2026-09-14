@@ -5,6 +5,8 @@ export const messages = {
   'documents.accesRefuse': 'You do not have access to this document.',
   'documents.typeFichierNonAutorise': 'File type not allowed (PDF, JPEG, PNG or DOCX only).',
   'documents.fichierTropVolumineux': 'File too large (10 MB maximum).',
+  'documents.quotaStockage':
+    'Storage space full ({utilise} of {quota}). Existing documents remain available.',
   'documents.fichierIndisponible': 'File unavailable.',
   'documents.aucunFichier': 'No file provided.',
   'documents.champsRequisManquants':

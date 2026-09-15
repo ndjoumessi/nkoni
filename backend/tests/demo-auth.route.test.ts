@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+import { describe, it, expect, beforeAll, beforeEach, afterAll } from 'vitest'
 import type { FastifyInstance } from 'fastify'
 import { buildApp } from '../src/app'
 import { hashPassword } from '../src/services/auth.service'
@@ -52,6 +52,12 @@ describe('auth — compte d’une organisation de démonstration', () => {
   })
   afterAll(async () => {
     await app.close()
+  })
+  // Remise à zéro AVANT chaque test : `emissions` est partagée au niveau `describe` (comptée par le mock
+  // `refreshToken.create`) — sans ce reset, un login qui émettrait une session (garde cassé) ferait échouer
+  // le test refresh SUIVANT sur cette seule assertion, même si le garde du refresh est lui-même intact.
+  beforeEach(() => {
+    emissions = 0
   })
 
   it('login : 401 identifiants invalides, aucun cookie', async () => {

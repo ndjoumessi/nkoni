@@ -57,8 +57,9 @@ export async function reconcilierPaiementsToutesOrgs(
   ageMinutes: number = AGE_MIN_MINUTES,
 ): Promise<ReconciliationOrgResult[]> {
   const seuil = new Date(now.getTime() - ageMinutes * 60_000)
+  // `estDemo: false` : aucun appel PSP pour l'espace de démonstration (spec 2026-09-15 §1.5).
   const orgs = (await deps.prisma.organisation.findMany({
-    where: { actif: true },
+    where: { actif: true, estDemo: false },
     select: { id: true },
   })) as { id: string }[]
   const resultats: ReconciliationOrgResult[] = []

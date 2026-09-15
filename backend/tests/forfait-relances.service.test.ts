@@ -175,7 +175,12 @@ describe('executerRelancesForfaitToutesOrgs', () => {
 
     const r = await executerRelancesForfaitToutesOrgs(prisma, NOW)
 
-    expect(whereOrgs.where).toEqual({ actif: true, forfait: { not: 'GRATUIT' }, forfaitExpireLe: { not: null } })
+    expect(whereOrgs.where).toEqual({
+      actif: true,
+      estDemo: false,
+      forfait: { not: 'GRATUIT' },
+      forfaitExpireLe: { not: null },
+    })
     expect(r.map((x) => [x.organisationId, x.etape])).toEqual([['org-a', 'J7'], ['org-b', 'GRACE']])
     expect(appels.contextes).toEqual(['org-a', 'org-b'])
   })

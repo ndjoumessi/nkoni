@@ -4,6 +4,7 @@ import type { Role } from './permissions'
 import { t, langueDeRequete, type Langue } from '../lib/i18n'
 import { auditContext } from '../lib/audit-context'
 import { orgContext } from '../lib/org-context'
+import { estRequeteAutoriseeEnDemo } from '../lib/demo'
 
 /**
  * Hook d'AUTHENTIFICATION minimal (vérification JWT uniquement).
@@ -20,7 +21,7 @@ import { orgContext } from '../lib/org-context'
 export async function authenticate(
   req: FastifyRequest,
   reply: FastifyReply,
-): Promise<void> {
+): Promise<FastifyReply | void> {
   try {
     // Fourni par @fastify/jwt : vérifie le Bearer token et remplit `req.user`.
     await req.jwtVerify()
@@ -31,9 +32,20 @@ export async function authenticate(
     orgContext.setOrganisation(req.user.organisationId)
   } catch {
     // Token absent/invalide → req.user non peuplé : la langue est résolue via Accept-Language (§4).
-    reply
+    // `return reply...` (et non un simple appel suivi de `return`) : la sortie anticipée ne doit pas
+    // dépendre du fait qu'un hook `onSend` reste synchrone pour empêcher l'exécution de la suite.
+    return reply
       .code(401)
       .send({ error: 'Unauthorized', message: t(langueDeRequete(req), 'commun.tokenAbsent') })
+  }
+
+  // Espace de démonstration (spec 2026-09-15 §1.4) : un jeton `demo` CONSULTE, il n'écrit jamais.
+  // Placé ici plutôt que route par route : toutes les routes tenant passent par ce hook, une route
+  // ajoutée demain est donc couverte sans y penser. `routeOptions.url` = motif ('/membres/:id').
+  if (req.user.demo === true && !estRequeteAutoriseeEnDemo(req.method, req.routeOptions?.url)) {
+    return reply
+      .code(403)
+      .send({ error: 'Forbidden', message: t(langueDeRequete(req), 'commun.demoLectureSeule') })
   }
 }
 
@@ -50,8 +62,16 @@ declare module '@fastify/jwt' {
       membreId?: string
       organisationId?: string
       langue?: Langue // §4 i18n — préférence de langue portée par l'access token
+      demo?: true // espace de démonstration (spec 2026-09-15) — émis par POST /demo/session seulement
       typ?: 'refresh'
     }
-    user: { sub?: string; role: Role; membreId?: string; organisationId?: string; langue?: Langue }
+    user: {
+      sub?: string
+      role: Role
+      membreId?: string
+      organisationId?: string
+      langue?: Langue
+      demo?: boolean
+    }
   }
 }

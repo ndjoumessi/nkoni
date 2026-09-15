@@ -5,6 +5,10 @@ export const messages = {
   'commun.nonAutorise': 'Non autorisé.',
   'commun.authRequise': 'Authentification requise.',
   'commun.erreurServeur': "Une erreur inattendue s'est produite. Réessayez plus tard.",
+  // Espace de démonstration (spec 2026-09-15).
+  'commun.demoLectureSeule':
+    "Espace de démonstration en lecture seule : créez votre espace pour enregistrer vos données.",
+  'commun.demoIndisponible': "L'espace de démonstration est momentanément indisponible.",
   // Libellés des modes de versement (§4.6/§4.8) — SOURCE UNIQUE des chaînes serveur, lues via
   // `libelleModeVersement()`. Auparavant recopiés à la main dans recu-pdf.service.ts ET
   // releve.service.ts (documents remis aux membres → un mode sans libellé rendait `undefined`).

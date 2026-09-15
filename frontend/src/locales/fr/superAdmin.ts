@@ -118,6 +118,8 @@ export default {
     detail: {
       forfait: 'Forfait',
       fermer: 'Fermer',
+      demoGeree:
+        'Espace de démonstration public, régénéré automatiquement chaque semaine : aucune action de gestion depuis la console.',
     },
     prolongation: {
       titre: 'Échéance',
@@ -143,6 +145,7 @@ export default {
       statut: 'Statut',
       active: 'Active',
       suspendue: 'Suspendue',
+      demo: 'Démo',
       actions: 'Actions',
       suspendre: 'Suspendre',
       reactiver: 'Réactiver',

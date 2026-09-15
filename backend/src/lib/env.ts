@@ -72,6 +72,9 @@ export const env = {
   // dérouler un paiement demo de bout en bout on abaisse ce plancher (ex. PAIEMENT_MONTANT_MIN=5) —
   // à remettre à 100 (ou retirer) une fois les tests demo faits.
   PAIEMENT_MONTANT_MIN: optionalInt('PAIEMENT_MONTANT_MIN', 100),
+  // Espace de démonstration partagé (spec 2026-09-15 §3.2). `true` = POST /demo/session émet des
+  // sessions et la tâche de nuit régénère la démo ; toute autre valeur (défaut) = démo éteinte (404).
+  DEMO_ACTIVEE: optional('DEMO_ACTIVEE', 'false'),
 } as const
 
 export const isProd = env.NODE_ENV === 'production'

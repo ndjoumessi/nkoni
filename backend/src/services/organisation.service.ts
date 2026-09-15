@@ -138,6 +138,8 @@ export interface OrganisationResume extends VueEcheance {
   forfait: Forfait
   /** Nombre de membres — indicateur de volume, pas d'accès aux membres eux-mêmes. */
   nbMembres: number
+  /** Espace de démonstration (spec 2026-09-15) : listé, exclu des indicateurs, non modifiable. */
+  estDemo: boolean
 }
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -165,6 +167,7 @@ const SELECT_ORGANISATION_PLATEFORME = {
   forfait: true,
   forfaitExpireLe: true,
   createdAt: true,
+  estDemo: true,
 } as const
 
 /** Ligne lue avec `SELECT_ORGANISATION_PLATEFORME` → vue plateforme (sans compteur de membres). */
@@ -178,6 +181,7 @@ function versVuePlateforme(o: any, now: Date): Omit<OrganisationResume, 'nbMembr
     actif: o.actif,
     forfait: o.forfait,
     createdAt: o.createdAt,
+    estDemo: o.estDemo === true,
     ...vueEcheance(o.forfait, o.forfaitExpireLe ?? null, now),
   }
 }
@@ -535,18 +539,18 @@ export async function definirChefOrganisation(
 }
 
 /**
- * Statut d'activité d'une organisation, pour bloquer login/refresh d'un espace suspendu
- * (§2.3). Retourne `null` si l'organisation est introuvable (traité comme suspendu par
- * l'appelant, par prudence).
+ * Accès à une organisation pour login/refresh : active (§2.3) ET nature de démonstration
+ * (spec 2026-09-15 §1.3 — un compte de démo n'ouvre jamais de session par ces voies). `null` si
+ * introuvable. `estDemo` absent de la ligne (mock ancien) est lu comme `false`.
  */
-export async function chargerOrganisationActif(
+export async function chargerAccesOrganisation(
   prisma: OrganisationActifPrisma,
   organisationId: string,
-): Promise<boolean | null> {
+): Promise<{ actif: boolean; estDemo: boolean } | null> {
   const org = await prisma.organisation.findUnique({
     where: { id: organisationId },
-    select: { actif: true },
+    select: { actif: true, estDemo: true },
   })
   if (!org) return null
-  return org.actif as boolean
+  return { actif: org.actif === true, estDemo: org.estDemo === true }
 }

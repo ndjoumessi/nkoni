@@ -29,6 +29,8 @@ export interface PlatformOrganisation extends EcheanceForfait {
   forfait: Forfait
   createdAt: string
   nbMembres: number
+  /** Espace de démonstration (spec 2026-09-15) — optionnel : une API antérieure ne l'envoie pas. */
+  estDemo?: boolean
 }
 
 /** Réponse des mutations de statut (organisation renvoyée sans le compteur de membres). */

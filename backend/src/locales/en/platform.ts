@@ -1,6 +1,7 @@
 /** Messages EN de la console plateforme Super-Admin (platform.route.ts, §4). */
 export const messages = {
   'platform.organisationIntrouvable': 'Organisation not found.',
+  'platform.organisationDemo': 'Demo space: it is managed by the automatic regeneration, not from the console.',
   'platform.organisationNonSuspendue':
     'This organisation is still active: suspend it before deleting it permanently.',
   'platform.confirmationInvalide':

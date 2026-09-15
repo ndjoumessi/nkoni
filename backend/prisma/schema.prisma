@@ -176,6 +176,9 @@ model Organisation {
   // ligne à la livraison des quotas le CONSERVE quel que soit son forfait (couper un flux d'argent en
   // service serait brutal). Posé par le backfill de la migration, jamais par du code à date.
   paiementEnLigneAcquis Boolean @default(false)
+  // Espace de DÉMONSTRATION partagé (spec 2026-09-15) : organisation fictive, lecture seule, ouverte
+  // sans compte via POST /demo/session. Ignorée par les tâches de fond et les indicateurs de la console.
+  estDemo      Boolean  @default(false)
   createdAt    DateTime @default(now())
 
   // Chef de l'organisation (dirigeant) — Membre désigné, ACTION MUTABLE réservée ADMIN/PRESIDENT

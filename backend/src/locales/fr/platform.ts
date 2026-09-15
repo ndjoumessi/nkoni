@@ -1,6 +1,8 @@
 /** Messages FR de la console plateforme Super-Admin (platform.route.ts, §4). */
 export const messages = {
   'platform.organisationIntrouvable': 'Organisation introuvable.',
+  'platform.organisationDemo':
+    "Espace de démonstration : il est géré par la régénération automatique, pas depuis la console.",
   // Suppression définitive (0.3) : la suspension préalable n'est pas une formalité — c'est elle
   // qui garantit qu'aucun écrivain concurrent (scheduler, session active) n'entrera en conflit.
   'platform.organisationNonSuspendue':

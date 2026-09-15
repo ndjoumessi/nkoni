@@ -46,8 +46,9 @@ const APPROUVES: Record<string, number> = {
   // action) N'ajoutent PAS d'appel : elles sont imbriquées dans les `runUnscoped` déjà comptés
   // ci-dessus. + PROLONGATION du forfait (spec 1.1 §3.1) : lecture de l'échéance, écriture
   // CONDITIONNELLE et trace dans un seul appel (même justification : pas de contexte org pour le
-  // SUPER_ADMIN, `Organisation` lue par id). 7 appels au total.
-  'routes/platform.route.ts': 7,
+  // SUPER_ADMIN, `Organisation` lue par id). + GARDE DÉMO (spec 2026-09-15 §1.7) : lecture de
+  // `estDemo` par id avant toute action console — même justification. 8 appels au total.
+  'routes/platform.route.ts': 8,
   // Lien PUBLIC signé — carte de statut (§4.7) : résolution de l'org du membre AVANT `orgContext.run`.
   'routes/cartes.route.ts': 1,
   // Lien PUBLIC signé — reçu PDF public (§4.6) : résolution de l'org du reçu, idem.
@@ -58,6 +59,10 @@ const APPROUVES: Record<string, number> = {
   // `orgContext.run` — le webhook n'est pas authentifié et ne porte aucun claim org. Bypass nécessaire,
   // borné à la seule résolution ; la confirmation ensuite tourne DANS le contexte org du Paiement.
   'routes/paiements.route.ts': 1,
+  // Espace de démonstration PUBLIC (spec 2026-09-15 §1.2) : résolution de l'organisation démo et de
+  // son compte ADMIN AVANT toute session — aucune org connue au moment de la lecture. Le jeton émis
+  // porte `demo: true`, qui interdit toute écriture (`authenticate`).
+  'routes/demo.route.ts': 1,
 }
 
 /** Liste récursivement les fichiers `.ts` de `src/`, en EXCLUANT le client Prisma généré. */

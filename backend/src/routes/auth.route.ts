@@ -11,7 +11,7 @@ import {
   langueEffective,
   AncienMotDePasseIncorrectError,
 } from '../services/auth.service'
-import { chargerOrganisationActif } from '../services/organisation.service'
+import { chargerAccesOrganisation } from '../services/organisation.service'
 import { t, langueDeRequete } from '../lib/i18n'
 
 /**
@@ -109,10 +109,17 @@ export const authRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
       // peut pas ouvrir de session. Le SUPER_ADMIN (organisationId null) n'est jamais concerné.
       const orgId = user.organisationId
       if (orgId) {
-        const orgActive = await orgContext.runUnscoped(async () =>
-          chargerOrganisationActif(app.prisma, orgId),
+        const acces = await orgContext.runUnscoped(async () =>
+          chargerAccesOrganisation(app.prisma, orgId),
         )
-        if (orgActive !== true) {
+        // Espace de démonstration (spec 2026-09-15 §1.3) : jamais de session par mot de passe — même
+        // réponse que des identifiants invalides, rien ne révèle qu'un tel compte existe.
+        if (acces?.estDemo) {
+          return reply
+            .code(401)
+            .send({ error: 'Unauthorized', message: t(langueDeRequete(req), 'auth.identifiantsInvalides') })
+        }
+        if (acces?.actif !== true) {
           return reply.code(403).send({
             error: 'Forbidden',
             message: t(langueDeRequete(req), 'auth.espaceSuspendu'),
@@ -178,10 +185,11 @@ export const authRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
       // d'un espace désactivé est déconnecté au plus tard au prochain refresh (tokens courts).
       const orgId = user.organisationId
       if (orgId) {
-        const orgActive = await orgContext.runUnscoped(async () =>
-          chargerOrganisationActif(app.prisma, orgId),
+        const acces = await orgContext.runUnscoped(async () =>
+          chargerAccesOrganisation(app.prisma, orgId),
         )
-        if (orgActive !== true) {
+        // Suspendu (§2.3) ou démo (spec 2026-09-15 §1.3) : aucune réémission d'access token.
+        if (acces?.actif !== true || acces.estDemo) {
           return reply
             .code(401)
             .send({ error: 'Unauthorized', message: t(langueDeRequete(req), 'auth.sessionInvalide') })

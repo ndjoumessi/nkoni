@@ -1,4 +1,4 @@
-import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
+import type { FastifyInstance, FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify'
 import { authenticate } from '../middlewares/authenticate'
 import { requireSuperAdmin } from '../middlewares/permissions'
 import { orgContext } from '../lib/org-context'
@@ -55,6 +55,29 @@ const ACTIONS_PLATEFORME: ActionPlateforme[] = [
  */
 export const platformRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
   const garde = { preHandler: [authenticate, requireSuperAdmin] }
+
+  /**
+   * Espace de démonstration (spec 2026-09-15 §1.7) : suspendre, réactiver, exporter, supprimer,
+   * changer ou prolonger le forfait de la démo depuis la console → 409. Elle est gérée par la
+   * régénération ; une suspension la couperait pour tous les visiteurs, une purge manuelle la
+   * ferait disparaître.
+   * Lecture non scopée par id (SUPER_ADMIN sans contexte d'org) ; id inconnu → la route répond 404.
+   */
+  const refuserSiDemo = async (req: FastifyRequest, reply: FastifyReply): Promise<FastifyReply | void> => {
+    // Typage large (partagé par des routes aux génériques différents) : seules des routes `/:id` l'emploient.
+    const { id } = req.params as { id: string }
+    const org = await orgContext.runUnscoped(async () =>
+      await app.prisma.organisation.findUnique({ where: { id }, select: { estDemo: true } }),
+    )
+    if (org?.estDemo === true) {
+      // `return reply...` : la sortie anticipée du préhandler ne doit pas dépendre du fait qu'un
+      // hook `onSend` reste synchrone pour empêcher l'exécution du handler de la route.
+      return reply
+        .code(409)
+        .send({ error: 'Conflict', message: t(langueDeRequete(req), 'platform.organisationDemo') })
+    }
+  }
+  const gardeHorsDemo = { preHandler: [authenticate, requireSuperAdmin, refuserSiDemo] }
 
   /**
    * Journalisation BEST-EFFORT d'une action plateforme (CHANGER_FORFAIT/SUSPENDRE/REACTIVER/
@@ -116,14 +139,14 @@ export const platformRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
   // POST /platform/organisations/:id/suspendre — bloque l'accès (§2.3, pas de suppression).
   app.post<{ Params: { id: string } }>(
     '/platform/organisations/:id/suspendre',
-    garde,
+    gardeHorsDemo,
     async (req, reply) => definirStatut(app, req.params.id, false, req.user.sub ?? '', reply),
   )
 
   // POST /platform/organisations/:id/reactiver — rétablit l'accès.
   app.post<{ Params: { id: string } }>(
     '/platform/organisations/:id/reactiver',
-    garde,
+    gardeHorsDemo,
     async (req, reply) => definirStatut(app, req.params.id, true, req.user.sub ?? '', reply),
   )
 
@@ -134,7 +157,7 @@ export const platformRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
   // pathnames Blob, c'est la seule table de correspondance permettant de retrouver les fichiers.
   app.get<{ Params: { id: string } }>(
     '/platform/organisations/:id/export',
-    garde,
+    gardeHorsDemo,
     async (req, reply) => {
       const id = req.params.id
       const donnees = await orgContext.runUnscoped(async () => {
@@ -192,7 +215,7 @@ export const platformRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
   app.delete<{ Params: { id: string }; Body: { confirmationNom: string } }>(
     '/platform/organisations/:id',
     {
-      ...garde,
+      ...gardeHorsDemo,
       schema: {
         body: {
           type: 'object',
@@ -332,7 +355,7 @@ export const platformRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
   app.patch<{ Params: { id: string }; Body: { forfait: Forfait } }>(
     '/platform/organisations/:id/forfait',
     {
-      ...garde,
+      ...gardeHorsDemo,
       schema: {
         body: {
           type: 'object',
@@ -401,7 +424,7 @@ export const platformRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
   }>(
     '/platform/organisations/:id/forfait/prolonger',
     {
-      ...garde,
+      ...gardeHorsDemo,
       schema: {
         body: {
           type: 'object',

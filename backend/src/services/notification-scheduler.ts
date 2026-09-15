@@ -181,7 +181,8 @@ export async function executerVerificationRetardsToutesOrgs(
   anneeCourante: number,
   now: Date = new Date(),
 ): Promise<VerificationRetardsOrgResult[]> {
-  const orgs = await prisma.organisation.findMany({ where: { actif: true }, select: { id: true } })
+  // `estDemo: false` : l'espace de démonstration ne reçoit aucune notification (spec 2026-09-15 §1.5).
+  const orgs = await prisma.organisation.findMany({ where: { actif: true, estDemo: false }, select: { id: true } })
   const resultats: VerificationRetardsOrgResult[] = []
   for (const org of orgs) {
     // `run` avec un callback qui AWAIT à l'intérieur : le contexte ALS couvre l'exécution
@@ -277,7 +278,8 @@ export async function executerRappelsReunionsToutesOrgs(
   prisma: SchedulerPrisma,
   now: Date = new Date(),
 ): Promise<(RappelsReunionsResult & { organisationId: string })[]> {
-  const orgs = await prisma.organisation.findMany({ where: { actif: true }, select: { id: true } })
+  // `estDemo: false` : l'espace de démonstration ne reçoit aucune notification (spec 2026-09-15 §1.5).
+  const orgs = await prisma.organisation.findMany({ where: { actif: true, estDemo: false }, select: { id: true } })
   const resultats: (RappelsReunionsResult & { organisationId: string })[] = []
   for (const org of orgs) {
     const r = await orgContext.run({ organisationId: org.id }, async () =>

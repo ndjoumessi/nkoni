@@ -173,8 +173,9 @@ export async function executerRelancesForfaitToutesOrgs(
   prisma: RelancesForfaitPrisma,
   now: Date = new Date(),
 ): Promise<RelancesForfaitResult[]> {
+  // `estDemo: false` : jamais d'e-mail de relance au compte fictif de la démo (spec 2026-09-15 §1.5).
   const orgs = await prisma.organisation.findMany({
-    where: { actif: true, forfait: { not: 'GRATUIT' }, forfaitExpireLe: { not: null } },
+    where: { actif: true, estDemo: false, forfait: { not: 'GRATUIT' }, forfaitExpireLe: { not: null } },
     select: { id: true, nom: true, forfait: true, forfaitExpireLe: true },
   })
   const resultats: RelancesForfaitResult[] = []

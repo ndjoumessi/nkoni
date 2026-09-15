@@ -58,6 +58,10 @@ const APPROUVES: Record<string, number> = {
   // `orgContext.run` — le webhook n'est pas authentifié et ne porte aucun claim org. Bypass nécessaire,
   // borné à la seule résolution ; la confirmation ensuite tourne DANS le contexte org du Paiement.
   'routes/paiements.route.ts': 1,
+  // Espace de démonstration PUBLIC (spec 2026-09-15 §1.2) : résolution de l'organisation démo et de
+  // son compte ADMIN AVANT toute session — aucune org connue au moment de la lecture. Le jeton émis
+  // porte `demo: true`, qui interdit toute écriture (`authenticate`).
+  'routes/demo.route.ts': 1,
 }
 
 /** Liste récursivement les fichiers `.ts` de `src/`, en EXCLUANT le client Prisma généré. */

@@ -32,10 +32,12 @@ function refreshCookieOptions(maxAgeSeconds: number) {
   }
 }
 
-/** Signe l'access token (construction conditionnelle pour exactOptionalPropertyTypes). */
+/** Signe l'access token (construction conditionnelle pour exactOptionalPropertyTypes). `demo` :
+ *  session de l'espace de démonstration (spec 2026-09-15), réservée à POST /demo/session. */
 export async function signAccessToken(
   reply: FastifyReply,
   user: AuthenticatedUser,
+  options: { demo?: boolean } = {},
 ): Promise<string> {
   const payload: {
     sub: string
@@ -43,6 +45,7 @@ export async function signAccessToken(
     membreId?: string
     organisationId?: string
     langue?: Langue
+    demo?: true
   } = {
     sub: user.id,
     role: user.role,
@@ -55,6 +58,7 @@ export async function signAccessToken(
   // uniquement pour un compte sans préférence ET sans org (SUPER_ADMIN) → repli Accept-Language.
   const langue = langueEffective(user)
   if (langue) payload.langue = langue
+  if (options.demo) payload.demo = true
   return reply.jwtSign(payload)
 }
 

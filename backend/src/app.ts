@@ -13,6 +13,7 @@ import { vraiWhatsAppClient, type WhatsAppClient } from './services/whatsapp.ser
 import { vraiEmailClient, type EmailClient } from './services/email.service'
 import { registerJwt } from './plugins/jwt'
 import { authRoutes } from './routes/auth.route'
+import { demoRoutes } from './routes/demo.route'
 import { organisationsRoutes } from './routes/organisations.route'
 import { platformRoutes } from './routes/platform.route'
 import { statutRoutes } from './routes/statut.route'
@@ -217,6 +218,7 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   })
 
   await app.register(authRoutes, { prefix: '/auth' })
+  await app.register(demoRoutes)
   await app.register(organisationsRoutes)
   await app.register(platformRoutes)
   await app.register(statutRoutes)

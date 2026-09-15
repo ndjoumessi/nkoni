@@ -51,7 +51,7 @@ describe('authenticate — jeton de démonstration', () => {
       langue: 'FR',
       ...(demo ? { demo: true as const } : {}),
     })
-  const requete = (method: 'GET' | 'POST' | 'PATCH' | 'DELETE', url: string, demo: boolean, payload?: object) =>
+  const requete = (method: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE', url: string, demo: boolean, payload?: object) =>
     app.inject({
       method,
       url,
@@ -65,6 +65,10 @@ describe('authenticate — jeton de démonstration', () => {
     ['PATCH', '/notifications/tout-lu', undefined],
     ['PATCH', '/auth/me/langue', { langue: 'EN' }],
     ['POST', '/equilibrages', { membreId: 'm1', anneeDebut: 2025, anneeFin: 2026 }],
+    // PUT self-service (`/moi/reunions/:id/rsvp`, hors matrice, résolu par `req.user.sub`) : corps
+    // VALIDE au sens du schéma ajv (`statut` ∈ STATUTS) — le garde doit refuser avant toute lecture,
+    // y compris avant celle du membre appelant.
+    ['PUT', '/moi/reunions/r1/rsvp', { statut: 'PRESENT' }],
   ] as const)('%s %s : 403 lecture seule, aucune requête en base', async (method, url, payload) => {
     const res = await requete(method, url, true, payload)
     expect(res.statusCode).toBe(403)

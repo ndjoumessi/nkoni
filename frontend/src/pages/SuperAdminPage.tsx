@@ -372,11 +372,18 @@ export function SuperAdminPage() {
   const filtrees = useMemo(() => {
     if (!organisations) return []
     const q = recherche.trim().toLowerCase()
+    // La démo est PRO SANS échéance (spec 2026-09-15 §3.1) : elle matche `estProchePlafond`/
+    // `estARelancer`/`estPayantSansEcheance` par construction alors qu'elle n'est pas un client (cf.
+    // `kpis` ci-dessus, qui l'exclut déjà des compteurs). Les DRILL-DOWNS de ces trois cartes doivent
+    // donc l'exclure aussi — mais la recherche par nom/id ou le tri par statut/forfait la laissent
+    // apparaître : elle reste listée avec son badge (§1.7).
+    const uneCarteIndicateurActive = filtreQuota || filtreRelance || filtreSansEcheance
     return organisations.filter((o) => {
       if (q && !o.nom.toLowerCase().includes(q) && !o.id.toLowerCase().includes(q)) return false
       if (filtreStatut === 'actives' && !o.actif) return false
       if (filtreStatut === 'suspendues' && o.actif) return false
       if (filtreForfait !== 'tous' && o.forfait !== filtreForfait) return false
+      if (uneCarteIndicateurActive && o.estDemo) return false
       if (filtreQuota && !estProchePlafond(o)) return false
       if (filtreRelance && !estARelancer(o)) return false
       if (filtreSansEcheance && !estPayantSansEcheance(o)) return false
@@ -592,7 +599,8 @@ export function SuperAdminPage() {
       t('superAdmin.table.creeeLe'),
       t('superAdmin.export.echeance'),
     ]
-    const lignes = triees.map((o) => {
+    // La démo n'est pas une organisation cliente (§1.7) : jamais dans un export destiné au suivi commercial.
+    const lignes = triees.filter((o) => !o.estDemo).map((o) => {
       const limite = limiteMembresForfait(o.forfaitEffectif ?? o.forfait)
       return [
         o.nom,

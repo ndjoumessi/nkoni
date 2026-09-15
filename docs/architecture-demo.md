@@ -1,8 +1,8 @@
 # Espace de démonstration partagé (chantier 1.2, spec `2026-09-15-onboarding-demo-design.md`)
 
 Une organisation **fictive**, **unique** et **partagée**, ouverte sans compte pour voir un espace rempli.
-Livrée en trois PR : **socle serveur** (ce document, §1-4), générateur et régénération (§5, PR 2),
-front de démonstration (§6, PR 3).
+Livrée en trois PR : **socle serveur** (ce document, §1-4), générateur et régénération (à venir, PR 2),
+front de démonstration (à venir, PR 3).
 
 ## 1. Marqueur et interrupteur
 
@@ -35,10 +35,14 @@ front de démonstration (§6, PR 3).
 
 - Retards, rappels de réunion, relances de forfait (e-mail Resend) et réconciliation PSP filtrent
   `estDemo: false`. **Verrou textuel** `tests/demo-taches-de-fond.test.ts` sur tout `organisation.findMany(`
-  de `src/services/` (exceptions : console, rétention) ; preuve contre Postgres dans
-  `demo-taches-de-fond.integration.test.ts`. Toute nouvelle boucle de fond doit filtrer la démo.
-  **Piège vécu** : un commentaire contenant `estDemo: false` PLACÉ DANS l'appel `findMany(...)` satisfait le
-  verrou textuel sans que le filtre existe réellement — le commentaire doit rester EN DEHORS de l'appel.
+  de `src/` **ENTIER** (client Prisma généré exclu) : parité STRICTE par fichier (comme
+  `runUnscoped-allowlist.test.ts`) contre un compte d'appels non filtrés attendu — `organisation.service.ts: 1`
+  (console plateforme) et `retention.service.ts: 1` (purge), toute autre occurrence non filtrée fait échouer
+  le test. Les commentaires `//` et `/* */` sont retirés de chaque appel extrait avant la recherche du motif.
+  Preuve contre Postgres dans `demo-taches-de-fond.integration.test.ts`. Toute nouvelle boucle de fond doit
+  filtrer la démo. **Piège vécu** : un commentaire contenant `estDemo: false` PLACÉ DANS l'appel `findMany(...)`
+  satisfaisait l'ancienne version (textuelle naïve) du verrou sans que le filtre existe réellement — d'où le
+  retrait des commentaires avant l'analyse.
 - La purge de rétention s'applique aussi à la démo (inoffensif, elle est régénérée bien avant 12 mois).
 - Console plateforme : la démo est listée (badge « Démo ») mais exclue des indicateurs ; suspendre,
   réactiver, exporter, supprimer, changer ou prolonger son forfait → **409** (préhandler `refuserSiDemo`).

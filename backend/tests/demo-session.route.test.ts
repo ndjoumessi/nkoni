@@ -1,6 +1,7 @@
 import { describe, it, expect, afterEach } from 'vitest'
-import type { FastifyInstance } from 'fastify'
+import Fastify, { type FastifyInstance } from 'fastify'
 import { buildApp } from '../src/app'
+import { demoRoutes } from '../src/routes/demo.route'
 
 /**
  * POST /demo/session (spec 2026-09-15 §1.2) : public, 404 tant que la démo est éteinte ou absente,
@@ -94,5 +95,28 @@ describe('POST /demo/session', () => {
       headers: { authorization: `Bearer ${res.json().accessToken}` },
     })
     expect(ecriture.statusCode).toBe(403)
+  })
+
+  /**
+   * Spec §1.2 : « 10 / minute par IP ». `@fastify/rate-limit` n'est PAS enregistré sous Vitest
+   * (`app.ts` : `if (!process.env['VITEST'] …`), donc `buildApp` + `app.inject` ne peut jamais
+   * PROUVER que la limite est appliquée — seulement que `config.rateLimit` est bien posé sur la
+   * route. On enregistre `demoRoutes` sur une instance Fastify NUE (aucune dépendance sur les
+   * décorations `app.prisma`/`app.demoActivee`, qui ne sont lues que dans le handler, jamais à
+   * l'enregistrement) avec un hook `onRoute` posé AVANT `register` pour capturer les options telles
+   * que Fastify les voit une fois la route déclarée.
+   */
+  it('config.rateLimit est posé à 10/minute sur POST /demo/session', async () => {
+    const nu = Fastify()
+    let capture: { config?: { rateLimit?: unknown } } | undefined
+    nu.addHook('onRoute', (options) => {
+      if (options.method === 'POST' && options.url === '/demo/session') {
+        capture = options as typeof capture
+      }
+    })
+    await nu.register(demoRoutes)
+    await nu.ready()
+    expect(capture?.config?.rateLimit).toEqual({ max: 10, timeWindow: '1 minute' })
+    await nu.close()
   })
 })

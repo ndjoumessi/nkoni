@@ -87,6 +87,15 @@ describe('SuperAdminPage — espace de démonstration', () => {
     expect(within(carte('superAdmin.kpi.sansEcheance')).getByText('1')).toBeTruthy()
   })
 
+  it('carte « sans échéance » : le drill-down exclut la démo (PRO sans échéance, mais pas cliente)', async () => {
+    listOrganisations.mockResolvedValue({ organisations: [...ORGS, DEMO] })
+    render(<MemoryRouter><SuperAdminPage /></MemoryRouter>)
+    await screen.findByText('Association Exemple NKONI')
+    fireEvent.click(carte('superAdmin.kpi.sansEcheance'))
+    expect(nomsAffiches()).toEqual(['Famille Historique'])
+    expect(screen.queryByText('Association Exemple NKONI')).toBeNull()
+  })
+
   it('fiche détail : aucun geste de gestion, une mention explicative', async () => {
     listOrganisations.mockResolvedValue({ organisations: [DEMO] })
     render(<MemoryRouter><SuperAdminPage /></MemoryRouter>)

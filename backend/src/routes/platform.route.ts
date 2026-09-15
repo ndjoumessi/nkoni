@@ -63,14 +63,16 @@ export const platformRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
    * ferait disparaître.
    * Lecture non scopée par id (SUPER_ADMIN sans contexte d'org) ; id inconnu → la route répond 404.
    */
-  const refuserSiDemo = async (req: FastifyRequest, reply: FastifyReply): Promise<void> => {
+  const refuserSiDemo = async (req: FastifyRequest, reply: FastifyReply): Promise<FastifyReply | void> => {
     // Typage large (partagé par des routes aux génériques différents) : seules des routes `/:id` l'emploient.
     const { id } = req.params as { id: string }
     const org = await orgContext.runUnscoped(async () =>
       await app.prisma.organisation.findUnique({ where: { id }, select: { estDemo: true } }),
     )
     if (org?.estDemo === true) {
-      reply
+      // `return reply...` : la sortie anticipée du préhandler ne doit pas dépendre du fait qu'un
+      // hook `onSend` reste synchrone pour empêcher l'exécution du handler de la route.
+      return reply
         .code(409)
         .send({ error: 'Conflict', message: t(langueDeRequete(req), 'platform.organisationDemo') })
     }

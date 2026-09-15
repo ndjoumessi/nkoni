@@ -118,6 +118,7 @@ export default {
     detail: {
       forfait: 'Plan',
       fermer: 'Close',
+      demoGeree: 'Public demo space, regenerated automatically every week: no management action from the console.',
     },
     prolongation: {
       titre: 'End date',
@@ -143,6 +144,7 @@ export default {
       statut: 'Status',
       active: 'Active',
       suspendue: 'Suspended',
+      demo: 'Demo',
       actions: 'Actions',
       suspendre: 'Suspend',
       reactiver: 'Reactivate',

@@ -138,6 +138,8 @@ export interface OrganisationResume extends VueEcheance {
   forfait: Forfait
   /** Nombre de membres — indicateur de volume, pas d'accès aux membres eux-mêmes. */
   nbMembres: number
+  /** Espace de démonstration (spec 2026-09-15) : listé, exclu des indicateurs, non modifiable. */
+  estDemo: boolean
 }
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -165,6 +167,7 @@ const SELECT_ORGANISATION_PLATEFORME = {
   forfait: true,
   forfaitExpireLe: true,
   createdAt: true,
+  estDemo: true,
 } as const
 
 /** Ligne lue avec `SELECT_ORGANISATION_PLATEFORME` → vue plateforme (sans compteur de membres). */
@@ -178,6 +181,7 @@ function versVuePlateforme(o: any, now: Date): Omit<OrganisationResume, 'nbMembr
     actif: o.actif,
     forfait: o.forfait,
     createdAt: o.createdAt,
+    estDemo: o.estDemo === true,
     ...vueEcheance(o.forfait, o.forfaitExpireLe ?? null, now),
   }
 }

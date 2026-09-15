@@ -74,3 +74,27 @@ describe('SuperAdminPage — payants sans échéance', () => {
     expect(screen.queryByText('superAdmin.kpi.sansEcheance')).toBeNull()
   })
 })
+
+describe('SuperAdminPage — espace de démonstration', () => {
+  const DEMO = { ...org('o-demo', 'Association Exemple NKONI', 'PRO', 'SANS_ECHEANCE', null), estDemo: true, nbMembres: 45 }
+
+  it('listé avec un badge, mais exclu des indicateurs', async () => {
+    listOrganisations.mockResolvedValue({ organisations: [...ORGS, DEMO] })
+    render(<MemoryRouter><SuperAdminPage /></MemoryRouter>)
+    expect(await screen.findByText('Association Exemple NKONI')).toBeTruthy()
+    expect(screen.getByText('superAdmin.table.demo')).toBeTruthy()
+    // Sans la démo : 1 seul payant sans échéance (Famille Historique), pas 2.
+    expect(within(carte('superAdmin.kpi.sansEcheance')).getByText('1')).toBeTruthy()
+  })
+
+  it('fiche détail : aucun geste de gestion, une mention explicative', async () => {
+    listOrganisations.mockResolvedValue({ organisations: [DEMO] })
+    render(<MemoryRouter><SuperAdminPage /></MemoryRouter>)
+    fireEvent.click((await screen.findAllByLabelText('superAdmin.table.ouvrirDetail'))[0]!)
+    expect(screen.getByText('superAdmin.detail.demoGeree')).toBeTruthy()
+    expect(screen.queryByText('superAdmin.table.suspendre')).toBeNull()
+    expect(screen.queryByText('superAdmin.prolongation.titre')).toBeNull()
+    const selecteur = screen.getAllByLabelText('superAdmin.table.forfaitLabel') as HTMLSelectElement[]
+    expect(selecteur.every((s) => s.disabled)).toBe(true)
+  })
+})

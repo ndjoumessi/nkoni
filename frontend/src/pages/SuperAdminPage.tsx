@@ -334,7 +334,8 @@ export function SuperAdminPage() {
 
   // KPIs plateforme (sur l'ensemble non filtré) + répartition par forfait.
   const kpis = useMemo(() => {
-    const liste = organisations ?? []
+    // L'espace de démonstration est LISTÉ dans le tableau mais n'est pas un client : hors indicateurs.
+    const liste = (organisations ?? []).filter((o) => !o.estDemo)
     const total = liste.length
     const actives = liste.filter((o) => o.actif).length
     const parForfait = FORFAITS.reduce(
@@ -638,7 +639,14 @@ export function SuperAdminPage() {
       sortable: true,
       cell: (o) => (
         <div className="min-w-0">
-          <p className="truncate font-medium text-foreground">{o.nom}</p>
+          <p className="flex min-w-0 items-center gap-2">
+            <span className="truncate font-medium text-foreground">{o.nom}</span>
+            {o.estDemo && (
+              <Badge tone="info" size="sm">
+                {t('superAdmin.table.demo')}
+              </Badge>
+            )}
+          </p>
           <p className="mt-0.5 font-mono text-xs text-faint">
             {o.devise} · {o.langueDefaut} · {o.id.slice(0, 8)}…
           </p>
@@ -653,7 +661,7 @@ export function SuperAdminPage() {
       cell: (o) => (
         <SelecteurForfait
           org={o}
-          disabled={pendingId === o.id}
+          disabled={pendingId === o.id || o.estDemo === true}
           onChange={(f) => changerForfait(o, f)}
           t={t}
         />
@@ -1126,7 +1134,7 @@ export function SuperAdminPage() {
                 </span>
                 <SelecteurForfait
                   org={detailOrg}
-                  disabled={pendingId === detailOrg.id}
+                  disabled={pendingId === detailOrg.id || detailOrg.estDemo === true}
                   onChange={(f) => changerForfait(detailOrg, f)}
                   t={t}
                   className="w-36"
@@ -1149,7 +1157,7 @@ export function SuperAdminPage() {
                 `enAttente` : le sélecteur de forfait juste au-dessus vient de mettre `forfait` à
                 jour de façon optimiste ; tant que ce PATCH n'a pas confirmé en base, un aperçu partirait
                 sur l'ancien forfait et échouerait en 409 sans jamais se relancer de lui-même. */}
-            {accessToken && (
+            {accessToken && !detailOrg.estDemo && (
               <ProlongationForfait
                 org={detailOrg}
                 accessToken={accessToken}
@@ -1167,7 +1175,7 @@ export function SuperAdminPage() {
               précondition serveur (409 sinon). L'export est proposé À CÔTÉ de la suppression, et
               d'abord : c'est la dernière occasion de récupérer les données.
             */}
-            {!detailOrg.actif && (
+            {!detailOrg.actif && !detailOrg.estDemo && (
               <div className="space-y-3 rounded-xl border border-terra/30 bg-terra/[0.06] px-3.5 py-3">
                 <p className="text-sm font-medium text-foreground">
                   {t('superAdmin.danger.titre')}
@@ -1198,11 +1206,17 @@ export function SuperAdminPage() {
               </div>
             )}
 
+            {detailOrg.estDemo && (
+              <p className="rounded-xl border border-hairline bg-surface-2 px-3.5 py-3 text-sm text-muted-foreground">
+                {t('superAdmin.detail.demoGeree')}
+              </p>
+            )}
+
             <div className="flex justify-end gap-2 border-t border-hairline pt-4">
               <Button variant="ghost" onClick={() => setDetailId(null)}>
                 {t('superAdmin.detail.fermer')}
               </Button>
-              {detailOrg.actif ? (
+              {detailOrg.estDemo ? null : detailOrg.actif ? (
                 <Button
                   variant="danger"
                   icon={PauseCircle}

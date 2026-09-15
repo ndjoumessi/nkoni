@@ -535,18 +535,18 @@ export async function definirChefOrganisation(
 }
 
 /**
- * Statut d'activité d'une organisation, pour bloquer login/refresh d'un espace suspendu
- * (§2.3). Retourne `null` si l'organisation est introuvable (traité comme suspendu par
- * l'appelant, par prudence).
+ * Accès à une organisation pour login/refresh : active (§2.3) ET nature de démonstration
+ * (spec 2026-09-15 §1.3 — un compte de démo n'ouvre jamais de session par ces voies). `null` si
+ * introuvable. `estDemo` absent de la ligne (mock ancien) est lu comme `false`.
  */
-export async function chargerOrganisationActif(
+export async function chargerAccesOrganisation(
   prisma: OrganisationActifPrisma,
   organisationId: string,
-): Promise<boolean | null> {
+): Promise<{ actif: boolean; estDemo: boolean } | null> {
   const org = await prisma.organisation.findUnique({
     where: { id: organisationId },
-    select: { actif: true },
+    select: { actif: true, estDemo: true },
   })
   if (!org) return null
-  return org.actif as boolean
+  return { actif: org.actif === true, estDemo: org.estDemo === true }
 }

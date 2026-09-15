@@ -4,6 +4,7 @@ import type { Role } from './permissions'
 import { t, langueDeRequete, type Langue } from '../lib/i18n'
 import { auditContext } from '../lib/audit-context'
 import { orgContext } from '../lib/org-context'
+import { estRequeteAutoriseeEnDemo } from '../lib/demo'
 
 /**
  * Hook d'AUTHENTIFICATION minimal (vérification JWT uniquement).
@@ -34,6 +35,16 @@ export async function authenticate(
     reply
       .code(401)
       .send({ error: 'Unauthorized', message: t(langueDeRequete(req), 'commun.tokenAbsent') })
+    return
+  }
+
+  // Espace de démonstration (spec 2026-09-15 §1.4) : un jeton `demo` CONSULTE, il n'écrit jamais.
+  // Placé ici plutôt que route par route : toutes les routes tenant passent par ce hook, une route
+  // ajoutée demain est donc couverte sans y penser. `routeOptions.url` = motif ('/membres/:id').
+  if (req.user.demo === true && !estRequeteAutoriseeEnDemo(req.method, req.routeOptions?.url)) {
+    reply
+      .code(403)
+      .send({ error: 'Forbidden', message: t(langueDeRequete(req), 'commun.demoLectureSeule') })
   }
 }
 
@@ -50,8 +61,16 @@ declare module '@fastify/jwt' {
       membreId?: string
       organisationId?: string
       langue?: Langue // §4 i18n — préférence de langue portée par l'access token
+      demo?: true // espace de démonstration (spec 2026-09-15) — émis par POST /demo/session seulement
       typ?: 'refresh'
     }
-    user: { sub?: string; role: Role; membreId?: string; organisationId?: string; langue?: Langue }
+    user: {
+      sub?: string
+      role: Role
+      membreId?: string
+      organisationId?: string
+      langue?: Langue
+      demo?: boolean
+    }
   }
 }

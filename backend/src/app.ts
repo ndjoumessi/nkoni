@@ -68,6 +68,8 @@ declare module 'fastify' {
     observabilite: ObservabiliteClient
     psp: PspClient
     push: PushClient
+    /** Espace de démonstration activé (`DEMO_ACTIVEE=true`, injectable en test). */
+    demoActivee: boolean
   }
 }
 
@@ -86,6 +88,8 @@ export interface BuildAppOptions {
   psp?: PspClient
   /** Client Web Push (mock en test). Défaut : lib web-push réelle (no-op sans clés VAPID). */
   push?: PushClient
+  /** Espace de démonstration activé. Défaut : `env.DEMO_ACTIVEE === 'true'`. */
+  demoActivee?: boolean
   /** Active le logger Fastify. Défaut : true (désactivable en test). */
   logger?: boolean
 }
@@ -131,6 +135,7 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   app.decorate('observabilite', opts.observabilite ?? vraiObservabiliteClient)
   app.decorate('psp', opts.psp ?? pspRegistry)
   app.decorate('push', opts.push ?? vraiPushClient)
+  app.decorate('demoActivee', opts.demoActivee ?? env.DEMO_ACTIVEE === 'true')
 
   // Contextes ALS par requête : audit (acteur, V2 §5) et organisation (isolation SaaS §2.2).
   // L'acteur et l'organisation sont renseignés ensuite par `authenticate` (après vérif JWT),

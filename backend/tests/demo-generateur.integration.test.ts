@@ -107,4 +107,20 @@ describe('genererOrganisationDemo', () => {
     expect(organisationCree).toBeDefined()
     expect(await base.organisation.findUnique({ where: { id: organisationCree! } })).toBeNull()
   }, 300_000)
+
+  it('panne AVANT même le marquage estDemo : repli de nettoyage, aucune organisation ni utilisateur ne reste', async () => {
+    let organisationCree: string | undefined
+    const enPanne = envelopperPrisma(prismaEtendu, {
+      organisation: {
+        update: async (_originale, args) => {
+          organisationCree ??= args.where.id
+          throw new Error('panne simulée avant le marquage')
+        },
+      },
+    })
+    await expect(genererOrganisationDemo(enPanne, blob, NOW)).rejects.toThrow('panne simulée avant le marquage')
+    expect(organisationCree).toBeDefined()
+    expect(await base.organisation.findUnique({ where: { id: organisationCree! } })).toBeNull()
+    expect(await base.utilisateur.count({ where: { organisationId: organisationCree! } })).toBe(0)
+  }, 300_000)
 })

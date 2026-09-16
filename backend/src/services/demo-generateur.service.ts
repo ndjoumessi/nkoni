@@ -96,9 +96,47 @@ export async function genererOrganisationDemo(
     await prisma.organisation.update({ where: { id: organisationId }, data: { actif: true } })
     return { organisationId, adminId: admin.id, volumes }
   } catch (err) {
-    await supprimerOrganisationDemo(prisma, blob, organisationId).catch(() => undefined)
+    // Voie PRINCIPALE : `supprimerOrganisationDemo` gère toute panne survenue APRÈS le marquage
+    // `estDemo: true` (l'organisation a alors des données à purger dans l'ordre, base puis blobs).
+    const resultat = await supprimerOrganisationDemo(prisma, blob, organisationId).catch(() => undefined)
+    // FENÊTRE ÉTROITE : si le tout premier `organisation.update` (celui qui pose `estDemo: true`)
+    // échoue lui-même, l'organisation existe encore mais `estDemo` vaut toujours `false` (valeur par
+    // défaut du schéma) — `supprimerOrganisationDemo` la relit, la trouve non-démo par construction et
+    // refuse (`OrganisationNonDemoError`, capturé ci-dessus). Sans repli, l'organisation ET son compte
+    // ADMIN fondateur (créés par `inscrireOrganisation`, juste avant le `try`) survivraient
+    // indéfiniment, indiscernables d'une organisation réelle auto-inscrite : rien (régénération,
+    // suppression de démo, tâches de fond) n'irait jamais les nettoyer. Repli SÛR PAR CONSTRUCTION :
+    // ne supprime que si l'organisation est encore VIDE (aucune donnée métier) — jamais une
+    // organisation qui contiendrait déjà des données par cette voie.
+    if (!resultat || resultat.supprimee !== true) {
+      await nettoyerOrganisationPartielle(prisma, organisationId).catch(() => undefined)
+    }
     throw err
   }
+}
+
+/**
+ * Repli de nettoyage pour la fenêtre où le TOUT PREMIER `organisation.update` (marquage `estDemo`)
+ * échoue avant même d'avoir posé `estDemo: true` — `supprimerOrganisationDemo` refuse alors
+ * systématiquement (`OrganisationNonDemoError`), puisqu'il exige `estDemo: true` par construction.
+ *
+ * SÛR PAR CONSTRUCTION : vérifie d'abord que l'organisation est encore VIDE (aucun membre, aucun
+ * versement) avant de supprimer quoi que ce soit ; sinon ne touche à rien et laisse l'erreur d'origine
+ * remonter seule (mieux vaut une organisation orpheline visible qu'une perte de données silencieuse).
+ * `inscrireOrganisation` ne crée qu'`Organisation` + `Utilisateur` (aucune session émise, donc aucun
+ * `RefreshToken`) : rien d'autre à purger à ce stade.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function nettoyerOrganisationPartielle(prisma: any, organisationId: string): Promise<void> {
+  await orgContext.runUnscoped(async () => {
+    const [membres, versements] = await Promise.all([
+      prisma.membre.count({ where: { organisationId } }),
+      prisma.versement.count({ where: { organisationId } }),
+    ])
+    if (membres > 0 || versements > 0) return // pas vide : ne jamais supprimer par cette voie.
+    await prisma.utilisateur.deleteMany({ where: { organisationId } })
+    await prisma.organisation.delete({ where: { id: organisationId } })
+  })
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -230,13 +230,21 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
   //   - `permettreRetry` (déjà false sur la requête rejouée),
   //   - `accessToken != null` : un flux public (login/inscription/refresh) n'est jamais rejoué.
   if (res.status === 401 && permettreRetry && accessToken != null) {
+    // Capturé AVANT l'attente : si la génération change PENDANT le refresh (le visiteur entre ou
+    // sort du mode démo pendant qu'un refresh de l'AUTRE session est en vol), ce refresh est
+    // OBSOLÈTE pour la requête courante — `rafraichirAccessToken` renvoie `null` dans ce cas, mais
+    // ce n'est PAS un refresh qui a réellement échoué : ne pas déclencher `onSessionExpired`, qui
+    // viderait la session fraîchement installée (démo ou réelle). Laisser le 401 se propager.
+    const generationAvantRefresh = generationSession
     const nouveauToken = await rafraichirAccessToken()
     if (nouveauToken) {
       return request<T>(path, { ...options, accessToken: nouveauToken, permettreRetry: false })
     }
-    // Refresh impossible → session terminée : déconnexion propre (AuthContext videra l'état,
-    // ProtectedRoute redirige vers /login). On laisse ensuite l'erreur 401 se propager.
-    authBridge.onSessionExpired?.()
+    if (generationSession === generationAvantRefresh) {
+      // Refresh réellement impossible → session terminée : déconnexion propre (AuthContext videra
+      // l'état, ProtectedRoute redirige vers /login). On laisse ensuite l'erreur 401 se propager.
+      authBridge.onSessionExpired?.()
+    }
   }
 
   // 204 No Content (ex. logout) → pas de corps à parser.

@@ -24,6 +24,7 @@ import {
 type FetchInit = { method?: string; headers?: Record<string, string>; credentials?: string }
 type FetchCall = { url: string; method: string; auth?: string; credentials?: string }
 const calls: FetchCall[] = []
+const fetchOriginal = globalThis.fetch
 
 function monterFetch(handler: (call: FetchCall) => Response | Promise<Response>): void {
   calls.length = 0
@@ -52,6 +53,7 @@ beforeEach(() => {
 afterEach(() => {
   definirModeDemo(null)
   vi.restoreAllMocks()
+  globalThis.fetch = fetchOriginal
 })
 
 describe('mode démo — refus local des écritures', () => {
@@ -160,6 +162,30 @@ describe('mode démo — expiration du jeton', () => {
     repondre(json(200, { accessToken: 'jeton-reel' }))
 
     expect(await enVol).toBeNull()
+    expect(onTokenRefreshed).not.toHaveBeenCalled()
+  })
+
+  it('401 via request() + refresh en vol devenu obsolète (démo démarrée entre-temps) : 401 propage, sans vider la session', async () => {
+    let repondreRefresh: (r: Response) => void = () => undefined
+    monterFetch((c) => {
+      if (c.url.endsWith('/auth/refresh')) {
+        activerDemo() // la démo démarre PENDANT ce refresh réel, encore en vol
+        return new Promise<Response>((r) => {
+          repondreRefresh = r
+        })
+      }
+      return json(401, { message: 'expiré' })
+    })
+    const onTokenRefreshed = vi.fn()
+    const onSessionExpired = vi.fn()
+    configurerAuthBridge({ onTokenRefreshed, onSessionExpired })
+
+    const promesse = reunionsApi.list('jeton-reel') // session RÉELLE, pas encore en démo
+    await Promise.resolve() // laisse /reunions (401) puis /auth/refresh partir
+    repondreRefresh(json(200, { accessToken: 'jeton-reel-2' }))
+
+    await expect(promesse).rejects.toMatchObject({ status: 401 })
+    expect(onSessionExpired).not.toHaveBeenCalled()
     expect(onTokenRefreshed).not.toHaveBeenCalled()
   })
 })

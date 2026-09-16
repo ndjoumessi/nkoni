@@ -12,6 +12,7 @@
     "backfill:mode-momo": "tsx prisma/backfill-mode-mobile-money.ts",
     "mirror:blobs": "tsx prisma/mirror-blobs.ts",
     "rechiffrer:psp": "tsx prisma/rechiffrer-secrets-psp.ts",
+    "demo:generer": "tsx prisma/generer-demo.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "postinstall": "prisma generate"

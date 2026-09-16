@@ -31,6 +31,9 @@ const COMPTES_ATTENDUS: Record<string, number> = {
   'services/organisation.service.ts': 1,
   // Rétention : purger les vieilles notifications et traces de la démo est inoffensif (§1.5).
   'services/retention.service.ts': 1,
+  // Régénération de la démo (spec 2026-09-15 §3.2) : liste les DÉMOS elles-mêmes (`estDemo: true`) pour
+  // décider de la régénération et supprimer les anciennes — c'est l'unique boucle qui DOIT les voir.
+  'services/demo-regeneration.service.ts': 1,
 }
 
 /** Liste récursivement les fichiers `.ts` de `src/`, en EXCLUANT le client Prisma généré. */

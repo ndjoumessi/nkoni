@@ -6,6 +6,8 @@
  * credentials sur l'origine du front).
  */
 
+import { estRequeteAutoriseeEnDemo } from '../demo'
+
 export const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
 
 export interface AuthUser {
@@ -45,6 +47,12 @@ export interface RefreshResponse {
   accessToken: string
 }
 
+/** Réponse de POST /demo/session : jeton porteur du claim `demo`, AUCUN cookie de refresh. */
+export interface SessionDemoResponse {
+  accessToken: string
+  user: AuthUser
+}
+
 /** Erreur porteuse du code HTTP, pour un traitement fin côté UI (401, 403, …). */
 export class ApiError extends Error {
   readonly status: number
@@ -73,6 +81,66 @@ export function messageErreur(e: unknown): string {
 }
 
 /* -------------------------------------------------------------------------- */
+/* Mode démonstration (spec 2026-09-15 §2.2 / §2.4)                            */
+/* -------------------------------------------------------------------------- */
+
+/** Posé par `AuthContext` : le message de refus est lu à chaque refus (langue courante). */
+export interface ModeDemo {
+  messageRefus: () => string
+}
+
+/**
+ * Rafraîchit l'access token, en DÉDUPLIQUANT les appels concurrents : si plusieurs requêtes
+ * tombent en 401 en même temps, un SEUL appel part et toutes attendent le même résultat (pas de
+ * rafale). Cf. `rafraichirAccessToken` ci-dessous pour le détail (session réelle vs démo).
+ */
+let refreshEnCours: Promise<string | null> | null = null
+
+let modeDemo: ModeDemo | null = null
+/**
+ * Génération de session : incrémentée à chaque entrée/sortie de démo. Un refresh lancé sous une
+ * génération précédente (ex. la session RÉELLE, au moment où la démo démarre) ne propage jamais son
+ * jeton : il écraserait le jeton démo en mémoire, et le visiteur écrirait avec la vraie session.
+ */
+let generationSession = 0
+
+export function definirModeDemo(mode: ModeDemo | null): void {
+  modeDemo = mode
+  generationSession++
+  refreshEnCours = null
+}
+
+export function estModeDemo(): boolean {
+  return modeDemo !== null
+}
+
+/**
+ * Refus LOCAL d'une écriture en mode démo (le serveur refuse de toute façon, §1.4) : aucun
+ * aller-retour, même message que le serveur. Couvre aussi `POST /auth/logout`, qui révoquerait la
+ * famille de refresh d'un administrateur réel connecté dans ce navigateur.
+ */
+export function refuserSiEcritureDemo(methode: string, chemin: string): void {
+  if (modeDemo && !estRequeteAutoriseeEnDemo(methode, chemin)) {
+    throw new ApiError(403, modeDemo.messageRefus())
+  }
+}
+
+/**
+ * Ouvre une session démo. `credentials: 'omit'` : ni le cookie refresh d'un administrateur réel
+ * n'est envoyé, ni aucun cookie ne peut être posé en retour. Appel brut (hors `request`) : il doit
+ * rester possible EN mode démo, où `request` refuserait ce POST.
+ */
+async function fetchSessionDemo(): Promise<SessionDemoResponse> {
+  const res = await fetch(`${API_URL}/demo/session`, { method: 'POST', credentials: 'omit' })
+  if (!res.ok) throw new ApiError(res.status, `Erreur ${res.status}`)
+  return (await res.json()) as SessionDemoResponse
+}
+
+export function ouvrirSessionDemo(): Promise<SessionDemoResponse> {
+  return fetchSessionDemo()
+}
+
+/* -------------------------------------------------------------------------- */
 /* Rafraîchissement silencieux du token (refresh-on-401)                       */
 /* -------------------------------------------------------------------------- */
 
@@ -94,22 +162,27 @@ export function configurerAuthBridge(bridge: AuthBridge): void {
 }
 
 /**
- * Rafraîchit l'access token via le cookie refresh (POST /auth/refresh), en DÉDUPLIQUANT les
- * appels concurrents : si plusieurs requêtes tombent en 401 en même temps, un SEUL /auth/refresh
- * part et toutes attendent le même résultat (pas de rafale). Retourne le nouveau token, ou `null`
- * si le refresh échoue. Exposée pour permettre aussi un refresh PROACTIF (avant expiration).
+ * Rafraîchit l'access token via le cookie refresh (POST /auth/refresh) en session réelle. En mode
+ * démo, renouvelle le jeton démo (POST /demo/session) : /auth/refresh restaurerait la session
+ * RÉELLE depuis le cookie (§2.2). Retourne le nouveau token, ou `null` si le refresh échoue ; un
+ * résultat obtenu sous une génération de session précédente est ignoré (null). Exposée pour
+ * permettre aussi un refresh PROACTIF (avant expiration).
  */
-let refreshEnCours: Promise<string | null> | null = null
 export function rafraichirAccessToken(): Promise<string | null> {
   if (!refreshEnCours) {
-    refreshEnCours = fetchRefresh()
+    const generation = generationSession
+    // En démo, « rafraîchir » = redemander un jeton démo : /auth/refresh restaurerait la session
+    // RÉELLE depuis le cookie (§2.2).
+    const obtenir = modeDemo ? fetchSessionDemo().then((s) => s.accessToken) : fetchRefresh()
+    refreshEnCours = obtenir
       .then((token) => {
+        if (generation !== generationSession) return null
         authBridge.onTokenRefreshed?.(token)
         return token
       })
       .catch(() => null)
       .finally(() => {
-        refreshEnCours = null
+        if (generation === generationSession) refreshEnCours = null
       })
   }
   return refreshEnCours
@@ -136,6 +209,8 @@ interface RequestOptions {
 
 export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { method = 'GET', json, accessToken, signal, permettreRetry = true, cleIdempotence } = options
+
+  refuserSiEcritureDemo(method, path)
 
   const headers: Record<string, string> = {}
   if (json !== undefined) headers['Content-Type'] = 'application/json'

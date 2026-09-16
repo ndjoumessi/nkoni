@@ -1,4 +1,4 @@
-import { API_URL, leverSiErreur, request, rid } from './core'
+import { API_URL, leverSiErreur, refuserSiEcritureDemo, request, rid } from './core'
 import type { StatutContribution } from './types'
 import type { StatutPresence, SensVote } from './reunions'
 
@@ -187,6 +187,7 @@ export const moiApi = {
   },
   /** Téléverse sa propre photo de profil (JPEG/PNG). */
   televerserPhoto: async (fichier: File, accessToken: string): Promise<void> => {
+    refuserSiEcritureDemo('POST', '/moi/photo')
     const form = new FormData()
     form.append('fichier', fichier)
     const res = await fetch(`${API_URL}/moi/photo`, {
@@ -211,6 +212,7 @@ export const moiApi = {
   },
   /** Téléverse son propre avatar de compte (JPEG/PNG). */
   televerserAvatar: async (fichier: File, accessToken: string): Promise<void> => {
+    refuserSiEcritureDemo('POST', '/moi/avatar')
     const form = new FormData()
     form.append('fichier', fichier)
     const res = await fetch(`${API_URL}/moi/avatar`, {

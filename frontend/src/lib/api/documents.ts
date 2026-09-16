@@ -1,4 +1,4 @@
-import { API_URL, leverSiErreur, request, rid } from './core'
+import { API_URL, leverSiErreur, refuserSiEcritureDemo, request, rid } from './core'
 
 /* Documents / archives (V2 §5) ----------------------------------------------- */
 
@@ -43,6 +43,7 @@ export const documentsApi = {
 
   /** Upload multipart. On laisse le navigateur poser le Content-Type (+ boundary). */
   upload: async (input: DocumentUploadInput, accessToken: string): Promise<DocumentMeta> => {
+    refuserSiEcritureDemo('POST', '/documents')
     const fd = new FormData()
     fd.append('entiteType', input.entiteType)
     fd.append('entiteId', input.entiteId)

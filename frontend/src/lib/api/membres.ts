@@ -1,4 +1,4 @@
-import { API_URL, leverSiErreur, request, rid } from './core'
+import { API_URL, leverSiErreur, refuserSiEcritureDemo, request, rid } from './core'
 import type { StatutContribution } from './types'
 
 /* -------------------------------------------------------------------------- */
@@ -226,6 +226,7 @@ export const membresApi = {
   },
   /** Téléverse la photo du membre (JPEG/PNG, éventuellement recadrée → Blob). NE PAS fixer Content-Type. */
   uploadPhoto: async (id: string, fichier: Blob, accessToken: string): Promise<void> => {
+    refuserSiEcritureDemo('POST', `/membres/${rid(id)}/photo`)
     const form = new FormData()
     form.append('photo', fichier, 'photo.jpg')
     const res = await fetch(`${API_URL}/membres/${rid(id)}/photo`, {
@@ -245,6 +246,7 @@ export const membresApi = {
     fichier: File,
     accessToken: string,
   ): Promise<{ entetes: string[]; lignes: string[][] }> => {
+    refuserSiEcritureDemo('POST', '/membres/import/fichier')
     const form = new FormData()
     form.append('fichier', fichier)
     const res = await fetch(`${API_URL}/membres/import/fichier`, {

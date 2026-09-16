@@ -1,4 +1,12 @@
-import { ApiError, messageErreur, versementsApi, membresApi, type VersementInput, type MembreInput } from './api'
+import {
+  ApiError,
+  estModeDemo,
+  messageErreur,
+  versementsApi,
+  membresApi,
+  type VersementInput,
+  type MembreInput,
+} from './api'
 import { enfiler, listerFile, retirerDeLaFile, marquerErreur, type TypeMutation, type MutationEnAttente } from './offline-queue'
 
 /**
@@ -24,6 +32,8 @@ export async function soumettreOuEnfiler<T>(
   payload: unknown,
   appel: () => Promise<T>,
 ): Promise<{ enFile: boolean; resultat?: T }> {
+  // Démo : rien à mettre en file (lecture seule) — l'appel part au client, qui le refuse localement.
+  if (estModeDemo()) return { enFile: false, resultat: await appel() }
   if (typeof navigator !== 'undefined' && !navigator.onLine) {
     await enfiler(type, payload)
     return { enFile: true }
@@ -49,6 +59,8 @@ async function appliquer(m: MutationEnAttente, accessToken: string): Promise<voi
 
 /** Rejoue les mutations en attente (dans l'ordre). Renvoie le nombre de réussites / d'échecs client. */
 export async function synchroniser(accessToken: string): Promise<{ reussis: number; echecs: number }> {
+  // Démo : ne jamais rejouer la file RÉELLE de ce navigateur avec un jeton démo.
+  if (estModeDemo()) return { reussis: 0, echecs: 0 }
   const file = await listerFile()
   let reussis = 0
   let echecs = 0

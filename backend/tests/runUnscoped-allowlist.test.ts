@@ -69,6 +69,10 @@ const APPROUVES: Record<string, number> = {
   // `deleteMany` est scopé par `supprimerDonneesOrganisation`, et la nature de démo est relue dans la
   // transaction par une écriture conditionnelle.
   'services/demo-suppression.service.ts': 1,
+  // Espace de démonstration — génération (spec 2026-09-15 §3.1) : création de l'organisation et de son
+  // compte ADMIN par `inscrireOrganisation`, AVANT qu'aucun tenant n'existe (même justification que
+  // l'auto-inscription). Tout le remplissage tourne ensuite sous `orgContext.run`.
+  'services/demo-generateur.service.ts': 1,
 }
 
 /** Liste récursivement les fichiers `.ts` de `src/`, en EXCLUANT le client Prisma généré. */

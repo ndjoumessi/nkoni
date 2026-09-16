@@ -63,6 +63,20 @@ const APPROUVES: Record<string, number> = {
   // son compte ADMIN AVANT toute session — aucune org connue au moment de la lecture. Le jeton émis
   // porte `demo: true`, qui interdit toute écriture (`authenticate`).
   'routes/demo.route.ts': 1,
+  // Espace de démonstration — suppression d'une ancienne démo (spec 2026-09-15 §3.2) : export puis
+  // transaction de purge d'une organisation hors de tout tenant, UN seul appel enveloppant tout le flux.
+  // Même contrepartie que la purge plateforme (l'isolation ne protège plus rien à l'intérieur) : chaque
+  // `deleteMany` est scopé par `supprimerDonneesOrganisation`, et la nature de démo est relue dans la
+  // transaction par une écriture conditionnelle.
+  'services/demo-suppression.service.ts': 1,
+  // Espace de démonstration — génération (spec 2026-09-15 §3.1) : création de l'organisation et de son
+  // compte ADMIN par `inscrireOrganisation`, AVANT qu'aucun tenant n'existe (même justification que
+  // l'auto-inscription). Tout le remplissage tourne ensuite sous `orgContext.run`.
+  // + repli de nettoyage `nettoyerOrganisationPartielle` (fenêtre où le tout premier `organisation.update`
+  // qui pose `estDemo: true` échoue lui-même : `supprimerOrganisationDemo` refuse alors systématiquement
+  // une organisation qu'il voit encore `estDemo: false`) — hors tenant par nature, l'organisation n'a pas
+  // encore de contexte org valide à ce stade. 2 appels au total.
+  'services/demo-generateur.service.ts': 2,
 }
 
 /** Liste récursivement les fichiers `.ts` de `src/`, en EXCLUANT le client Prisma généré. */

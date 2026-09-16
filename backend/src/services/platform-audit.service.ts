@@ -16,7 +16,14 @@
  * c'est l'appelant qui décide de rattraper (best-effort) ou de propager (fail-closed).
  */
 
-export type ActionPlateforme = 'CHANGER_FORFAIT' | 'PROLONGER_FORFAIT' | 'SUSPENDRE' | 'REACTIVER' | 'PURGER' | 'EXPORTER'
+export type ActionPlateforme =
+  | 'CHANGER_FORFAIT'
+  | 'PROLONGER_FORFAIT'
+  | 'SUSPENDRE'
+  | 'REACTIVER'
+  | 'PURGER'
+  | 'EXPORTER'
+  | 'SUPPRIMER_DEMO'
 
 /** Surface Prisma minimale (mockable en test). */
 export interface PlatformAuditPrisma {
@@ -32,6 +39,11 @@ export interface PlatformAuditPrisma {
 
 export interface JournalActionParams {
   acteurId: string
+  /**
+   * Snapshot imposé de l'acteur. Réservé aux actions SYSTÈME (régénération de la démo) dont l'acteur
+   * n'est pas un compte : fourni, il est écrit tel quel et `Utilisateur` n'est pas lu.
+   */
+  acteurEmail?: string
   action: ActionPlateforme
   organisationCibleId: string
   /** Nom de l'org FIGÉ à l'action (l'org peut être purgée ensuite). */
@@ -43,20 +55,26 @@ export interface JournalActionParams {
 /**
  * Journalise une action plateforme. Résout `acteurEmail` par lecture de l'acteur (le token JWT ne
  * le porte pas) et l'écrit en snapshot ; repli `(inconnu)` si l'acteur est introuvable — ne bloque
- * jamais l'écriture de la trace elle-même.
+ * jamais l'écriture de la trace elle-même. Si `params.acteurEmail` est fourni (acteur SYSTÈME), il
+ * prime et `Utilisateur` n'est pas lu.
  */
 export async function journaliserActionPlateforme(
   prisma: PlatformAuditPrisma,
   params: JournalActionParams,
 ): Promise<void> {
-  const acteur = await prisma.utilisateur.findUnique({
-    where: { id: params.acteurId },
-    select: { email: true },
-  })
+  const acteurEmail =
+    params.acteurEmail ??
+    (
+      await prisma.utilisateur.findUnique({
+        where: { id: params.acteurId },
+        select: { email: true },
+      })
+    )?.email ??
+    '(inconnu)'
   await prisma.platformAuditLog.create({
     data: {
       acteurId: params.acteurId,
-      acteurEmail: acteur?.email ?? '(inconnu)',
+      acteurEmail,
       action: params.action,
       organisationCibleId: params.organisationCibleId,
       organisationNom: params.organisationNom,

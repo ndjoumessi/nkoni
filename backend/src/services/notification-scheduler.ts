@@ -41,6 +41,7 @@ import { t, formatDateHeure } from '../lib/i18n'
 import { orgContext } from '../lib/org-context'
 import { anneeCouranteApp } from '../lib/date-app'
 import { purgerRetention, type RetentionPrisma } from './retention.service'
+import { executerEtapeDemo } from './demo-regeneration.service'
 import {
   executerRelancesForfaitToutesOrgs,
   livrerRelancesForfait,
@@ -437,10 +438,22 @@ export function demarrerScheduler(app: FastifyInstance): void {
             app.observabilite.signaler(errRetention, { source: 'scheduler', tache: 'RETENTION' })
           }
         })
+        // Espace de démonstration (spec 2026-09-15 §3.2) : régénération hebdomadaire, APRÈS la rétention,
+        // sur l'instance qui a le verrou seulement. Éteinte sans DEMO_ACTIVEE ; ne lève jamais.
+        .then(async () => {
+          if (!verrouObtenu) return
+          await executerEtapeDemo({
+            prisma: app.prisma,
+            blob: app.blob,
+            demoActivee: app.demoActivee,
+            log: app.log,
+            observabilite: app.observabilite,
+          })
+        })
     },
     { timezone: 'Africa/Douala' },
   )
   app.log.info(
-    'Scheduler notifications démarré (COTISATION_RETARD + REUNION_RAPPEL + FORFAIT_ECHEANCE + RÉTENTION — 03:00 Africa/Douala)',
+    'Scheduler notifications démarré (COTISATION_RETARD + REUNION_RAPPEL + FORFAIT_ECHEANCE + RÉTENTION + DÉMO — 03:00 Africa/Douala)',
   )
 }

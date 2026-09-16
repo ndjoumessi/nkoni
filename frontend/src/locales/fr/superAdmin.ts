@@ -51,6 +51,7 @@ export default {
         REACTIVER: 'Réactivation',
         PURGER: 'Suppression définitive',
         EXPORTER: 'Export',
+        SUPPRIMER_DEMO: 'Démo remplacée (ancienne supprimée)',
       },
       vide: {
         titre: 'Aucune entrée',

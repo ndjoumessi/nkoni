@@ -131,6 +131,7 @@ export type ActionPlateforme =
   | 'REACTIVER'
   | 'PURGER'
   | 'EXPORTER'
+  | 'SUPPRIMER_DEMO'
 
 /** Une entrée du journal d'audit plateforme (SUPER_ADMIN). Snapshots figés à l'action. */
 export interface PlatformAuditEntry {

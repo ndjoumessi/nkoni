@@ -28,6 +28,7 @@ const ACTIONS: ActionPlateforme[] = [
   'REACTIVER',
   'PURGER',
   'EXPORTER',
+  'SUPPRIMER_DEMO',
 ]
 
 /** Teinte de badge par action (jetons du design system). */
@@ -38,6 +39,7 @@ const TON_ACTION: Record<ActionPlateforme, BadgeProps['tone']> = {
   REACTIVER: 'jade',
   PURGER: 'terra',
   EXPORTER: 'neutral',
+  SUPPRIMER_DEMO: 'info',
 }
 
 /** Résumé lisible « avant → après » d'une entrée, selon l'action (les données sont des snapshots JSON). */

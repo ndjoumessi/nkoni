@@ -35,6 +35,7 @@ const ACTIONS_PLATEFORME: ActionPlateforme[] = [
   'REACTIVER',
   'PURGER',
   'EXPORTER',
+  'SUPPRIMER_DEMO',
 ]
 
 /**

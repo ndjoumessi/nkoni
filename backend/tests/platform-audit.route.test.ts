@@ -230,6 +230,21 @@ describe('GET /platform/audit-log — vue Historique', () => {
     expect(res.json().items.map((r: any) => r.id)).toEqual(['e4'])
   })
 
+  it('le filtre accepte SUPPRIMER_DEMO (liste d’actions du schéma alignée sur l’enum)', async () => {
+    const lignes = [
+      ...rows,
+      { id: 'e5', action: 'SUPPRIMER_DEMO', organisationCibleId: 'org-a', acteurEmail: 'sa@n', dateAction: new Date() },
+    ]
+    app = await appAvec(buildMock({ auditRows: lignes }))
+    const res = await app.inject({
+      method: 'GET',
+      url: '/platform/audit-log?action=SUPPRIMER_DEMO',
+      headers: superAdmin(app),
+    })
+    expect(res.statusCode).toBe(200)
+    expect(res.json().items.map((r: any) => r.id)).toEqual(['e5'])
+  })
+
   it('filtre par organisation ciblée', async () => {
     app = await appAvec(buildMock({ auditRows: rows }))
     const res = await app.inject({

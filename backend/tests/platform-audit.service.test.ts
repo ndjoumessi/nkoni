@@ -55,6 +55,29 @@ describe('journaliserActionPlateforme', () => {
     })
     expect(creations[0].acteurEmail).toBe('(inconnu)')
   })
+
+  it('acteur SYSTÈME : `acteurEmail` imposé est écrit tel quel, sans lire Utilisateur', async () => {
+    const creations: any[] = []
+    let lectures = 0
+    const prisma = {
+      utilisateur: {
+        findUnique: async () => {
+          lectures++
+          return null
+        },
+      },
+      platformAuditLog: { create: async (a: any) => (creations.push(a.data), a.data) },
+    }
+    await journaliserActionPlateforme(prisma, {
+      acteurId: 'systeme',
+      acteurEmail: 'systeme@nkoni',
+      action: 'SUPPRIMER_DEMO',
+      organisationCibleId: 'org-demo',
+      organisationNom: 'Association Exemple NKONI',
+    })
+    expect(lectures).toBe(0)
+    expect(creations[0]).toMatchObject({ acteurId: 'systeme', acteurEmail: 'systeme@nkoni', action: 'SUPPRIMER_DEMO' })
+  })
 })
 
 describe('listerJournalPlateforme (borné)', () => {

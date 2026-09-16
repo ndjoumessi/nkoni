@@ -113,4 +113,27 @@ describe('regenererDemo', () => {
     const demosActives = await base.organisation.findMany({ where: { id: { in: [...connus] }, estDemo: true, actif: true }, select: { id: true } })
     expect(demosActives.map((o) => o.id)).toEqual([r.demoId])
   }, 300_000)
+
+  it('deux démos ACTIVES à la fois (boucle de suppression avortée) : A_JOUR ne garde que la plus récente', async () => {
+    const avantActives = await base.organisation.findMany({ where: { id: { in: [...connus] }, estDemo: true, actif: true }, select: { id: true } })
+    expect(avantActives).toHaveLength(1)
+    const gardee = avantActives[0]!.id
+
+    const deuxiemeActive = 'eb000000-0000-4000-8000-0000000000b6'
+    connus.add(deuxiemeActive)
+    await base.organisation.create({
+      data: { id: deuxiemeActive, nom: 'Démo active concurrente', devise: 'FCFA', estDemo: true, actif: true, createdAt: ilYA(5 * 60_000) },
+    })
+
+    const avantGenerations = generations
+    const r = await regenererDemo(client, blob, { generer })
+    expect(r.statut).toBe('A_JOUR')
+    expect(r.demoId).toBe(gardee)
+    expect(generations).toBe(avantGenerations)
+    expect(r.supprimees).toContain(deuxiemeActive)
+    expect(await base.organisation.findUnique({ where: { id: deuxiemeActive } })).toBeNull()
+
+    const demosActives = await base.organisation.findMany({ where: { id: { in: [...connus] }, estDemo: true, actif: true }, select: { id: true } })
+    expect(demosActives.map((o) => o.id)).toEqual([gardee])
+  })
 })

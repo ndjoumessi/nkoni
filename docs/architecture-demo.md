@@ -75,7 +75,8 @@ front de démonstration (à venir, PR 3).
 ## Mise en service (PO)
 
 1. Poser `DEMO_ACTIVEE=true` sur le service Railway `nkoni`.
-2. Générer la démo une fois contre la base de production, sans jamais coller son URL :
+2. Générer la démo une fois contre la base de production, sans jamais coller son URL (depuis
+   `backend/`, seul endroit où `npm run demo:generer` se résout) :
 
    ```bash
    railway run --service nkoni -- sh -c 'u="$(railway variables --service Postgres --kv | grep "^DATABASE_PUBLIC_URL=" | cut -d= -f2-)"; [ -n "$u" ] || { echo "URL de la base introuvable"; exit 1; }; DATABASE_URL="$u" npm run demo:generer'

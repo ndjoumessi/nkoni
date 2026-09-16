@@ -92,6 +92,18 @@ describe('planifierVersementsDemo', () => {
     expect(courants.length).toBeGreaterThan(0)
     for (const v of courants) expect(v.date.getUTCFullYear()).toBe(ANNEE)
   })
+
+  it('aucun mode « Autre » — un versement de démo doit être reconnaissable pour un prospect', () => {
+    for (const v of plan) expect(v.mode).not.toBe('AUTRE')
+  })
+
+  it('à la frontière d’année (23h-23h59 UTC le 31 décembre, « anneeCourante » Douala déjà en avance sur « now » UTC), aucun versement dans le futur', () => {
+    const now = new Date('2027-12-31T23:30:00.000Z')
+    const anneeSuivante = ANNEE + 1
+    const membresSuivants = construireMembresDemo(anneeSuivante)
+    const planFrontiere = planifierVersementsDemo(membresSuivants, anneeSuivante, now)
+    for (const v of planFrontiere) expect(v.date.getTime()).toBeLessThanOrEqual(now.getTime())
+  })
 })
 
 describe('DEPENSES_DEMO', () => {

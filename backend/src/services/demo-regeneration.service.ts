@@ -50,7 +50,10 @@ export async function regenererDemo(
   const active = demos.find((d) => d.actif)
   if (active && !options.forcer && age(active) < AGE_MAX_DEMO_JOURS * 24 * 60 * 60 * 1000) {
     const supprimees: string[] = []
-    for (const d of demos.filter(orpheline)) {
+    // Balaie aussi les autres démos ACTIVES (pas seulement les orphelines inactives) : une boucle de
+    // suppression avortée en cours de régénération peut laisser une seconde démo active, qui sinon
+    // survivrait jusqu'à 7 jours avant d'être rattrapée par le prochain cycle REGENEREE.
+    for (const d of demos.filter((d) => orpheline(d) || (d.actif && d.id !== active.id))) {
       await supprimerOrganisationDemo(prisma, blob, d.id)
       supprimees.push(d.id)
     }

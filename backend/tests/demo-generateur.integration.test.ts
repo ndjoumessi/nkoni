@@ -24,6 +24,11 @@ const blob = { del: async () => undefined }
 const NOW = new Date()
 const ANNEE = anneeCouranteApp(NOW)
 let demo: OrganisationDemoGeneree
+// `PlatformAuditLog` est délibérément HORS `ORDRE_SUPPRESSION` (journal plateforme, jamais de
+// relation vers `Organisation`) : la suppression d'une démo laisse donc sa trace `SUPPRIMER_DEMO`
+// dans la base partagée si personne ne la nettoie. Toute organisation créée par ce fichier — la
+// démo principale ET celles des tests de panne — est enregistrée ici pour un nettoyage en `afterAll`.
+const organisationsCreees: string[] = []
 
 function exigerBaseDeTest(): void {
   const nom = new URL(process.env['DATABASE_URL'] ?? 'postgresql://x/inconnue').pathname.slice(1)
@@ -33,10 +38,12 @@ function exigerBaseDeTest(): void {
 beforeAll(async () => {
   exigerBaseDeTest()
   demo = await genererOrganisationDemo(prismaEtendu, blob, NOW)
+  organisationsCreees.push(demo.organisationId)
 }, 300_000)
 
 afterAll(async () => {
   if (demo) await supprimerOrganisationDemo(prismaEtendu, blob, demo.organisationId)
+  await base.platformAuditLog.deleteMany({ where: { organisationCibleId: { in: organisationsCreees } } })
   await base.$disconnect()
 }, 120_000)
 
@@ -105,6 +112,7 @@ describe('genererOrganisationDemo', () => {
     })
     await expect(genererOrganisationDemo(enPanne, blob, NOW)).rejects.toThrow('panne simulée pendant la tontine')
     expect(organisationCree).toBeDefined()
+    organisationsCreees.push(organisationCree!)
     expect(await base.organisation.findUnique({ where: { id: organisationCree! } })).toBeNull()
   }, 300_000)
 
@@ -120,6 +128,7 @@ describe('genererOrganisationDemo', () => {
     })
     await expect(genererOrganisationDemo(enPanne, blob, NOW)).rejects.toThrow('panne simulée avant le marquage')
     expect(organisationCree).toBeDefined()
+    organisationsCreees.push(organisationCree!)
     expect(await base.organisation.findUnique({ where: { id: organisationCree! } })).toBeNull()
     expect(await base.utilisateur.count({ where: { organisationId: organisationCree! } })).toBe(0)
   }, 300_000)

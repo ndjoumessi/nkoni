@@ -59,6 +59,17 @@ function resumeDetails(e: PlatformAuditEntry): string {
       return typeof ap.nbEnregistrements === 'number' ? `${ap.nbEnregistrements}` : '—'
     case 'PURGER':
       return av.forfait ? `forfait ${String(av.forfait)}` : '—'
+    case 'SUPPRIMER_DEMO': {
+      const compteurs = ap.compteurs
+      const total =
+        compteurs && typeof compteurs === 'object' && !Array.isArray(compteurs)
+          ? Object.values(compteurs as Record<string, unknown>).reduce((s: number, v) => s + (typeof v === 'number' ? v : 0), 0)
+          : undefined
+      if (total === undefined) return '—'
+      const echecs = typeof ap.blobsEnEchec === 'number' ? ap.blobsEnEchec : 0
+      const lignes = `${total} ligne${total > 1 ? 's' : ''} supprimée${total > 1 ? 's' : ''}`
+      return echecs > 0 ? `${lignes}, ${echecs} blob${echecs > 1 ? 's' : ''} en échec` : lignes
+    }
     default:
       return '—'
   }

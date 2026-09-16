@@ -75,8 +75,9 @@ export interface VersementDemo {
 }
 
 // Source unique des modes (`lib/modes-versement.ts`) — ne pas recopier la liste ici (garde
-// `tests/modes-versement-source-unique.test.ts`).
-const MODES: ModeVersement[] = [...MODES_VERSEMENT]
+// `tests/modes-versement-source-unique.test.ts`). `AUTRE` exclu : un quart des versements de démo
+// affichant « Autre » n'apprend rien à un prospect qui découvre l'écran des versements.
+const MODES: ModeVersement[] = MODES_VERSEMENT.filter((m) => m !== 'AUTRE')
 
 /**
  * Versements qui donnent à chaque membre le statut de son profil : à jour = tout payé (deux tranches par
@@ -86,8 +87,16 @@ const MODES: ModeVersement[] = [...MODES_VERSEMENT]
  */
 export function planifierVersementsDemo(membres: MembreDemo[], anneeCourante: number, now: Date): VersementDemo[] {
   const attendu = new Map(baremesDemo(anneeCourante).map((b) => [b.annee, b.montantAttendu]))
+  // Le `Math.max` avec le 1er janvier de `anneeCourante` peut à lui seul dépasser `now` : si l'appelant
+  // calcule `anneeCourante` en Africa/Douala (UTC+1) et appelle cette fonction entre 23h00 et 23h59 UTC
+  // le 31 décembre, minuit est déjà passé à Douala — `anneeCourante` vaut l'année SUIVANTE alors que
+  // `now` (UTC) est encore dans l'ancienne. Borne extérieure sur `now` : invariant « jamais dans le
+  // futur » vrai par construction, plutôt que vrai seulement en dehors de cette heure-là.
   const dateCourante = new Date(
-    Math.max(Date.UTC(anneeCourante, 0, 1, 0), Math.min(now.getTime() - 3_600_000, Date.UTC(anneeCourante, 1, 15, 9))),
+    Math.min(
+      now.getTime(),
+      Math.max(Date.UTC(anneeCourante, 0, 1, 0), Math.min(now.getTime() - 3_600_000, Date.UTC(anneeCourante, 1, 15, 9))),
+    ),
   )
   const plan: VersementDemo[] = []
   membres.forEach((m, i) => {

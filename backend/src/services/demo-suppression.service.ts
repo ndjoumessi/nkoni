@@ -53,18 +53,32 @@ export async function supprimerOrganisationDemo(prisma: any, blob: BlobPurgeClie
     const urls = collecterUrlsBlobs(exportComplet)
     const utilisateurIds = (exportComplet.donnees['Utilisateur'] ?? []).map((u) => (u as { id: string }).id)
 
-    const compteurs: Record<string, number> = await prisma.$transaction(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const resultat: Record<string, number> | null = await prisma.$transaction(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       async (tx: any) => {
+        // Relit DANS la transaction — distingue « n'est pas une démo » (organisation réelle, à
+        // refuser) de « supprimée entre-temps par une exécution concurrente » (course bénigne, à
+        // ignorer). Un simple `count !== 1` après l'`updateMany` confondait les deux : la seconde
+        // levait `OrganisationNonDemoError` jusqu'à `observabilite.signaler`, un incident Sentry
+        // pour rien.
+        const courant = await tx.organisation.findUnique({ where: { id: organisationId }, select: { id: true, estDemo: true } })
+        if (!courant) return null
+        if (courant.estDemo !== true) throw new OrganisationNonDemoError(organisationId)
+
         const { count } = await tx.organisation.updateMany({
           where: { id: organisationId, estDemo: true },
           data: { actif: false },
         })
-        if (count !== 1) throw new OrganisationNonDemoError(organisationId)
+        // Course encore plus étroite : supprimée entre la relecture ci-dessus et cet `updateMany`.
+        // On sait déjà, par la relecture, qu'il s'agissait d'une démo — abandon gracieux, pas d'erreur.
+        if (count !== 1) return null
         return supprimerDonneesOrganisation(tx, organisationId, utilisateurIds)
       },
       { timeout: 120_000, maxWait: 15_000 },
     )
+    if (resultat === null) return { supprimee: false, compteurs: {}, blobs: { supprimes: 0, echecs: [] }, journalise: false }
+    const compteurs = resultat
     const blobs = await purgerBlobs(blob, urls)
 
     let journalise = true

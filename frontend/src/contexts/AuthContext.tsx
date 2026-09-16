@@ -57,6 +57,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [modeDemo, setModeDemo] = useState(false)
   // Lu par les callbacks du pont HTTP et par la réhydratation asynchrone (hors cycle de rendu).
   const modeDemoRef = useRef(false)
+  // Revue (concurrence) : le refresh de MONTAGE tant qu'il est en vol, pour qu'une sortie de démo
+  // déclenchée pendant l'hydratation le RÉUTILISE au lieu d'en relancer un second (cf. sortieEnCoursRef).
+  const hydratationEnCoursRef = useRef<Promise<{ token: string; me: AuthUser } | null> | null>(null)
+  // Revue (concurrence) : sortie de démo EN VOL, partagée par tout appelant concurrent (double clic sur
+  // « Quitter la démo », ou « Se déconnecter » pendant qu'un renouvellement démo échoue en parallèle) —
+  // sans ce verrou, un second /auth/refresh présenterait un `jti` déjà tourné par le premier et la
+  // détection de réutilisation du serveur révoquerait TOUTE la famille de l'administrateur réel
+  // (backend/src/routes/auth.route.ts, réutilisation d'un refresh token déjà tourné).
+  const sortieEnCoursRef = useRef<Promise<AuthUser | null> | null>(null)
 
   const appliquerSession = useCallback((token: string, u: AuthUser) => {
     setAccessToken(token)
@@ -71,8 +80,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const controller = new AbortController()
     let active = true
 
+    // Gardée dans un ref le temps du vol : une sortie de démo déclenchée AVANT la fin de cette
+    // hydratation réutilise ce MÊME refresh au lieu d'en relancer un second (cf. quitterDemo).
+    const promesse = lireSessionReelle(controller.signal)
+    hydratationEnCoursRef.current = promesse
+
     void (async () => {
-      const session = await lireSessionReelle(controller.signal)
+      const session = await promesse
+      if (hydratationEnCoursRef.current === promesse) hydratationEnCoursRef.current = null
       // Une démo ouverte PENDANT la réhydratation garde la main : la session réelle reviendra à la
       // sortie de la démo, elle n'écrase pas le jeton démo maintenant.
       if (active && session && !modeDemoRef.current) appliquerSession(session.token, session.me)
@@ -85,21 +100,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [appliquerSession])
 
-  const quitterDemo = useCallback(async (): Promise<AuthUser | null> => {
-    // JAMAIS authApi.logout() ni purgerDonneesLocales() ici : le cookie et la file hors-ligne
-    // appartiennent à l'administrateur réel éventuel (invariant de revue, test dédié).
-    modeDemoRef.current = false
-    definirModeDemo(null)
-    setModeDemo(false)
-    setAccessToken(null)
-    setUser(null)
-    setLoading(true)
-    appliquerDevise('FCFA')
-    void purgerCachesApi()
-    const session = await lireSessionReelle()
-    if (session) appliquerSession(session.token, session.me)
-    setLoading(false)
-    return session?.me ?? null
+  const quitterDemo = useCallback((): Promise<AuthUser | null> => {
+    // Single-flight (revue, concurrence) : une sortie DÉJÀ en vol est renvoyée telle quelle à tout
+    // appelant concurrent — jamais un second /auth/refresh pour la même sortie.
+    if (sortieEnCoursRef.current) return sortieEnCoursRef.current
+
+    const executerSortie = async (): Promise<AuthUser | null> => {
+      // JAMAIS authApi.logout() ni purgerDonneesLocales() ici : le cookie et la file hors-ligne
+      // appartiennent à l'administrateur réel éventuel (invariant de revue, test dédié).
+      modeDemoRef.current = false
+      definirModeDemo(null)
+      setModeDemo(false)
+      setAccessToken(null)
+      setUser(null)
+      setLoading(true)
+      appliquerDevise('FCFA')
+      void purgerCachesApi()
+      // Une hydratation de montage encore en vol PARTAGE son refresh : jamais un second en parallèle.
+      const session = hydratationEnCoursRef.current
+        ? await hydratationEnCoursRef.current
+        : await lireSessionReelle()
+      // Revue : une démo RÉENTRÉE pendant ce refresh (l'appelant a redémarré la démo avant que la
+      // session réelle revienne) garde la main — ne jamais écraser son état avec la session réelle.
+      if (!modeDemoRef.current) {
+        if (session) appliquerSession(session.token, session.me)
+      }
+      setLoading(false)
+      return modeDemoRef.current ? null : (session?.me ?? null)
+    }
+
+    const promesseSortie = executerSortie().finally(() => {
+      if (sortieEnCoursRef.current === promesseSortie) sortieEnCoursRef.current = null
+    })
+    sortieEnCoursRef.current = promesseSortie
+    return promesseSortie
   }, [appliquerSession])
 
   const demarrerDemo = useCallback(async (): Promise<AuthUser> => {
@@ -133,7 +167,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     configurerAuthBridge({
       onTokenRefreshed: (token) => setAccessToken(token),
       onSessionExpired: () => {
-        if (modeDemoRef.current) {
+        // `sortieEnCoursRef` : une sortie de démo peut déjà avoir mis `modeDemoRef` à false sans
+        // avoir terminé (revue, concurrence) — router quand même vers la sortie PARTAGÉE plutôt que
+        // de traiter ça comme une session réelle expirée.
+        if (modeDemoRef.current || sortieEnCoursRef.current) {
           void quitterDemo()
           return
         }
@@ -204,7 +241,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   )
 
   const logout = useCallback(async () => {
-    if (modeDemoRef.current) {
+    // `sortieEnCoursRef` : une sortie de démo concurrente (double appel) peut déjà avoir mis
+    // `modeDemoRef` à false sans avoir terminé — router quand même vers la sortie PARTAGÉE, jamais
+    // vers /auth/logout qui révoquerait la famille de refresh de l'administrateur réel.
+    if (modeDemoRef.current || sortieEnCoursRef.current) {
       // « Se déconnecter » pendant la démo = quitter la démo. /auth/logout révoquerait la famille de
       // refresh de l'administrateur réel connecté dans ce navigateur.
       await quitterDemo()

@@ -87,6 +87,10 @@ beforeEach(() => {
   purgerDonneesLocales.mockClear()
   purgerCachesApi.mockClear()
   api.ouvrirSessionDemo.mockResolvedValue({ accessToken: 'jeton-demo', user: { id: 'u-demo', role: 'ADMIN' } })
+  // Revue (Minor 5) : un `mockReset()` renvoie `undefined` par défaut — un sabotage qui ajoute un
+  // appel à `authApi.logout()` doit échouer sur `.not.toHaveBeenCalled()`, pas sur un TypeError
+  // (`undefined.catch is not a function`) qui masquerait l'assertion visée.
+  api.logout.mockResolvedValue(undefined)
 })
 afterEach(() => {
   cleanup()
@@ -122,6 +126,25 @@ describe('AuthContext — entrer dans la démo', () => {
 
     expect(etat()).toBe('pret|reel|u-reel|jeton-reel')
     expect(api.definirModeDemo).not.toHaveBeenCalledWith(expect.objectContaining({ messageRefus: expect.any(Function) }))
+  })
+
+  it("démo ouverte mais /auth/me échoue pour le jeton démo : mode retiré (branche de rollback), état réel intact", async () => {
+    // Distinct du test 404 ci-dessus : là, `ouvrirSessionDemo` rejette AVANT que `definirModeDemo`
+    // ne pose le mode — la branche `catch` de `demarrerDemo` (rollback APRÈS avoir posé le mode)
+    // n'est jamais exercée. Ici `ouvrirSessionDemo` réussit, c'est `authApi.me` qui échoue.
+    sessionReelle()
+    await monter()
+    api.me.mockImplementation(async (jeton: string) => {
+      if (jeton === 'jeton-demo') throw new Error('me a échoué')
+      return ADMIN_REEL
+    })
+
+    await act(async () => {
+      await expect(ctx.demarrerDemo()).rejects.toThrow('me a échoué')
+    })
+
+    expect(api.definirModeDemo).toHaveBeenLastCalledWith(null)
+    expect(etat()).toBe('pret|reel|u-reel|jeton-reel')
   })
 })
 
@@ -203,6 +226,124 @@ describe("AuthContext — quitter la démo n'appelle jamais /auth/logout", () =>
     })
     expect(api.logout).toHaveBeenCalledTimes(1)
     expect(purgerDonneesLocales).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('AuthContext — concurrence des sorties de démo (revue)', () => {
+  it('deux sorties concurrentes (quitterDemo + logout) ne déclenchent qu’un seul /auth/refresh, jamais /auth/logout', async () => {
+    // Sans single-flight, le second refresh présenterait un `jti` déjà tourné par le premier :
+    // la détection de réutilisation du serveur révoquerait TOUTE la famille de l'administrateur réel
+    // (backend/src/routes/auth.route.ts). Ordre d'appel volontaire : `quitterDemo()` a déjà mis
+    // `modeDemoRef` à false par le temps où `logout()` fait son propre test — `logout` doit donc
+    // aussi router vers la sortie PARTAGÉE (via `sortieEnCoursRef`), pas retomber sur /auth/logout.
+    sessionReelle()
+    await monter()
+    await act(async () => {
+      await ctx.demarrerDemo()
+    })
+
+    const appelsRefreshAvant = api.refresh.mock.calls.length
+    await act(async () => {
+      await Promise.all([ctx.quitterDemo(), ctx.logout()])
+    })
+
+    expect(api.refresh.mock.calls.length - appelsRefreshAvant).toBe(1)
+    expect(api.logout).not.toHaveBeenCalled()
+    expect(purgerDonneesLocales).not.toHaveBeenCalled()
+    expect(etat()).toBe('pret|reel|u-reel|jeton-reel')
+  })
+
+  it('double appel direct à quitterDemo() (double clic) : un seul /auth/refresh', async () => {
+    sessionReelle()
+    await monter()
+    await act(async () => {
+      await ctx.demarrerDemo()
+    })
+
+    const appelsRefreshAvant = api.refresh.mock.calls.length
+    await act(async () => {
+      await Promise.all([ctx.quitterDemo(), ctx.quitterDemo()])
+    })
+
+    expect(api.refresh.mock.calls.length - appelsRefreshAvant).toBe(1)
+    expect(etat()).toBe('pret|reel|u-reel|jeton-reel')
+  })
+
+  it("démo entrée pendant l'hydratation de montage encore en vol : la sortie réutilise LE MÊME refresh", async () => {
+    let repondreRefresh: (v: { accessToken: string }) => void = () => undefined
+    api.refresh.mockImplementation(
+      () =>
+        new Promise((r) => {
+          repondreRefresh = r
+        }),
+    )
+    api.me.mockImplementation(async (jeton: string) => (jeton === 'jeton-demo' ? ADMIN_DEMO : ADMIN_REEL))
+    render(
+      <AuthProvider>
+        <Sonde />
+      </AuthProvider>,
+    )
+    // L'hydratation de montage a déjà appelé /auth/refresh (1 appel), jamais résolu pour l'instant.
+
+    await act(async () => {
+      await ctx.demarrerDemo()
+    })
+    // L'hydratation de montage n'a pas encore résolu : `loading` reste `true` (comme dans le test
+    // « une réhydratation réelle… » ci-dessous) — seuls le mode/jeton/utilisateur démo sont vérifiés ici.
+    expect(etat()).toMatch(/\|demo\|u-demo\|jeton-demo$/)
+
+    let sortiePromise!: Promise<unknown>
+    act(() => {
+      sortiePromise = ctx.quitterDemo()
+    })
+    // La sortie doit avoir réutilisé le refresh de montage, pas en avoir relancé un second.
+    expect(api.refresh).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      repondreRefresh({ accessToken: 'jeton-reel' })
+      await sortiePromise
+    })
+
+    expect(api.refresh).toHaveBeenCalledTimes(1)
+    expect(etat()).toBe('pret|reel|u-reel|jeton-reel')
+  })
+
+  it('démo réentrée pendant que le refresh de sortie est en vol : ne jamais écraser la démo en cours', async () => {
+    let repondreSortie: (v: { accessToken: string }) => void = () => undefined
+    api.refresh
+      .mockResolvedValueOnce({ accessToken: 'jeton-reel' }) // hydratation de montage
+      .mockImplementationOnce(
+        () =>
+          new Promise((r) => {
+            repondreSortie = r
+          }),
+      ) // refresh de la sortie, différé
+    api.me.mockImplementation(async (jeton: string) => (jeton === 'jeton-demo' ? ADMIN_DEMO : ADMIN_REEL))
+
+    await monter()
+    await act(async () => {
+      await ctx.demarrerDemo()
+    })
+    expect(etat()).toBe('pret|demo|u-demo|jeton-demo')
+
+    let sortiePromise!: Promise<unknown>
+    act(() => {
+      sortiePromise = ctx.quitterDemo()
+    })
+
+    // La démo est RÉENTRÉE pendant que le refresh de sortie ci-dessus est encore en vol.
+    await act(async () => {
+      await ctx.demarrerDemo()
+    })
+
+    await act(async () => {
+      repondreSortie({ accessToken: 'jeton-reel' })
+      await sortiePromise
+    })
+
+    // La session réelle, revenue APRÈS la ré-entrée en démo, ne doit jamais l'écraser (spec §0 :
+    // jamais de données réelles mélangées sous la bannière démo).
+    expect(etat()).toBe('pret|demo|u-demo|jeton-demo')
   })
 })
 

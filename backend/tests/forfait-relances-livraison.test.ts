@@ -56,3 +56,23 @@ describe('livrerRelancesForfait (après commit)', () => {
     expect(r).toEqual({ emailsEnvoyes: 1 })
   })
 })
+
+describe('livrerRelancesForfait — échec d’e-mail signalé', () => {
+  it('e-mail configuré qui échoue → signalé une fois par destinataire, sans adresse', async () => {
+    const d = deps(() => false)
+    const observabilite = { disponible: () => true, signaler: vi.fn() }
+    await livrerRelancesForfait({ ...d, observabilite } as any, [resultat('org-a', 2)])
+    const relance = observabilite.signaler.mock.calls.filter((c: any[]) => c[1]?.envoi === 'relanceForfait')
+    expect(relance).toHaveLength(2)
+    expect(relance[0][1]).toEqual({ source: 'envoi', canal: 'email', envoi: 'relanceForfait', organisationId: 'org-a' })
+    expect(JSON.stringify(relance)).not.toContain('@org-a.test')
+  })
+
+  it('e-mail NON configuré → rien signalé pour l’e-mail', async () => {
+    const d = deps(() => false)
+    d.email.disponible = () => false
+    const observabilite = { disponible: () => true, signaler: vi.fn() }
+    await livrerRelancesForfait({ ...d, observabilite } as any, [resultat('org-a', 1)])
+    expect(observabilite.signaler.mock.calls.filter((c: any[]) => c[1]?.envoi === 'relanceForfait')).toHaveLength(0)
+  })
+})

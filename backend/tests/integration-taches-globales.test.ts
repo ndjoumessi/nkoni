@@ -24,4 +24,19 @@ describe('tests d’intégration — tâches globales restreintes', () => {
     const nonRestreints = appelants.filter((f) => !readFileSync(join(DOSSIER, f), 'utf8').includes('envelopperPrisma('))
     expect(nonRestreints).toEqual([])
   })
+
+  it('aucun appel de tâche globale ne reçoit directement le client réel (vérifié APPEL par appel)', () => {
+    // Le test ci-dessus est par FICHIER : un second appel sur le client brut y passerait inaperçu.
+    // `regenererDemo` boucle aussi sur toutes les démos de la base.
+    const APPEL_BRUT = /(\w+ToutesOrgs|regenererDemo)\(\s*(prismaEtendu|prisma|base)\b/
+    const fichiers = readdirSync(DOSSIER).filter((f) => f.endsWith('.integration.test.ts'))
+    const appels = fichiers.flatMap((f) =>
+      readFileSync(join(DOSSIER, f), 'utf8')
+        .split('\n')
+        .filter((l) => /(\w+ToutesOrgs|regenererDemo)\(/.test(l) && !l.trim().startsWith('import') && !l.trim().startsWith('*'))
+        .map((l) => ({ f, l: l.trim() })),
+    )
+    expect(appels.length).toBeGreaterThan(0) // jamais vacant
+    expect(appels.filter(({ l }) => APPEL_BRUT.test(l))).toEqual([])
+  })
 })

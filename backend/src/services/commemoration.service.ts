@@ -94,7 +94,8 @@ async function validerMembres(prisma: CommemorationPrisma, ids: string[]): Promi
 export function listerMembresSelectionnables(prisma: CommemorationPrisma) {
   return prisma.membre.findMany({
     select: { id: true, nom: true, prenom: true },
-    orderBy: [{ nom: 'asc' }, { prenom: 'asc' }],
+    // `id` départage les homonymes : au plafond, la frontière reste stable d'un appel à l'autre.
+    orderBy: [{ nom: 'asc' }, { prenom: 'asc' }, { id: 'asc' }],
     take: PLAFOND_OPTIONS_MEMBRES,
   })
 }

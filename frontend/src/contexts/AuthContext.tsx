@@ -27,10 +27,12 @@ function expirationAccessToken(token: string): number | null {
 }
 
 /** Session RÉELLE lue depuis le cookie refresh (montage, retour de démo), ou null s'il n'y en a pas. */
-async function lireSessionReelle(signal?: AbortSignal): Promise<{ token: string; me: AuthUser } | null> {
+// Volontairement NON annulable : annuler côté client n'arrête pas le serveur, qui a pu tourner le
+// cookie ; relancer ensuite un refresh présenterait un jeton déjà tourné (famille révoquée).
+async function lireSessionReelle(): Promise<{ token: string; me: AuthUser } | null> {
   try {
-    const { accessToken: token } = await authApi.refresh(signal)
-    const me = await authApi.me(token, signal)
+    const { accessToken: token } = await authApi.refresh()
+    const me = await authApi.me(token)
     return { token, me }
   } catch {
     return null

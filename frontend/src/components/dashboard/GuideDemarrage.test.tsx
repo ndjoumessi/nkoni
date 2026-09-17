@@ -62,3 +62,11 @@ describe('GuideDemarrage — astuce paiement en ligne selon le forfait', () => {
     expect(await screen.findByText(ASTUCE)).toBeTruthy()
   })
 })
+
+describe('GuideDemarrage — espace d’exemple', () => {
+  it('propose de voir un espace rempli (lien vers /demo)', () => {
+    rendre(false)
+    const lien = screen.getByRole('link', { name: /demo.entree.voirEspaceRempli/ })
+    expect(lien.getAttribute('href')).toBe('/demo')
+  })
+})

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Check, Pause, Play } from 'lucide-react'
-import { Button } from '@/components/ui/Button'
+import { Check, Eye, Pause, Play } from 'lucide-react'
+import { Button, ButtonLink } from '@/components/ui/Button'
 import { prefersReducedMotion } from '@/lib/utils'
 
 // Générés par `scripts/demo-video/` (base FICTIVE, jamais de données réelles), une vidéo PAR LANGUE :
@@ -93,6 +93,11 @@ export function VideoDemo() {
               </li>
             ))}
           </ul>
+          <div className="mt-8 flex justify-center lg:justify-start">
+            <ButtonLink to="/demo" variant="outline" icon={Eye}>
+              {t('demo.entree.voirExemple')}
+            </ButtonLink>
+          </div>
         </div>
 
         <div className="flex flex-col items-center gap-4">

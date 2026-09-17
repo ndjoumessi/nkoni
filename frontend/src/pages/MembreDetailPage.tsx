@@ -62,7 +62,7 @@ const DATE_COURTE = { day: '2-digit', month: '2-digit', year: 'numeric' } as con
 export function MembreDetailPage() {
   const { t } = useTranslation()
   const { id } = useParams<{ id: string }>()
-  const { user, accessToken } = useAuth()
+  const { user, accessToken, modeDemo } = useAuth()
   const navigate = useNavigate()
   const toast = useToast()
 
@@ -435,7 +435,10 @@ export function MembreDetailPage() {
                         <button
                           type="button"
                           role="menuitem"
+                          disabled={modeDemo}
+                          title={modeDemo ? t('demo.whatsappDesactive') : undefined}
                           onClick={() => {
+                            if (modeDemo) return
                             setMenuActions(false)
                             const lien = lienRelanceWhatsApp(
                               membre.telephone,
@@ -446,7 +449,7 @@ export function MembreDetailPage() {
                             )
                             if (lien) window.open(lien, '_blank', 'noopener,noreferrer')
                           }}
-                          className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-surface hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-brass/60"
+                          className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-surface hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-brass/60 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           <MessageCircle className="h-4 w-4 shrink-0 text-faint" aria-hidden="true" />
                           {t('membres.detail.relancerWhatsApp')}

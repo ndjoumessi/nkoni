@@ -236,7 +236,7 @@ export const rapportsRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
       const buffer =
         format === 'pdf'
           ? await genererEvolutionPdf(rapport, new Date(), langue, devise)
-          : await genererEvolutionExcel(rapport)
+          : await genererEvolutionExcel(rapport, new Date(), langue)
 
       return reply
         .header('Content-Type', CONTENT_TYPE[format])
@@ -276,7 +276,7 @@ export const rapportsRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
         buffer =
           format === 'pdf'
             ? await genererComparaisonMultiPdf(comparaison, new Date(), langue, devise)
-            : await genererComparaisonMultiExcel(comparaison)
+            : await genererComparaisonMultiExcel(comparaison, new Date(), langue)
       } else if (req.query.anneeA !== undefined && req.query.anneeB !== undefined) {
         // Rétrocompatibilité : paire A / B.
         const comparaison = comparerPeriodes(req.query.anneeA, req.query.anneeB, baremes, membres)
@@ -284,7 +284,7 @@ export const rapportsRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
         buffer =
           format === 'pdf'
             ? await genererComparaisonPdf(comparaison, new Date(), langue, devise)
-            : await genererComparaisonExcel(comparaison)
+            : await genererComparaisonExcel(comparaison, new Date(), langue)
       } else {
         return reply
           .code(400)

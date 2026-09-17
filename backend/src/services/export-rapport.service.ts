@@ -36,6 +36,7 @@ import type {
   VariationsComparaison,
   Variation,
 } from './rapport.service'
+import { libellesExport, type LibellesExport } from './export-libelles'
 
 /* -------------------------------------------------------------------------- */
 /* Helpers                                                                     */
@@ -45,8 +46,19 @@ import type {
  * rouge = régression. Conservées pour la mise en forme conditionnelle du .xlsx. */
 const COULEUR = { vert: 'FF157A4F', rouge: 'FFB0432A' } as const
 
-/** Libellé d'une variation « apparition » (base 0 → positif) dans les exports (labels FR). */
-const LIBELLE_NOUVEAU = 'Nouveau'
+/** Colonnes du rapport d'évolution, libellées dans la langue de l'exportateur. */
+const colonnesEvolution = (langue: Langue) => {
+  const L = libellesExport(langue)
+  return [
+    { header: L.annee, key: 'annee', width: 10 },
+    { header: L.attendu, key: 'attendu', width: 16 },
+    { header: L.collecte, key: 'collecte', width: 16 },
+    { header: L.taux, key: 'taux', width: 12 },
+    { header: L.aJour, key: 'aJour', width: 10 },
+    { header: L.partiel, key: 'partiel', width: 10 },
+    { header: L.nonAJour, key: 'nonAJour', width: 12 },
+  ]
+}
 
 function arrondi2(x: number): number {
   return Math.round(x * 100) / 100
@@ -82,27 +94,19 @@ export function totauxEvolution(annees: RapportAnnee[]): {
 /* Évolution — Excel                                                          */
 /* -------------------------------------------------------------------------- */
 
-const COLONNES_EVOLUTION = [
-  { header: 'Année', key: 'annee', width: 10 },
-  { header: 'Attendu', key: 'attendu', width: 16 },
-  { header: 'Collecté', key: 'collecte', width: 16 },
-  { header: 'Taux (%)', key: 'taux', width: 12 },
-  { header: 'À jour', key: 'aJour', width: 10 },
-  { header: 'Partiel', key: 'partiel', width: 10 },
-  { header: 'Non à jour', key: 'nonAJour', width: 12 },
-] as const
-
 /** Rapport d'évolution → classeur .xlsx (Buffer). Fonction pure. */
 export async function genererEvolutionExcel(
   rapport: RapportFinancier,
   genereLe: Date = new Date(),
+  langue: Langue = 'FR',
 ): Promise<Buffer> {
+  const L = libellesExport(langue)
   const wb = new ExcelJS.Workbook()
   wb.creator = 'NKONI'
   wb.created = genereLe
 
-  const ws = wb.addWorksheet('Évolution', { views: [{ state: 'frozen', ySplit: 1 }] })
-  ws.columns = COLONNES_EVOLUTION.map((c) => ({ header: c.header, key: c.key, width: c.width }))
+  const ws = wb.addWorksheet(L.evolutionFeuille, { views: [{ state: 'frozen', ySplit: 1 }] })
+  ws.columns = colonnesEvolution(langue).map((c) => ({ header: c.header, key: c.key, width: c.width }))
 
   // En-tête : Année à gauche, toutes les colonnes chiffrées à droite. Attendu/Collecté = montants.
   styliserEnTeteExcel(ws.getRow(1), (col) => col >= 2)
@@ -128,7 +132,7 @@ export async function genererEvolutionExcel(
 
   const t = totauxEvolution(rapport.annees)
   const ligneTotal = ws.addRow({
-    annee: 'TOTAL',
+    annee: L.total,
     attendu: t.totalAttendu,
     collecte: t.totalCollecte,
     taux: t.tauxRecouvrement,
@@ -157,17 +161,21 @@ interface LigneComparaison {
 }
 
 /** Construit les lignes de la table de comparaison (partagé Excel + PDF). */
-export function lignesComparaison(comp: ComparaisonPeriodes): LigneComparaison[] {
+export function lignesComparaison(
+  comp: ComparaisonPeriodes,
+  langue: Langue = 'FR',
+): LigneComparaison[] {
+  const L = libellesExport(langue)
   const A = comp.rapportA
   const B = comp.rapportB
   return [
-    { label: 'Total attendu', a: A?.totalAttendu ?? null, b: B?.totalAttendu ?? null, variation: comp.variations.totalAttendu, montant: true },
-    { label: 'Total collecté', a: A?.totalCollecte ?? null, b: B?.totalCollecte ?? null, variation: comp.variations.totalCollecte, montant: true },
-    { label: 'Taux de recouvrement (%)', a: A?.tauxRecouvrement ?? null, b: B?.tauxRecouvrement ?? null, variation: comp.variations.tauxRecouvrement },
-    { label: 'Membres éligibles', a: A?.membresEligibles ?? null, b: B?.membresEligibles ?? null },
-    { label: 'À jour', a: A?.membresParStatut.A_JOUR ?? null, b: B?.membresParStatut.A_JOUR ?? null },
-    { label: 'Partiel', a: A?.membresParStatut.PARTIEL ?? null, b: B?.membresParStatut.PARTIEL ?? null },
-    { label: 'Non à jour', a: A?.membresParStatut.NON_A_JOUR ?? null, b: B?.membresParStatut.NON_A_JOUR ?? null },
+    { label: L.totalAttendu, a: A?.totalAttendu ?? null, b: B?.totalAttendu ?? null, variation: comp.variations.totalAttendu, montant: true },
+    { label: L.totalCollecte, a: A?.totalCollecte ?? null, b: B?.totalCollecte ?? null, variation: comp.variations.totalCollecte, montant: true },
+    { label: L.tauxRecouvrement, a: A?.tauxRecouvrement ?? null, b: B?.tauxRecouvrement ?? null, variation: comp.variations.tauxRecouvrement },
+    { label: L.membresEligibles, a: A?.membresEligibles ?? null, b: B?.membresEligibles ?? null },
+    { label: L.aJour, a: A?.membresParStatut.A_JOUR ?? null, b: B?.membresParStatut.A_JOUR ?? null },
+    { label: L.partiel, a: A?.membresParStatut.PARTIEL ?? null, b: B?.membresParStatut.PARTIEL ?? null },
+    { label: L.nonAJour, a: A?.membresParStatut.NON_A_JOUR ?? null, b: B?.membresParStatut.NON_A_JOUR ?? null },
   ]
 }
 
@@ -175,28 +183,30 @@ export function lignesComparaison(comp: ComparaisonPeriodes): LigneComparaison[]
 export async function genererComparaisonExcel(
   comp: ComparaisonPeriodes,
   genereLe: Date = new Date(),
+  langue: Langue = 'FR',
 ): Promise<Buffer> {
+  const L = libellesExport(langue)
   const wb = new ExcelJS.Workbook()
   wb.creator = 'NKONI'
   wb.created = genereLe
 
-  const ws = wb.addWorksheet('Comparaison', { views: [{ state: 'frozen', ySplit: 1 }] })
+  const ws = wb.addWorksheet(L.comparaisonFeuille, { views: [{ state: 'frozen', ySplit: 1 }] })
   ws.columns = [
-    { header: 'Métrique', key: 'metrique', width: 26 },
+    { header: L.metrique, key: 'metrique', width: 26 },
     { header: String(comp.anneeA), key: 'a', width: 16 },
     { header: String(comp.anneeB), key: 'b', width: 16 },
-    { header: 'Variation (%)', key: 'variation', width: 14 },
+    { header: L.variation, key: 'variation', width: 14 },
   ]
   styliserEnTeteExcel(ws.getRow(1), (col) => col >= 2)
 
-  lignesComparaison(comp).forEach((l, i) => {
+  lignesComparaison(comp, langue).forEach((l, i) => {
     const variationTexte =
       l.variation === undefined
         ? ''
         : l.variation === null
           ? 'n/a'
           : l.variation === 'nouveau'
-            ? LIBELLE_NOUVEAU
+            ? L.nouveau
             : l.variation
     const row = ws.addRow({
       metrique: l.label,
@@ -253,10 +263,11 @@ export function genererEvolutionPdf(
     const GAUCHE = 40
     const DROITE = 555
     const m = (n: number): string => montantExport(n, langue, devise)
+    const L = libellesExport(langue)
     const yStart = enteteDocument(doc, {
       titre: 'NKONI',
-      sousTitre: 'Rapport financier — évolution',
-      meta: `Années ${rapport.anneeDebut}–${rapport.anneeFin}  ·  Généré le ${formatDateHeure(genereLe, langue)}`,
+      sousTitre: L.evolutionSousTitre,
+      meta: `${L.annees} ${rapport.anneeDebut}–${rapport.anneeFin}  ·  ${L.genereLe} ${formatDateHeure(genereLe, langue)}`,
       gauche: GAUCHE,
       droite: DROITE,
     })
@@ -281,7 +292,7 @@ export function genererEvolutionPdf(
     ])
     const t = totauxEvolution(rapport.annees)
     const total = [
-      'TOTAL',
+      L.total,
       m(t.totalAttendu),
       m(t.totalCollecte),
       String(t.tauxRecouvrement),
@@ -304,24 +315,25 @@ export function genererComparaisonPdf(
     const GAUCHE = 40
     const DROITE = 555
     const m = (n: number): string => montantExport(n, langue, devise)
+    const L = libellesExport(langue)
     const yStart = enteteDocument(doc, {
       titre: 'NKONI',
-      sousTitre: `Comparaison ${comp.anneeA} vs ${comp.anneeB}`,
-      meta: `Généré le ${formatDateHeure(genereLe, langue)}`,
+      sousTitre: `${L.comparaisonSousTitre} ${comp.anneeA} vs ${comp.anneeB}`,
+      meta: `${L.genereLe} ${formatDateHeure(genereLe, langue)}`,
       gauche: GAUCHE,
       droite: DROITE,
     })
 
     const colonnes: ColonnePremium[] = [
-      { label: 'Métrique', largeur: 200, align: 'left' },
+      { label: L.metrique, largeur: 200, align: 'left' },
       { label: String(comp.anneeA), largeur: 105, align: 'right' },
       { label: String(comp.anneeB), largeur: 105, align: 'right' },
-      { label: 'Variation (%)', largeur: 105, align: 'right' },
+      { label: L.variation, largeur: 105, align: 'right' },
     ]
     // Cellule valeur : montant formaté si la métrique est monétaire, sinon nombre brut ; '—' si null.
     const valeur = (v: number | null, montant: boolean): string =>
       v === null ? '—' : montant ? m(v) : String(v)
-    const lignes = lignesComparaison(comp).map((l) => [
+    const lignes = lignesComparaison(comp, langue).map((l) => [
       l.label,
       valeur(l.a, l.montant ?? false),
       valeur(l.b, l.montant ?? false),
@@ -330,7 +342,7 @@ export function genererComparaisonPdf(
         : l.variation === null
           ? 'n/a'
           : l.variation === 'nouveau'
-            ? LIBELLE_NOUVEAU
+            ? L.nouveau
             : pourcentExport(l.variation, langue),
     ])
     dessinerCorpsPremium(doc, { colonnes, lignes, gauche: GAUCHE, droite: DROITE, yStart })
@@ -341,30 +353,38 @@ export function genererComparaisonPdf(
 /* Comparaison MULTI-années (une colonne par année + Δ vs la précédente)      */
 /* -------------------------------------------------------------------------- */
 
-/** Métriques de la table de comparaison ; `cle` présent ⇒ métrique portant une variation. */
+/**
+ * Métriques de la table de comparaison ; `cle` présent ⇒ métrique portant une variation.
+ * `cleLibelle` désigne l'entrée du catalogue bilingue : le libellé est résolu À L'USAGE, dans la
+ * langue de l'exportateur — le stocker ici le figerait en français, défaut corrigé le 2026-09-17.
+ */
 interface MetriqueMulti {
-  label: string
+  cleLibelle: keyof LibellesExport
   valeur: (r: RapportAnnee | null) => number | null
   cle?: keyof VariationsComparaison
   montant?: boolean
 }
 
 const METRIQUES_MULTI: MetriqueMulti[] = [
-  { label: 'Total attendu', valeur: (r) => r?.totalAttendu ?? null, cle: 'totalAttendu', montant: true },
-  { label: 'Total collecté', valeur: (r) => r?.totalCollecte ?? null, cle: 'totalCollecte', montant: true },
-  { label: 'Taux de recouvrement (%)', valeur: (r) => r?.tauxRecouvrement ?? null, cle: 'tauxRecouvrement' },
-  { label: 'Membres éligibles', valeur: (r) => r?.membresEligibles ?? null },
-  { label: 'À jour', valeur: (r) => r?.membresParStatut.A_JOUR ?? null },
-  { label: 'Partiel', valeur: (r) => r?.membresParStatut.PARTIEL ?? null },
-  { label: 'Non à jour', valeur: (r) => r?.membresParStatut.NON_A_JOUR ?? null },
+  { cleLibelle: 'totalAttendu', valeur: (r) => r?.totalAttendu ?? null, cle: 'totalAttendu', montant: true },
+  { cleLibelle: 'totalCollecte', valeur: (r) => r?.totalCollecte ?? null, cle: 'totalCollecte', montant: true },
+  { cleLibelle: 'tauxRecouvrement', valeur: (r) => r?.tauxRecouvrement ?? null, cle: 'tauxRecouvrement' },
+  { cleLibelle: 'membresEligibles', valeur: (r) => r?.membresEligibles ?? null },
+  { cleLibelle: 'aJour', valeur: (r) => r?.membresParStatut.A_JOUR ?? null },
+  { cleLibelle: 'partiel', valeur: (r) => r?.membresParStatut.PARTIEL ?? null },
+  { cleLibelle: 'nonAJour', valeur: (r) => r?.membresParStatut.NON_A_JOUR ?? null },
 ]
 
 /** Variation (nombre pour l'Excel ; '', 'n/a' ou libellé « Nouveau » sinon). */
-function variationMulti(m: MetriqueMulti, ac: ComparaisonMulti['annees'][number]): number | string {
+function variationMulti(
+  m: MetriqueMulti,
+  ac: ComparaisonMulti['annees'][number],
+  langue: Langue = 'FR',
+): number | string {
   if (!m.cle) return '' // métrique de décompte : pas de variation
   const v = ac.variations ? ac.variations[m.cle] : null
   if (v === null || v === undefined) return 'n/a'
-  if (v === 'nouveau') return LIBELLE_NOUVEAU
+  if (v === 'nouveau') return libellesExport(langue).nouveau
   return v
 }
 
@@ -373,8 +393,8 @@ function variationMulti(m: MetriqueMulti, ac: ComparaisonMulti['annees'][number]
  * NB : on n'utilise PAS le « Δ » (U+0394) de l'Excel — la police Helvetica intégrée de PDFKit ne
  * l'encode pas (rendu illisible). « Var. % » est ASCII et cohérent avec « Variation (%) » du mode paire.
  */
-function entetesMulti(comp: ComparaisonMulti): string[] {
-  const enTetes = ['Métrique']
+function entetesMulti(comp: ComparaisonMulti, langue: Langue = 'FR'): string[] {
+  const enTetes = [libellesExport(langue).metrique]
   comp.annees.forEach((ac, i) => {
     enTetes.push(String(ac.annee))
     if (i > 0) enTetes.push('Var. %')
@@ -400,14 +420,16 @@ function colonnesVariation(comp: ComparaisonMulti): number[] {
 export async function genererComparaisonMultiExcel(
   comp: ComparaisonMulti,
   genereLe: Date = new Date(),
+  langue: Langue = 'FR',
 ): Promise<Buffer> {
+  const L = libellesExport(langue)
   const wb = new ExcelJS.Workbook()
   wb.creator = 'NKONI'
   wb.created = genereLe
 
-  const ws = wb.addWorksheet('Comparaison', { views: [{ state: 'frozen', ySplit: 1 }] })
+  const ws = wb.addWorksheet(L.comparaisonFeuille, { views: [{ state: 'frozen', ySplit: 1 }] })
   const colonnes: { header: string; key: string; width: number }[] = [
-    { header: 'Métrique', key: 'metrique', width: 26 },
+    { header: L.metrique, key: 'metrique', width: 26 },
   ]
   comp.annees.forEach((ac, i) => {
     colonnes.push({ header: String(ac.annee), key: `a${i}`, width: 16 })
@@ -419,7 +441,7 @@ export async function genererComparaisonMultiExcel(
   const deltaCols = colonnesVariation(comp)
   METRIQUES_MULTI.forEach((metrique, i) => {
     // Valeurs de la ligne : label + (valeur année, Δ) par année.
-    const valeurs: (string | number)[] = [metrique.label]
+    const valeurs: (string | number)[] = [L[metrique.cleLibelle]]
     comp.annees.forEach((ac, j) => {
       const v = metrique.valeur(ac.rapport)
       valeurs.push(v === null ? '—' : v)
@@ -460,17 +482,18 @@ export function genererComparaisonMultiPdf(
     // Tableau DENSE (beaucoup de colonnes) : on montre les montants SANS suffixe devise (qui
     // déborderait des colonnes étroites → texte tronqué). La devise est rappelée dans le sous-titre.
     const nb = (n: number): string => nombreExport(n, langue)
+    const L = libellesExport(langue)
     const anneesTexte = comp.annees.map((a) => a.annee).join(', ')
     const yStart = enteteDocument(doc, {
       titre: 'NKONI',
-      sousTitre: `Comparaison multi-années (${devise})`,
-      meta: `Années ${anneesTexte}  ·  Généré le ${formatDateHeure(genereLe, langue)}`,
+      sousTitre: `${L.comparaisonMultiSousTitre} (${devise})`,
+      meta: `${L.annees} ${anneesTexte}  ·  ${L.genereLe} ${formatDateHeure(genereLe, langue)}`,
       gauche: GAUCHE,
       droite: DROITE,
     })
 
     // Colonnes : « Métrique » + colonnes réparties sur la largeur paysage.
-    const enTetes = entetesMulti(comp)
+    const enTetes = entetesMulti(comp, langue)
     const largeurMetrique = 145
     const largeurCol = (DROITE - GAUCHE - largeurMetrique) / (enTetes.length - 1)
     const colonnes: ColonnePremium[] = enTetes.map((label, i) =>
@@ -480,7 +503,7 @@ export function genererComparaisonMultiPdf(
     )
 
     const lignes = METRIQUES_MULTI.map((metrique) => {
-      const cellules: string[] = [metrique.label]
+      const cellules: string[] = [L[metrique.cleLibelle]]
       comp.annees.forEach((ac, j) => {
         const v = metrique.valeur(ac.rapport)
         cellules.push(v === null ? '—' : metrique.montant ? nb(v) : String(v))

@@ -15,6 +15,7 @@
 import ExcelJS from 'exceljs'
 import PDFDocument from 'pdfkit'
 import { formatDateHeure, type Langue, type Devise } from '../lib/i18n'
+import { libellesExport } from './export-libelles'
 import {
   enteteDocument,
   dessinerCorpsPremium,
@@ -131,25 +132,40 @@ export async function assemblerDonneesContributions(
 /* Formatage — libellés partagés                                              */
 /* -------------------------------------------------------------------------- */
 
-const COLONNES = [
-  { header: 'Nom', key: 'nom' as const, width: 22 },
-  { header: 'Prénom', key: 'prenom' as const, width: 22 },
-  { header: 'Année', key: 'annee' as const, width: 10 },
-  { header: 'Montant attendu', key: 'montantAttendu' as const, width: 18 },
-  { header: 'Montant versé', key: 'montantVerse' as const, width: 18 },
-  { header: 'Montant valorisé', key: 'montantValorise' as const, width: 18 },
-]
+/** Colonnes de l'export, libellées dans la langue de l'exportateur (clés et largeurs invariantes). */
+const colonnesExport = (langue: Langue) => {
+  const L = libellesExport(langue)
+  return [
+    { header: L.nom, key: 'nom' as const, width: 22 },
+    { header: L.prenom, key: 'prenom' as const, width: 22 },
+    { header: L.annee, key: 'annee' as const, width: 10 },
+    { header: L.montantAttendu, key: 'montantAttendu' as const, width: 18 },
+    { header: L.montantVerse, key: 'montantVerse' as const, width: 18 },
+    { header: L.montantValorise, key: 'montantValorise' as const, width: 18 },
+  ]
+}
+
+/** Ordre des clés de colonnes — seul élément dont dépendent l'alignement et le format des montants. */
+const CLES_COLONNES = [
+  'nom',
+  'prenom',
+  'annee',
+  'montantAttendu',
+  'montantVerse',
+  'montantValorise',
+] as const
 
 /** Colonnes portant un montant → alignées à DROITE + format nombre (cohérent avec `.num` du web). */
 const COLS_MONTANT = new Set<string>(['montantAttendu', 'montantVerse', 'montantValorise'])
 
 /** Une colonne est-elle un montant ? (1-based, pour styliser l'en-tête/les cellules Excel.) */
-const colEstMontant = (col: number): boolean => COLS_MONTANT.has(COLONNES[col - 1]?.key ?? '')
+const colEstMontant = (col: number): boolean => COLS_MONTANT.has(CLES_COLONNES[col - 1] ?? '')
 
-function libelleFiltres(filtres: FiltresExport): string {
+function libelleFiltres(filtres: FiltresExport, langue: Langue): string {
+  const L = libellesExport(langue)
   const parts: string[] = []
-  parts.push(filtres.annee !== undefined ? `Année ${filtres.annee}` : 'Toutes années')
-  if (filtres.membreId !== undefined) parts.push(`Membre ${filtres.membreId}`)
+  parts.push(filtres.annee !== undefined ? `${L.annee} ${filtres.annee}` : L.toutesAnnees)
+  if (filtres.membreId !== undefined) parts.push(`${L.membre} ${filtres.membreId}`)
   return parts.join(' — ')
 }
 
@@ -162,19 +178,24 @@ function libelleFiltres(filtres: FiltresExport): string {
  * restent des NOMBRES (calculables, triables) avec un format d'affichage `#,##0` + alignement à
  * droite ; seule l'apparence change. En-tête figé + bandeau menthe, zébrure, ligne TOTAL soulignée.
  */
-export async function genererExcel(donnees: DonneesExport): Promise<Buffer> {
+export async function genererExcel(
+  donnees: DonneesExport,
+  langue: Langue = 'FR',
+): Promise<Buffer> {
+  const L = libellesExport(langue)
+  const colonnes = colonnesExport(langue)
   const wb = new ExcelJS.Workbook()
   wb.creator = 'NKONI'
   wb.created = donnees.genereLe
 
   // En-tête figé au défilement (confort de lecture des grands exports).
-  const ws = wb.addWorksheet('Contributions', { views: [{ state: 'frozen', ySplit: 1 }] })
-  ws.columns = COLONNES.map((c) => ({ header: c.header, key: c.key, width: c.width }))
+  const ws = wb.addWorksheet(L.contributionsFeuille, { views: [{ state: 'frozen', ySplit: 1 }] })
+  ws.columns = colonnes.map((c) => ({ header: c.header, key: c.key, width: c.width }))
 
   styliserEnTeteExcel(ws.getRow(1), colEstMontant)
 
   const formaterMontants = (row: ExcelJS.Row): void => {
-    COLONNES.forEach((c, idx) => {
+    colonnes.forEach((c, idx) => {
       if (COLS_MONTANT.has(c.key)) formaterMontantCellule(row.getCell(idx + 1))
     })
   }
@@ -194,7 +215,7 @@ export async function genererExcel(donnees: DonneesExport): Promise<Buffer> {
   })
 
   const ligneTotal = ws.addRow({
-    nom: 'TOTAL',
+    nom: L.total,
     montantAttendu: donnees.totaux.montantAttendu,
     montantVerse: donnees.totaux.montantVerse,
     montantValorise: donnees.totaux.montantValorise,
@@ -233,22 +254,23 @@ export function genererPdf(
     const GAUCHE = 40
     const DROITE = 555 // A4 = 595 pt de large, moins la marge de 40
     const m = (n: number): string => montantExport(n, langue, devise)
+    const L = libellesExport(langue)
 
     const yStart = enteteDocument(doc, {
       titre: 'NKONI',
-      sousTitre: 'Export des contributions',
-      meta: `${libelleFiltres(donnees.filtres)}  \u00b7  Généré le ${formatDateHeure(donnees.genereLe, langue)}`,
+      sousTitre: L.contributionsSousTitre,
+      meta: `${libelleFiltres(donnees.filtres, langue)}  \u00b7  ${L.genereLe} ${formatDateHeure(donnees.genereLe, langue)}`,
       gauche: GAUCHE,
       droite: DROITE,
     })
 
     const colonnes: ColonnePremium[] = [
-      { label: 'Nom', largeur: 110, align: 'left' },
-      { label: 'Prénom', largeur: 95, align: 'left' },
-      { label: 'Année', largeur: 45, align: 'left' },
-      { label: 'Montant attendu', largeur: 88, align: 'right' },
-      { label: 'Montant versé', largeur: 88, align: 'right' },
-      { label: 'Montant valorisé', largeur: 89, align: 'right' },
+      { label: L.nom, largeur: 110, align: 'left' },
+      { label: L.prenom, largeur: 95, align: 'left' },
+      { label: L.annee, largeur: 45, align: 'left' },
+      { label: L.montantAttendu, largeur: 88, align: 'right' },
+      { label: L.montantVerse, largeur: 88, align: 'right' },
+      { label: L.montantValorise, largeur: 89, align: 'right' },
     ]
     const lignes = donnees.lignes.map((l) => [
       l.nom,
@@ -259,7 +281,7 @@ export function genererPdf(
       m(l.montantValorise),
     ])
     const total = [
-      'TOTAL',
+      L.total,
       '',
       '',
       m(donnees.totaux.montantAttendu),

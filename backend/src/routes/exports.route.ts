@@ -46,7 +46,8 @@ export const exportsRoutes: FastifyPluginAsync = async (app: FastifyInstance) =>
 
       const donnees = await assemblerDonneesContributions(app.prisma, filtres)
 
-      // Langue/devise de l'exporteur ; devise résolue seulement pour le PDF (l'Excel garde des nombres).
+      // Langue/devise de l'exporteur ; devise résolue seulement pour le PDF (l'Excel garde des
+      // nombres). La LANGUE sert aux deux formats : titres, en-têtes et ligne TOTAL en dépendent.
       const { langue, devise } = await resoudreLocaleExport(req, app.prisma, format === 'pdf')
 
       const suffixe = filtres.annee !== undefined ? `-${filtres.annee}` : ''
@@ -54,7 +55,7 @@ export const exportsRoutes: FastifyPluginAsync = async (app: FastifyInstance) =>
       const buffer =
         format === 'pdf'
           ? await genererPdf(donnees, langue, devise)
-          : await genererExcel(donnees)
+          : await genererExcel(donnees, langue)
 
       return reply
         .header('Content-Type', CONTENT_TYPE[format])

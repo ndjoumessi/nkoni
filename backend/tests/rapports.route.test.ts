@@ -148,6 +148,37 @@ describe('Routes Rapports financiers', () => {
   const exportComparaison = (role: string, qs: string) =>
     app.inject({ method: 'GET', url: `/rapports/comparaison/export${qs}`, headers: auth(role) })
 
+  // Le câblage de la LANGUE jusqu'au document (défaut du 2026-09-17) : les tests de service
+  // appellent les générateurs directement, donc une route qui oublierait de passer la langue
+  // resterait verte. C'est ici que le fil est tendu de bout en bout. Le claim `langue` du jeton
+  // prime sur `Accept-Language` (cf. `langueDeRequete`).
+  it('export financier Excel : les en-têtes suivent la langue de l’exportateur', async () => {
+    const ExcelJS = (await import('exceljs')).default
+    const entetes = async (langue: string): Promise<string[]> => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/rapports/financier/export?anneeDebut=2024&anneeFin=2025',
+        headers: { authorization: `Bearer ${app.jwt.sign({ sub: 'u-admin', role: 'ADMIN', langue })}` },
+      })
+      expect(res.statusCode).toBe(200)
+      const wb = new ExcelJS.Workbook()
+      await wb.xlsx.load(res.rawPayload as unknown as ArrayBuffer)
+      const out: string[] = []
+      wb.worksheets[0].getRow(1).eachCell((c) => out.push(String(c.value ?? '')))
+      return out
+    }
+    expect(await entetes('EN')).toEqual([
+      'Year',
+      'Expected',
+      'Collected',
+      'Rate (%)',
+      'Up to date',
+      'Partial',
+      'Not up to date',
+    ])
+    expect((await entetes('FR'))[0]).toBe('Année')
+  })
+
   it('export financier Excel par défaut (200, xlsx, signature PK, nom avec plage)', async () => {
     const res = await exportFinancier('ADMIN', '?anneeDebut=2024&anneeFin=2025')
     expect(res.statusCode).toBe(200)

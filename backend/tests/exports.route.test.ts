@@ -130,3 +130,53 @@ describe('Export contributions — devise résolue seulement pour le PDF', () =>
     expect(findUnique).toHaveBeenCalledTimes(1)
   })
 })
+
+/**
+ * LANGUE DE L'EXPORTATEUR JUSQU'AU DOCUMENT (défaut constaté en production le 2026-09-17).
+ *
+ * Ce bloc couvre le CÂBLAGE, pas le formatage : les tests de `export-i18n.test.ts` appellent les
+ * générateurs directement, donc une route qui oublierait de leur passer la langue resterait verte
+ * (vérifié par sabotage). C'est ici, et seulement ici, que ce fil est tendu de bout en bout.
+ */
+describe('Export — langue de l’exportateur portée par la route', () => {
+  let app: FastifyInstance
+
+  beforeAll(async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    app = await buildApp({ prisma: buildMock() as any, logger: false })
+    await app.ready()
+  })
+  afterAll(async () => {
+    await app.close()
+  })
+
+  /** Le claim `langue` du jeton prime sur `Accept-Language` (cf. `langueDeRequete`). */
+  const exporter = (langue: string, format: string) =>
+    app.inject({
+      method: 'GET',
+      url: `/exports/contributions?format=${format}`,
+      headers: { authorization: `Bearer ${app.jwt.sign({ sub: 'u-admin', role: 'ADMIN', langue })}` },
+    })
+
+  it('.xlsx : un exportateur EN reçoit des en-têtes anglais, un exportateur FR des en-têtes français', async () => {
+    const ExcelJS = (await import('exceljs')).default
+    const entetes = async (langue: string): Promise<string[]> => {
+      const res = await exporter(langue, 'xlsx')
+      expect(res.statusCode).toBe(200)
+      const wb = new ExcelJS.Workbook()
+      await wb.xlsx.load(res.rawPayload as unknown as ArrayBuffer)
+      const out: string[] = []
+      wb.worksheets[0].getRow(1).eachCell((c) => out.push(String(c.value ?? '')))
+      return out
+    }
+    expect(await entetes('EN')).toEqual([
+      'Last name',
+      'First name',
+      'Year',
+      'Expected amount',
+      'Paid amount',
+      'Credited amount',
+    ])
+    expect((await entetes('FR'))[0]).toBe('Nom')
+  })
+})

@@ -20,5 +20,6 @@ export default {
       retourEnCours: 'Leaving…',
     },
     whatsappDesactive: 'WhatsApp reminder disabled in the demo',
+    pushDesactive: 'Push notifications disabled in the demo',
   },
 }

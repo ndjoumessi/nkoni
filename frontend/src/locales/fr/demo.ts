@@ -22,5 +22,6 @@ export default {
       retourEnCours: 'Sortie…',
     },
     whatsappDesactive: 'Relance WhatsApp désactivée dans la démo',
+    pushDesactive: 'Notifications push désactivées dans la démo',
   },
 }

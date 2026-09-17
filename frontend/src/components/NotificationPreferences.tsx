@@ -39,7 +39,7 @@ function vapidVersUint8(base64: string): Uint8Array<ArrayBuffer> {
 }
 
 /** État de l'abonnement push de CET appareil. */
-type EtatPush = 'chargement' | 'nonSupporte' | 'nonConfigure' | 'actif' | 'inactif'
+type EtatPush = 'chargement' | 'nonSupporte' | 'nonConfigure' | 'actif' | 'inactif' | 'demo'
 
 /**
  * Préférences de notification (§5) — un interrupteur par type. Mise à jour optimiste avec
@@ -47,7 +47,7 @@ type EtatPush = 'chargement' | 'nonSupporte' | 'nonConfigure' | 'actif' | 'inact
  */
 export function NotificationPreferences() {
   const { t } = useTranslation()
-  const { accessToken } = useAuth()
+  const { accessToken, modeDemo } = useAuth()
   const toast = useToast()
 
   const [prefs, setPrefs] = useState<PreferencesNotification | null>(null)
@@ -81,6 +81,13 @@ export function NotificationPreferences() {
 
   useEffect(() => {
     if (!accessToken) return
+    // DÉMO (revue I4) : ni `Notification` ni `pushManager` — l'abonnement de CET appareil appartient
+    // à l'éventuel administrateur réel du navigateur, et un abonnement créé ici resterait orphelin
+    // (le serveur refuse l'écriture APRÈS que le navigateur a abonné l'appareil).
+    if (modeDemo) {
+      setEtatPush('demo')
+      return
+    }
     if (!pushSupporte()) {
       setEtatPush('nonSupporte')
       return
@@ -105,10 +112,10 @@ export function NotificationPreferences() {
     return () => {
       actif = false
     }
-  }, [accessToken])
+  }, [accessToken, modeDemo])
 
   const basculerPush = async (activer: boolean) => {
-    if (!accessToken) return
+    if (!accessToken || modeDemo) return
     setPushEnCours(true)
     try {
       const reg = await navigator.serviceWorker.ready
@@ -228,16 +235,18 @@ export function NotificationPreferences() {
                 {t('profil.notifications.push.titre')}
               </span>
               <span className="mt-0.5 block text-xs text-faint">
-                {etatPush === 'nonSupporte'
-                  ? t('profil.notifications.push.nonSupporte')
-                  : t('profil.notifications.push.description')}
+                {etatPush === 'demo'
+                  ? t('demo.pushDesactive')
+                  : etatPush === 'nonSupporte'
+                    ? t('profil.notifications.push.nonSupporte')
+                    : t('profil.notifications.push.description')}
               </span>
             </div>
             {etatPush !== 'nonSupporte' && (
               <Toggle
                 checked={etatPush === 'actif'}
                 onChange={basculerPush}
-                disabled={pushEnCours}
+                disabled={pushEnCours || etatPush === 'demo'}
                 aria-labelledby="push-appareil"
               />
             )}

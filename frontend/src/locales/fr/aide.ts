@@ -51,7 +51,7 @@ export default {
       chefSousFamille: {
         titre: 'Chef de sous-famille',
         texte:
-          'Membre de référence de la sous-famille à laquelle ce membre est rattaché. Il permet de regrouper les membres d\'une même sous-famille.',
+          'Membre de référence de la sous-famille à laquelle ce membre est rattaché. Il permet de regrouper les membres d’une même sous-famille.',
       },
       chefOrganisation: {
         titre: "Chef de l'organisation",

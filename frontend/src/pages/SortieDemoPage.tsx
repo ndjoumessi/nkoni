@@ -6,10 +6,19 @@ import { useAuth } from '@/contexts/auth-context'
 import { cheminApresConnexion } from '@/lib/roles'
 import type { EtatSortieDemo } from '@/lib/demo'
 
-/** N'accepte qu'un chemin INTERNE (jamais `//hote` ni une URL absolue). */
+/**
+ * N'accepte qu'un chemin INTERNE (jamais `//hote`, `/\hote` ni une URL absolue).
+ *
+ * Le second caractère compte autant que le premier : les navigateurs traitent `\` comme `/` dans une
+ * URL, donc `/\hote` est normalisé en `//hote` — une URL relative au protocole, c'est-à-dire une
+ * redirection ouverte vers un autre domaine. Non exploitable aujourd'hui (la seule destination posée
+ * est la valeur littérale `/inscription` de `BandeauDemo`), mais l'état de navigation est une entrée
+ * et se valide comme telle.
+ */
 function destinationInterne(etat: unknown): string | undefined {
   const d = (etat as EtatSortieDemo | null)?.destination
-  return typeof d === 'string' && d.startsWith('/') && !d.startsWith('//') ? d : undefined
+  if (typeof d !== 'string' || d[0] !== '/') return undefined
+  return d[1] === '/' || d[1] === '\\' ? undefined : d
 }
 
 /**

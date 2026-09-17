@@ -186,6 +186,46 @@ describe('sortie de démo — de bout en bout (coquille réelle)', () => {
     expect(screen.queryByText(ADMIN_DEMO.email)).toBeNull()
   })
 
+  // La destination vient de l'état de navigation. Elle n'est aujourd'hui posée que par `BandeauDemo`
+  // (valeur littérale `/inscription`), mais un chemin externe s'y glisserait par un `state` forgé :
+  // `/\hote` est normalisé en `//hote` par les navigateurs (le parseur d'URL traite `\` comme `/`),
+  // donc une redirection ouverte vers un autre domaine. Seul un chemin INTERNE est accepté.
+  it.each(['//evil.example', '/\\evil.example', 'https://evil.example', '\\\\evil.example'])(
+    'destination externe %s : ignorée, retour à l’accueil public',
+    async (destination) => {
+      monterFetch(false)
+      render(
+        <MemoryRouter initialEntries={[{ pathname: '/demo/sortie', state: { destination } }]}>
+          <AuthProvider>
+            <Sonde />
+            <Routes>
+              <Route path="/" element={<p>accueil</p>} />
+              <Route path="/demo/sortie" element={<SortieDemoPage />} />
+            </Routes>
+          </AuthProvider>
+        </MemoryRouter>,
+      )
+      await attendreChemin('/')
+    },
+  )
+
+  it('destination interne : respectée', async () => {
+    monterFetch(false)
+    render(
+      <MemoryRouter initialEntries={[{ pathname: '/demo/sortie', state: { destination: '/inscription' } }]}>
+        <AuthProvider>
+          <Sonde />
+          <Routes>
+            <Route path="/" element={<p>accueil</p>} />
+            <Route path="/inscription" element={<p>inscription</p>} />
+            <Route path="/demo/sortie" element={<SortieDemoPage />} />
+          </Routes>
+        </AuthProvider>
+      </MemoryRouter>,
+    )
+    await attendreChemin('/inscription')
+  })
+
   it('arrivée directe sur /demo/sortie hors démo : navigue seulement, aucun refresh supplémentaire', async () => {
     monterFetch(false)
     render(

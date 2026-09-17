@@ -28,6 +28,14 @@ import { usePopoverFlottant } from './usePopoverFlottant'
  *   de React (ex. `Modal.tsx`) recevrait quand même l'évènement natif et se refermerait en même temps.
  * - Placement : à côté d'un libellé, jamais DANS un `<label>` ou un titre (`Field`/`PageHeader` ont une
  *   prop `aide`), jamais dans une ligne de tableau ; au plus un « ? » par notion dans un écran.
+ * - **PAS de `.tap-target` ici, bouton porté à 24 px** : l'utilitaire projette une hitbox INVISIBLE de
+ *   44 px centrée, et `index.css` le réserve aux boutons ISOLÉS. Sous un libellé de `Field`, le « ? »
+ *   n'est pas isolé — 12 px débordaient sous lui pour seulement 6 px de `mb-1.5`, si bien qu'un appui
+ *   sur le haut du champ ouvrait l'aide au lieu de mettre le focus dans le champ (et à gauche, la
+ *   hitbox mangeait la fin du `<label>`, dont le clic focalise le contrôle). On agrandit donc le
+ *   bouton LUI-MÊME (précédent `MonEspacePage`) : 24 × 24 px réels, sans recouvrir quoi que ce soit.
+ *   C'est le minimum WCAG 2.2 AA (2.5.8) plutôt que l'AAA 2.5.5 — arbitrage assumé pour un contrôle
+ *   secondaire et non destructif, voler l'appui d'un champ de saisie étant le pire des deux maux.
  * - **Notion placée dans un `Modal` ⇒ PAS d'entrée `LIENS_AIDE`** : le piège à focus du `Modal`
  *   ramène le focus au premier contrôle du panneau dès qu'il sort vers le portail de la bulle, ce qui
  *   ferme la bulle — le lien « En savoir plus » y serait inatteignable.
@@ -108,7 +116,7 @@ export function AideNotion({ notion, className }: { notion: NotionAide; classNam
         aria-label={t('aide.libelleBouton', { titre })}
         aria-expanded={open}
         aria-controls={open ? idTexte : undefined}
-        className="tap-target inline-flex h-5 w-5 items-center justify-center rounded-full text-faint transition-colors hover:text-brass focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass/60"
+        className="inline-flex h-6 w-6 items-center justify-center rounded-full text-faint transition-colors hover:text-brass focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass/60"
       >
         <CircleHelp className="h-3.5 w-3.5" aria-hidden="true" />
       </button>

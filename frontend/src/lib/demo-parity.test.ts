@@ -24,6 +24,9 @@ describe('démo — parité des exceptions de lecture seule', () => {
   it('la liste front est exactement celle du serveur', () => {
     const serveur = exceptionsServeur()
     expect(serveur.length).toBeGreaterThan(0) // jamais vacant
+    // Le front compare un CHEMIN réel, le serveur un MOTIF de route : un motif paramétré (`:id`)
+    // ne matcherait jamais côté front — il exigerait d'adapter `estRequeteAutoriseeEnDemo`.
+    expect(serveur.every((s) => !s.includes(':'))).toBe(true)
     expect([...ECRITURES_AUTORISEES_EN_DEMO].sort()).toEqual(serveur)
   })
 })

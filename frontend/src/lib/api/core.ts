@@ -114,6 +114,20 @@ export function estModeDemo(): boolean {
   return modeDemo !== null
 }
 
+/** En-tête marqueur posé sur TOUTE requête émise en mode démo (revue I2). */
+export const ENTETE_DEMO = 'X-Nkoni-Demo'
+
+/**
+ * En-têtes à ajouter à une requête : `{ 'X-Nkoni-Demo': '1' }` en mode démo, `{}` sinon. Le service
+ * worker exclut de son cache toute requête qui le porte (`vite.config.ts`, `runtimeCaching`) : les
+ * réponses fictives ne sont ni écrites ni servies depuis le cache, et une lecture RÉELLE en cache
+ * n'est jamais servie sous le bandeau démo (NetworkFirst retombait sur le cache après 5 s de réseau
+ * lent, clé = URL). À étaler dans les `headers` de chaque `fetch` brut authentifié du client.
+ */
+export function entetesDemo(): Record<string, string> {
+  return modeDemo ? { [ENTETE_DEMO]: '1' } : {}
+}
+
 /**
  * Refus LOCAL d'une écriture en mode démo (le serveur refuse de toute façon, §1.4) : aucun
  * aller-retour, même message que le serveur. Couvre aussi `POST /auth/logout`, qui révoquerait la
@@ -212,10 +226,16 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
 
   refuserSiEcritureDemo(method, path)
 
-  const headers: Record<string, string> = {}
+  const headers: Record<string, string> = { ...entetesDemo() }
   if (json !== undefined) headers['Content-Type'] = 'application/json'
   if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`
   if (cleIdempotence) headers['Idempotence-Key'] = cleIdempotence
+
+  // Revue I1 : génération capturée AVANT l'envoi. Une requête émise sous une autre session (ex. GET
+  // démo encore en vol quand le visiteur quitte la démo) ne doit, à son 401, ni rafraîchir ni
+  // expirer la session COURANTE : /auth/refresh partirait en parallèle de celui de la sortie avec le
+  // même cookie, et la détection de réutilisation du serveur révoquerait la famille de l'admin réel.
+  const generationEnvoi = generationSession
 
   const res = await fetch(`${API_URL}${path}`, {
     method,
@@ -229,18 +249,18 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
   // rejoue la requête UNE fois avec le nouveau token. Conditions strictes anti-boucle :
   //   - `permettreRetry` (déjà false sur la requête rejouée),
   //   - `accessToken != null` : un flux public (login/inscription/refresh) n'est jamais rejoué.
-  if (res.status === 401 && permettreRetry && accessToken != null) {
-    // Capturé AVANT l'attente : si la génération change PENDANT le refresh (le visiteur entre ou
-    // sort du mode démo pendant qu'un refresh de l'AUTRE session est en vol), ce refresh est
-    // OBSOLÈTE pour la requête courante — `rafraichirAccessToken` renvoie `null` dans ce cas, mais
-    // ce n'est PAS un refresh qui a réellement échoué : ne pas déclencher `onSessionExpired`, qui
-    // viderait la session fraîchement installée (démo ou réelle). Laisser le 401 se propager.
-    const generationAvantRefresh = generationSession
+  //   - `generationSession === generationEnvoi` : la session n'a pas changé depuis l'envoi (I1).
+  if (res.status === 401 && permettreRetry && accessToken != null && generationSession === generationEnvoi) {
+    // Si la génération change PENDANT le refresh (le visiteur entre ou sort du mode démo pendant
+    // qu'un refresh de l'AUTRE session est en vol), ce refresh est OBSOLÈTE pour la requête courante
+    // — `rafraichirAccessToken` renvoie `null` dans ce cas, mais ce n'est PAS un refresh qui a
+    // réellement échoué : ne pas déclencher `onSessionExpired`, qui viderait la session fraîchement
+    // installée (démo ou réelle). Laisser le 401 se propager.
     const nouveauToken = await rafraichirAccessToken()
     if (nouveauToken) {
       return request<T>(path, { ...options, accessToken: nouveauToken, permettreRetry: false })
     }
-    if (generationSession === generationAvantRefresh) {
+    if (generationSession === generationEnvoi) {
       // Refresh réellement impossible → session terminée : déconnexion propre (AuthContext videra
       // l'état, ProtectedRoute redirige vers /login). On laisse ensuite l'erreur 401 se propager.
       authBridge.onSessionExpired?.()

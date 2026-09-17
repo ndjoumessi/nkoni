@@ -46,10 +46,15 @@ export default defineConfig({
             // Lecture HORS-LIGNE : GET /api/* (SAUF /api/auth/*) en NETWORK-FIRST → réseau quand
             // disponible (jamais de donnée authentifiée périmée en ligne), cache de secours hors
             // ligne. Jamais de POST/PATCH/DELETE ni /auth (cookie refresh + jetons) mis en cache.
+            // DÉMO (revue I2) : une requête portant `X-Nkoni-Demo: 1` (posé par le client HTTP en mode
+            // démo, `entetesDemo()` de src/lib/api/core.ts) n'est PAS prise en charge → ni lue ni
+            // écrite dans ce cache : aucune donnée réelle sous le bandeau démo, aucune donnée fictive
+            // resservie à l'administrateur réel. Parité du nom figée par `api-demo.test.ts`.
             urlPattern: ({ url, request }) =>
               url.pathname.startsWith('/api/') &&
               !url.pathname.startsWith('/api/auth') &&
-              request.method === 'GET',
+              request.method === 'GET' &&
+              request.headers.get('X-Nkoni-Demo') !== '1',
             handler: 'NetworkFirst',
             options: {
               cacheName: 'nkoni-api-get',

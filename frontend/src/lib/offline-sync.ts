@@ -66,11 +66,16 @@ export async function synchroniser(accessToken: string): Promise<{ reussis: numb
   let echecs = 0
   for (const m of file) {
     if (m.erreur) continue // déjà bloquée par un échec client → laissée pour correction manuelle
+    // Revue I5 : la démo peut démarrer PENDANT la boucle (garde d'entrée déjà franchie). Les
+    // mutations restantes seraient refusées localement (403 → classé « client ») et marquées en
+    // erreur à tort : on s'arrête, elles seront rejouées après la sortie de démo.
+    if (estModeDemo()) break
     try {
       await appliquer(m, accessToken)
       await retirerDeLaFile(m.id)
       reussis++
     } catch (e) {
+      if (estModeDemo()) break // échec survenu sous la démo : jamais imputé à la mutation
       if (classifierEchec(e) === 'client') {
         await marquerErreur(m.id, e instanceof ApiError ? e.message : messageErreur(e))
         echecs++

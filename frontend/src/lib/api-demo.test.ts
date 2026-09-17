@@ -1,6 +1,10 @@
+import { readFileSync, readdirSync } from 'node:fs'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import {
   ApiError,
+  ENTETE_DEMO,
   authApi,
   configurerAuthBridge,
   definirModeDemo,
@@ -11,6 +15,7 @@ import {
   moiApi,
   ouvrirSessionDemo,
   rafraichirAccessToken,
+  recusApi,
   reunionsApi,
   versementsApi,
 } from './api'
@@ -22,7 +27,7 @@ import {
  */
 
 type FetchInit = { method?: string; headers?: Record<string, string>; credentials?: string }
-type FetchCall = { url: string; method: string; auth?: string; credentials?: string }
+type FetchCall = { url: string; method: string; auth?: string; credentials?: string; demo?: string }
 const calls: FetchCall[] = []
 const fetchOriginal = globalThis.fetch
 
@@ -35,6 +40,7 @@ function monterFetch(handler: (call: FetchCall) => Response | Promise<Response>)
       method: i.method ?? 'GET',
       auth: i.headers?.Authorization,
       credentials: i.credentials,
+      demo: i.headers?.['X-Nkoni-Demo'],
     }
     calls.push(call)
     return handler(call)
@@ -187,6 +193,78 @@ describe('mode démo — expiration du jeton', () => {
     await expect(promesse).rejects.toMatchObject({ status: 401 })
     expect(onSessionExpired).not.toHaveBeenCalled()
     expect(onTokenRefreshed).not.toHaveBeenCalled()
+  })
+})
+
+describe('revue I1 — 401 d’une requête émise sous une AUTRE génération de session', () => {
+  it('GET émis en démo, sortie de démo pendant le vol, 401 ensuite : aucun /auth/refresh, session intacte', async () => {
+    // Sans capture AVANT l'envoi : la génération lue au 401 est déjà celle de la session réelle,
+    // `modeDemo` est null → /auth/refresh partirait EN PLUS de celui de la sortie, avec le même
+    // cookie → détection de réutilisation serveur → famille de l'administrateur réel révoquée.
+    let repondreGet: (r: Response) => void = () => undefined
+    let getsEmis = 0
+    monterFetch((c) => {
+      if (c.url.endsWith('/reunions') && getsEmis++ > 0) return json(200, [])
+      if (c.url.endsWith('/reunions')) {
+        return new Promise<Response>((r) => {
+          repondreGet = r
+        })
+      }
+      return json(200, { accessToken: 'jeton-reel' })
+    })
+    const onTokenRefreshed = vi.fn()
+    const onSessionExpired = vi.fn()
+    configurerAuthBridge({ onTokenRefreshed, onSessionExpired })
+    activerDemo()
+
+    const promesse = reunionsApi.list('jeton-demo-expire')
+    await Promise.resolve()
+    definirModeDemo(null) // « Quitter la démo » pendant que le GET est en vol
+    repondreGet(json(401, { message: 'expiré' }))
+
+    await expect(promesse).rejects.toMatchObject({ status: 401 })
+    expect(trace()).toEqual(['GET /reunions'])
+    expect(onSessionExpired).not.toHaveBeenCalled()
+    expect(onTokenRefreshed).not.toHaveBeenCalled()
+  })
+})
+
+describe('revue I2 — en-tête X-Nkoni-Demo (exclusion du cache du service worker)', () => {
+  it('en démo, request() et les GET binaires bruts portent X-Nkoni-Demo: 1', async () => {
+    monterFetch(() => new Response('[]', { status: 200 }))
+    activerDemo()
+    await reunionsApi.list('jeton-demo')
+    await recusApi.telecharger('r1', 'jeton-demo')
+    expect(calls.map((c) => c.demo)).toEqual(['1', '1'])
+  })
+
+  it('hors démo : aucun en-tête démo (lectures réelles toujours mises en cache hors-ligne)', async () => {
+    monterFetch(() => new Response('[]', { status: 200 }))
+    await reunionsApi.list('jeton-reel')
+    await recusApi.telecharger('r1', 'jeton-reel')
+    expect(calls.map((c) => c.demo)).toEqual([undefined, undefined])
+  })
+
+  const ICI = dirname(fileURLToPath(import.meta.url))
+
+  it('GARDE : tout fetch brut authentifié du client étale entetesDemo()', () => {
+    const dossier = resolve(ICI, 'api')
+    let inspectes = 0
+    for (const nom of readdirSync(dossier).filter((n) => n.endsWith('.ts') && n !== 'core.ts')) {
+      const lignes = readFileSync(resolve(dossier, nom), 'utf8').split('\n')
+      for (const [i, ligne] of lignes.entries()) {
+        if (!ligne.includes('Authorization:')) continue
+        inspectes++
+        expect(ligne.includes('...entetesDemo()'), `${nom}:${i + 1} sans entetesDemo()`).toBe(true)
+      }
+    }
+    expect(inspectes).toBeGreaterThan(0) // jamais vacant
+  })
+
+  it('GARDE : le service worker exclut exactement cet en-tête de son cache', () => {
+    const config = readFileSync(resolve(ICI, '../../vite.config.ts'), 'utf8')
+    expect(ENTETE_DEMO).toBe('X-Nkoni-Demo')
+    expect(config).toContain(`request.headers.get('${ENTETE_DEMO}') !== '1'`)
   })
 })
 

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { classifierEchec, soumettreOuEnfiler, synchroniser } from './offline-sync'
-import { ApiError, definirModeDemo } from './api'
-import { enfiler, listerFile } from './offline-queue'
+import { ApiError, definirModeDemo, versementsApi } from './api'
+import { enfiler, listerFile, marquerErreur, retirerDeLaFile, type MutationEnAttente } from './offline-queue'
 
 vi.mock('./offline-queue', () => ({
   enfiler: vi.fn(async () => undefined),
@@ -48,5 +48,56 @@ describe('file hors-ligne en mode démo', () => {
   it('synchroniser ne lit même pas la file', async () => {
     expect(await synchroniser('jeton-demo')).toEqual({ reussis: 0, echecs: 0 })
     expect(listerFile).not.toHaveBeenCalled()
+  })
+})
+
+/** Revue I5 : la démo démarre PENDANT une synchro déjà en cours (garde lue à chaque itération). */
+describe('synchro en cours quand la démo démarre', () => {
+  const fetchOriginal = globalThis.fetch
+  const mutation = (id: string): MutationEnAttente =>
+    ({ id, type: 'versement', payload: {}, cleIdempotence: `cle-${id}`, creeLe: 0 }) as unknown as MutationEnAttente
+  let chemins: string[] = []
+
+  beforeEach(() => {
+    definirModeDemo(null)
+    chemins = []
+    vi.mocked(marquerErreur).mockClear()
+    vi.mocked(retirerDeLaFile).mockClear()
+    vi.mocked(listerFile).mockResolvedValue([mutation('m1'), mutation('m2')])
+  })
+  afterEach(() => {
+    definirModeDemo(null)
+    globalThis.fetch = fetchOriginal
+    vi.mocked(listerFile).mockResolvedValue([])
+  })
+
+  it('la 1re mutation passe, la démo démarre pendant son appel : la 2de n’est ni appliquée ni marquée en erreur', async () => {
+    globalThis.fetch = vi.fn(async (url: unknown) => {
+      chemins.push(String(url))
+      definirModeDemo({ messageRefus: () => 'lecture seule' }) // entrée en démo pendant l'appel
+      return new Response(JSON.stringify({ id: 'v1' }), { status: 201 })
+    }) as unknown as typeof fetch
+
+    const creer = vi.spyOn(versementsApi, 'create')
+
+    expect(await synchroniser('jeton-reel')).toEqual({ reussis: 1, echecs: 0 })
+    expect(chemins).toHaveLength(1)
+    // La 2de n'est même pas TENTÉE (garde d'itération), pas seulement « refusée puis ignorée ».
+    expect(creer).toHaveBeenCalledTimes(1)
+    creer.mockRestore()
+    expect(retirerDeLaFile).toHaveBeenCalledTimes(1)
+    expect(marquerErreur).not.toHaveBeenCalled()
+  })
+
+  it('échec client reçu alors que la démo a démarré entre-temps : jamais marqué en erreur', async () => {
+    globalThis.fetch = vi.fn(async (url: unknown) => {
+      chemins.push(String(url))
+      definirModeDemo({ messageRefus: () => 'lecture seule' })
+      return new Response(JSON.stringify({ message: 'refus' }), { status: 400 })
+    }) as unknown as typeof fetch
+
+    expect(await synchroniser('jeton-reel')).toEqual({ reussis: 0, echecs: 0 })
+    expect(chemins).toHaveLength(1)
+    expect(marquerErreur).not.toHaveBeenCalled()
   })
 })

@@ -1,4 +1,4 @@
-import { API_URL, leverSiErreur, request, rid } from './core'
+import { API_URL, entetesDemo, leverSiErreur, request, rid } from './core'
 
 /* -------------------------------------------------------------------------- */
 /* Reçus (§4.6)                                                              */
@@ -56,7 +56,7 @@ export const recusApi = {
   telecharger: async (recuId: string, accessToken: string): Promise<Blob> => {
     const res = await fetch(`${API_URL}/recus/${rid(recuId)}/pdf`, {
       credentials: 'include',
-      headers: { Authorization: `Bearer ${accessToken}` },
+      headers: { Authorization: `Bearer ${accessToken}`, ...entetesDemo() },
     })
     await leverSiErreur(res)
     return res.blob()

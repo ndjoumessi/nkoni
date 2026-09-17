@@ -383,7 +383,13 @@ describe('AuthContext — autres comportements en démo', () => {
   })
 
   it('revue M2 : le minuteur proactif du jeton RÉEL ne tire rien pendant l’entrée en démo', async () => {
-    const exp = Math.floor(Date.now() / 1000) + 61 // échéance proactive à ~1 s
+    // Échéance proactive LOINTAINE (10 min) : avec `shouldAdvanceTime`, le temps simulé avance aussi au
+    // rythme réel. Une échéance à ~1 s (ancienne version, `floor(now) + 61` → délai de 0 à 1000 ms selon
+    // la milliseconde courante) laissait le minuteur du jeton réel tirer LÉGITIMEMENT pendant le montage
+    // sur une CI lente, avant l'entrée en démo → échec intermittent. Ici rien ne peut tirer d'ici
+    // l'avance EXPLICITE ci-dessous, faite une fois la démo engagée.
+    const DELAI_PROACTIF_MS = 10 * 60_000
+    const exp = Math.floor((Date.now() + 60_000 + DELAI_PROACTIF_MS) / 1000)
     const jetonReel = `x.${btoa(JSON.stringify({ exp }))}.y`
     api.refresh.mockResolvedValue({ accessToken: jetonReel })
     let repondreMeDemo: (u: typeof ADMIN_DEMO) => void = () => undefined
@@ -396,16 +402,25 @@ describe('AuthContext — autres comportements en démo', () => {
     )
     vi.useFakeTimers({ shouldAdvanceTime: true })
     await monter()
+    // `waitFor` voit le DOM commité avant que les effets passifs (armement du minuteur) ne soient
+    // vidés : on les vide explicitement avant de compter les minuteurs.
+    await act(async () => {})
+    // Contrôle anti-vacuité : session réelle installée, minuteur armé, rien n'a encore tiré.
+    expect(etat()).toBe(`pret|reel|u-reel|${jetonReel}`)
+    expect(vi.getTimerCount()).toBeGreaterThan(0)
+    expect(api.rafraichirAccessToken).not.toHaveBeenCalled()
 
-    // Entrée en démo : mode posé, /auth/me démo encore en vol → `modeDemo` (état) toujours false.
+    // Entrée en démo : mode posé, /auth/me démo encore en vol → `modeDemo` (état) toujours false,
+    // donc l'effet n'a PAS désarmé le minuteur : seule la garde `modeDemoRef` l'empêche d'agir.
     let entree!: Promise<unknown>
     act(() => {
       entree = ctx.demarrerDemo()
     })
     await act(async () => {
       await Promise.resolve()
-      vi.advanceTimersByTime(5_000)
+      vi.advanceTimersByTime(DELAI_PROACTIF_MS + 5_000) // franchit l'échéance proactive
     })
+    expect(etat()).toMatch(/\|reel\|/) // toujours en cours d'entrée : le minuteur réel était encore armé
     expect(api.rafraichirAccessToken).not.toHaveBeenCalled()
 
     await act(async () => {

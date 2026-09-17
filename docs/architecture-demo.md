@@ -147,15 +147,27 @@ front de démonstration (§6, PR 3).
 
 ## Mise en service (PO)
 
-1. Poser `DEMO_ACTIVEE=true` sur le service Railway `nkoni`.
-2. Générer la démo une fois contre la base de production, sans jamais coller son URL (depuis
-   `backend/`, seul endroit où `npm run demo:generer` se résout) :
+1. Poser `DEMO_ACTIVEE=true` sur le service Railway `nkoni` (CLI ≥ 5.57 : `railway variable set`, au
+   singulier ; `railway variables --set` reste accepté mais est marqué legacy). Le changement de
+   variable **redéploie** le service : attendre `SUCCESS` avant l'étape 2.
 
    ```bash
-   railway run --service nkoni -- sh -c 'u="$(railway variables --service Postgres --kv | grep "^DATABASE_PUBLIC_URL=" | cut -d= -f2-)"; [ -n "$u" ] || { echo "URL de la base introuvable"; exit 1; }; DATABASE_URL="$u" npm run demo:generer'
+   railway variable set DEMO_ACTIVEE=true --service nkoni
    ```
 
-   Attendu : `✔ Démo générée : <uuid>` et un code de sortie 0 (compter quelques minutes).
+2. Générer la démo une fois contre la base de production, sans jamais coller son URL. Le `cd` fait
+   PARTIE de la commande : `npm run demo:generer` ne se résout que dans `backend/`, et lancé depuis la
+   racine il échoue sur `package.json` introuvable (piège vécu à la mise en service).
+
+   ```bash
+   cd backend && railway run --service nkoni -- sh -c 'u="$(railway variables --service Postgres --kv | grep "^DATABASE_PUBLIC_URL=" | cut -d= -f2-)"; [ -n "$u" ] || { echo "URL de la base introuvable"; exit 1; }; DATABASE_URL="$u" npm run demo:generer'
+   ```
+
+   Attendu : `✔ Démo générée : <uuid>` et un code de sortie 0 (compter quelques minutes, le générateur
+   écrit plusieurs centaines de lignes sans rien afficher entre-temps).
+
+   Le signal observable de l'extérieur est `POST /api/demo/session` : **404 tant que la démo est éteinte
+   OU absente** (404 uniforme délibéré, il ne distingue pas les deux cas), 200 dès qu'elle existe.
 3. Contrôle : ouvrir `https://nkoni.vercel.app/demo` — le tableau de bord de « Association Exemple
    NKONI » s'affiche avec le bandeau « Espace de démonstration » ; tenter une écriture (ex. « + Versement »
    puis enregistrer) affiche le refus « lecture seule » ; « Quitter la démo » ramène à l'accueil (ou à

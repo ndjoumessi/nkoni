@@ -27,10 +27,12 @@ function expirationAccessToken(token: string): number | null {
 }
 
 /** Session RÉELLE lue depuis le cookie refresh (montage, retour de démo), ou null s'il n'y en a pas. */
-async function lireSessionReelle(signal?: AbortSignal): Promise<{ token: string; me: AuthUser } | null> {
+// Volontairement NON annulable : annuler côté client n'arrête pas le serveur, qui a pu tourner le
+// cookie ; relancer ensuite un refresh présenterait un jeton déjà tourné (famille révoquée).
+async function lireSessionReelle(): Promise<{ token: string; me: AuthUser } | null> {
   try {
-    const { accessToken: token } = await authApi.refresh(signal)
-    const me = await authApi.me(token, signal)
+    const { accessToken: token } = await authApi.refresh()
+    const me = await authApi.me(token)
     return { token, me }
   } catch {
     return null
@@ -77,12 +79,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   useEffect(() => {
-    const controller = new AbortController()
     let active = true
 
     // Gardée dans un ref le temps du vol : une sortie de démo déclenchée AVANT la fin de cette
     // hydratation réutilise ce MÊME refresh au lieu d'en relancer un second (cf. quitterDemo).
-    const promesse = lireSessionReelle(controller.signal)
+    // StrictMode (dev) monte, nettoie puis remonte l'effet sur la MÊME instance : on RÉUTILISE le
+    // refresh déjà en vol et on ne l'annule jamais. Annuler côté client n'arrête pas le serveur, qui a
+    // pu tourner le cookie ; un second refresh présenterait alors le jeton déjà tourné et la détection
+    // de réutilisation révoquerait toute la famille (déconnexion).
+    const promesse = hydratationEnCoursRef.current ?? lireSessionReelle()
     hydratationEnCoursRef.current = promesse
 
     void (async () => {
@@ -96,7 +101,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => {
       active = false
-      controller.abort()
     }
   }, [appliquerSession])
 

@@ -222,6 +222,16 @@ function useInitiales(): string {
   return (initialesMembre || (user?.email ?? '?').slice(0, 2)).toUpperCase()
 }
 
+/**
+ * Nom du compte affiché dans la coquille. En démo, l'e-mail technique du compte partagé
+ * (`demo-<uuid>@….invalid`) n'apprend rien au visiteur : on affiche « Compte de démonstration ».
+ */
+function useLibelleCompte(): string | undefined {
+  const { user, modeDemo } = useAuth()
+  const { t } = useTranslation()
+  return modeDemo ? t('demo.compte') : user?.email
+}
+
 /** Libellé de rôle traduit (repli sur la valeur brute). */
 function useLibelleRole(): string | undefined {
   const { user } = useAuth()
@@ -231,8 +241,8 @@ function useLibelleRole(): string | undefined {
 
 /** Chip compte cliquable → Mon profil (drawer mobile, où il n'y a pas de barre supérieure). */
 function UserChip({ onNavigate }: { onNavigate?: () => void }) {
-  const { user } = useAuth()
   const { t } = useTranslation()
+  const libelleCompte = useLibelleCompte()
   const initials = useInitiales()
   const role = useLibelleRole()
   return (
@@ -246,7 +256,7 @@ function UserChip({ onNavigate }: { onNavigate?: () => void }) {
         {initials}
       </span>
       <div className="min-w-0">
-        <p className="truncate text-sm font-medium text-foreground">{user?.email}</p>
+        <p className="truncate text-sm font-medium text-foreground">{libelleCompte}</p>
         <p className="truncate text-xs text-faint">{role}</p>
       </div>
     </Link>
@@ -288,8 +298,8 @@ function useActionSortie() {
  * « Se déconnecter ». Rendu en PORTAIL via `usePopoverFlottant` (clic-extérieur + Échap gérés).
  */
 function CompteMenu() {
-  const { user } = useAuth()
   const { t } = useTranslation()
+  const libelleCompte = useLibelleCompte()
   const [open, setOpen] = useState(false)
   const { signingOut, handleLogout, libelle } = useActionSortie()
   const initials = useInitiales()
@@ -317,7 +327,7 @@ function CompteMenu() {
         </span>
         <span className="hidden min-w-0 text-left sm:block">
           <span className="block max-w-[11rem] truncate text-xs font-medium text-foreground">
-            {user?.email}
+            {libelleCompte}
           </span>
           <span className="block truncate text-2xs text-faint">{role}</span>
         </span>
@@ -331,7 +341,7 @@ function CompteMenu() {
         rendreFlottant(
           <div className="w-60 overflow-hidden rounded-xl border border-hairline-strong bg-surface p-1.5 shadow-2xl">
             <div className="border-b border-hairline px-2.5 pb-2 pt-1.5">
-              <p className="truncate text-sm font-medium text-foreground">{user?.email}</p>
+              <p className="truncate text-sm font-medium text-foreground">{libelleCompte}</p>
               <p className="truncate text-xs text-faint">{role}</p>
             </div>
             <Link

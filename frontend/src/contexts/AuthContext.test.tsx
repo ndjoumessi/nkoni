@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { StrictMode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
 import { AuthProvider } from './AuthContext'
@@ -95,6 +96,21 @@ beforeEach(() => {
 afterEach(() => {
   cleanup()
   vi.useRealTimers()
+})
+
+describe('AuthContext — réhydratation au montage', () => {
+  it('StrictMode (double montage en dev) : un SEUL /auth/refresh — un second présenterait un jeton déjà tourné', async () => {
+    sessionReelle()
+    render(
+      <StrictMode>
+        <AuthProvider>
+          <Sonde />
+        </AuthProvider>
+      </StrictMode>,
+    )
+    await waitFor(() => expect(etat()).toBe('pret|reel|u-reel|jeton-reel'))
+    expect(api.refresh).toHaveBeenCalledTimes(1)
+  })
 })
 
 describe('AuthContext — entrer dans la démo', () => {

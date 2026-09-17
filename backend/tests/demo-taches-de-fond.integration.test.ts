@@ -10,6 +10,7 @@ import {
 } from '../src/services/notification-scheduler'
 import { executerRelancesForfaitToutesOrgs } from '../src/services/forfait-relances.service'
 import { reconcilierPaiementsToutesOrgs } from '../src/services/paiement-reconciliation.service'
+import { envelopperPrisma } from './support/prisma-espion'
 
 /**
  * Spec 2026-09-15 §1.5, contre une VRAIE Postgres : un mock ignore le `where`, seule la base prouve
@@ -63,29 +64,18 @@ const ids = (resultats: { organisationId: string }[]) => resultats.map((r) => r.
  * TELS QUE Postgres les a renvoyés, AVANT ce filtrage — c'est ce qui permet de distinguer « le service
  * filtre bien `estDemo` » (la démo n'apparaît pas dans `bruts`) de « le Proxy masque la démo à notre
  * place » (elle y apparaîtrait). Chaque fonction est `.bind()`ée sur son objet d'origine pour préserver
- * le `this` attendu par le client Prisma.
+ * le `this` attendu par le client Prisma (helper partagé `envelopperPrisma`).
  */
 function creerPrismaScope(bruts: string[]): typeof prismaEtendu {
-  const lier = (cible: any, prop: PropertyKey) => {
-    const valeur = Reflect.get(cible, prop)
-    return typeof valeur === 'function' ? valeur.bind(cible) : valeur
-  }
-  return new Proxy(prismaEtendu, {
-    get(cible, prop) {
-      if (prop !== 'organisation') return lier(cible, prop)
-      const delegate = Reflect.get(cible, prop) as any
-      return new Proxy(delegate, {
-        get(cibleDelegate, propDelegate) {
-          if (propDelegate !== 'findMany') return lier(cibleDelegate, propDelegate)
-          return async (args: any) => {
-            const reel: { id: string }[] = await delegate.findMany(args)
-            bruts.push(...reel.map((o) => o.id))
-            return reel.filter((o) => IDS_AUTORISES.has(o.id))
-          }
-        },
-      })
+  return envelopperPrisma(prismaEtendu, {
+    organisation: {
+      findMany: async (originale, args) => {
+        const reel: { id: string }[] = await originale(args)
+        bruts.push(...reel.map((o) => o.id))
+        return reel.filter((o) => IDS_AUTORISES.has(o.id))
+      },
     },
-  }) as any
+  })
 }
 
 describe('tâches de fond — organisation de démonstration écartée', () => {

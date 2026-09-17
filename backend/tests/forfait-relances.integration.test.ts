@@ -8,6 +8,7 @@ import { buildApp } from '../src/app'
 import { hashPassword } from '../src/services/auth.service'
 import { finDeJourneeApp } from '../src/lib/date-app'
 import { executerRelancesForfaitToutesOrgs } from '../src/services/forfait-relances.service'
+import { envelopperPrisma } from './support/prisma-espion'
 
 /**
  * Fix-wave (spec 1.1 §4.1) — ÉCARTER une relance de forfait ne doit plus la RÉARMER la nuit
@@ -89,6 +90,18 @@ afterAll(async () => {
 
 const entetes = () => ({ authorization: `Bearer ${jetonAdmin}` })
 
+/**
+ * La tâche de nuit boucle sur TOUTES les organisations de la base, partagée avec les autres fichiers
+ * d'intégration exécutés en parallèle : sans restriction, elle créerait des relances sous les pieds de
+ * leurs fixtures. La vraie requête Postgres s'exécute (le `where` du service reste prouvé), seul le
+ * résultat rendu à la tâche est limité à NOTRE organisation.
+ */
+const prismaScope = envelopperPrisma(prismaEtendu, {
+  organisation: {
+    findMany: async (originale, args) => ((await originale(args)) as { id: string }[]).filter((o) => o.id === ORG),
+  },
+})
+
 describe('Relances de forfait — écarter une notification ne la réarme plus', () => {
   beforeEach(async () => {
     await base.notification.deleteMany({ where: { destinataireId: adminId } })
@@ -97,7 +110,7 @@ describe('Relances de forfait — écarter une notification ne la réarme plus',
   it('1→4 : relance créée pour l’ADMIN seul, écartée par DELETE, la 2e nuit ne recrée rien, la ligne survit masquée', async () => {
     // (1) Tâche de nuit : 1 notification FORFAIT_ECHEANCE pour l'ADMIN, aucune pour la TRESORIERE
     // (ROLES_RELANCE_FORFAIT = ADMIN/PRESIDENT uniquement).
-    const premiereNuit = await executerRelancesForfaitToutesOrgs(prismaEtendu as any, now)
+    const premiereNuit = await executerRelancesForfaitToutesOrgs(prismaScope as any, now)
     const resultatOrg = premiereNuit.find((r) => r.organisationId === ORG)
     expect(resultatOrg?.etape).toBe('J7')
     expect(resultatOrg?.notifies).toBe(1)
@@ -121,7 +134,7 @@ describe('Relances de forfait — écarter une notification ne la réarme plus',
     expect(liste.json()).toEqual([])
 
     // (3) Relance : la tâche de nuit tourne à nouveau (même étape J7, échéance inchangée) → 0 créée.
-    const secondeNuit = await executerRelancesForfaitToutesOrgs(prismaEtendu as any, now)
+    const secondeNuit = await executerRelancesForfaitToutesOrgs(prismaScope as any, now)
     const resultatOrg2 = secondeNuit.find((r) => r.organisationId === ORG)
     expect(resultatOrg2?.notifies).toBe(0)
 

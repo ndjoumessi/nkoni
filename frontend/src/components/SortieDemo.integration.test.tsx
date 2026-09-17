@@ -179,6 +179,13 @@ describe('sortie de démo — de bout en bout (coquille réelle)', () => {
     expect(compter('POST', '/auth/refresh')).toBe(2)
   })
 
+  it('en démo, la coquille nomme le compte « Compte de démonstration », jamais son e-mail technique', async () => {
+    monterFetch(false)
+    await entrerEnDemo()
+    expect(screen.getAllByText('demo.compte').length).toBeGreaterThan(0)
+    expect(screen.queryByText(ADMIN_DEMO.email)).toBeNull()
+  })
+
   it('arrivée directe sur /demo/sortie hors démo : navigue seulement, aucun refresh supplémentaire', async () => {
     monterFetch(false)
     render(

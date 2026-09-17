@@ -11,6 +11,8 @@ export default {
       indisponibleTitre: 'Sample space unavailable',
       indisponible: 'The demo space is temporarily unavailable. Please try again later.',
       erreurTitre: 'Could not open the sample space',
+      occupeTitre: 'Sample space is busy',
+      occupe: 'Many visitors are opening the demo right now. Try again in a minute.',
       erreur: 'Check your connection, then try again.',
     },
     bandeau: {
@@ -19,6 +21,8 @@ export default {
       quitter: 'Leave the demo',
       retourEnCours: 'Leaving…',
     },
+    compte: 'Demo account',
+    partageWhatsappDesactive: 'WhatsApp sharing disabled in the demo',
     whatsappDesactive: 'WhatsApp reminder disabled in the demo',
     pushDesactive: 'Push notifications disabled in the demo',
   },

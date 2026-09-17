@@ -52,12 +52,16 @@ describe('VersementsList — partage WhatsApp du reçu', () => {
     expect(String(ouvrir.mock.calls[0][0])).toContain('https://wa.me/237677123456')
   })
 
-  it('en démo : contrôle désactivé, expliqué, et aucun window.open', async () => {
+  it('en démo : contrôle désactivé, raison propre au partage lue avec le libellé visible, aucun window.open', async () => {
     modeDemo = true
     rendre()
-    const bouton = (await screen.findByRole('button', { name: 'demo.whatsappDesactive' })) as HTMLButtonElement
+    // Nom accessible = libellé visible + raison (WCAG 2.5.3 : le nom contient ce qu'on voit).
+    const bouton = (await screen.findByRole('button', {
+      name: /versements\.liste\.whatsapp.*demo\.partageWhatsappDesactive/,
+    })) as HTMLButtonElement
     expect(bouton.disabled).toBe(true)
-    expect(bouton.title).toBe('demo.whatsappDesactive')
+    expect(bouton.title).toBe('demo.partageWhatsappDesactive')
+    expect(bouton.textContent).not.toContain('demo.whatsappDesactive')
     fireEvent.click(bouton)
     expect(ouvrir).not.toHaveBeenCalled()
   })

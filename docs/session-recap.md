@@ -277,7 +277,8 @@ statut de déploiement Railway/Vercel confirmé au statut réel là où le backe
   (`!/backend/tests/**`) risquerait, mal évalué, de bloquer un vrai déploiement backend — trop
   sensible pour un gain marginal.
 - **Migrations en `startCommand`, pas de pre-deploy step** — on garde
-  `npx prisma migrate deploy && npm run start` (défini dans `/backend/railway.json`). Le `&&`
+  `npx prisma migrate deploy && npm run start` (réglage `startCommand` du SERVICE Railway ;
+  `/backend/railway.json` a été supprimé le 2026-09-17, Config as Code étant déprécié). Le `&&`
   fournit déjà le fail-safe (migration KO → boot avorté → déploiement FAILED → Railway sert le
   dernier déploiement sain). Un pre-deploy step n'apporterait un gain qu'en **multi-réplicas**
   (course de migrations concurrentes) — non pertinent : NKONI tourne en **instance unique**

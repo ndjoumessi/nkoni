@@ -191,7 +191,7 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   await registerJwt(app)
 
   // LIVENESS — le process répond. C'est CE endpoint que le healthcheck Railway interroge
-  // (`railway.json` → healthcheckPath: /health). Ne JAMAIS y ajouter de dépendance (base, réseau) :
+  // (réglage `healthcheckPath` du service Railway). Ne JAMAIS y ajouter de dépendance (base, réseau) :
   // le coupler à la base empêcherait un déploiement pendant un hoquet DB et interdirait de déployer
   // quand la base est à terre — exactement au moment où l'on a besoin de la reprise.
   app.get('/health', async () => ({ status: 'ok' }))

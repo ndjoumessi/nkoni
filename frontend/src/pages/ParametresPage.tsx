@@ -1,4 +1,4 @@
-import { useEffect, useState, type ComponentType } from 'react'
+import { useEffect, useState, type ComponentType, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { cleI18n } from '@/lib/i18n'
 import { Navigate } from 'react-router-dom'
@@ -28,22 +28,28 @@ import { Button } from '@/components/ui/Button'
 import { ErrorState } from '@/components/ui/ErrorState'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { useToast } from '@/components/ui/Toast'
+import { AideNotion } from '@/components/ui/AideNotion'
 
 /** Ligne d'information en lecture seule (icône + libellé + valeur). */
 function Info({
   icon: Icon,
   label,
   value,
+  aide,
 }: {
   icon: ComponentType<LucideProps>
   label: string
   value: string
+  aide?: ReactNode
 }) {
   return (
     <div className="flex items-start gap-3 py-3">
       <Icon className="mt-0.5 h-4 w-4 shrink-0 text-brass" aria-hidden="true" />
       <div className="min-w-0">
-        <dt className="text-2xs font-medium uppercase tracking-[0.12em] text-faint">{label}</dt>
+        <dt className="flex items-center gap-1 text-2xs font-medium uppercase tracking-[0.12em] text-faint">
+          {label}
+          {aide}
+        </dt>
         <dd className="mt-0.5 break-words text-sm font-medium text-foreground">{value}</dd>
       </div>
     </div>
@@ -177,7 +183,12 @@ export function ParametresPage() {
             </div>
             <dl className="mt-3 divide-y divide-hairline">
               <Info icon={Building2} label={t('parametres.infos.nom')} value={org.nom} />
-              <Info icon={Crown} label={t('parametres.infos.chef')} value={chefLabel} />
+              <Info
+                icon={Crown}
+                label={t('parametres.infos.chef')}
+                value={chefLabel}
+                aide={<AideNotion notion="chefOrganisation" />}
+              />
               <Info icon={Coins} label={t('parametres.infos.devise')} value={deviseLabel} />
               <Info icon={Languages} label={t('parametres.infos.langue')} value={langueLabel} />
               <Info
@@ -210,8 +221,9 @@ export function ParametresPage() {
                   ? t('parametres.membres.compteurIllimite', { count: org.nbMembres })
                   : t('parametres.membres.compteur', { count: org.nbMembres, limite: limiteNum })}
               </p>
-              <span className="text-xs uppercase tracking-wide text-faint">
+              <span className="inline-flex items-center gap-1 text-xs uppercase tracking-wide text-faint">
                 {t(cleI18n(`commun.forfaits.${org.forfait}`))}
+                <AideNotion notion="forfaitEcheance" />
               </span>
             </div>
 

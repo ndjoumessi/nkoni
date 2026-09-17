@@ -13,6 +13,7 @@ import { ButtonLink } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ErrorState } from '@/components/ui/ErrorState'
 import { RowsSkeleton } from '@/components/ui/Skeleton'
+import { AideNotion } from '@/components/ui/AideNotion'
 
 const TONE_TYPE: Record<Cagnotte['type'], string> = {
   DEUIL: 'border-hairline bg-surface-2/60 text-muted-foreground',
@@ -137,6 +138,7 @@ export function CagnottesPage() {
         overline={t('cagnottes.liste.overline')}
         title={t('cagnottes.liste.titre')}
         description={t('cagnottes.liste.sousTitre')}
+        aide={<AideNotion notion="cagnotte" />}
         actions={
           gestion && items && items.length > 0 ? (
             <ButtonLink to="/cagnottes/nouvelle" icon={Plus}>

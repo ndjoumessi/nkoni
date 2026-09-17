@@ -9,6 +9,7 @@ import { focusPremierChampInvalide, cn } from '@/lib/utils'
 import { formatMontant } from '@/lib/format'
 import { anneeCouranteApp } from '@/lib/date-app'
 import { useToast } from '@/components/ui/Toast'
+import { AideNotion } from '@/components/ui/AideNotion'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, Overline } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -240,6 +241,7 @@ export function BaremePage() {
         description={t('bareme.description', {
           suffixe: gestion ? '' : t('bareme.lectureSeule'),
         })}
+        aide={<AideNotion notion="bareme" />}
       />
 
       {/* Ajouter + Ouvrir côte à côte quand les DEUX sont permis (ADMIN) ; sinon la carte présente
@@ -304,7 +306,10 @@ export function BaremePage() {
           concerné (cf. `ouvrirAnneeMembre`). Sert à préparer l'exercice en une fois. */}
       {ouvrirAutorise && (
         <Card className="nk-reveal nk-d2 p-5">
-          <Overline>{t('bareme.ouvrir.titre')}</Overline>
+          <div className="flex items-center gap-1">
+            <Overline>{t('bareme.ouvrir.titre')}</Overline>
+            <AideNotion notion="ouvrirAnnee" />
+          </div>
           <p className="mt-1.5 text-xs text-faint">{t('bareme.ouvrir.hint')}</p>
           <div className="mt-3 flex flex-wrap items-center gap-3">
             {/* Bornes 1900–2200 alignées sur le schéma backend d'ouvrir-annee. */}

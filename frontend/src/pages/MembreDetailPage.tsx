@@ -39,6 +39,7 @@ import { Button, ButtonLink } from '@/components/ui/Button'
 import { Field, Input } from '@/components/ui/Field'
 import { Modal } from '@/components/ui/Modal'
 import { usePopoverFlottant } from '@/components/ui/usePopoverFlottant'
+import { AideNotion } from '@/components/ui/AideNotion'
 import { ErrorState } from '@/components/ui/ErrorState'
 import { useToast } from '@/components/ui/Toast'
 import { Skeleton } from '@/components/ui/Skeleton'
@@ -350,7 +351,12 @@ export function MembreDetailPage() {
         description={
           <span className="flex flex-wrap items-center gap-2">
             <StatutMembreBadge statut={membre.statut} size="sm" />
-            {statut && <StatutCotisationBadge statut={statut.statut} size="sm" />}
+            {statut && (
+              <span className="inline-flex items-center gap-1">
+                <StatutCotisationBadge statut={statut.statut} size="sm" />
+                <AideNotion notion="statutCotisation" />
+              </span>
+            )}
             {estChef && (
               <Badge tone="brass" size="sm">
                 <Crown className="h-3 w-3" aria-hidden="true" />
@@ -363,13 +369,16 @@ export function MembreDetailPage() {
         actions={
           <>
             {peutEquilibrer(user?.role) && (
-              <ButtonLink
-                to={`/membres/${membre.id}/equilibrage`}
-                variant="outline"
-                icon={Scale}
-              >
-                {t('membres.detail.equilibrer')}
-              </ButtonLink>
+              <>
+                <ButtonLink
+                  to={`/membres/${membre.id}/equilibrage`}
+                  variant="outline"
+                  icon={Scale}
+                >
+                  {t('membres.detail.equilibrer')}
+                </ButtonLink>
+                <AideNotion notion="equilibrage" />
+              </>
             )}
             {peutDesignerChef(user?.role) &&
               (estChef ? (
@@ -522,7 +531,10 @@ export function MembreDetailPage() {
             </p>
           </Card>
           <Card className="p-5">
-            <Overline>{t('membres.detail.totalValorise')}</Overline>
+            <div className="flex items-center gap-1">
+              <Overline>{t('membres.detail.totalValorise')}</Overline>
+              <AideNotion notion="valorise" />
+            </div>
             <p className="mt-2 text-xl font-semibold text-jade">
               <Montant value={statut.totalValoriseCumule} />
             </p>
@@ -556,7 +568,10 @@ export function MembreDetailPage() {
       {financierAccessible && (
         <Card className="nk-reveal nk-d4 p-6">
           <div className="flex items-center justify-between gap-3">
-            <Overline>{t('membres.detail.contributions')}</Overline>
+            <div className="flex items-center gap-1">
+              <Overline>{t('membres.detail.contributions')}</Overline>
+              <AideNotion notion="recus" />
+            </div>
             {peutSaisirVersement(user?.role) && (
               <ButtonLink
                 to={`/membres/${membre.id}/versements/nouveau`}

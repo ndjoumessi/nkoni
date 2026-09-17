@@ -27,6 +27,7 @@ import { DatePicker } from '@/components/ui/DatePicker'
 import { Modal } from '@/components/ui/Modal'
 import { DataTable, type Column } from '@/components/ui/DataTable'
 import { Pagination } from '@/components/ui/Pagination'
+import { AideNotion } from '@/components/ui/AideNotion'
 
 const CATEGORIES: CategorieDepense[] = ['AIDE_MEMBRE', 'FUNERAILLES', 'EVENEMENT', 'FONCTIONNEMENT', 'AUTRE']
 const STATUTS: StatutDepense[] = ['BROUILLON', 'EN_ATTENTE', 'APPROUVEE', 'REJETEE', 'PAYEE']
@@ -239,7 +240,10 @@ export function TresoreriePage() {
       {/* Liste + filtres */}
       <Card className="nk-reveal nk-d4 mt-4 p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <Overline>{t('tresorerie.liste.titre')}</Overline>
+          <div className="flex items-center gap-1">
+            <Overline>{t('tresorerie.liste.titre')}</Overline>
+            <AideNotion notion="circuitDepense" />
+          </div>
           <div className="flex flex-wrap gap-2">
             <Select aria-label={t('tresorerie.liste.filtreStatut')} className="w-auto" value={filtreStatut} onChange={(e) => { setFiltreStatut(e.target.value as StatutDepense | ''); setPage(1) }}>
               <option value="">{t('tresorerie.liste.tous')} — {t('tresorerie.liste.filtreStatut')}</option>

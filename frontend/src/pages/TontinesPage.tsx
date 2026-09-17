@@ -17,6 +17,7 @@ import { ErrorState } from '@/components/ui/ErrorState'
 import { RowsSkeleton } from '@/components/ui/Skeleton'
 import { Modal } from '@/components/ui/Modal'
 import { useToast } from '@/components/ui/Toast'
+import { AideNotion } from '@/components/ui/AideNotion'
 
 const MODES: ModeRotation[] = ['ORDRE_FIXE', 'TIRAGE', 'ENCHERE']
 
@@ -219,6 +220,7 @@ export function TontinesPage() {
           <Field
             label={t('tontines.creation.modeRotation')}
             hint={t(cleI18n(`tontines.modesAide.${mode}`))}
+            aide={<AideNotion notion="modeRotation" />}
           >
             <Select
               id="tontine-mode"

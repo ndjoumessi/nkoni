@@ -16,6 +16,7 @@ import {
 import { peutGererMembres } from '@/lib/roles'
 import { soumettreOuEnfiler } from '@/lib/offline-sync'
 import { useToast } from '@/components/ui/Toast'
+import { AideNotion } from '@/components/ui/AideNotion'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card } from '@/components/ui/Card'
 import { Button, ButtonLink } from '@/components/ui/Button'
@@ -292,7 +293,12 @@ export function MembreFormPage() {
                   onChange={(e) => set('fonctionSociale', e.target.value)}
                 />
               </Field>
-              <Field label={t('membres.form.champ.anneeAdhesion')} required error={errors.anneeAdhesion}>
+              <Field
+                label={t('membres.form.champ.anneeAdhesion')}
+                required
+                error={errors.anneeAdhesion}
+                aide={<AideNotion notion="anneeAdhesion" />}
+              >
                 {/* Borne haute = année en cours : le backend refuse une adhésion future (§4.1). */}
                 <SelecteurAnnee
                   value={form.anneeAdhesion ? Number(form.anneeAdhesion) : null}
@@ -323,7 +329,10 @@ export function MembreFormPage() {
                   ))}
                 </Select>
               </Field>
-              <Field label={t('membres.form.champ.chefSousFamille')}>
+              <Field
+                label={t('membres.form.champ.chefSousFamille')}
+                aide={<AideNotion notion="chefSousFamille" />}
+              >
                 <Select
                   value={form.chefSousFamilleId}
                   onChange={(e) => set('chefSousFamilleId', e.target.value)}
@@ -343,6 +352,7 @@ export function MembreFormPage() {
                   label={t('membres.form.champ.anneeFinContribution')}
                   hint={t('membres.form.champ.anneeFinHint')}
                   error={errors.anneeFinContribution}
+                  aide={<AideNotion notion="finContribution" />}
                 >
                   {/* Optionnel : laissé vide (« — ») = renseigné automatiquement par le backend (§4.1). */}
                   <SelecteurAnnee

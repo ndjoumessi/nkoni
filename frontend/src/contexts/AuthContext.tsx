@@ -68,6 +68,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // détection de réutilisation du serveur révoquerait TOUTE la famille de l'administrateur réel
   // (backend/src/routes/auth.route.ts, réutilisation d'un refresh token déjà tourné).
   const sortieEnCoursRef = useRef<Promise<AuthUser | null> | null>(null)
+  // Génération de la session de démonstration, incrémentée à CHAQUE entrée. Elle CLÉ le single-flight
+  // ci-dessus : celui-ci ne doit absorber que les appels concurrents visant LA MÊME démo (cf. quitterDemo).
+  const generationDemoRef = useRef(0)
+  const generationSortieRef = useRef(0)
 
   const appliquerSession = useCallback((token: string, u: AuthUser) => {
     setAccessToken(token)
@@ -107,9 +111,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const quitterDemo = useCallback((): Promise<AuthUser | null> => {
     // Single-flight (revue, concurrence) : une sortie DÉJÀ en vol est renvoyée telle quelle à tout
     // appelant concurrent — jamais un second /auth/refresh pour la même sortie.
-    if (sortieEnCoursRef.current) return sortieEnCoursRef.current
+    const generation = generationDemoRef.current
+    if (sortieEnCoursRef.current && generationSortieRef.current === generation) {
+      return sortieEnCoursRef.current
+    }
+    // Mais le partage est CLÉ SUR LA GÉNÉRATION : une démo REDÉMARRÉE pendant qu'une sortie est en vol
+    // est une autre session, que cette sortie-là laisse délibérément intacte (elle le doit : sa session
+    // réelle ne doit pas écraser la démo en cours). Lui renvoyer cette promesse laisserait donc le
+    // visiteur DANS la démo après avoir demandé à en sortir. On ouvre une vraie sortie — ENCHAÎNÉE sur
+    // la précédente, jamais parallèle : deux /auth/refresh simultanés présenteraient le même cookie et
+    // la détection de réutilisation du serveur révoquerait toute la famille de l'administrateur réel.
+    const sortiePrecedente = sortieEnCoursRef.current
 
     const executerSortie = async (): Promise<AuthUser | null> => {
+      if (sortiePrecedente) await sortiePrecedente.catch(() => null)
       // JAMAIS authApi.logout() ni purgerDonneesLocales() ici : le cookie et la file hors-ligne
       // appartiennent à l'administrateur réel éventuel (invariant de revue, test dédié).
       modeDemoRef.current = false
@@ -142,6 +157,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (sortieEnCoursRef.current === promesseSortie) sortieEnCoursRef.current = null
     })
     sortieEnCoursRef.current = promesseSortie
+    generationSortieRef.current = generation
     return promesseSortie
   }, [appliquerSession])
 
@@ -150,6 +166,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Mode posé AVANT toute requête authentifiée : un 401 renouvelle alors le jeton démo, jamais la
     // session réelle (refresh-on-401 et minuteur proactif la restaureraient depuis le cookie).
     modeDemoRef.current = true
+    generationDemoRef.current += 1
     definirModeDemo({ messageRefus: () => i18n.t('demo.lectureSeule') })
     try {
       // /auth/me (GET, autorisé) porte `membreId` (le président fictif), absent de /demo/session.
@@ -157,6 +174,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setModeDemo(true)
       setAccessToken(token)
       setUser(me)
+      // La démo est une session COMPLÈTE : plus rien à attendre. Nécessaire parce qu'une sortie encore
+      // en vol a posé `loading` (elle ne le lèvera qu'à sa fin) — sans ça, une démo redémarrée
+      // pendant cette sortie restait sur l'écran de chargement jusqu'à ce que le refresh réponde.
+      setLoading(false)
       // Langue : celle du visiteur est conservée (l'interface le suit, le contenu fictif est en français).
       if (me.devise) appliquerDevise(me.devise)
       // Attendue (revue I2) : `/demo` ne navigue qu'après la purge des lectures réelles en cache.

@@ -304,8 +304,8 @@ describe('AuthContext — concurrence des sorties de démo (revue)', () => {
     await act(async () => {
       await ctx.demarrerDemo()
     })
-    // L'hydratation de montage n'a pas encore résolu : `loading` reste `true` (comme dans le test
-    // « une réhydratation réelle… » ci-dessous) — seuls le mode/jeton/utilisateur démo sont vérifiés ici.
+    // Seuls le mode/jeton/utilisateur démo sont vérifiés ici : l'hydratation de montage n'a pas encore
+    // résolu, mais la démo est une session complète, donc `demarrerDemo` a déjà levé `loading`.
     expect(etat()).toMatch(/\|demo\|u-demo\|jeton-demo$/)
 
     let sortiePromise!: Promise<unknown>
@@ -360,6 +360,61 @@ describe('AuthContext — concurrence des sorties de démo (revue)', () => {
     // La session réelle, revenue APRÈS la ré-entrée en démo, ne doit jamais l'écraser (spec §0 :
     // jamais de données réelles mélangées sous la bannière démo).
     expect(etat()).toBe('pret|demo|u-demo|jeton-demo')
+  })
+
+  it('démo réentrée : une NOUVELLE demande de sortie quitte vraiment, sans jamais doubler le refresh', async () => {
+    // Le single-flight ne doit absorber que les appels visant LA MÊME démo. Clé sur rien, il rendait
+    // la sortie DÉJÀ en vol — or celle-ci laisse délibérément intacte une démo réentrée entre-temps :
+    // le visiteur cliquait « Quitter la démo » et restait dedans. Une nouvelle génération ouvre donc
+    // une vraie sortie, ENCHAÎNÉE sur la précédente (jamais deux /auth/refresh en parallèle : ils
+    // présenteraient le même cookie et la détection de réutilisation révoquerait la famille du vrai
+    // administrateur).
+    let repondreSortie1: (v: { accessToken: string }) => void = () => undefined
+    api.refresh
+      .mockResolvedValueOnce({ accessToken: 'jeton-reel' }) // hydratation de montage
+      .mockImplementationOnce(
+        () =>
+          new Promise((r) => {
+            repondreSortie1 = r
+          }),
+      ) // refresh de la 1ʳᵉ sortie, différé
+      .mockResolvedValue({ accessToken: 'jeton-reel' }) // refresh de la 2ᵈᵉ sortie
+    api.me.mockImplementation(async (jeton: string) => (jeton === 'jeton-demo' ? ADMIN_DEMO : ADMIN_REEL))
+
+    await monter()
+    await act(async () => {
+      await ctx.demarrerDemo()
+    })
+
+    let sortie1!: Promise<unknown>
+    act(() => {
+      sortie1 = ctx.quitterDemo()
+    })
+
+    await act(async () => {
+      await ctx.demarrerDemo()
+    })
+    expect(etat()).toBe('pret|demo|u-demo|jeton-demo')
+
+    let sortie2!: Promise<unknown>
+    act(() => {
+      sortie2 = ctx.quitterDemo()
+    })
+    // Enchaînée : son propre refresh n'est pas encore parti.
+    expect(api.refresh).toHaveBeenCalledTimes(2)
+
+    await act(async () => {
+      repondreSortie1({ accessToken: 'jeton-reel' })
+      await sortie1
+      // La 1ʳᵉ sortie rend la main en laissant la démo réentrée intacte (propriété du test précédent),
+      // ce qui LIBÈRE la 2ᵈᵉ : les deux s'achèvent dans la même vidange de microtâches, l'état
+      // intermédiaire n'est donc pas observable ici.
+      await sortie2
+    })
+    // La 2ᵈᵉ sortie, elle, quitte pour de bon — et n'a tiré son refresh qu'APRÈS la première.
+    expect(api.refresh).toHaveBeenCalledTimes(3)
+    expect(etat()).toBe('pret|reel|u-reel|jeton-reel')
+    expect(api.logout).not.toHaveBeenCalled()
   })
 })
 

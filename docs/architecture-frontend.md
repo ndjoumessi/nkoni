@@ -22,7 +22,7 @@
 
 - **Primitive unique** : `<AideNotion notion="…" />` rend un « ? » (`.tap-target`, nom accessible
   « Aide : <titre> ») et une bulle en PORTAIL via `usePopoverFlottant`. Ouverture au clic/clavier, jamais
-  au survol ; à l'ouverture, le focus se déplace dans la bulle — titre et texte lus, Tab atteint le lien optionnel — mais SEULEMENT une fois celle-ci positionnée donc visible (drapeau `positionne` de `usePopoverFlottant` : un navigateur ignore un `focus()` sur un élément `visibility:hidden`) ; le départ du focus la ferme sans rendre le focus au « ? » (sauf un `focusout` sans `relatedTarget`, ignoré : Safari ne focalise pas un bouton cliqué), et Échap ne ferme que la bulle (jamais un modal parent). Ne pas créer d'infobulle ad hoc.
+  au survol ; à l'ouverture, le focus se déplace dans la bulle — titre et texte lus, Tab atteint le lien « En savoir plus » quand la notion en a un — mais SEULEMENT une fois celle-ci positionnée donc visible (drapeau `positionne` de `usePopoverFlottant` : un navigateur ignore un `focus()` sur un élément `visibility:hidden`) ; le départ du focus la ferme sans rendre le focus au « ? » (sauf un `focusout` sans `relatedTarget`, ignoré : Safari ne focalise pas un bouton cliqué), et Échap ne ferme que la bulle (jamais un modal parent). Ne pas créer d'infobulle ad hoc.
 - **Contenu** : `lib/aide.ts` (`NOTIONS_AIDE`, `LIENS_AIDE`) + namespace i18n `aide` (FR source, EN
   miroir). Une notion inconnue ne compile pas ; `aide-catalogue.test.ts` (textes non vides FR/EN, pas
   d'orphelin, 3 phrases max) et `aide-usage.test.ts` (chaque notion placée) gardent le catalogue.

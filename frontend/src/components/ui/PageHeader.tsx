@@ -41,11 +41,15 @@ export function PageHeader({
             </p>
           )}
           {aide ? (
-            <div className="mt-1 flex items-center gap-2">
+            // `items-start` + décalage, JAMAIS `items-center` : sur un titre qui passe à deux lignes
+            // (fréquent en mobile), centrer verticalement fait flotter le « ? » au milieu du bloc,
+            // détaché de la notion qu'il explique. Il est donc calé sur la PREMIÈRE ligne :
+            // (1.9rem × leading-tight 1.25 = 38 px de hauteur de ligne − 24 px de bouton) / 2 = 7 px.
+            <div className="mt-1 flex items-start gap-2">
               <h1 className="text-balance font-display text-[1.9rem] font-semibold leading-tight tracking-tight text-foreground">
                 {title}
               </h1>
-              {aide}
+              <span className="mt-[7px] shrink-0">{aide}</span>
             </div>
           ) : (
             <h1 className="mt-1 text-balance font-display text-[1.9rem] font-semibold leading-tight tracking-tight text-foreground">

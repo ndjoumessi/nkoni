@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { BandeauDemo } from './BandeauDemo'
 
 let modeDemo = true
@@ -12,14 +12,18 @@ vi.mock('react-i18next', () => ({
   initReactI18next: { type: '3rdParty', init: () => {} },
 }))
 
+/** Affiche l'état de navigation reçu par /demo/sortie. */
+function SondeSortie() {
+  const { state } = useLocation()
+  return <p>{`sortie:${JSON.stringify(state)}`}</p>
+}
+
 const rendre = () =>
   render(
     <MemoryRouter initialEntries={['/dashboard']}>
       <Routes>
         <Route path="/dashboard" element={<BandeauDemo />} />
-        <Route path="/" element={<p>accueil</p>} />
-        <Route path="/inscription" element={<p>inscription</p>} />
-        <Route path="/mon-espace" element={<p>mon espace</p>} />
+        <Route path="/demo/sortie" element={<SondeSortie />} />
       </Routes>
     </MemoryRouter>,
   )
@@ -44,26 +48,19 @@ describe('BandeauDemo', () => {
     expect(screen.queryByRole('button', { name: /fermer/i })).toBeNull()
   })
 
-  it('« Quitter » sans session réelle → accueil', async () => {
-    quitterDemo.mockResolvedValue(null)
+  // La sortie elle-même (quitterDemo, destination selon la session réelle) est exécutée par
+  // /demo/sortie, HORS coquille protégée : cf. SortieDemo.integration.test.tsx.
+  it('« Quitter » navigue vers /demo/sortie sans destination, sans quitter depuis la coquille', () => {
     rendre()
     fireEvent.click(screen.getByRole('button', { name: /demo.bandeau.quitter/ }))
-    expect(await screen.findByText('accueil')).toBeTruthy()
-    expect(quitterDemo).toHaveBeenCalledTimes(1)
+    expect(screen.getByText('sortie:{}')).toBeTruthy()
+    expect(quitterDemo).not.toHaveBeenCalled()
   })
 
-  it('« Quitter » avec session réelle → accueil de son rôle', async () => {
-    quitterDemo.mockResolvedValue({ id: 'u', role: 'MEMBRE_SIMPLE' })
-    rendre()
-    fireEvent.click(screen.getByRole('button', { name: /demo.bandeau.quitter/ }))
-    expect(await screen.findByText('mon espace')).toBeTruthy()
-  })
-
-  it('« Créer mon espace » quitte d’abord la démo puis ouvre l’inscription', async () => {
-    quitterDemo.mockResolvedValue(null)
+  it('« Créer mon espace » navigue vers /demo/sortie avec la destination /inscription', () => {
     rendre()
     fireEvent.click(screen.getByRole('button', { name: /commun.actions.creerMonEspace/ }))
-    expect(await screen.findByText('inscription')).toBeTruthy()
-    expect(quitterDemo).toHaveBeenCalledTimes(1)
+    expect(screen.getByText('sortie:{"destination":"/inscription"}')).toBeTruthy()
+    expect(quitterDemo).not.toHaveBeenCalled()
   })
 })

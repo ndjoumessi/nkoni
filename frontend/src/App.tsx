@@ -10,6 +10,7 @@ import CGUPage from '@/pages/legal/CGUPage'
 import MentionsLegalesPage from '@/pages/legal/MentionsLegalesPage'
 import StatutPage from '@/pages/StatutPage'
 import DemoPage from '@/pages/DemoPage'
+import SortieDemoPage from '@/pages/SortieDemoPage'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { SuperAdminRoute } from '@/components/SuperAdminRoute'
 import { AppShell } from '@/components/AppShell'
@@ -82,6 +83,8 @@ function App() {
       <Route path="/mentions-legales" element={<MentionsLegalesPage />} />
       <Route path="/statut" element={<StatutPage />} />
       <Route path="/demo" element={<DemoPage />} />
+      {/* Sortie de démo HORS coquille protégée (course ProtectedRoute ↔ navigation, cf. la page). */}
+      <Route path="/demo/sortie" element={<SortieDemoPage />} />
 
       {/* Console PLATEFORME (SaaS §2.3) — SUPER_ADMIN uniquement, layout autonome (hors AppShell). */}
       <Route

@@ -115,11 +115,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(null)
       setLoading(true)
       appliquerDevise('FCFA')
-      void purgerCachesApi()
+      // Purge lancée tout de suite mais ATTENDUE avant de rendre la main (revue I2) : l'appelant
+      // (`/demo/sortie`) ne navigue qu'une fois les caches vidés. Les réponses démo n'y entrent de
+      // toute façon jamais (en-tête `X-Nkoni-Demo` exclu du cache du service worker).
+      const purge = purgerCachesApi()
       // Une hydratation de montage encore en vol PARTAGE son refresh : jamais un second en parallèle.
+      // Lue SYNCHRONEMENT (avant tout await) : sinon l'hydratation pourrait finir entre-temps.
       const session = hydratationEnCoursRef.current
         ? await hydratationEnCoursRef.current
         : await lireSessionReelle()
+      await purge
       // Revue : une démo RÉENTRÉE pendant ce refresh (l'appelant a redémarré la démo avant que la
       // session réelle revienne) garde la main — ne jamais écraser son état avec la session réelle.
       if (!modeDemoRef.current) {
@@ -150,7 +155,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(me)
       // Langue : celle du visiteur est conservée (l'interface le suit, le contenu fictif est en français).
       if (me.devise) appliquerDevise(me.devise)
-      void purgerCachesApi()
+      // Attendue (revue I2) : `/demo` ne navigue qu'après la purge des lectures réelles en cache.
+      await purgerCachesApi()
       return me
     } catch (e) {
       modeDemoRef.current = false
@@ -192,6 +198,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!exp) return
     const delaiMs = exp * 1000 - Date.now() - 60_000
     const id = window.setTimeout(() => {
+      // Revue M2 : la démo peut démarrer entre `definirModeDemo` et `setModeDemo(true)` (lecture de
+      // /auth/me en vol) — ce minuteur armé pour le jeton RÉEL ne doit alors rien renouveler.
+      if (modeDemoRef.current) return
       void rafraichirAccessToken()
     }, Math.max(0, delaiMs))
     return () => window.clearTimeout(id)

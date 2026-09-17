@@ -1,29 +1,28 @@
-import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { Eye, LogOut } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
-import { cheminApresConnexion } from '@/lib/roles'
 import { Button } from '@/components/ui/Button'
+import { CHEMIN_SORTIE_DEMO, type EtatSortieDemo } from '@/lib/demo'
 
 /**
  * Bandeau de l'espace de démonstration (spec 2026-09-15 §2.3), en tête de `#contenu-principal`,
  * AU-DESSUS du bandeau de forfait. Non fermable : tant que la démo dure, le visiteur doit savoir que
  * les données sont fictives et que rien ne s'enregistre. `role="status"` (information, pas alerte).
- * Sortir passe par `quitterDemo`, qui n'appelle jamais /auth/logout.
+ *
+ * Sortir = naviguer vers `/demo/sortie`, qui exécute la sortie HORS de la coquille protégée. Appeler
+ * `quitterDemo` d'ici faisait rediriger `ProtectedRoute` vers /login avant la navigation (revue C1).
  */
 export function BandeauDemo() {
   const { t } = useTranslation()
-  const { modeDemo, quitterDemo } = useAuth()
+  const { modeDemo } = useAuth()
   const navigate = useNavigate()
-  const [enCours, setEnCours] = useState(false)
 
   if (!modeDemo) return null
 
-  const quitter = async (destination?: string) => {
-    setEnCours(true)
-    const reel = await quitterDemo()
-    navigate(destination ?? (reel ? cheminApresConnexion(reel.role) : '/'), { replace: true })
+  const quitter = (destination?: string) => {
+    const etat: EtatSortieDemo = destination ? { destination } : {}
+    navigate(CHEMIN_SORTIE_DEMO, { replace: true, state: etat })
   }
 
   return (
@@ -40,11 +39,11 @@ export function BandeauDemo() {
         </p>
       </div>
       <div className="flex flex-wrap gap-2 sm:shrink-0">
-        <Button size="sm" disabled={enCours} onClick={() => void quitter('/inscription')}>
+        <Button size="sm" onClick={() => quitter('/inscription')}>
           {t('commun.actions.creerMonEspace')}
         </Button>
-        <Button size="sm" variant="outline" icon={LogOut} disabled={enCours} onClick={() => void quitter()}>
-          {enCours ? t('demo.bandeau.retourEnCours') : t('demo.bandeau.quitter')}
+        <Button size="sm" variant="outline" icon={LogOut} onClick={() => quitter()}>
+          {t('demo.bandeau.quitter')}
         </Button>
       </div>
     </div>

@@ -17,3 +17,14 @@ export function estRequeteAutoriseeEnDemo(methode: string, chemin: string): bool
   const sansRequete = chemin.split('?')[0]
   return ECRITURES_AUTORISEES_EN_DEMO.includes(`${m} ${sansRequete}`)
 }
+
+/**
+ * Chemin PUBLIC de sortie de la démo (`pages/SortieDemoPage.tsx`) : bandeau et menu compte y
+ * naviguent au lieu d'appeler `quitterDemo` sous `ProtectedRoute` (revue finale PR 3, C1).
+ */
+export const CHEMIN_SORTIE_DEMO = '/demo/sortie'
+
+/** État de navigation vers `/demo/sortie`. `destination` absente = espace du rôle réel, sinon `/`. */
+export interface EtatSortieDemo {
+  destination?: string
+}

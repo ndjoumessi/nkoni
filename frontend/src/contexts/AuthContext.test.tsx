@@ -382,6 +382,38 @@ describe('AuthContext — autres comportements en démo', () => {
     expect(api.rafraichirAccessToken).not.toHaveBeenCalled()
   })
 
+  it('revue M2 : le minuteur proactif du jeton RÉEL ne tire rien pendant l’entrée en démo', async () => {
+    const exp = Math.floor(Date.now() / 1000) + 61 // échéance proactive à ~1 s
+    const jetonReel = `x.${btoa(JSON.stringify({ exp }))}.y`
+    api.refresh.mockResolvedValue({ accessToken: jetonReel })
+    let repondreMeDemo: (u: typeof ADMIN_DEMO) => void = () => undefined
+    api.me.mockImplementation((jeton: string) =>
+      jeton === 'jeton-demo'
+        ? new Promise((r) => {
+            repondreMeDemo = r
+          })
+        : Promise.resolve(ADMIN_REEL),
+    )
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    await monter()
+
+    // Entrée en démo : mode posé, /auth/me démo encore en vol → `modeDemo` (état) toujours false.
+    let entree!: Promise<unknown>
+    act(() => {
+      entree = ctx.demarrerDemo()
+    })
+    await act(async () => {
+      await Promise.resolve()
+      vi.advanceTimersByTime(5_000)
+    })
+    expect(api.rafraichirAccessToken).not.toHaveBeenCalled()
+
+    await act(async () => {
+      repondreMeDemo(ADMIN_DEMO)
+      await entree
+    })
+  })
+
   it('une réhydratation réelle qui aboutit APRÈS le début de la démo ne l’écrase pas', async () => {
     let repondre: (v: { accessToken: string }) => void = () => undefined
     api.refresh.mockImplementation(

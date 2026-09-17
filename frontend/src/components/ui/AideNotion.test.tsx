@@ -79,6 +79,52 @@ describe('AideNotion', () => {
     expect(document.activeElement).not.toBe(bouton())
   })
 
+  it('ouverture : le focus n\'est JAMAIS demandé sur la bulle encore masquée (visibility:hidden)', () => {
+    // jsdom ignore `visibility` ; un vrai navigateur ignore un focus() sur un élément masqué. On
+    // reproduit ce comportement : un focus() dont la cible (ou un ancêtre) est masquée est enregistré
+    // et n'a AUCUN effet.
+    const original = HTMLElement.prototype.focus
+    const focusMasques: HTMLElement[] = []
+    const masque = (cible: HTMLElement) => {
+      for (let el: HTMLElement | null = cible; el; el = el.parentElement) {
+        if (el.style.visibility === 'hidden') return true
+      }
+      return false
+    }
+    const espion = vi.spyOn(HTMLElement.prototype, 'focus').mockImplementation(function (
+      this: HTMLElement,
+      options?: FocusOptions,
+    ) {
+      if (masque(this)) {
+        focusMasques.push(this)
+        return
+      }
+      original.call(this, options)
+    })
+    try {
+      rendre(<AideNotion notion="valorise" />)
+      fireEvent.click(bouton())
+      const bulle = screen.getByRole('dialog')
+      expect(focusMasques).toEqual([])
+      expect(bulle.contains(document.activeElement)).toBe(true)
+    } finally {
+      espion.mockRestore()
+    }
+  })
+
+  it('Safari/iOS : second clic sur le « ? » (focusout sans relatedTarget) referme au lieu de rouvrir', () => {
+    // WebKit ne donne pas le focus à un <button> cliqué : le focus quitte la bulle vers « rien »
+    // (relatedTarget null) AVANT le click qui bascule l'état.
+    rendre(<AideNotion notion="valorise" />)
+    fireEvent.click(bouton())
+    const contenu = document.activeElement as HTMLElement
+    expect(screen.getByRole('dialog').contains(contenu)).toBe(true)
+    fireEvent.mouseDown(bouton())
+    fireEvent.focusOut(contenu, { relatedTarget: null })
+    fireEvent.click(bouton())
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
   it('« En savoir plus » est le prochain élément focalisable après le contenu ; le focaliser garde la bulle ouverte', () => {
     rendre(<AideNotion notion="attendu" />)
     fireEvent.click(bouton())

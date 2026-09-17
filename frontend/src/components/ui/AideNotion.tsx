@@ -28,6 +28,9 @@ import { usePopoverFlottant } from './usePopoverFlottant'
  *   de React (ex. `Modal.tsx`) recevrait quand même l'évènement natif et se refermerait en même temps.
  * - Placement : à côté d'un libellé, jamais DANS un `<label>` ou un titre (`Field`/`PageHeader` ont une
  *   prop `aide`), jamais dans une ligne de tableau ; au plus un « ? » par notion dans un écran.
+ * - **Notion placée dans un `Modal` ⇒ PAS d'entrée `LIENS_AIDE`** : le piège à focus du `Modal`
+ *   ramène le focus au premier contrôle du panneau dès qu'il sort vers le portail de la bulle, ce qui
+ *   ferme la bulle — le lien « En savoir plus » y serait inatteignable.
  */
 export function AideNotion({ notion, className }: { notion: NotionAide; className?: string }) {
   const { t } = useTranslation()
@@ -35,7 +38,7 @@ export function AideNotion({ notion, className }: { notion: NotionAide; classNam
   const idTexte = useId()
   const contentRef = useRef<HTMLDivElement>(null)
   const fermer = useCallback(() => setOpen(false), [])
-  const { containerRef, triggerRef, popoverRef, rendreFlottant } = usePopoverFlottant({
+  const { containerRef, triggerRef, popoverRef, rendreFlottant, positionne } = usePopoverFlottant({
     open,
     onFermer: fermer,
     largeurDefaut: 288,
@@ -50,25 +53,29 @@ export function AideNotion({ notion, className }: { notion: NotionAide; classNam
     triggerRef.current?.focus()
   }, [triggerRef])
 
-  // Entrée de focus : dès que la bulle s'ouvre, son conteneur de contenu reçoit le focus. La
-  // primitive positionne la bulle dans son PROPRE useLayoutEffect (avant celui-ci, cf. ordre React
-  // layout → passif) : coords est déjà posé, la bulle déjà visible, le focus() n'atterrit donc
-  // jamais sur un élément encore masqué.
+  // Entrée de focus : dès que la bulle est ouverte ET positionnée, son conteneur de contenu reçoit le
+  // focus. Attendre `positionne` est OBLIGATOIRE : le portail reste `visibility:hidden` tant que la
+  // primitive n'a pas posé ses coordonnées, et son `setCoords` (useLayoutEffect) programme un
+  // re-rendu que React ne fait qu'APRÈS les effets passifs de la validation courante — un focus()
+  // déclenché sur `open` seul tomberait sur un élément encore masqué, ignoré par les navigateurs
+  // (jsdom, lui, l'accepte : d'où le test qui simule ce refus).
   useEffect(() => {
-    if (open) contentRef.current?.focus()
-  }, [open])
+    if (open && positionne) contentRef.current?.focus()
+  }, [open, positionne])
 
   // Sortie de focus hors bulle ET hors déclencheur : referme, sans voler le focus. `focusout`
   // (contrairement à `blur`) REMONTE, donc un seul écouteur au niveau document suffit à couvrir le
   // conteneur ET la bulle en portail (deux sous-arbres DOM distincts).
+  // `relatedTarget` NULL (focus parti « nulle part ») est IGNORÉ : Safari/iOS ne focalise pas un
+  // <button> cliqué, donc un clic sur le « ? » produirait ce focusout AVANT le click qui bascule —
+  // la bulle se fermerait puis se rouvrirait. Les clics extérieurs sont déjà couverts par le
+  // mousedown de `usePopoverFlottant`.
   useEffect(() => {
     if (!open) return
     const surSortieFocus = (e: FocusEvent) => {
       const suivant = e.relatedTarget as Node | null
-      if (
-        suivant &&
-        (containerRef.current?.contains(suivant) || popoverRef.current?.contains(suivant))
-      ) {
+      if (!suivant) return
+      if (containerRef.current?.contains(suivant) || popoverRef.current?.contains(suivant)) {
         return
       }
       setOpen(false)

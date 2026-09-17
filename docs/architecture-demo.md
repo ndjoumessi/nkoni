@@ -2,7 +2,7 @@
 
 Une organisation **fictive**, **unique** et **partagée**, ouverte sans compte pour voir un espace rempli.
 Livrée en trois PR : **socle serveur** (ce document, §1-4), générateur et régénération (§5, PR 2),
-front de démonstration (à venir, PR 3).
+front de démonstration (§6, PR 3).
 
 ## 1. Marqueur et interrupteur
 
@@ -72,6 +72,40 @@ front de démonstration (à venir, PR 3).
 - **Tests d'intégration** : la base est partagée par des fichiers en parallèle ; ceux qui listent les
   démos passent par `tests/support/prisma-espion.ts` pour ne voir que leurs propres organisations.
 
+## 6. Front de démonstration (PR 3)
+
+- **Entrée** : route publique `/demo` (`pages/DemoPage.tsx`), atteinte depuis le héros et la vidéo de
+  l'accueil, la page de connexion et le guide de démarrage. Les liens restent visibles démo éteinte :
+  la page explique l'indisponibilité (404), aucun appel n'est fait sur la landing pour les masquer. La
+  page attend la fin de la réhydratation de la session réelle avant d'ouvrir la démo.
+- **Mode démo du client HTTP** (`lib/api/core.ts`, posé par `AuthContext`) : écritures refusées
+  LOCALEMENT (403, même message que le serveur) selon `lib/demo.ts`, miroir de `backend/src/lib/demo.ts`
+  gardé par `demo-parity.test.ts` ; téléversements multipart (fetch bruts) couverts un par un ;
+  « rafraîchir » = redemander `POST /demo/session` (`credentials: 'omit'`), jamais `/auth/refresh` qui
+  restaurerait la session réelle. **Génération de session** : un refresh lancé avant l'entrée (ou la
+  sortie) de démo ne propage jamais son jeton. `request` ne déclenche pas `onSessionExpired` quand le
+  refresh a été rendu obsolète par un changement de mode (génération de session changée pendant
+  l'attente) : le 401 remonte simplement, sans vider la session fraîchement installée.
+- **Ne jamais déconnecter l'administrateur réel** : `quitterDemo` (bandeau, « Se déconnecter » de la
+  coquille, échec du renouvellement) n'appelle jamais `/auth/logout` — qui révoquerait la famille de
+  refresh du cookie — ni `purgerDonneesLocales` (file hors-ligne réelle) ; il réhydrate la session
+  depuis le cookie. Filet serveur écarté : `/auth/logout` ne lit que ce cookie, il ne peut pas savoir
+  que l'appel vient d'un onglet en démo ; le second filet est le refus local de `POST /auth/logout`.
+  La sortie de démo est « single-flight » : des sorties concurrentes (double clic, « Se déconnecter »
+  pendant un renouvellement échoué) partagent une seule promesse, et une sortie pendant la
+  réhydratation initiale réutilise ce refresh en vol — deux `/auth/refresh` simultanés avec le même
+  cookie déclencheraient la détection de réutilisation du serveur et révoqueraient la famille de
+  l'administrateur réel. Après l'attente, la session réelle n'est appliquée que si la démo n'a pas été
+  rouverte entre-temps (sinon données réelles sous le bandeau démo). Tests : `AuthContext.test.tsx`,
+  `api-demo.test.ts`.
+- **Non persistée** : un rechargement met fin à la démo. Langue changée localement ; file hors-ligne
+  ni alimentée ni rejouée ; minuteur de refresh proactif coupé ; caches GET du service worker purgés
+  à l'entrée et à la sortie (clé = URL, une réponse fictive servirait sinon de repli hors ligne).
+- **Bandeau** `components/BandeauDemo.tsx` au-dessus du bandeau de forfait, non fermable,
+  `role="status"` ; « Créer mon espace » quitte la démo puis ouvre `/inscription`.
+- **Relance WhatsApp désactivée** (dashboard, fiche membre) : un lien `wa.me` n'est pas une requête
+  API, la garde ne le voit pas, et un numéro fictif peut appartenir à quelqu'un.
+
 ## Mise en service (PO)
 
 1. Poser `DEMO_ACTIVEE=true` sur le service Railway `nkoni`.
@@ -83,5 +117,8 @@ front de démonstration (à venir, PR 3).
    ```
 
    Attendu : `✔ Démo générée : <uuid>` et un code de sortie 0 (compter quelques minutes).
-3. Contrôle : `POST https://nkoni.vercel.app/api/demo/session` répond 200 ; la console super-admin
-   montre l'organisation avec le badge « Démo ». Le front de démonstration arrive avec la PR 3.
+3. Contrôle : ouvrir `https://nkoni.vercel.app/demo` — le tableau de bord de « Association Exemple
+   NKONI » s'affiche avec le bandeau « Espace de démonstration » ; tenter une écriture (ex. « + Versement »
+   puis enregistrer) affiche le refus « lecture seule » ; « Quitter la démo » ramène à l'accueil (ou à
+   votre espace si vous étiez connecté, sans avoir à vous reconnecter). La console super-admin montre
+   l'organisation avec le badge « Démo ».

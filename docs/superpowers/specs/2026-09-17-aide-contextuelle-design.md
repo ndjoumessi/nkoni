@@ -60,7 +60,7 @@
 | Notion (`id`) | Placement principal | Sens à expliquer (fidèle aux règles du code) |
 |---|---|---|
 | `bareme` | page Barème (titre) | Montant de cotisation fixé pour une année ; il sert de base au montant attendu de chaque membre. |
-| `ouvrirAnnee` | page Barème (« Ouvrir l'année ») | Prépare en une fois la cotisation de l'année pour tous les membres actifs, au montant du barème ; pas obligatoire pour encaisser (un versement sur une année non ouverte l'ouvre pour le membre) ; impossible pour une année future. |
+| `ouvrirAnnee` | page Barème (« Ouvrir l'année ») | Prépare en une fois la cotisation de l'année pour tous les membres concernés (année comprise entre leur adhésion et leur fin de contribution, statut indifférent), au montant du barème ; pas obligatoire pour encaisser (un versement sur une année non ouverte l'ouvre pour le membre) ; impossible pour une année future. |
 | `attendu` | tableau de bord (carte « Total attendu ») | Somme des barèmes sur les années où chaque membre doit cotiser (de son adhésion à l'année en cours ou à sa fin de contribution). |
 | `verse` | tableau de bord (carte « Total collecté ») | Argent réellement encaissé par les versements enregistrés. |
 | `valorise` | fiche membre (montants) | Égal au versé, sauf après un équilibrage qui le répartit autrement entre les années ; c'est lui qui détermine le statut. |
@@ -70,7 +70,7 @@
 | `finContribution` | formulaire membre | Dernière année due ; renseignée quand le membre devient inactif ou décédé, son historique est conservé. |
 | `chefSousFamille` | formulaire membre | Membre de référence de la sous-famille à laquelle ce membre est rattaché. |
 | `chefOrganisation` | page Paramètres (chef) | Dirigeant désigné de l'organisation, affiché avec son surnom ; désigné depuis la fiche d'un membre. |
-| `recus` | fiche membre (en-tête de la carte « Contributions & versements ») | Chaque versement donne un reçu numéroté, téléchargeable ou envoyé au membre par les canaux configurés ; pour corriger un versement, on annule d'abord son reçu, qui garde son numéro et ne circule plus, puis un nouveau reçu est émis. |
+| `recus` | fiche membre (en-tête de la carte « Contributions & versements ») | On peut générer (action manuelle « Générer le reçu ») un reçu numéroté pour chaque versement, puis le télécharger ou l'envoyer au membre par les canaux configurés ; pour corriger un versement, on annule d'abord son reçu, qui garde son numéro et ne circule plus, on corrige le versement, puis on génère un nouveau reçu. |
 | `circuitDepense` | page Trésorerie (dépenses) | Brouillon → en attente → approuvée ou rejetée → payée ; l'approbation et le paiement sont faits par des rôles différents. |
 | `modeRotation` | tontines (création, mode de rotation) | Ordre fixe : les bénéficiaires sont fixés dès l'ouverture du cycle. Tirage : un bénéficiaire tiré au sort à chaque tour parmi ceux qui n'ont pas encore reçu. |
 | `cagnotte` | page Cagnottes (titre) | Collecte ponctuelle pour un événement (mariage, deuil…), suivie à part des cotisations annuelles. |

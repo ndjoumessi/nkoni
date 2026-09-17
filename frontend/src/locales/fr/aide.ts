@@ -12,7 +12,7 @@ export default {
       ouvrirAnnee: {
         titre: 'Ouvrir une année',
         texte:
-          "Prépare en une fois la cotisation de l'année pour tous les membres actifs, au montant du barème. Ce n'est pas obligatoire pour encaisser : un versement sur une année non ouverte l'ouvre pour le membre concerné. Une année future ne peut pas être ouverte.",
+          "Prépare en une fois la cotisation de l'année pour tous les membres concernés, c'est-à-dire ceux dont l'année est comprise entre leur adhésion et leur fin de contribution, au montant du barème. Ce n'est pas obligatoire pour encaisser : un versement sur une année non ouverte l'ouvre pour le membre concerné. Une année future ne peut pas être ouverte.",
       },
       attendu: {
         titre: 'Total attendu',
@@ -61,7 +61,7 @@ export default {
       recus: {
         titre: 'Reçus',
         texte:
-          "Chaque versement donne un reçu numéroté, que vous pouvez télécharger ou envoyer au membre par les canaux configurés. Pour corriger un versement, annulez d'abord son reçu : il garde son numéro et ne peut plus être partagé. Un nouveau reçu est ensuite émis.",
+          "Vous pouvez générer un reçu numéroté pour chaque versement (« Générer le reçu »), puis le télécharger ou l'envoyer au membre par les canaux configurés. Pour corriger un versement, annulez d'abord son reçu : il garde son numéro et ne peut plus être partagé. Corrigez ensuite le versement, puis générez un nouveau reçu.",
       },
       circuitDepense: {
         titre: "Circuit d'une dépense",

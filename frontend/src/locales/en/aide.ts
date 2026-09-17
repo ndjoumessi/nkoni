@@ -12,7 +12,7 @@ export default {
       ouvrirAnnee: {
         titre: 'Open a year',
         texte:
-          "Prepares the year's contribution for every active member at once, at the schedule amount. It is not required to record payments: a payment for a year that is not open opens it for that member. A future year cannot be opened.",
+          "Prepares the year's contribution at once for every member concerned, that is, those for whom the year falls between their joining and the end of their contributions, at the schedule amount. It is not required to record payments: a payment for a year that is not open opens it for that member. A future year cannot be opened.",
       },
       attendu: {
         titre: 'Total expected',
@@ -59,7 +59,7 @@ export default {
       recus: {
         titre: 'Receipts',
         texte:
-          'Each payment produces a numbered receipt that you can download or send to the member through the configured channels. To correct a payment, first cancel its receipt: it keeps its number and can no longer be shared. A new receipt is then issued.',
+          'You can generate a numbered receipt for each payment (“Generate the receipt”), then download it or send it to the member through the configured channels. To correct a payment, first cancel its receipt: it keeps its number and can no longer be shared. Then correct the payment and generate a new receipt.',
       },
       circuitDepense: {
         titre: 'Expense workflow',
@@ -72,7 +72,7 @@ export default {
           'Fixed order: the order of beneficiaries is set when the cycle opens. Draw: each round, a beneficiary is drawn at random among those who have not received yet. The auction mode is not available yet.',
       },
       cagnotte: {
-        titre: 'Fund',
+        titre: 'Event funds',
         texte:
           'A one-off collection for an event (wedding, bereavement…), with a target and donations. It is tracked separately from annual contributions.',
       },

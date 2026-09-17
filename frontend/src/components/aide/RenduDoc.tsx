@@ -61,6 +61,17 @@ function RenduBloc({ bloc }: { bloc: Bloc }) {
           {bloc.libelle}
         </Link>
       )
+    default: {
+      // Garde d'EXHAUSTIVITÉ : `tsconfig.app.json` n'active ni `strict` ni `noImplicitReturns`, donc
+      // sans cette branche un type de `Bloc` ajouté plus tard et oublié ici ne romprait PAS la
+      // compilation — `RenduBloc` n'a pas de type de retour annoté, une branche non gérée renvoie
+      // silencieusement `undefined`, accepté comme `ReactNode`. Le contenu manquerait alors dans la
+      // documentation publiée SANS aucune erreur ni crash. En assignant `bloc` à `never`, ce bloc ne
+      // type-check QUE si toutes les variantes de `Bloc` sont couvertes par les `case` ci-dessus :
+      // en ajouter une nouvelle sans l'implémenter fait échouer `tsc` ici, au lieu d'un oubli muet.
+      const _exhaustif: never = bloc
+      return _exhaustif
+    }
   }
 }
 

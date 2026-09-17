@@ -38,6 +38,7 @@ import tontines from './tontines'
 import amendes from './amendes'
 import statut from './statut'
 import demo from './demo'
+import aide from './aide'
 
 const fr = {
   ...common,
@@ -74,6 +75,7 @@ const fr = {
   ...amendes,
   ...statut,
   ...demo,
+  ...aide,
 }
 
 export default fr

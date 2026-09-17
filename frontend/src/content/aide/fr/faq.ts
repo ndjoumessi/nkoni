@@ -38,7 +38,7 @@ const faq: Document = {
           type: 'note',
           ton: 'info',
           texte:
-            "Regardez le total versé face au total attendu sur la fiche du membre : « partiel » signifie qu'une partie de la dette cumulée reste ouverte, pas que le dernier versement a échoué.",
+            "Comparez « Total attendu (cumulé) » et « Total valorisé (cumulé) » sur la fiche du membre : c'est le montant VALORISÉ, pas le montant versé, qui détermine le statut. Les deux sont égaux, sauf après un équilibrage, qui répartit les versements différemment entre les années sans changer leur somme.",
         },
       ],
     },

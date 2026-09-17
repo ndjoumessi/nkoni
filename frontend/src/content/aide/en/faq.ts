@@ -38,7 +38,7 @@ const faq: Document = {
           type: 'note',
           ton: 'info',
           texte:
-            "Compare the total paid against the total expected on the member's record: \"partial\" means part of the cumulative amount is still open, not that the last payment failed.",
+            'Compare "Total expected (cumulative)" and "Total valued (cumulative)" on the member\'s record: it is the VALUED amount, not the amount paid, that determines the status. The two are equal, except after a rebalancing, which spreads payments differently across years without changing their sum.',
         },
       ],
     },

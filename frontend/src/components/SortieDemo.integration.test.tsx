@@ -104,6 +104,25 @@ async function attendreChemin(attendu: string) {
   expect(location()).toBe(attendu)
 }
 
+/**
+ * Ouvre un panneau de la coquille (menu compte, tiroir mobile) de façon DÉTERMINISTE.
+ *
+ * `ProtectedRoute` rend un écran de chargement tant que `loading` est vrai : toute bascule démonte
+ * `AppShell`, dont l'état d'ouverture est LOCAL — un clic parti juste avant est alors perdu, et le
+ * panneau n'apparaît jamais. Défaut du TEST, pas du produit (en usage réel, `loading` ne bascule
+ * qu'au montage et à la sortie de démo, jamais pendant qu'un menu est ouvert), mais il le rendait
+ * instable : un échec pour une quinzaine d'exécutions, sur cette seule assertion.
+ *
+ * On réessaie donc le clic jusqu'à ce que le panneau soit là. Les gestionnaires posent l'état à
+ * `true` sans bascule, un clic surnuméraire est donc sans effet.
+ */
+function ouvrirPanneau<T>(nomBouton: string, recuperer: () => T): Promise<T> {
+  return waitFor(() => {
+    fireEvent.click(screen.getByRole('button', { name: nomBouton }))
+    return recuperer()
+  })
+}
+
 async function entrerEnDemo() {
   monter()
   await screen.findByText('demo.bandeau.titre')
@@ -159,8 +178,9 @@ describe('sortie de démo — de bout en bout (coquille réelle)', () => {
     monterFetch(false)
     await entrerEnDemo()
     expect(screen.queryByText('shell.seDeconnecter')).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: 'shell.menuCompte' }))
-    const menu = await screen.findByLabelText('shell.menuCompte', { selector: '[aria-label="shell.menuCompte"]:not(button)' })
+    const menu = await ouvrirPanneau('shell.menuCompte', () =>
+      screen.getByLabelText('shell.menuCompte', { selector: '[aria-label="shell.menuCompte"]:not(button)' }),
+    )
     fireEvent.click(within(menu).getByRole('button', { name: 'demo.bandeau.quitter' }))
     await attendreChemin('/')
     expect(compter('POST', '/auth/logout')).toBe(0)
@@ -170,8 +190,9 @@ describe('sortie de démo — de bout en bout (coquille réelle)', () => {
   it('tiroir mobile : « Quitter la démo » → même sortie', async () => {
     monterFetch(true)
     await entrerEnDemo()
-    fireEvent.click(screen.getByRole('button', { name: 'shell.ouvrirMenu' }))
-    const tiroir = await screen.findByRole('dialog', { name: 'shell.menuNavigation' })
+    const tiroir = await ouvrirPanneau('shell.ouvrirMenu', () =>
+      screen.getByRole('dialog', { name: 'shell.menuNavigation' }),
+    )
     fireEvent.click(within(tiroir).getByRole('button', { name: 'demo.bandeau.quitter' }))
     await attendreChemin('/dashboard')
     await waitFor(() => expect(screen.queryByText('demo.bandeau.titre')).toBeNull())

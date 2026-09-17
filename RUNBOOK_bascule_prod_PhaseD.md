@@ -20,7 +20,7 @@ production**. À exécuter par le PO, dans l'ordre, en fenêtre de maintenance.
   NULLABLE) ; commit `51bc74d` ajoute la migration 5 (NOT NULL). On insère le contrôle d'intégrité
   ENTRE les deux.
 - Organisation d'amorçage : `WAMBA TCHOUPA`, id fixe `11111111-1111-1111-1111-111111111111`.
-- Railway lance `npx prisma migrate deploy && npm run start` au démarrage (cf. `railway.json`).
+- Railway lance `npx prisma migrate deploy && npm run start` au démarrage (réglage `startCommand` du service Railway).
   → On applique les migrations **manuellement depuis le poste**, AVANT de déployer le nouveau code,
   pour pouvoir gérer les deux temps. Le `migrate deploy` automatique de Railway sera ensuite un no-op.
 

@@ -1,5 +1,6 @@
 import { Prisma } from '../generated/prisma/client'
 import type { CreationScopee } from '../lib/tenant-extension'
+import { PLAFOND_OPTIONS_MEMBRES } from './membreStatut.service'
 
 /**
  * V2 — Commémorations / cérémonies (domaine du GUIDE_RELIGIEUX + ADMIN).
@@ -87,12 +88,14 @@ async function validerMembres(prisma: CommemorationPrisma, ids: string[]): Promi
  * Liste légère des membres sélectionnables comme « concernés/honorés » (id + nom +
  * prénom uniquement). Sert à peupler le formulaire — réservé aux gestionnaires (cf.
  * route : requirePermission Commemoration `create`), car GUIDE_RELIGIEUX n'a pas de
- * droit de lecture sur l'entité Membre (hors de son périmètre).
+ * droit de lecture sur l'entité Membre (hors de son périmètre). C'est pourquoi cette route n'est
+ * pas remplacée par `GET /membres/options` ; elle en partage en revanche le plafond.
  */
 export function listerMembresSelectionnables(prisma: CommemorationPrisma) {
   return prisma.membre.findMany({
     select: { id: true, nom: true, prenom: true },
     orderBy: [{ nom: 'asc' }, { prenom: 'asc' }],
+    take: PLAFOND_OPTIONS_MEMBRES,
   })
 }
 

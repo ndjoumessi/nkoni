@@ -319,7 +319,7 @@ export const recusRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
       const nomFichier = `recu-${ctx.donnees.numero}.pdf`
       const resultat = await envoyerRecu(
         app.prisma,
-        { whatsapp: app.whatsapp, email: app.email },
+        { whatsapp: app.whatsapp, email: app.email, observabilite: app.observabilite },
         {
           telephone: ctx.membreTelephone,
           email: ctx.membreEmail,

@@ -219,7 +219,18 @@ export async function livrerRelancesForfait(
       })
     }
     for (const e of r.aEnvoyer) {
-      if (await envoyerMessageEmail(deps.email, e.email, e.sujet, e.texte)) emailsEnvoyes += 1
+      if (await envoyerMessageEmail(deps.email, e.email, e.sujet, e.texte)) {
+        emailsEnvoyes += 1
+      } else if (deps.email.disponible() && deps.observabilite) {
+        // Canal configuré mais l'envoi a échoué : sans ce signalement la relance ne partait nulle
+        // part en silence (le client e-mail avale l'erreur). Aucun destinataire dans le contexte.
+        deps.observabilite.signaler(new Error('Relance de forfait non envoyée (email)'), {
+          source: 'envoi',
+          canal: 'email',
+          envoi: 'relanceForfait',
+          organisationId: r.organisationId,
+        })
+      }
     }
   }
   return { emailsEnvoyes }

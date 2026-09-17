@@ -70,7 +70,7 @@
 | `finContribution` | formulaire membre | Dernière année due ; renseignée quand le membre devient inactif ou décédé, son historique est conservé. |
 | `chefSousFamille` | formulaire membre | Membre de référence de la sous-famille à laquelle ce membre est rattaché. |
 | `chefOrganisation` | page Paramètres (chef) | Dirigeant désigné de l'organisation, affiché avec son surnom ; désigné depuis la fiche d'un membre. |
-| `recus` | fiche membre (en-tête de la carte « Cotisations ») | Chaque versement donne un reçu numéroté, téléchargeable ou envoyé au membre par les canaux configurés ; pour corriger un versement, on annule d'abord son reçu, qui garde son numéro et ne circule plus, puis un nouveau reçu est émis. |
+| `recus` | fiche membre (en-tête de la carte « Contributions & versements ») | Chaque versement donne un reçu numéroté, téléchargeable ou envoyé au membre par les canaux configurés ; pour corriger un versement, on annule d'abord son reçu, qui garde son numéro et ne circule plus, puis un nouveau reçu est émis. |
 | `circuitDepense` | page Trésorerie (dépenses) | Brouillon → en attente → approuvée ou rejetée → payée ; l'approbation et le paiement sont faits par des rôles différents. |
 | `modeRotation` | tontines (création, mode de rotation) | Ordre fixe : les bénéficiaires sont fixés dès l'ouverture du cycle. Tirage : un bénéficiaire tiré au sort à chaque tour parmi ceux qui n'ont pas encore reçu. |
 | `cagnotte` | page Cagnottes (titre) | Collecte ponctuelle pour un événement (mariage, deuil…), suivie à part des cotisations annuelles. |

@@ -55,12 +55,12 @@
 
 ## 2. Notions, placement et rédaction
 
-### 2.1 Premier lot (18 notions)
+### 2.1 Premier lot (17 notions)
 
 | Notion (`id`) | Placement principal | Sens à expliquer (fidèle aux règles du code) |
 |---|---|---|
 | `bareme` | page Barème (titre) | Montant de cotisation fixé pour une année ; il sert de base au montant attendu de chaque membre. |
-| `ouvrirAnnee` | page Barème (« Ouvrir l'année ») | Crée la ligne de cotisation de l'année pour chaque membre actif, à partir du barème ; nécessaire pour encaisser. Impossible pour une année future. |
+| `ouvrirAnnee` | page Barème (« Ouvrir l'année ») | Prépare en une fois la cotisation de l'année pour tous les membres actifs, au montant du barème ; pas obligatoire pour encaisser (un versement sur une année non ouverte l'ouvre pour le membre) ; impossible pour une année future. |
 | `attendu` | tableau de bord (carte « Total attendu ») | Somme des barèmes sur les années où chaque membre doit cotiser (de son adhésion à l'année en cours ou à sa fin de contribution). |
 | `verse` | tableau de bord (carte « Total collecté ») | Argent réellement encaissé par les versements enregistrés. |
 | `valorise` | fiche membre (montants) | Égal au versé, sauf après un équilibrage qui le répartit autrement entre les années ; c'est lui qui détermine le statut. |
@@ -70,13 +70,15 @@
 | `finContribution` | formulaire membre | Dernière année due ; renseignée quand le membre devient inactif ou décédé, son historique est conservé. |
 | `chefSousFamille` | formulaire membre | Membre de référence de la sous-famille à laquelle ce membre est rattaché. |
 | `chefOrganisation` | page Paramètres (chef) | Dirigeant désigné de l'organisation, affiché avec son surnom ; désigné depuis la fiche d'un membre. |
-| `recuAnnule` | liste des versements (reçu annulé) | Un reçu annulé garde son numéro et ne peut plus être téléchargé ni partagé ; on l'annule pour corriger un versement puis réémettre un reçu. |
-| `envoyerRecu` | liste des versements (« Envoyer ») | Envoie le reçu au membre par les canaux configurés pour l'organisation ; si aucun n'est disponible, l'application l'indique. |
+| `recus` | fiche membre (en-tête de la carte « Cotisations ») | Chaque versement donne un reçu numéroté, téléchargeable ou envoyé au membre par les canaux configurés ; pour corriger un versement, on annule d'abord son reçu, qui garde son numéro et ne circule plus, puis un nouveau reçu est émis. |
 | `circuitDepense` | page Trésorerie (dépenses) | Brouillon → en attente → approuvée ou rejetée → payée ; l'approbation et le paiement sont faits par des rôles différents. |
 | `modeRotation` | tontines (création, mode de rotation) | Ordre fixe : les bénéficiaires sont fixés dès l'ouverture du cycle. Tirage : un bénéficiaire tiré au sort à chaque tour parmi ceux qui n'ont pas encore reçu. |
 | `cagnotte` | page Cagnottes (titre) | Collecte ponctuelle pour un événement (mariage, deuil…), suivie à part des cotisations annuelles. |
 | `voteResolution` | détail de réunion (vote) | Le bureau ouvre le vote, les membres votent, la clôture adopte la résolution si les « pour » dépassent les « contre » (abstentions non comptées). |
 | `forfaitEcheance` | page Paramètres (forfait) | Le forfait fixe les capacités de l'espace ; à l'échéance, une période de grâce de 14 jours précède le retour au forfait Gratuit. |
+
+> Écart de mise en œuvre (plan 2026-09-17) : `recuAnnule` et `envoyerRecu` fusionnées en `recus`, faute de
+> libellé hors des lignes de liste (où le « ? » est interdit, §2.2).
 
 Les emplacements exacts (composant, libellé visé) sont arrêtés dans le plan d'implémentation. Le texte
 final de chaque notion est rédigé au plan, en respectant le sens ci-dessus.
@@ -118,7 +120,7 @@ final de chaque notion est rédigé au plan, en respectant le sens ci-dessus.
 
 ### 3.2 Livraison
 
-- **Une PR front** : composant, catalogue FR/EN, placement des 18 notions, tests. Aucun changement
+- **Une PR front** : composant, catalogue FR/EN, placement des 17 notions, tests. Aucun changement
   backend (pas de déploiement Railway).
 
 ### 3.3 Documentation

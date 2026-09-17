@@ -124,13 +124,16 @@ export function GlassmorphismTrustHero({
             {t('landing.hero.description.partie2')}
           </p>
 
-          <div className="nk-reveal nk-d4 mt-8 flex flex-col items-stretch justify-center gap-3 sm:flex-row lg:justify-start">
+          <div className="nk-reveal nk-d4 mt-8 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:flex-wrap lg:justify-start">
             <ButtonLink to={inscriptionHref} size="lg" icon={undefined}>
               {t('commun.actions.creerMonEspace')}
               <ArrowRight
                 className="h-4 w-4 transition-transform group-hover:translate-x-0.5"
                 aria-hidden="true"
               />
+            </ButtonLink>
+            <ButtonLink to="/demo" variant="outline" size="lg" icon={Eye}>
+              {t('demo.entree.voirExemple')}
             </ButtonLink>
             <Button variant="outline" size="lg" icon={Info} onClick={handleDiscover}>
               {t('landing.hero.decouvrir')}

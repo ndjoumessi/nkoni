@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Link } from 'react-router-dom'
 import {
   ArrowRight,
   CalendarRange,
   CheckCircle2,
   Circle,
   Coins,
+  Eye,
   Smartphone,
   Sparkles,
   Users,
@@ -120,6 +122,13 @@ export function GuideDemarrage({
       <p className="mt-1 text-sm text-muted-foreground">
         {t('dashboard.guide.progression', { faites, total: ETAPES.length })}
       </p>
+      <Link
+        to="/demo"
+        className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-brass underline-offset-4 hover:underline"
+      >
+        <Eye className="h-4 w-4" aria-hidden="true" />
+        {t('demo.entree.voirEspaceRempli')}
+      </Link>
 
       <ol className="mt-5 space-y-2.5">
         {ETAPES.map(({ cle, icon: Icon, to }) => {

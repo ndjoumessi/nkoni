@@ -35,6 +35,7 @@ import cagnottes from './cagnottes'
 import tontines from './tontines'
 import amendes from './amendes'
 import statut from './statut'
+import demo from './demo'
 
 const en: Catalogue = {
   ...common,
@@ -70,6 +71,7 @@ const en: Catalogue = {
   ...tontines,
   ...amendes,
   ...statut,
+  ...demo,
 }
 
 export default en

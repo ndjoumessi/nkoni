@@ -1,4 +1,4 @@
-import { API_URL, ApiError, nomFichierDepuisDisposition, request } from './core'
+import { API_URL, ApiError, entetesDemo, nomFichierDepuisDisposition, request } from './core'
 import type { RepartitionStatutContribution, StatutContribution } from './types'
 
 /* -------------------------------------------------------------------------- */
@@ -119,7 +119,7 @@ export async function downloadExportContributions(
 
   const res = await fetch(`${API_URL}/exports/contributions?${qs.toString()}`, {
     credentials: 'include',
-    headers: { Authorization: `Bearer ${accessToken}` },
+    headers: { Authorization: `Bearer ${accessToken}`, ...entetesDemo() },
   })
 
   if (!res.ok) {
@@ -160,7 +160,7 @@ async function telechargerBinaire(
 ): Promise<void> {
   const res = await fetch(`${API_URL}${path}`, {
     credentials: 'include',
-    headers: { Authorization: `Bearer ${accessToken}` },
+    headers: { Authorization: `Bearer ${accessToken}`, ...entetesDemo() },
   })
   if (!res.ok) {
     let message = `Erreur ${res.status}`

@@ -1,4 +1,4 @@
-import { API_URL, leverSiErreur, request, rid } from './core'
+import { API_URL, entetesDemo, leverSiErreur, refuserSiEcritureDemo, request, rid } from './core'
 import type { StatutContribution } from './types'
 import type { StatutPresence, SensVote } from './reunions'
 
@@ -168,7 +168,7 @@ export const moiApi = {
   carte: async (accessToken: string): Promise<Blob> => {
     const res = await fetch(`${API_URL}/moi/carte`, {
       credentials: 'include',
-      headers: { Authorization: `Bearer ${accessToken}` },
+      headers: { Authorization: `Bearer ${accessToken}`, ...entetesDemo() },
     })
     await leverSiErreur(res)
     return res.blob()
@@ -180,19 +180,20 @@ export const moiApi = {
   photo: async (accessToken: string): Promise<Blob> => {
     const res = await fetch(`${API_URL}/moi/photo`, {
       credentials: 'include',
-      headers: { Authorization: `Bearer ${accessToken}` },
+      headers: { Authorization: `Bearer ${accessToken}`, ...entetesDemo() },
     })
     await leverSiErreur(res)
     return res.blob()
   },
   /** Téléverse sa propre photo de profil (JPEG/PNG). */
   televerserPhoto: async (fichier: File, accessToken: string): Promise<void> => {
+    refuserSiEcritureDemo('POST', '/moi/photo')
     const form = new FormData()
     form.append('fichier', fichier)
     const res = await fetch(`${API_URL}/moi/photo`, {
       method: 'POST',
       credentials: 'include',
-      headers: { Authorization: `Bearer ${accessToken}` },
+      headers: { Authorization: `Bearer ${accessToken}`, ...entetesDemo() },
       body: form,
     })
     await leverSiErreur(res)
@@ -204,19 +205,20 @@ export const moiApi = {
   avatar: async (accessToken: string): Promise<Blob> => {
     const res = await fetch(`${API_URL}/moi/avatar`, {
       credentials: 'include',
-      headers: { Authorization: `Bearer ${accessToken}` },
+      headers: { Authorization: `Bearer ${accessToken}`, ...entetesDemo() },
     })
     await leverSiErreur(res)
     return res.blob()
   },
   /** Téléverse son propre avatar de compte (JPEG/PNG). */
   televerserAvatar: async (fichier: File, accessToken: string): Promise<void> => {
+    refuserSiEcritureDemo('POST', '/moi/avatar')
     const form = new FormData()
     form.append('fichier', fichier)
     const res = await fetch(`${API_URL}/moi/avatar`, {
       method: 'POST',
       credentials: 'include',
-      headers: { Authorization: `Bearer ${accessToken}` },
+      headers: { Authorization: `Bearer ${accessToken}`, ...entetesDemo() },
       body: form,
     })
     await leverSiErreur(res)

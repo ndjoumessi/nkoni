@@ -8,7 +8,7 @@ import { synchroniser } from '@/lib/offline-sync'
  * (IndexedDB), et rejoue automatiquement la file au RETOUR du réseau (+ synchro manuelle).
  */
 export function useSyncHorsLigne() {
-  const { accessToken } = useAuth()
+  const { accessToken, modeDemo } = useAuth()
   const [enLigne, setEnLigne] = useState(() => (typeof navigator !== 'undefined' ? navigator.onLine : true))
   const [nbAttente, setNbAttente] = useState(0)
   const [enCours, setEnCours] = useState(false)
@@ -22,7 +22,8 @@ export function useSyncHorsLigne() {
   }, [])
 
   const lancer = useCallback(async () => {
-    if (!accessToken || !navigator.onLine) return
+    // Démo : jamais de rejeu de la file RÉELLE de ce navigateur avec le jeton démo (§2.2).
+    if (!accessToken || modeDemo || !navigator.onLine) return
     setEnCours(true)
     try {
       await synchroniser(accessToken)
@@ -30,7 +31,7 @@ export function useSyncHorsLigne() {
       setEnCours(false)
       await rafraichir()
     }
-  }, [accessToken, rafraichir])
+  }, [accessToken, modeDemo, rafraichir])
 
   useEffect(() => {
     void rafraichir()

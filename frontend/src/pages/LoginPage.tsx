@@ -5,6 +5,7 @@ import {
   AlertCircle,
   ArrowLeft,
   ArrowRight,
+  Eye,
   LineChart,
   Lock,
   Mail,
@@ -290,7 +291,14 @@ export function LoginPage() {
           </form>
         </Card>
 
-            <div className="nk-reveal nk-d3 mt-6 text-center">
+            <div className="nk-reveal nk-d3 mt-6 flex flex-col items-center gap-3">
+              <Link
+                to="/demo"
+                className="inline-flex items-center gap-1.5 text-sm font-medium text-brass transition-colors hover:text-amber"
+              >
+                <Eye className="h-4 w-4" aria-hidden="true" />
+                {t('demo.entree.voirExemple')}
+              </Link>
               <Link
                 to="/"
                 className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"

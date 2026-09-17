@@ -1,4 +1,4 @@
-import { API_URL, leverSiErreur, request, rid } from './core'
+import { API_URL, entetesDemo, leverSiErreur, refuserSiEcritureDemo, request, rid } from './core'
 import type { StatutContribution } from './types'
 
 /* -------------------------------------------------------------------------- */
@@ -192,7 +192,7 @@ export const membresApi = {
   telechargerCarte: async (id: string, accessToken: string): Promise<Blob> => {
     const res = await fetch(`${API_URL}/membres/${rid(id)}/carte`, {
       credentials: 'include',
-      headers: { Authorization: `Bearer ${accessToken}` },
+      headers: { Authorization: `Bearer ${accessToken}`, ...entetesDemo() },
     })
     await leverSiErreur(res)
     return res.blob()
@@ -201,7 +201,7 @@ export const membresApi = {
   telechargerCartesLot: async (accessToken: string): Promise<Blob> => {
     const res = await fetch(`${API_URL}/membres/cartes`, {
       credentials: 'include',
-      headers: { Authorization: `Bearer ${accessToken}` },
+      headers: { Authorization: `Bearer ${accessToken}`, ...entetesDemo() },
     })
     await leverSiErreur(res)
     return res.blob()
@@ -210,7 +210,7 @@ export const membresApi = {
   telechargerReleve: async (id: string, accessToken: string): Promise<Blob> => {
     const res = await fetch(`${API_URL}/membres/${rid(id)}/releve`, {
       credentials: 'include',
-      headers: { Authorization: `Bearer ${accessToken}` },
+      headers: { Authorization: `Bearer ${accessToken}`, ...entetesDemo() },
     })
     await leverSiErreur(res)
     return res.blob()
@@ -219,19 +219,20 @@ export const membresApi = {
   chargerPhoto: async (id: string, accessToken: string): Promise<Blob> => {
     const res = await fetch(`${API_URL}/membres/${rid(id)}/photo`, {
       credentials: 'include',
-      headers: { Authorization: `Bearer ${accessToken}` },
+      headers: { Authorization: `Bearer ${accessToken}`, ...entetesDemo() },
     })
     await leverSiErreur(res)
     return res.blob()
   },
   /** Téléverse la photo du membre (JPEG/PNG, éventuellement recadrée → Blob). NE PAS fixer Content-Type. */
   uploadPhoto: async (id: string, fichier: Blob, accessToken: string): Promise<void> => {
+    refuserSiEcritureDemo('POST', `/membres/${rid(id)}/photo`)
     const form = new FormData()
     form.append('photo', fichier, 'photo.jpg')
     const res = await fetch(`${API_URL}/membres/${rid(id)}/photo`, {
       method: 'POST',
       credentials: 'include',
-      headers: { Authorization: `Bearer ${accessToken}` },
+      headers: { Authorization: `Bearer ${accessToken}`, ...entetesDemo() },
       body: form,
     })
     await leverSiErreur(res)
@@ -245,12 +246,13 @@ export const membresApi = {
     fichier: File,
     accessToken: string,
   ): Promise<{ entetes: string[]; lignes: string[][] }> => {
+    refuserSiEcritureDemo('POST', '/membres/import/fichier')
     const form = new FormData()
     form.append('fichier', fichier)
     const res = await fetch(`${API_URL}/membres/import/fichier`, {
       method: 'POST',
       credentials: 'include',
-      headers: { Authorization: `Bearer ${accessToken}` },
+      headers: { Authorization: `Bearer ${accessToken}`, ...entetesDemo() },
       body: form,
     })
     await leverSiErreur(res)

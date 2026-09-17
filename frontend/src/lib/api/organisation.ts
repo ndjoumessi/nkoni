@@ -1,6 +1,6 @@
 import type { Forfait, CapacitesForfait } from '@/lib/forfait'
 import type { EcheanceForfait } from './platform'
-import { API_URL, leverSiErreur, request } from './core'
+import { API_URL, entetesDemo, leverSiErreur, request } from './core'
 
 /**
  * Paramètres de l'organisation COURANTE (§5) — vue lecture seule (nom/devise/langue immuables)
@@ -75,7 +75,7 @@ export const organisationApi = {
   telechargerExport: async (accessToken: string): Promise<Blob> => {
     const res = await fetch(`${API_URL}/organisations/moi/export`, {
       credentials: 'include',
-      headers: { Authorization: `Bearer ${accessToken}` },
+      headers: { Authorization: `Bearer ${accessToken}`, ...entetesDemo() },
     })
     await leverSiErreur(res)
     return res.blob()

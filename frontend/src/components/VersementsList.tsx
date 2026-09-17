@@ -60,7 +60,7 @@ export function VersementsList({
   onChange?: () => void
 }) {
   const { t } = useTranslation()
-  const { accessToken, user } = useAuth()
+  const { accessToken, user, modeDemo } = useAuth()
   const toast = useToast()
   const [versements, setVersements] = useState<Versement[]>([])
   const [recus, setRecus] = useState<Map<string, Recu>>(new Map())
@@ -202,7 +202,12 @@ export function VersementsList({
   // Partage du reçu via WhatsApp « click-to-chat » (wa.me) : ouvre WhatsApp de l'utilisateur avec
   // un message pré-rempli (récap + LIEN PUBLIC signé de téléchargement). Aucun envoi automatique,
   // aucune config Meta requise — le membre télécharge son reçu depuis le lien, sans compte.
+  //
+  // DÉMO (§0.2, revue I3) : désactivé — un lien wa.me n'est pas une requête API (la garde lecture
+  // seule ne le voit pas), il enverrait un message réel à un numéro fictif pouvant appartenir à
+  // quelqu'un. Même motif que la relance WhatsApp (AnalyseMembres, fiche membre).
   const partagerWhatsApp = (recu: Recu, montant: number) => {
+    if (modeDemo) return
     const numero = telephoneWaMe(membreTelephone)
     // Salutation personnalisée si le prénom est connu, sinon générique.
     const prenom = membrePrenom?.trim()
@@ -394,6 +399,9 @@ export function VersementsList({
                         variant="ghost"
                         size="sm"
                         icon={Send}
+                        disabled={modeDemo}
+                        aria-label={modeDemo ? t('demo.whatsappDesactive') : undefined}
+                        title={modeDemo ? t('demo.whatsappDesactive') : undefined}
                         onClick={() => partagerWhatsApp(recu, v.montant)}
                       >
                         {t('versements.liste.whatsapp')}

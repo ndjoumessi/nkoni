@@ -90,16 +90,11 @@ export async function compterFile(): Promise<number> {
 }
 
 /**
- * Purge les données locales à la DÉCONNEXION (poste partagé) : vide la file offline (IndexedDB)
- * et supprime les caches Workbox de l'app (réponses GET authentifiées `/api/*`). Best-effort :
- * n'échoue jamais la déconnexion.
+ * Supprime les caches Workbox de l'app (réponses GET authentifiées `/api/*`), SANS toucher la file
+ * hors-ligne. Utilisée à l'entrée et à la sortie de la démo : la clé de cache est l'URL (pas le
+ * jeton), une réponse fictive servirait sinon de repli hors ligne à l'administrateur réel.
  */
-export async function purgerDonneesLocales(): Promise<void> {
-  try {
-    await avecStore('readwrite', (s) => s.clear())
-  } catch {
-    /* best-effort */
-  }
+export async function purgerCachesApi(): Promise<void> {
   try {
     if ('caches' in globalThis) {
       const noms = await caches.keys()
@@ -108,4 +103,17 @@ export async function purgerDonneesLocales(): Promise<void> {
   } catch {
     /* best-effort */
   }
+}
+
+/**
+ * Purge les données locales à la DÉCONNEXION (poste partagé) : vide la file offline (IndexedDB)
+ * et supprime les caches Workbox de l'app. Best-effort : n'échoue jamais la déconnexion.
+ */
+export async function purgerDonneesLocales(): Promise<void> {
+  try {
+    await avecStore('readwrite', (s) => s.clear())
+  } catch {
+    /* best-effort */
+  }
+  await purgerCachesApi()
 }

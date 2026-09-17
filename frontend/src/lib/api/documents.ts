@@ -1,4 +1,4 @@
-import { API_URL, leverSiErreur, request, rid } from './core'
+import { API_URL, entetesDemo, leverSiErreur, refuserSiEcritureDemo, request, rid } from './core'
 
 /* Documents / archives (V2 §5) ----------------------------------------------- */
 
@@ -43,6 +43,7 @@ export const documentsApi = {
 
   /** Upload multipart. On laisse le navigateur poser le Content-Type (+ boundary). */
   upload: async (input: DocumentUploadInput, accessToken: string): Promise<DocumentMeta> => {
+    refuserSiEcritureDemo('POST', '/documents')
     const fd = new FormData()
     fd.append('entiteType', input.entiteType)
     fd.append('entiteId', input.entiteId)
@@ -52,7 +53,7 @@ export const documentsApi = {
     const res = await fetch(`${API_URL}/documents`, {
       method: 'POST',
       credentials: 'include',
-      headers: { Authorization: `Bearer ${accessToken}` },
+      headers: { Authorization: `Bearer ${accessToken}`, ...entetesDemo() },
       body: fd,
     })
     await leverSiErreur(res)
@@ -66,7 +67,7 @@ export const documentsApi = {
   telecharger: async (id: string, accessToken: string): Promise<Blob> => {
     const res = await fetch(`${API_URL}/documents/${rid(id)}/contenu`, {
       credentials: 'include',
-      headers: { Authorization: `Bearer ${accessToken}` },
+      headers: { Authorization: `Bearer ${accessToken}`, ...entetesDemo() },
     })
     await leverSiErreur(res)
     return res.blob()

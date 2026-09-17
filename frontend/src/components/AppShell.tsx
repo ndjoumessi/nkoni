@@ -26,6 +26,7 @@ import {
   X,
   type LucideIcon,
 } from 'lucide-react'
+import { BandeauDemo } from '@/components/BandeauDemo'
 import { BandeauForfait } from '@/components/BandeauForfait'
 import { CommandPalette } from '@/components/CommandPalette'
 import { IndicateurSync } from '@/components/IndicateurSync'
@@ -48,6 +49,7 @@ import {
   peutVoirParametres,
 } from '@/lib/roles'
 import { cn } from '@/lib/utils'
+import { CHEMIN_SORTIE_DEMO } from '@/lib/demo'
 import { NkoniMark } from '@/components/ui/NkoniMark'
 import { usePopoverFlottant } from '@/components/ui/usePopoverFlottant'
 import { useFocusTrap } from '@/hooks/useFocusTrap'
@@ -252,15 +254,44 @@ function UserChip({ onNavigate }: { onNavigate?: () => void }) {
 }
 
 /**
+ * Action « Se déconnecter » du menu compte (desktop) et du tiroir mobile. En DÉMO, elle devient
+ * « Quitter la démo » et navigue vers `/demo/sortie` (revue finale PR 3, M1) : jamais /auth/logout,
+ * et la sortie s'exécute hors de `ProtectedRoute` (sinon redirection parasite vers /login).
+ */
+function useActionSortie() {
+  const { logout, modeDemo } = useAuth()
+  const { t } = useTranslation()
+  const navigate = useNavigate()
+  const [signingOut, setSigningOut] = useState(false)
+
+  const handleLogout = async () => {
+    if (modeDemo) {
+      navigate(CHEMIN_SORTIE_DEMO, { replace: true })
+      return
+    }
+    setSigningOut(true)
+    await logout()
+    navigate('/login', { replace: true })
+  }
+
+  const libelle = modeDemo
+    ? t('demo.bandeau.quitter')
+    : signingOut
+      ? t('shell.deconnexionEnCours')
+      : t('shell.seDeconnecter')
+
+  return { signingOut, handleLogout, libelle }
+}
+
+/**
  * Menu compte de la barre supérieure (desktop) : avatar + rôle → dépliant « Mon profil » /
  * « Se déconnecter ». Rendu en PORTAIL via `usePopoverFlottant` (clic-extérieur + Échap gérés).
  */
 function CompteMenu() {
-  const { user, logout } = useAuth()
+  const { user } = useAuth()
   const { t } = useTranslation()
-  const navigate = useNavigate()
   const [open, setOpen] = useState(false)
-  const [signingOut, setSigningOut] = useState(false)
+  const { signingOut, handleLogout, libelle } = useActionSortie()
   const initials = useInitiales()
   const role = useLibelleRole()
   const { containerRef, triggerRef, rendreFlottant } = usePopoverFlottant({
@@ -269,12 +300,6 @@ function CompteMenu() {
     largeurDefaut: 240,
     hauteurDefaut: 180,
   })
-
-  const handleLogout = async () => {
-    setSigningOut(true)
-    await logout()
-    navigate('/login', { replace: true })
-  }
 
   return (
     <div ref={containerRef} className="relative">
@@ -324,7 +349,7 @@ function CompteMenu() {
               className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-terra/10 hover:text-terra-text disabled:opacity-60"
             >
               <LogOut className="h-4 w-4" aria-hidden="true" />
-              {signingOut ? t('shell.deconnexionEnCours') : t('shell.seDeconnecter')}
+              {libelle}
             </button>
           </div>,
           { className: 'z-50', 'aria-label': t('shell.menuCompte') },
@@ -340,16 +365,8 @@ function CompteMenu() {
  * menu compte dans la barre supérieure). Sans ça, mobile perdrait l'accès profil/déconnexion.
  */
 function SidebarContent({ onNavigate, compte }: { onNavigate?: () => void; compte?: boolean }) {
-  const { logout } = useAuth()
   const { t } = useTranslation()
-  const navigate = useNavigate()
-  const [signingOut, setSigningOut] = useState(false)
-
-  const handleLogout = async () => {
-    setSigningOut(true)
-    await logout()
-    navigate('/login', { replace: true })
-  }
+  const { signingOut, handleLogout, libelle } = useActionSortie()
 
   return (
     <div className="flex h-full flex-col">
@@ -387,7 +404,7 @@ function SidebarContent({ onNavigate, compte }: { onNavigate?: () => void; compt
             className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-terra/10 hover:text-terra-text disabled:opacity-60"
           >
             <LogOut className="h-[1.15rem] w-[1.15rem]" aria-hidden="true" />
-            {signingOut ? t('shell.deconnexionEnCours') : t('shell.seDeconnecter')}
+            {libelle}
           </button>
         </div>
       )}
@@ -566,6 +583,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           tabIndex={-1}
           className={cn('mx-auto px-5 py-8 sm:px-8 sm:py-10', largeur)}
         >
+          <BandeauDemo />
           <BandeauForfait />
           {children}
         </div>

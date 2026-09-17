@@ -13,6 +13,15 @@ export interface AuthContextValue {
   logout: () => Promise<void>
   /** Change la préférence de langue perso (§4) : persiste côté serveur et applique à l'UI. */
   changerLangue: (langue: 'FR' | 'EN') => Promise<void>
+  /** Session de l'espace de démonstration en cours (spec 2026-09-15 §2.2), non persistée. */
+  modeDemo: boolean
+  /** Ouvre la démo (POST /demo/session) ; lève l'ApiError reçue (404 = démo indisponible). */
+  demarrerDemo: () => Promise<AuthUser>
+  /**
+   * Quitte la démo SANS jamais appeler /auth/logout, puis réhydrate la session réelle depuis le
+   * cookie : renvoie l'utilisateur réel retrouvé, ou null (visiteur sans compte).
+   */
+  quitterDemo: () => Promise<AuthUser | null>
 }
 
 export const AuthContext = createContext<AuthContextValue | undefined>(undefined)

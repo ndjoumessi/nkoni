@@ -8,7 +8,8 @@ const listStatutsPage = vi.fn()
 vi.mock('@/lib/api', () => ({
   membresApi: { listStatutsPage: (...a: unknown[]) => listStatutsPage(...a) },
 }))
-vi.mock('@/contexts/auth-context', () => ({ useAuth: () => ({ accessToken: 'jeton' }) }))
+let modeDemo = false
+vi.mock('@/contexts/auth-context', () => ({ useAuth: () => ({ accessToken: 'jeton', modeDemo }) }))
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (cle: string, opts?: Record<string, unknown>) => (opts ? `${cle} ${JSON.stringify(opts)}` : cle),
@@ -23,7 +24,10 @@ const membre = {
   statutCotisation: 'NON_A_JOUR', totalAttenduCumule: 10_000, totalValoriseCumule: 0,
 }
 
-beforeEach(() => listStatutsPage.mockReset())
+beforeEach(() => {
+  listStatutsPage.mockReset()
+  modeDemo = false
+})
 afterEach(cleanup)
 
 describe('AnalyseMembres — plafond des statuts calculés', () => {
@@ -40,5 +44,25 @@ describe('AnalyseMembres — plafond des statuts calculés', () => {
     render(<MemoryRouter><AnalyseMembres /></MemoryRouter>)
     await waitFor(() => expect(screen.getByText('Tchoupa Bernard', { exact: false })).toBeTruthy())
     expect(screen.queryByText(/dashboard\.analyse\.tronque/)).toBeNull()
+  })
+})
+
+describe('AnalyseMembres — relance WhatsApp en démo', () => {
+  const joignable = { ...membre, telephone: '677123456' }
+
+  it('hors démo : lien wa.me présent (contrôle du test)', async () => {
+    listStatutsPage.mockResolvedValue({ items: [joignable], total: 1, tronque: false })
+    render(<MemoryRouter><AnalyseMembres /></MemoryRouter>)
+    const lien = await screen.findByRole('link', { name: 'dashboard.analyse.relancerWhatsApp' })
+    expect(lien.getAttribute('href')).toContain('wa.me')
+  })
+
+  it('en démo : aucun lien wa.me, bouton désactivé', async () => {
+    modeDemo = true
+    listStatutsPage.mockResolvedValue({ items: [joignable], total: 1, tronque: false })
+    const { container } = render(<MemoryRouter><AnalyseMembres /></MemoryRouter>)
+    const bouton = await screen.findByRole('button', { name: 'demo.whatsappDesactive' })
+    expect((bouton as HTMLButtonElement).disabled).toBe(true)
+    expect(container.querySelector('a[href*="wa.me"]')).toBeNull()
   })
 })

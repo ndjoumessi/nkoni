@@ -47,7 +47,7 @@ function cleNiveau(taux: number) {
 
 export function AnalyseMembres() {
   const { t } = useTranslation()
-  const { accessToken } = useAuth()
+  const { accessToken, modeDemo } = useAuth()
   // Réponse BORNÉE (plafond serveur 1000) : au-delà, branches et relances ne portent que sur les
   // premiers membres de l'ordre alphabétique — l'analyse doit le dire plutôt que se taire.
   const [reponse, setReponse] = useState<StatutsMembres | null>(null)
@@ -218,18 +218,31 @@ export function AnalyseMembres() {
                         {t(`dashboard.statut.${m.statutCotisation as 'PARTIEL' | 'NON_A_JOUR'}`)}
                       </Badge>
                     </Link>
-                    {lienWa && (
-                      <a
-                        href={lienWa}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="shrink-0 rounded-lg p-2 text-jade transition-colors hover:bg-jade/10"
-                        aria-label={t('dashboard.analyse.relancerWhatsApp')}
-                        title={t('dashboard.analyse.relancerWhatsApp')}
-                      >
-                        <MessageCircle className="h-4 w-4" aria-hidden="true" />
-                      </a>
-                    )}
+                    {lienWa &&
+                      (modeDemo ? (
+                        // Démo (§2.4) : un lien wa.me n'est pas une requête API, la garde lecture
+                        // seule ne le voit pas, et un numéro fictif peut appartenir à quelqu'un.
+                        <button
+                          type="button"
+                          disabled
+                          className="shrink-0 cursor-not-allowed rounded-lg p-2 text-faint opacity-60"
+                          aria-label={t('demo.whatsappDesactive')}
+                          title={t('demo.whatsappDesactive')}
+                        >
+                          <MessageCircle className="h-4 w-4" aria-hidden="true" />
+                        </button>
+                      ) : (
+                        <a
+                          href={lienWa}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="shrink-0 rounded-lg p-2 text-jade transition-colors hover:bg-jade/10"
+                          aria-label={t('dashboard.analyse.relancerWhatsApp')}
+                          title={t('dashboard.analyse.relancerWhatsApp')}
+                        >
+                          <MessageCircle className="h-4 w-4" aria-hidden="true" />
+                        </a>
+                      ))}
                   </li>
                 )
               })}

@@ -139,13 +139,74 @@ async function nettoyerOrganisationPartielle(prisma: any, organisationId: string
   })
 }
 
+/**
+ * Contexte partagé par les étapes du remplissage. Les étapes s'exécutent dans un ORDRE FIXE (voir
+ * `remplir`) : la numérotation des reçus suit l'ordre des versements, et les étapes suivantes
+ * s'appuient sur les membres et contributions créés avant elles.
+ */
+interface ContexteRemplissage {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  prisma: any
+  organisationId: string
+  adminId: string
+  now: Date
+  annee: number
+  ilYA: (jours: number) => Date
+  membres: MembreDemo[]
+  actifs: MembreDemo[]
+  /** Identifiant en base d'un membre de la description (par sa clé stable). */
+  id: (cle: string) => string
+}
+
+type MembreDemo = ReturnType<typeof construireMembresDemo>[number]
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function remplir(prisma: any, organisationId: string, adminId: string, now: Date): Promise<VolumesDemo> {
   const annee = anneeCouranteApp(now)
-  const ilYA = (jours: number) => new Date(now.getTime() - jours * JOUR_MS)
   const membres = construireMembresDemo(annee)
+  const idDe = await creerBranchesEtMembres(prisma, membres, annee)
+  const ctx: ContexteRemplissage = {
+    prisma,
+    organisationId,
+    adminId,
+    now,
+    annee,
+    ilYA: (jours) => new Date(now.getTime() - jours * JOUR_MS),
+    membres,
+    actifs: membres.filter((m) => m.statut === 'ACTIF'),
+    id: (cle) => idDe.get(cle) as string,
+  }
 
-  // Branches et membres (création portée par les routes : écriture directe, FK scalaires).
+  await lierPresidente(ctx)
+  const contributionDe = await ouvrirCotisations(ctx)
+  const versements = await enregistrerVersementsEtRecus(ctx, contributionDe)
+  await creerDepenses(ctx)
+  const dons = await creerCagnotte(ctx)
+  const amendes = await creerAmendes(ctx)
+  const misesTontine = await creerTontineEnCours(ctx)
+  const votes = await creerReunions(ctx)
+  await creerFonctionsSociales(ctx)
+
+  return {
+    membres: membres.length,
+    versements,
+    recus: versements + 1,
+    recusAnnules: 1,
+    depenses: DEPENSES_DEMO.length,
+    dons,
+    amendes,
+    misesTontine,
+    votes,
+  }
+}
+
+/** Branches et membres (création portée par les routes : écriture directe, FK scalaires). */
+async function creerBranchesEtMembres(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  prisma: any,
+  membres: MembreDemo[],
+  annee: number,
+): Promise<Map<string, string>> {
   const brancheIds: string[] = []
   for (const nom of BRANCHES_DEMO) brancheIds.push((await prisma.brancheFamiliale.create({ data: { nom } })).id)
   const idDe = new Map<string, string>()
@@ -165,15 +226,21 @@ async function remplir(prisma: any, organisationId: string, adminId: string, now
     })
     idDe.set(m.cle, cree.id)
   }
-  const id = (cle: string) => idDe.get(cle) as string
-  const actifs = membres.filter((m) => m.statut === 'ACTIF')
-  const presidente = membres[0]!
+  return idDe
+}
 
-  // Compte ADMIN lié à la présidente (« Mon espace » réaliste) et cheffe de l'organisation.
+/** Compte ADMIN lié à la présidente (« Mon espace » réaliste) et cheffe de l'organisation. */
+async function lierPresidente({ prisma, organisationId, adminId, membres, id }: ContexteRemplissage): Promise<void> {
+  const presidente = membres[0]!
   await prisma.membre.update({ where: { id: id(presidente.cle) }, data: { compteUtilisateurId: adminId } })
   await definirChefOrganisation(prisma, organisationId, id(presidente.cle), 'Présidente')
+}
 
-  // Barèmes puis ouverture des années (service : montant attendu copié, jamais d'année future).
+/**
+ * Barèmes puis ouverture des années (service : montant attendu copié, jamais d'année future).
+ * Rend la contribution de chaque couple « membre#année ».
+ */
+async function ouvrirCotisations({ prisma, annee }: ContexteRemplissage): Promise<Map<string, string>> {
   for (const bareme of baremesDemo(annee)) {
     await prisma.baremeAnnuel.create({ data: bareme })
     await ouvrirAnnee(prisma, bareme.annee, annee)
@@ -181,10 +248,15 @@ async function remplir(prisma: any, organisationId: string, adminId: string, now
   const contributions: { id: string; membreId: string; annee: number }[] = await prisma.contribution.findMany({
     select: { id: true, membreId: true, annee: true },
   })
-  const contributionDe = new Map(contributions.map((c) => [`${c.membreId}#${c.annee}`, c.id]))
+  return new Map(contributions.map((c) => [`${c.membreId}#${c.annee}`, c.id]))
+}
 
-  // Versements (service : cumuls dans la même transaction) puis reçu, dans l'ordre chronologique pour
-  // que la numérotation suive les dates.
+/**
+ * Versements (service : cumuls dans la même transaction) puis reçu, dans l'ordre chronologique pour
+ * que la numérotation suive les dates ; puis un reçu annulé et réémis. Rend le nombre de versements.
+ */
+async function enregistrerVersementsEtRecus(ctx: ContexteRemplissage, contributionDe: Map<string, string>): Promise<number> {
+  const { prisma, adminId, now, annee, membres, id } = ctx
   const plan = planifierVersementsDemo(membres, annee, now)
   const versementIds: string[] = []
   for (const v of plan) {
@@ -208,8 +280,11 @@ async function remplir(prisma: any, organisationId: string, adminId: string, now
   if (!aCorriger) throw new Error('Reçu à corriger introuvable')
   await annulerRecu(prisma, aCorriger.id, adminId, 'Mode de versement mal saisi', now)
   await genererRecu(prisma, versementIds[3]!, adminId, now)
+  return plan.length
+}
 
-  // Dépenses : chaque statut cible est atteint par des transitions VALIDES du workflow.
+/** Dépenses : chaque statut cible est atteint par des transitions VALIDES du workflow. */
+async function creerDepenses({ prisma, adminId, ilYA }: ContexteRemplissage): Promise<void> {
   const chemin: Record<StatutDepense, StatutDepense[]> = {
     BROUILLON: [],
     EN_ATTENTE: ['EN_ATTENTE'],
@@ -237,8 +312,12 @@ async function remplir(prisma: any, organisationId: string, adminId: string, now
       },
     })
   }
+}
 
-  // Cagnotte ouverte et 12 dons.
+const DONS_CAGNOTTE = 12
+
+/** Cagnotte ouverte et ses dons. Rend le nombre de dons. */
+async function creerCagnotte({ prisma, adminId, now, ilYA, membres, actifs, id }: ContexteRemplissage): Promise<number> {
   const beneficiaire = membres[2]!
   const cagnotte = await prisma.cagnotteEvenement.create({
     data: {
@@ -250,7 +329,7 @@ async function remplir(prisma: any, organisationId: string, adminId: string, now
       creeParId: adminId,
     },
   })
-  for (let k = 0; k < 12; k++) {
+  for (let k = 0; k < DONS_CAGNOTTE; k++) {
     await prisma.donCagnotte.create({
       data: {
         cagnotteId: cagnotte.id,
@@ -262,8 +341,11 @@ async function remplir(prisma: any, organisationId: string, adminId: string, now
       },
     })
   }
+  return DONS_CAGNOTTE
+}
 
-  // Amendes : encaissée, en attente, annulée (transitions validées).
+/** Amendes : encaissée, en attente, annulée (transitions validées). Rend le nombre d'amendes. */
+async function creerAmendes({ prisma, adminId, ilYA, actifs, id }: ContexteRemplissage): Promise<number> {
   const enRetard = actifs.filter((m) => m.profil === 'EN_RETARD')
   const amendePayee = await prisma.amende.create({
     data: { membreId: id(enRetard[0]!.cle), type: 'RETARD_COTISATION', motif: 'Retard de cotisation', montant: 2_000, dateAmende: ilYA(60), creeParId: adminId },
@@ -278,8 +360,11 @@ async function remplir(prisma: any, organisationId: string, adminId: string, now
   })
   validerTransitionAmende('IMPAYEE', 'ANNULEE')
   await prisma.amende.update({ where: { id: amendeAnnulee.id }, data: { statut: 'ANNULEE' } })
+  return 3
+}
 
-  // Tontine à ordre fixe, 10 participants : 5 tours reversés, le 6e en cours de collecte.
+/** Tontine à ordre fixe, 10 participants : 5 tours reversés, le 6e en cours de collecte. Rend le nombre de mises. */
+async function creerTontineEnCours({ prisma, ilYA, actifs, id }: ContexteRemplissage): Promise<number> {
   const tontine = await creerTontine(prisma, { nom: 'Tontine mensuelle', montantBaseMise: 10_000, modeRotation: 'ORDRE_FIXE' })
   const participants = actifs.filter((m) => m.profil === 'A_JOUR').slice(0, 10)
   const cycleId = await ouvrirCycle(prisma, tontine.id, participants.map((m, i) => ({ membreId: id(m.cle), parts: i === 0 ? 2 : 1 })))
@@ -300,8 +385,16 @@ async function remplir(prisma: any, organisationId: string, adminId: string, now
     await enregistrerMise(prisma, tours[5]!.id, id(p.cle))
     misesTontine++
   }
+  return misesTontine
+}
 
-  // Réunion passée : ordre du jour, présences, compte-rendu, résolution adoptée par vote.
+const VOTANTS = 20
+
+/**
+ * Réunion passée (ordre du jour, présences, compte-rendu, résolution adoptée par vote) et réunion à
+ * venir. Rend le nombre de votes.
+ */
+async function creerReunions({ prisma, now, ilYA, actifs, id }: ContexteRemplissage): Promise<number> {
   const passee = await creerReunion(prisma, {
     date: ilYA(40),
     lieu: 'Salle communautaire du quartier',
@@ -327,7 +420,7 @@ async function remplir(prisma: any, organisationId: string, adminId: string, now
   })
   await ouvrirVoteResolution(prisma, resolution.id)
   const sens = ['POUR', 'CONTRE', 'ABSTENTION'] as const
-  for (const [i, m] of actifs.slice(0, 20).entries()) {
+  for (const [i, m] of actifs.slice(0, VOTANTS).entries()) {
     await voterResolution(prisma, resolution.id, id(m.cle), i < 14 ? sens[0] : i < 18 ? sens[1] : sens[2])
   }
   await cloturerResolution(prisma, resolution.id, ilYA(40))
@@ -337,7 +430,6 @@ async function remplir(prisma: any, organisationId: string, adminId: string, now
     dateVote: ilYA(40),
   })
 
-  // Réunion à venir.
   await creerReunion(prisma, {
     date: new Date(now.getTime() + 10 * JOUR_MS),
     lieu: 'Salle communautaire du quartier',
@@ -345,10 +437,13 @@ async function remplir(prisma: any, organisationId: string, adminId: string, now
     statut: 'PLANIFIEE',
     pointsOrdreDuJour: [{ titre: 'Point sur les cotisations' }, { titre: 'Préparation de la fête annuelle' }],
   })
+  return VOTANTS
+}
 
-  // Fonctions sociales et leurs titulaires.
+/** Fonctions sociales et leurs titulaires. */
+async function creerFonctionsSociales({ prisma, annee, membres, id }: ContexteRemplissage): Promise<void> {
   const titulaires: [string, string][] = [
-    ['Présidente', presidente.cle],
+    ['Présidente', membres[0]!.cle],
     ['Trésorier', membres[1]!.cle],
     ['Secrétaire', membres[3]!.cle],
     ['Commissaire aux comptes', membres[4]!.cle],
@@ -356,17 +451,5 @@ async function remplir(prisma: any, organisationId: string, adminId: string, now
   for (const [nom, cle] of titulaires) {
     const fonction = await creerFonction(prisma, { nom })
     await creerAffectation(prisma, { fonctionId: fonction.id, membreId: id(cle), dateDebut: new Date(Date.UTC(annee - 2, 0, 15, 9)) })
-  }
-
-  return {
-    membres: membres.length,
-    versements: plan.length,
-    recus: plan.length + 1,
-    recusAnnules: 1,
-    depenses: DEPENSES_DEMO.length,
-    dons: 12,
-    amendes: 3,
-    misesTontine,
-    votes: 20,
   }
 }

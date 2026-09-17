@@ -22,6 +22,8 @@ import { RouteFallback } from '@/components/RouteFallback'
  * publiques ci-dessus y restent). Le `Suspense` de chaque zone affiche `RouteFallback` le temps
  * du chargement du chunk. Toutes les pages exportent un défaut → `import('@/pages/X')` direct.
  */
+const AidePage = lazy(() => import('@/pages/aide/AidePage'))
+const GuidePage = lazy(() => import('@/pages/aide/GuidePage'))
 const SuperAdminPage = lazy(() => import('@/pages/SuperAdminPage'))
 const PlatformAuditPage = lazy(() => import('@/pages/PlatformAuditPage'))
 const PlatformIncidentPage = lazy(() => import('@/pages/PlatformIncidentPage'))
@@ -82,6 +84,40 @@ function App() {
       <Route path="/cgu" element={<CGUPage />} />
       <Route path="/mentions-legales" element={<MentionsLegalesPage />} />
       <Route path="/statut" element={<StatutPage />} />
+
+      {/* Documentation publique (spec 2026-09-18) — hors ProtectedRoute, comme les pages légales. */}
+      <Route
+        path="/aide"
+        element={
+          <Suspense fallback={<RouteFallback pleinEcran />}>
+            <AidePage />
+          </Suspense>
+        }
+      />
+      <Route
+        path="/aide/membre"
+        element={
+          <Suspense fallback={<RouteFallback pleinEcran />}>
+            <GuidePage guide="membre" />
+          </Suspense>
+        }
+      />
+      <Route
+        path="/aide/bureau"
+        element={
+          <Suspense fallback={<RouteFallback pleinEcran />}>
+            <GuidePage guide="bureau" />
+          </Suspense>
+        }
+      />
+      <Route
+        path="/aide/faq"
+        element={
+          <Suspense fallback={<RouteFallback pleinEcran />}>
+            <GuidePage guide="faq" />
+          </Suspense>
+        }
+      />
       <Route path="/demo" element={<DemoPage />} />
       {/* Sortie de démo HORS coquille protégée (course ProtectedRoute ↔ navigation, cf. la page). */}
       <Route path="/demo/sortie" element={<SortieDemoPage />} />

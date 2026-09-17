@@ -51,6 +51,7 @@ import {
   StatutResolutionBadge,
   TypeReunionBadge,
 } from '@/components/reunions/StatutBadges'
+import { AideNotion } from '@/components/ui/AideNotion'
 
 const STATUTS_REUNION: StatutReunion[] = ['PLANIFIEE', 'TENUE', 'ANNULEE']
 
@@ -633,6 +634,7 @@ export function ReunionDetailPage() {
         <div className="flex items-center gap-2">
           <Gavel className="h-4 w-4 text-brass" aria-hidden="true" />
           <Overline>{t('resolutions.titre')}</Overline>
+          <AideNotion notion="voteResolution" />
         </div>
 
         {reunion.resolutions.length === 0 ? (

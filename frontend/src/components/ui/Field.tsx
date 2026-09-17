@@ -69,6 +69,7 @@ export function Field({
   error,
   required,
   className,
+  aide,
 }: {
   label: string
   children: ReactNode
@@ -76,6 +77,8 @@ export function Field({
   error?: string
   required?: boolean
   className?: string
+  /** « ? » d'aide contextuelle, rendu À CÔTÉ du <label> (jamais dedans : un bouton dans un label est un contrôle imbriqué). */
+  aide?: ReactNode
 }) {
   const autoId = useId()
   const descId = `${autoId}-desc`
@@ -98,17 +101,34 @@ export function Field({
 
   return (
     <div className={cn('block', className)}>
-      <label
-        htmlFor={controlId}
-        className="mb-1.5 flex items-center gap-1 text-2xs font-medium uppercase tracking-[0.1em] text-faint"
-      >
-        {label}
-        {required && (
-          <span className="text-brass" aria-hidden="true">
-            *
-          </span>
-        )}
-      </label>
+      {aide ? (
+        <div className="mb-1.5 flex items-center gap-1">
+          <label
+            htmlFor={controlId}
+            className="flex items-center gap-1 text-2xs font-medium uppercase tracking-[0.1em] text-faint"
+          >
+            {label}
+            {required && (
+              <span className="text-brass" aria-hidden="true">
+                *
+              </span>
+            )}
+          </label>
+          {aide}
+        </div>
+      ) : (
+        <label
+          htmlFor={controlId}
+          className="mb-1.5 flex items-center gap-1 text-2xs font-medium uppercase tracking-[0.1em] text-faint"
+        >
+          {label}
+          {required && (
+            <span className="text-brass" aria-hidden="true">
+              *
+            </span>
+          )}
+        </label>
+      )}
       {rendered}
       {error ? (
         <span id={descId} role="alert" className="mt-1.5 flex items-start gap-1 text-xs text-terra">

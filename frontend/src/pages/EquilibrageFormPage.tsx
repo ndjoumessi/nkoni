@@ -15,6 +15,7 @@ import {
 import { peutEquilibrer } from '@/lib/roles'
 import { formatMontant } from '@/lib/format'
 import { useToast } from '@/components/ui/Toast'
+import { AideNotion } from '@/components/ui/AideNotion'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, Overline } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -190,6 +191,7 @@ export function EquilibrageFormPage() {
         title={t('equilibrages.header.titre')}
         description={membreNom || undefined}
         back={{ to: backTo, label: t('equilibrages.header.back') }}
+        aide={<AideNotion notion="equilibrage" />}
       />
 
       {loading ? (

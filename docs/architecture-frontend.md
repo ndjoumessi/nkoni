@@ -17,3 +17,17 @@
   - **Focus roving** : les flèches ‹/› d'en-tête posent `conserverFocusRef` pour que l'effet de focus ne les vole PAS vers une cellule (sinon l'activation clavier répétée casse). **aria-live** : région `sr-only` dédiée (un `aria-label` sur le bouton d'en-tête masquerait l'annonce du changement).
   - Échelle z : contenu/nav `z-40` · popover portail & `Modal` `z-50` · `Toast`/`CommandPalette` `z-[100]`. **Ne PAS** rustiner un recouvrement au cas par cas avec des `z-index` sur les cartes. Tests composant sous **jsdom** (`*.test.tsx`, docblock `// @vitest-environment jsdom`) ; `partage-popover.test.ts` prouve au niveau source que les deux composants importent bien les primitives (pas de copier-coller).
   - **Un changement de mise en page peut invalider une hypothèse TACITE du code existant, que `tsc`/`oxlint` ne voient pas** (c'est du layout, pas du type). Défauts vécus, tous révélés par une refonte visuelle et jamais par la CI : un espaceur « fantôme » calant un bouton et supposant des libellés d'UNE ligne (cassé quand une carte passe à demi-largeur → libellé sur 2 lignes → input désaligné), une taille d'image fixe (QR rogné), un `aria-controls`/`aria-label` supposant un rôle ou un motif porteur (onglets, `role="img"`), un état pilotant une VISIBILITÉ qui bascule au mauvais moment (confirmation du formulaire paiement repliée par `setConfig`). Règle : après toute refonte visuelle, **vérifier le rendu aux largeurs RÉELLES** (mobile 360 px ET la largeur effective du conteneur, ex. une carte en 2 colonnes = demi-largeur), pas seulement la compilation ; et **préférer supprimer l'hypothèse** (empiler les champs) plutôt que la compenser (ajuster la hauteur du fantôme, forcer `whitespace-nowrap`), qui recrée le piège au changement de largeur suivant.
+
+## Aide contextuelle — `ui/AideNotion` (spec 2026-09-17)
+
+- **Primitive unique** : `<AideNotion notion="…" />` rend un « ? » (`.tap-target`, nom accessible
+  « Aide : <titre> ») et une bulle en PORTAIL via `usePopoverFlottant`. Ouverture au clic/clavier, jamais
+  au survol ; à l'ouverture, le focus se déplace dans la bulle — titre et texte lus, Tab atteint le lien optionnel — mais SEULEMENT une fois celle-ci positionnée donc visible (drapeau `positionne` de `usePopoverFlottant` : un navigateur ignore un `focus()` sur un élément `visibility:hidden`) ; le départ du focus la ferme sans rendre le focus au « ? » (sauf un `focusout` sans `relatedTarget`, ignoré : Safari ne focalise pas un bouton cliqué), et Échap ne ferme que la bulle (jamais un modal parent). Ne pas créer d'infobulle ad hoc.
+- **Contenu** : `lib/aide.ts` (`NOTIONS_AIDE`, `LIENS_AIDE`) + namespace i18n `aide` (FR source, EN
+  miroir). Une notion inconnue ne compile pas ; `aide-catalogue.test.ts` (textes non vides FR/EN, pas
+  d'orphelin, 3 phrases max) et `aide-usage.test.ts` (chaque notion placée) gardent le catalogue.
+- **Placement** : à côté d'un libellé — props `aide` de `Field` et `PageHeader` (jamais dans un `<label>`
+  ou un `<h1>`), ou `flex items-center gap-1` autour d'un `Overline`. Au plus un « ? » par notion par
+  écran, jamais dans une ligne de liste/tableau, jamais sur les écrans publics. Notion dans un `Modal` ⇒ pas d'entrée `LIENS_AIDE` (le piège à focus du Modal refermerait la bulle avant le lien).
+- **Rédaction** : vouvoiement, 3 phrases au plus, aucun nom technique ; une règle métier citée suit le
+  code (la changer = changer le texte dans la même PR).

@@ -123,5 +123,8 @@ export function usePopoverFlottant({
       document.body,
     )
 
-  return { containerRef, triggerRef, popoverRef, rendreFlottant }
+  // `positionne` : la bulle est positionnée donc VISIBLE (cf. `visibility` ci-dessus). Un navigateur
+  // ignore un `focus()` sur un élément masqué : qui veut focaliser le contenu à l'ouverture doit
+  // attendre ce drapeau (ajout pour AideNotion, les autres popovers l'ignorent).
+  return { containerRef, triggerRef, popoverRef, rendreFlottant, positionne: coords !== null }
 }

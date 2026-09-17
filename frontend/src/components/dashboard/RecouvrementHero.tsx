@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next'
 import { Coins, TrendingDown, TrendingUp, Wallet } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { Montant } from '@/components/ui/Montant'
+import { AideNotion } from '@/components/ui/AideNotion'
 import { formatPourcent } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { useCountUp } from '@/hooks/useCountUp'
@@ -119,6 +120,7 @@ export function RecouvrementHero({
                 <Coins className="h-4 w-4" aria-hidden="true" />
               </span>
               {t('dashboard.hero.totalCollecte')}
+              <AideNotion notion="verse" />
             </span>
             {/* Mobile : l'écart N-1 passe SOUS le montant — sur une ligne, badge + montant débordaient de
                 la carte à 390 px (vécu en anglais : « FCFA1,580,000 » hors cadre). */}
@@ -135,6 +137,7 @@ export function RecouvrementHero({
                 <Wallet className="h-4 w-4" aria-hidden="true" />
               </span>
               {t('dashboard.hero.totalAttendu')}
+              <AideNotion notion="attendu" />
             </span>
             <Montant value={attendu} className="text-lg font-semibold text-foreground" />
           </div>

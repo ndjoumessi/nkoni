@@ -457,7 +457,7 @@ réaction sans déclencheur.
 |---|---|---|---|
 | **8.1** | ✅ **FAIT (2026-07-30)** — `SENTRY_DSN` (Railway) et `VITE_SENTRY_DSN` (Vercel) posés, projets **distincts** `nkoni-api`/`nkoni-web` | Alertes d'erreur armées (warning de boot disparu), ingestion prouvée e2e. | — |
 | **8.2** | ✅ **FAIT (2026-07-30)** — moniteur **Sentry Uptime** sur `https://nkoni.vercel.app/api/ready`, 5 min, 2xx-only, alerte email | Disponibilité désormais mesurée : un 503 (base à terre) ou un timeout (process mort) ouvre une issue de downtime après ~15 min. Quota : 1 moniteur uptime sur le plan → `habashop-web` désactivé pour libérer le créneau. | — |
-| ~~8.3~~ | ~~**Faire de `/health` un vrai healthcheck**~~ → **✅ FAIT** (2026-07-23) : endpoint **`/ready`** SÉPARÉ (`SELECT 1`, 200 / **503 `degraded`**, course contre un délai de 3 s), consommé par `/statut`. **`/health` reste intact et sans dépendance** — c'est le healthcheck Railway (`railway.json`), et le coupler à la base interdirait de déployer pendant un hoquet DB, donc exactement au moment où l'on a besoin de la reprise. Régression : `backend/tests/ready.route.test.ts`. | — | Fait |
+| ~~8.3~~ | ~~**Faire de `/health` un vrai healthcheck**~~ → **✅ FAIT** (2026-07-23) : endpoint **`/ready`** SÉPARÉ (`SELECT 1`, 200 / **503 `degraded`**, course contre un délai de 3 s), consommé par `/statut`. **`/health` reste intact et sans dépendance** — c’est le healthcheck Railway (réglage `healthcheckPath` du service), et le coupler à la base interdirait de déployer pendant un hoquet DB, donc exactement au moment où l'on a besoin de la reprise. Régression : `backend/tests/ready.route.test.ts`. | — | Fait |
 
 Chantiers de second rang, à inscrire après les trois précédents :
 

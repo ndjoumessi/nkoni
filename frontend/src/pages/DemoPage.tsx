@@ -8,7 +8,24 @@ import { cheminApresConnexion } from '@/lib/roles'
 import { ErrorState } from '@/components/ui/ErrorState'
 import { ButtonLink } from '@/components/ui/Button'
 
-type Echec = 'indisponible' | 'erreur'
+type Echec = 'indisponible' | 'occupe' | 'erreur'
+
+/**
+ * 404 = démo éteinte ou absente (réessayer ne sert à rien) ; 429 = limite de débit de
+ * `POST /demo/session` (10/min par IP — derrière le NAT d'un opérateur mobile, des visiteurs distincts
+ * partagent une IP) : ce n'est pas un problème de connexion, on invite à réessayer un peu plus tard.
+ */
+function classerEchec(e: unknown): Echec {
+  if (e instanceof ApiError && e.status === 404) return 'indisponible'
+  if (e instanceof ApiError && e.status === 429) return 'occupe'
+  return 'erreur'
+}
+
+const TEXTES_ECHEC = {
+  indisponible: { titre: 'demo.page.indisponibleTitre', description: 'demo.page.indisponible' },
+  occupe: { titre: 'demo.page.occupeTitre', description: 'demo.page.occupe' },
+  erreur: { titre: 'demo.page.erreurTitre', description: 'demo.page.erreur' },
+} as const
 
 /**
  * `/demo` (public, spec 2026-09-15 §2.1) — unique porte d'entrée de l'espace de démonstration côté
@@ -27,7 +44,7 @@ export function DemoPage() {
     setEchec(null)
     demarrerDemo()
       .then((u) => navigate(cheminApresConnexion(u.role), { replace: true }))
-      .catch((e: unknown) => setEchec(e instanceof ApiError && e.status === 404 ? 'indisponible' : 'erreur'))
+      .catch((e: unknown) => setEchec(classerEchec(e)))
   }, [demarrerDemo, navigate])
 
   useEffect(() => {
@@ -48,9 +65,9 @@ export function DemoPage() {
         ) : (
           <>
             <ErrorState
-              title={t(echec === 'indisponible' ? 'demo.page.indisponibleTitre' : 'demo.page.erreurTitre')}
-              description={t(echec === 'indisponible' ? 'demo.page.indisponible' : 'demo.page.erreur')}
-              onRetry={echec === 'erreur' ? ouvrir : undefined}
+              title={t(TEXTES_ECHEC[echec].titre)}
+              description={t(TEXTES_ECHEC[echec].description)}
+              onRetry={echec === 'indisponible' ? undefined : ouvrir}
               retryLabel={t('commun.actions.reessayer')}
             />
             <div className="mt-6 text-center">

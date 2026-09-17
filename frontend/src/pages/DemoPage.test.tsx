@@ -52,6 +52,17 @@ describe('DemoPage', () => {
     expect(screen.getByRole('link', { name: /commun.actions.retourAccueil/ }).getAttribute('href')).toBe('/')
   })
 
+  it('trop de demandes (429) : message « démo très sollicitée », pas « vérifiez votre connexion »', async () => {
+    demarrerDemo.mockRejectedValueOnce(new ApiError(429, 'Too Many Requests'))
+    demarrerDemo.mockResolvedValueOnce({ id: 'u-demo', role: 'ADMIN' })
+    rendre()
+    expect(await screen.findByText('demo.page.occupeTitre')).toBeTruthy()
+    expect(screen.getByText('demo.page.occupe')).toBeTruthy()
+    expect(screen.queryByText('demo.page.erreur')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /commun\.actions\.reessayer/ }))
+    await waitFor(() => expect(screen.getByText('tableau de bord')).toBeTruthy())
+  })
+
   it('erreur réseau : message d’erreur avec « Réessayer »', async () => {
     demarrerDemo.mockRejectedValueOnce(new TypeError('Failed to fetch'))
     demarrerDemo.mockResolvedValueOnce({ id: 'u-demo', role: 'ADMIN' })

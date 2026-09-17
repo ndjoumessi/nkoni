@@ -400,11 +400,13 @@ export function VersementsList({
                         size="sm"
                         icon={Send}
                         disabled={modeDemo}
-                        aria-label={modeDemo ? t('demo.whatsappDesactive') : undefined}
-                        title={modeDemo ? t('demo.whatsappDesactive') : undefined}
+                        title={modeDemo ? t('demo.partageWhatsappDesactive') : undefined}
                         onClick={() => partagerWhatsApp(recu, v.montant)}
                       >
                         {t('versements.liste.whatsapp')}
+                        {/* Raison lue APRÈS le libellé visible : le nom accessible contient ce qu'on voit
+                            (WCAG 2.5.3), un aria-label l'aurait remplacé. */}
+                        {modeDemo && <span className="sr-only"> — {t('demo.partageWhatsappDesactive')}</span>}
                       </Button>
                       {/* Envoi SERVEUR (WhatsApp → repli email) — distinct du partage wa.me ci-dessus :
                           ici le serveur délivre automatiquement dès qu'un canal est configuré. */}

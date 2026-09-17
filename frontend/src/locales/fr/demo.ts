@@ -13,6 +13,8 @@ export default {
       indisponibleTitre: "Espace d'exemple indisponible",
       indisponible: "L'espace de démonstration est momentanément indisponible. Réessayez plus tard.",
       erreurTitre: "Impossible d'ouvrir l'espace d'exemple",
+      occupeTitre: 'Espace d\'exemple très sollicité',
+      occupe: 'Beaucoup de visiteurs ouvrent la démo en ce moment. Réessayez dans une minute.',
       erreur: 'Vérifiez votre connexion, puis réessayez.',
     },
     bandeau: {
@@ -21,6 +23,8 @@ export default {
       quitter: 'Quitter la démo',
       retourEnCours: 'Sortie…',
     },
+    compte: 'Compte de démonstration',
+    partageWhatsappDesactive: 'Partage WhatsApp désactivé dans la démo',
     whatsappDesactive: 'Relance WhatsApp désactivée dans la démo',
     pushDesactive: 'Notifications push désactivées dans la démo',
   },

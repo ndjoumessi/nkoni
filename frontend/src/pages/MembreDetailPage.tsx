@@ -435,7 +435,9 @@ export function MembreDetailPage() {
                         <button
                           type="button"
                           role="menuitem"
-                          disabled={modeDemo}
+                          // aria-disabled (pas `disabled` natif) : un item de menu désactivé reste
+                          // perceptible et atteignable ; le clic est neutralisé ci-dessous.
+                          aria-disabled={modeDemo || undefined}
                           title={modeDemo ? t('demo.whatsappDesactive') : undefined}
                           onClick={() => {
                             if (modeDemo) return
@@ -449,10 +451,11 @@ export function MembreDetailPage() {
                             )
                             if (lien) window.open(lien, '_blank', 'noopener,noreferrer')
                           }}
-                          className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-surface hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-brass/60 disabled:cursor-not-allowed disabled:opacity-50"
+                          className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-surface hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-brass/60 aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
                         >
                           <MessageCircle className="h-4 w-4 shrink-0 text-faint" aria-hidden="true" />
                           {t('membres.detail.relancerWhatsApp')}
+                          {modeDemo && <span className="sr-only"> — {t('demo.whatsappDesactive')}</span>}
                         </button>
                       )}
                     </div>,

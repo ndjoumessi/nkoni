@@ -50,7 +50,7 @@ async function ouvrirMenu() {
     </MemoryRouter>,
   )
   fireEvent.click(await screen.findByRole('button', { name: 'membres.detail.plus' }))
-  return screen.findByRole('menuitem', { name: 'membres.detail.relancerWhatsApp' })
+  return screen.findByRole('menuitem', { name: /membres\.detail\.relancerWhatsApp/ })
 }
 
 let ouvrir: ReturnType<typeof vi.spyOn>
@@ -70,12 +70,19 @@ describe('MembreDetailPage — relance WhatsApp', () => {
     expect(String(ouvrir.mock.calls[0][0])).toContain('wa.me')
   })
 
-  it('en démo : entrée désactivée, expliquée, aucun window.open', async () => {
+  it('en démo : entrée aria-disabled (reste atteignable au clavier), raison lue, aucun window.open', async () => {
     modeDemo = true
     const entree = (await ouvrirMenu()) as HTMLButtonElement
-    expect(entree.disabled).toBe(true)
-    expect(entree.title).toBe('demo.whatsappDesactive')
+    // aria-disabled plutôt que disabled natif : un item de menu désactivé reste perceptible (WAI-ARIA).
+    expect(entree.getAttribute('aria-disabled')).toBe('true')
+    expect(entree.disabled).toBe(false)
+    expect(entree.textContent).toContain('demo.whatsappDesactive')
     fireEvent.click(entree)
     expect(ouvrir).not.toHaveBeenCalled()
+  })
+
+  it('hors démo : pas d’aria-disabled', async () => {
+    const entree = await ouvrirMenu()
+    expect(entree.getAttribute('aria-disabled')).toBeNull()
   })
 })

@@ -1,4 +1,4 @@
-import { useCallback, useId, useState } from 'react'
+import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { CircleHelp } from 'lucide-react'
@@ -14,7 +14,18 @@ import { usePopoverFlottant } from './usePopoverFlottant'
  *
  * - Ouverture au clic et au clavier, JAMAIS au survol (absent sur mobile, gênant au lecteur d'écran).
  * - Bulle en PORTAIL via `usePopoverFlottant` (immunité aux contextes d'empilement `nk-reveal`).
+ * - **Focus déplacé DANS la bulle à l'ouverture** (WCAG 2.1.1/2.4.3) : la bulle vit hors du flux DOM
+ *   du déclencheur (portail), donc sans ce déplacement, Tab depuis le « ? » saute la bulle vers le
+ *   prochain contrôle de PAGE (ex. le champ du `Field` voisin) — le lien « En savoir plus » devient
+ *   inatteignable au clavier. Le conteneur de contenu est rendu focalisable (`tabIndex={-1}`) ; le
+ *   `aria-label` du dialog (posé par `usePopoverFlottant`) porte le titre, lu par le lecteur d'écran.
  * - Échap referme et rend le focus au « ? » ; clic extérieur et second clic referment.
+ * - **Sortie de focus (Tab hors bulle ET hors déclencheur) referme SANS reprendre le focus** :
+ *   contrairement à Échap, l'utilisateur est parti ailleurs délibérément — lui voler le focus le
+ *   ramènerait de force en arrière.
+ * - **Échap coupe la PROPAGATION NATIVE** (`nativeEvent.stopPropagation()`) : `stopPropagation()` de
+ *   React ne coupe que la diffusion SYNTHÉTIQUE ; un ancêtre qui écoute `keydown` sur `window` en DEHORS
+ *   de React (ex. `Modal.tsx`) recevrait quand même l'évènement natif et se refermerait en même temps.
  * - Placement : à côté d'un libellé, jamais DANS un `<label>` ou un titre (`Field`/`PageHeader` ont une
  *   prop `aide`), jamais dans une ligne de tableau ; au plus un « ? » par notion dans un écran.
  */
@@ -22,8 +33,9 @@ export function AideNotion({ notion, className }: { notion: NotionAide; classNam
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const idTexte = useId()
+  const contentRef = useRef<HTMLDivElement>(null)
   const fermer = useCallback(() => setOpen(false), [])
-  const { containerRef, triggerRef, rendreFlottant } = usePopoverFlottant({
+  const { containerRef, triggerRef, popoverRef, rendreFlottant } = usePopoverFlottant({
     open,
     onFermer: fermer,
     largeurDefaut: 288,
@@ -33,10 +45,49 @@ export function AideNotion({ notion, className }: { notion: NotionAide; classNam
   const titre = t(cleI18n(`aide.notions.${notion}.titre`))
   const lien = LIENS_AIDE[notion]
 
-  const fermerEtRefocaliser = () => {
+  const fermerEtRefocaliser = useCallback(() => {
     setOpen(false)
     triggerRef.current?.focus()
-  }
+  }, [triggerRef])
+
+  // Entrée de focus : dès que la bulle s'ouvre, son conteneur de contenu reçoit le focus. La
+  // primitive positionne la bulle dans son PROPRE useLayoutEffect (avant celui-ci, cf. ordre React
+  // layout → passif) : coords est déjà posé, la bulle déjà visible, le focus() n'atterrit donc
+  // jamais sur un élément encore masqué.
+  useEffect(() => {
+    if (open) contentRef.current?.focus()
+  }, [open])
+
+  // Sortie de focus hors bulle ET hors déclencheur : referme, sans voler le focus. `focusout`
+  // (contrairement à `blur`) REMONTE, donc un seul écouteur au niveau document suffit à couvrir le
+  // conteneur ET la bulle en portail (deux sous-arbres DOM distincts).
+  useEffect(() => {
+    if (!open) return
+    const surSortieFocus = (e: FocusEvent) => {
+      const suivant = e.relatedTarget as Node | null
+      if (
+        suivant &&
+        (containerRef.current?.contains(suivant) || popoverRef.current?.contains(suivant))
+      ) {
+        return
+      }
+      setOpen(false)
+    }
+    document.addEventListener('focusout', surSortieFocus)
+    return () => document.removeEventListener('focusout', surSortieFocus)
+  }, [open, containerRef, popoverRef])
+
+  const onEchap = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      e.preventDefault()
+      // cf. docblock : coupe la remontée NATIVE (pas seulement synthétique) vers un `window`
+      // à l'écoute (Modal), sans quoi Échap fermerait la bulle ET la modale parente d'un coup.
+      e.nativeEvent.stopPropagation()
+      fermerEtRefocaliser()
+    },
+    [fermerEtRefocaliser],
+  )
 
   return (
     <span ref={containerRef} className={cn('relative inline-flex align-middle', className)}>
@@ -45,10 +96,7 @@ export function AideNotion({ notion, className }: { notion: NotionAide; classNam
         type="button"
         onClick={() => setOpen((o) => !o)}
         onKeyDown={(e) => {
-          if (e.key === 'Escape' && open) {
-            e.preventDefault()
-            fermerEtRefocaliser()
-          }
+          if (open) onEchap(e)
         }}
         aria-label={t('aide.libelleBouton', { titre })}
         aria-expanded={open}
@@ -60,14 +108,11 @@ export function AideNotion({ notion, className }: { notion: NotionAide; classNam
       {open &&
         rendreFlottant(
           <div
+            ref={contentRef}
             id={idTexte}
-            onKeyDown={(e) => {
-              if (e.key === 'Escape') {
-                e.preventDefault()
-                fermerEtRefocaliser()
-              }
-            }}
-            className="w-72 max-w-[calc(100vw-1rem)] rounded-xl border border-hairline-strong bg-surface p-4 text-left normal-case tracking-normal shadow-2xl"
+            tabIndex={-1}
+            onKeyDown={onEchap}
+            className="w-72 max-w-[calc(100vw-1rem)] rounded-xl border border-hairline-strong bg-surface p-4 text-left normal-case tracking-normal shadow-2xl focus:outline-none"
           >
             <p className="text-sm font-semibold text-foreground">{titre}</p>
             <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">

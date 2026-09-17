@@ -64,10 +64,62 @@ describe('AideNotion', () => {
   it('Échap dans la bulle referme et rend le focus au « ? »', () => {
     rendre(<AideNotion notion="attendu" />)
     fireEvent.click(bouton())
-    // Sur le CONTENU de la bulle (le conteneur du portail a son propre Échap, sans refocus).
-    fireEvent.keyDown(screen.getByText('aide.notions.attendu.texte'), { key: 'Escape' })
+    // Sur l'élément FOCALISÉ (le conteneur de contenu, cf. test d'entrée de focus ci-dessous) —
+    // pas un <p> non focalisable, qui ne recevrait jamais Échap en pratique.
+    fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(document.activeElement).toBe(bouton())
+  })
+
+  it('ouverture : le focus entre dans la bulle (le conteneur de contenu), WCAG 2.1.1/2.4.3', () => {
+    rendre(<AideNotion notion="valorise" />)
+    fireEvent.click(bouton())
+    const bulle = screen.getByRole('dialog')
+    expect(bulle.contains(document.activeElement)).toBe(true)
+    expect(document.activeElement).not.toBe(bouton())
+  })
+
+  it('« En savoir plus » est le prochain élément focalisable après le contenu ; le focaliser garde la bulle ouverte', () => {
+    rendre(<AideNotion notion="attendu" />)
+    fireEvent.click(bouton())
+    const bulle = screen.getByRole('dialog')
+    const conteneur = document.activeElement as HTMLElement
+    const lien = screen.getByRole('link', { name: 'aide.enSavoirPlus' })
+    const focalisables = Array.from(bulle.querySelectorAll<HTMLElement>('[tabindex], a[href]'))
+    expect(focalisables).toEqual([conteneur, lien])
+    lien.focus()
+    expect(document.activeElement).toBe(lien)
+    expect(screen.queryByRole('dialog')).not.toBeNull()
+  })
+
+  it('le focus quittant la bulle ET le déclencheur referme SANS voler le focus', () => {
+    rendre(
+      <>
+        <button type="button">ailleurs</button>
+        <AideNotion notion="valorise" />
+      </>,
+    )
+    fireEvent.click(bouton())
+    const conteneur = document.activeElement as HTMLElement
+    const ailleurs = screen.getByRole('button', { name: 'ailleurs' })
+    fireEvent.focusOut(conteneur, { relatedTarget: ailleurs })
+    expect(screen.queryByRole('dialog')).toBeNull()
+    // Pas reconquis par le déclencheur : l'utilisateur est parti ailleurs délibérément (le
+    // conteneur démonté retombe sur <body>, jamais le comportement d'Échap qui refocalise le « ? »).
+    expect(document.activeElement).not.toBe(bouton())
+  })
+
+  it('Échap dans la bulle ne remonte pas jusqu\'à un listener natif sur `window` (ex. Modal)', () => {
+    const espion = vi.fn()
+    window.addEventListener('keydown', espion)
+    try {
+      rendre(<AideNotion notion="valorise" />)
+      fireEvent.click(bouton())
+      fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
+      expect(espion).not.toHaveBeenCalled()
+    } finally {
+      window.removeEventListener('keydown', espion)
+    }
   })
 
   it('clic extérieur referme', () => {

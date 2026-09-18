@@ -251,6 +251,7 @@ export default {
       contactSujet: 'NKONI — getting in touch',
       droits: '© 2026 NKONI. All rights reserved.',
       legal: 'Legal',
+      aide: 'Help',
       confidentialite: 'Privacy',
       cgu: 'Terms',
       mentions: 'Legal notice',

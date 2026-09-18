@@ -9,6 +9,7 @@ import {
   Flame,
   Gavel,
   HeartHandshake,
+  HelpCircle,
   Landmark,
   LayoutDashboard,
   LogOut,
@@ -351,6 +352,14 @@ function CompteMenu() {
             >
               <UserRound className="h-4 w-4" aria-hidden="true" />
               {t('shell.monProfil')}
+            </Link>
+            <Link
+              to="/aide"
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground"
+            >
+              <HelpCircle className="h-4 w-4" aria-hidden="true" />
+              {t('shell.aide')}
             </Link>
             <button
               type="button"

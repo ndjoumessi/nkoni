@@ -31,3 +31,47 @@
   écran, jamais dans une ligne de liste/tableau, jamais sur les écrans publics. Notion dans un `Modal` ⇒ pas d'entrée `LIENS_AIDE` (le piège à focus du Modal refermerait la bulle avant le lien).
 - **Rédaction** : vouvoiement, 3 phrases au plus, aucun nom technique ; une règle métier citée suit le
   code (la changer = changer le texte dans la même PR).
+
+## Documentation publique — `/aide/*` (spec 2026-09-18)
+
+- **Le contenu est de la DONNÉE, pas du JSX ni un catalogue i18n.** `content/aide/types.ts` définit
+  un modèle de blocs pur : `Bloc` (union `paragraphe` / `etapes` liste ORDONNÉE / `liste` non ordonnée /
+  `note` avec un `ton` `info`|`attention` / `lien` interne uniquement), `SectionDoc` (`id` ancre STABLE
+  kebab-case sans accent + `titre` + `blocs`) et `Document` (`titre` + `intro` + `sections`). Un guide
+  FR/EN est donc deux fichiers de données (`content/aide/fr/<guide>.ts` / `en/<guide>.ts`), jamais une
+  clé de plus dans `locales/{fr,en}/`. **Raison** : `locales/{fr,en}/index.ts` est chargé au DÉMARRAGE
+  pour tout le monde ; y loger des guides entiers alourdirait le paquet initial d'un membre qui ne les
+  lira jamais. `components/aide/RenduDoc.tsx` rend un `Document` (sommaire en `<nav>`, sections en
+  `<section id>` avec `<h2>`, notes en `role="note"`, liens en `Link` React Router jamais `<a href>`) ;
+  son `switch` sur `bloc.type` porte une garde d'exhaustivité (`const _exhaustif: never = bloc`) car
+  `tsconfig.app.json` n'active ni `strict` ni `noImplicitReturns` — sans elle, un type de `Bloc` ajouté
+  et oublié dans le rendu disparaîtrait silencieusement au lieu de casser `tsc`.
+- **Registre de chargement à la demande** : `content/aide/registre.ts` exporte `GUIDES = ['membre',
+  'bureau', 'faq']`, `type Guide`, `estGuide` et `chargerDocument(guide, codeLangue)`. Chaque guide/langue
+  est un `import()` dynamique (`() => import('./fr/membre')`, etc.) → un CHUNK séparé par guide et par
+  langue, absent d'`index-*.js` (vérifié par grep sur la sortie de `npm run build`). `codeLangue` inconnu
+  retombe sur le FR (un texte dans la mauvaise langue vaut mieux qu'une page vide). `pages/aide/AidePage.tsx`
+  (sommaire, dérive ses trois entrées de `GUIDES`) et `pages/aide/GuidePage.tsx` (charge via
+  `chargerDocument`, recharge au changement de `i18n.language`, affiche `ErrorState` sur échec) sont les
+  deux seuls consommateurs.
+- **Trois gardes exécutables** (`content/aide/aide-doc.test.ts`), nécessaires car la parité FR/EN d'un
+  `Document` n'est PAS tenue par le typage — contrairement à un catalogue i18n (objet à clés fixes),
+  `Document.sections` est un TABLEAU : TypeScript vérifie la forme d'une section, jamais qu'un guide FR
+  et son pendant EN couvrent les mêmes sections. (1) **Parité** : mêmes `id` de section, dans le même
+  ordre, FR et EN, pour chaque guide de `GUIDES` ; une sous-garde recense EXPLICITEMENT (`toEqual`, jamais
+  `toEqual([])` en dur) les titres identiques FR/EN légitimes, pour qu'une traduction oubliée (id absent
+  de la liste mais titre inchangé) fasse échouer le test au lieu de se fondre dans une coïncidence
+  acceptée. (2) **Ancres** : `id` uniques et en kebab-case sans accent — un ancien lien externe ou un
+  favori ne doit jamais casser. (3) **Liens internes** : chaque bloc `lien` de chaque guide (FR et EN)
+  doit pointer vers une route RÉELLEMENT déclarée dans `App.tsx`, lu en TEXTE (seule source de vérité) —
+  un lien vers une page disparue est pire qu'une absence de lien, il donne confiance puis envoie dans le
+  vide.
+- **`PagePublique` (`components/public/PagePublique.tsx`) existe parce que le chrome des pages légales
+  est FIGÉ en français.** La spec demandait de réutiliser telle quelle la coquille existante des pages
+  légales (`PageLegale`) pour l'aide ; en pratique `PageLegale` portait son en-tête/logo/lien retour en
+  chaînes françaises EN DUR (le corps juridique n'est pas traduit, volontairement) — la réutiliser sans
+  changement aurait affiché un guide anglais sous un chrome français. `PagePublique` extrait donc la mise
+  en page pure (logo, lien retour, titre, sous-titre optionnel) avec ses libellés en PROPS, jamais en
+  `t()` : `PageLegale` lui passe ses chaînes françaises en dur (inchangé pour l'existant), les pages
+  `/aide/*` lui passent des libellés résolus par `t()` (bilingues). L'intention de la spec — ne pas
+  dupliquer le gabarit — est respectée ; son moyen (réutiliser `PageLegale` en l'état) ne l'était pas.

@@ -306,6 +306,12 @@ export function LoginPage() {
                 <ArrowLeft className="h-4 w-4" aria-hidden="true" />
                 {t('commun.actions.retourAccueil')}
               </Link>
+              <Link
+                to="/aide/faq"
+                className="text-xs text-faint transition-colors hover:text-muted-foreground"
+              >
+                {t('login.besoinAide')}
+              </Link>
             </div>
           </div>
         </div>

@@ -10,6 +10,7 @@ export default {
     seSouvenir: 'Se souvenir de moi',
     seSouvenirDetail: 'Reste connecté plus longtemps sur cet appareil.',
     boutonEnCours: 'Connexion…',
+    besoinAide: "Besoin d'aide pour vous connecter ?",
     hero: {
       argument: 'La plateforme de gestion des cotisations pensée pour les familles élargies et les associations.',
       prop1Titre: 'Transparence financière',

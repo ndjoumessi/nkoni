@@ -252,6 +252,7 @@ export default {
       contactSujet: 'NKONI — prise de contact',
       droits: '© 2026 NKONI. Tous droits réservés.',
       legal: 'Informations légales',
+      aide: 'Aide',
       confidentialite: 'Confidentialité',
       cgu: 'CGU',
       mentions: 'Mentions légales',

@@ -386,6 +386,12 @@ export function LandingPage() {
         </div>
         <div className="flex flex-col items-center gap-3 border-t border-hairline py-6">
           <nav className="flex items-center gap-4 text-xs" aria-label={t('landing.footerNav.legal')}>
+            <Link to="/aide" className="text-muted-foreground transition-colors hover:text-foreground">
+              {t('landing.footerNav.aide')}
+            </Link>
+            <span className="text-hairline" aria-hidden="true">
+              ·
+            </span>
             <Link
               to="/confidentialite"
               className="text-muted-foreground transition-colors hover:text-foreground"

@@ -10,6 +10,7 @@ export default {
     seSouvenir: 'Remember me',
     seSouvenirDetail: 'Stay signed in longer on this device.',
     boutonEnCours: 'Signing in…',
+    besoinAide: 'Need help signing in?',
     hero: {
       argument: 'The contribution management platform built for extended families and associations.',
       prop1Titre: 'Financial transparency',

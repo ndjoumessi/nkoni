@@ -1,13 +1,15 @@
-import { useEffect, type ReactNode } from 'react'
-import { Link } from 'react-router-dom'
-import { ArrowLeft } from 'lucide-react'
-import { NkoniMark } from '@/components/ui/NkoniMark'
+import type { ReactNode } from 'react'
+import { PagePublique } from '@/components/public/PagePublique'
 
 /**
  * Coquille PUBLIQUE des pages légales (Confidentialité, CGU) — accessibles SANS authentification
  * (une politique de confidentialité DOIT être publique). Contenu volontairement en FRANÇAIS
  * (marché cible francophone) ; une version EN est un chantier de traduction séparé. Le corps
  * juridique porte des PLACEHOLDERS `[ … ]` à compléter et faire relire avant publication réelle.
+ *
+ * La mise en page (en-tête logo + lien retour, remontée en haut au montage) est FACTORISÉE dans
+ * `PagePublique`, partagée avec les pages d'aide (bilingues) — ce composant ne fournit plus que
+ * ses chaînes françaises en dur.
  */
 export function PageLegale({
   titre,
@@ -18,41 +20,10 @@ export function PageLegale({
   majLe: string
   children: ReactNode
 }) {
-  // React Router CONSERVE la position de défilement entre routes : arrivé depuis le pied de page
-  // de l'accueil (défilé tout en bas), on atterrissait au MILIEU du texte, titre hors écran
-  // (mesuré : /cgu ouvert à scrollY=1034 depuis un accueil à 5119). Une page légale se lit depuis
-  // son titre → retour en haut au montage. Chaque page légale est une Route distincte, donc la
-  // coquille remonte à chaque navigation entre elles et l'effet rejoue.
-  useEffect(() => {
-    window.scrollTo(0, 0)
-  }, [])
-
   return (
-    <main className="min-h-screen bg-background">
-      <header className="border-b border-hairline">
-        <div className="mx-auto flex max-w-3xl items-center justify-between px-5 py-4">
-          <Link to="/" className="flex items-center gap-2">
-            <NkoniMark className="h-7 w-7" />
-            <span className="font-display text-lg font-semibold tracking-tight text-foreground">
-              NKONI
-            </span>
-          </Link>
-          <Link
-            to="/"
-            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-            Accueil
-          </Link>
-        </div>
-      </header>
-
-      <div className="mx-auto max-w-3xl px-5 py-10 sm:py-14">
-        <h1 className="font-display text-3xl font-semibold tracking-tight text-foreground">{titre}</h1>
-        <p className="mt-2 text-sm text-faint">Dernière mise à jour : {majLe}</p>
-        <div className="mt-8 space-y-9">{children}</div>
-      </div>
-    </main>
+    <PagePublique titre={titre} sousTitre={`Dernière mise à jour : ${majLe}`} retourLibelle="Accueil">
+      <div className="mt-8 space-y-9">{children}</div>
+    </PagePublique>
   )
 }
 

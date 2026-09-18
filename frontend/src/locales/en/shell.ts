@@ -46,6 +46,7 @@ export default {
     },
     menuCompte: 'Account menu',
     monProfil: 'My profile',
+    aide: 'Help',
     retourAccueilPublic: 'Back to public home',
     ouvrirMenu: 'Open menu',
     fermerMenu: 'Close menu',

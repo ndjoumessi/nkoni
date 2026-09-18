@@ -37,6 +37,7 @@ import amendes from './amendes'
 import statut from './statut'
 import demo from './demo'
 import aide from './aide'
+import aideDoc from './aideDoc'
 
 const en: Catalogue = {
   ...common,
@@ -74,6 +75,7 @@ const en: Catalogue = {
   ...statut,
   ...demo,
   ...aide,
+  ...aideDoc,
 }
 
 export default en

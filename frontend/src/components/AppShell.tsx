@@ -9,6 +9,7 @@ import {
   Flame,
   Gavel,
   HeartHandshake,
+  HelpCircle,
   Landmark,
   LayoutDashboard,
   LogOut,
@@ -352,6 +353,14 @@ function CompteMenu() {
               <UserRound className="h-4 w-4" aria-hidden="true" />
               {t('shell.monProfil')}
             </Link>
+            <Link
+              to="/aide"
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground"
+            >
+              <HelpCircle className="h-4 w-4" aria-hidden="true" />
+              {t('shell.aide')}
+            </Link>
             <button
               type="button"
               onClick={handleLogout}
@@ -407,6 +416,14 @@ function SidebarContent({ onNavigate, compte }: { onNavigate?: () => void; compt
       {compte && (
         <div className="mt-4 shrink-0 space-y-2 border-t border-hairline pt-4">
           <UserChip onNavigate={onNavigate} />
+          <Link
+            to="/aide"
+            onClick={onNavigate}
+            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground"
+          >
+            <HelpCircle className="h-[1.15rem] w-[1.15rem]" aria-hidden="true" />
+            {t('shell.aide')}
+          </Link>
           <button
             type="button"
             onClick={handleLogout}

@@ -39,6 +39,7 @@ import amendes from './amendes'
 import statut from './statut'
 import demo from './demo'
 import aide from './aide'
+import aideDoc from './aideDoc'
 
 const fr = {
   ...common,
@@ -76,6 +77,7 @@ const fr = {
   ...statut,
   ...demo,
   ...aide,
+  ...aideDoc,
 }
 
 export default fr

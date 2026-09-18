@@ -149,7 +149,7 @@ ajv, les mocks n'auraient rien prouvé.
 **stable**. Prisma 8 n'existe qu'en release candidate : le dist-tag npm `latest` pointait sur
 `8.0.0-rc.15`, publiée quatre jours plus tôt, et aucune 8.0.0 finale n'est parue. Une RC ne va pas en
 production sur la couche qui porte l'isolation des tenants (extension `$extends`, adaptateur `pg`) d'un
-produit financier. **À rouvrir quand 8.0.0 sortira en version finale**, avec la même preuve qu'ici.
+produit financier. **À rouvrir quand 8.0.0 sortira en version finale**, avec la même preuve qu'ici — le workflow `.github/workflows/veille-prisma-8.yml` interroge le registre npm chaque lundi (plage `>=8.0.0`, qui exclut les release candidates) et ouvre UNE issue le jour de la sortie finale.
 
 **Effet** : la chaîne `@prisma/dev` disparaît du CLI, et avec elle `hono`, `@hono/node-server` et
 `valibot`. `npm audit` passe de 14 à **10 avis**, tous déjà classés hors exécution ci-dessus :

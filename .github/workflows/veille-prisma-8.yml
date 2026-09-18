@@ -1,0 +1,48 @@
+# Veille Prisma 8 (2026-09-19) — ouvre UNE issue le jour où Prisma 8.0 sort en version FINALE.
+#
+# Au 2026-09-19, Prisma 8 n'existe qu'en release candidate (8.0.0-rc.15, sous le dist-tag `latest`).
+# Décision : pas de RC sur la couche qui porte l'isolation des tenants (cf.
+# `docs/revue-securite-dependances-2026-08.md` §8). Plutôt que d'y repenser à la main, ce job interroge
+# le registre npm chaque semaine. La plage `>=8.0.0` EXCLUT les préversions (semver) : une RC ne
+# déclenche rien. Dédoublonnage sur le TITRE, états ouvert ET fermé confondus — une issue fermée après
+# traitement ne doit pas renaître chaque lundi.
+name: Veille Prisma 8
+
+on:
+  schedule:
+    - cron: '0 6 * * 1' # lundi 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+jobs:
+  veille:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Prisma 8 finale publiée ?
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          # Aucune version dans la plage → npm sort en erreur (E404) : c'est le cas NORMAL, pas une panne.
+          BRUT=$(npm view 'prisma@>=8.0.0' version --json 2>/dev/null || true)
+          VERSION=$(printf '%s' "$BRUT" | jq -r 'if type == "array" then .[-1] elif type == "string" then . else empty end' 2>/dev/null || true)
+          if [ -z "$VERSION" ]; then
+            echo "Pas de Prisma 8 finale (les release candidates sont ignorées)."
+            exit 0
+          fi
+          TITRE="Prisma 8.0 disponible en version finale ($VERSION)"
+          DEJA=$(gh issue list --state all --search "Prisma 8.0 disponible in:title" --json number --jq 'length')
+          if [ "$DEJA" != "0" ]; then
+            echo "Issue déjà ouverte ou traitée : rien à faire."
+            exit 0
+          fi
+          gh issue create --title "$TITRE" --body "Prisma $VERSION est publié en version finale (registre npm).
+
+          La montée 7.x → 8 avait été reportée tant que 8.0 n'existait qu'en release candidate (\`docs/revue-securite-dependances-2026-08.md\` §8).
+
+          **À faire** : lire le guide de migration majeure (https://pris.ly/d/major-version-upgrade), monter \`prisma\`, \`@prisma/client\` et \`@prisma/adapter-pg\`, régénérer le client, puis passer la suite COMPLÈTE sur base jetable — tests d'intégration compris (isolation tenant fail-closed, \`findUnique\` + \`select\`, purge, contraintes de reçus). Les mocks ne prouvent rien sur cette couche.
+
+          _Issue ouverte automatiquement par \`.github/workflows/veille-prisma-8.yml\`._"

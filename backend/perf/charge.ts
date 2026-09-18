@@ -149,6 +149,8 @@ async function main(): Promise<void> {
   for (const [nom, url] of [
     ['Excel (toutes années)', '/exports/contributions?format=xlsx'],
     ['PDF (une année)', `/exports/contributions?format=pdf&annee=${2026}`],
+    ['PDF du recouvrement', '/rapports/recouvrement/export?format=pdf'],
+    ['Planche de cartes (PDF)', '/membres/cartes'],
   ] as const) {
     let pire = 0
     let actif = true

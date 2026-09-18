@@ -307,7 +307,7 @@ export function LoginPage() {
                 {t('commun.actions.retourAccueil')}
               </Link>
               <Link
-                to="/aide/faq"
+                to="/aide/faq#mot-de-passe-oublie"
                 className="text-xs text-faint transition-colors hover:text-muted-foreground"
               >
                 {t('login.besoinAide')}

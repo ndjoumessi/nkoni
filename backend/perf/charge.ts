@@ -136,6 +136,37 @@ async function main(): Promise<void> {
       )
     }
   }
+
+  // ─── Phase 2 bis : blocage de la boucle d'événements par un export ────────────────────────────
+  // Node sert TOUTES les organisations sur un seul fil : pendant qu'un classeur se construit, les
+  // autres requêtes attendent. On sonde `/health` (aucune base) toutes les 20 ms pendant un export
+  // de la plus grande organisation ; son pire temps de réponse = la durée du blocage subi par tous.
+  const plusGrande = orgs[orgs.length - 1]!
+  const jetonGrande = tokens.get(plusGrande.organisationId)!.admin
+  console.log(`\n## Phase 2 bis — blocage du serveur pendant un export (${plusGrande.taille} membres)\n`)
+  console.log('| Export | Durée de l’export | Pire latence de /health pendant l’export |')
+  console.log('|---|---:|---:|')
+  for (const [nom, url] of [
+    ['Excel (toutes années)', '/exports/contributions?format=xlsx'],
+    ['PDF (une année)', `/exports/contributions?format=pdf&annee=${2026}`],
+  ] as const) {
+    let pire = 0
+    let actif = true
+    const sonde = (async () => {
+      while (actif) {
+        const t0 = performance.now()
+        await fetch(`${adresse}/health`)
+        pire = Math.max(pire, performance.now() - t0)
+        await new Promise((r) => setTimeout(r, 20))
+      }
+    })()
+    const t0 = performance.now()
+    await fetch(`${adresse}${url}`, { headers: { authorization: `Bearer ${jetonGrande}` } }).then((r) => r.arrayBuffer())
+    const duree = performance.now() - t0
+    actif = false
+    await sonde
+    console.log(`| ${nom} | ${ms(duree)} | ${ms(pire)} |`)
+  }
   await app.close()
 
   // ─── Phase 3 : budgets de rate-limit ──────────────────────────────────────────────────────────

@@ -3,6 +3,7 @@ import cookie from '@fastify/cookie'
 import cors from '@fastify/cors'
 import helmet from '@fastify/helmet'
 import rateLimit from '@fastify/rate-limit'
+import { cleRateLimit } from './lib/rate-limit'
 import multipart from '@fastify/multipart'
 import { env, isProd } from './lib/env'
 import { t, langueDeRequete } from './lib/i18n'
@@ -183,9 +184,16 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
 
   // Rate limiting (anti brute-force / DoS argon2). Désactivé en test (les suites injectent en
   // rafale). Plafond global généreux ; les routes sensibles (login, inscription) le resserrent
-  // via `config.rateLimit` dans leur définition.
+  // via `config.rateLimit` dans leur définition. La CLÉ n'est pas l'IP seule : derrière le proxy
+  // Vercel, Railway réécrit `X-Forwarded-For` et toutes les requêtes portent l'IP de sortie de
+  // Vercel — une requête authentifiée est donc imputée à son COMPTE (cf. `lib/rate-limit.ts`).
+  // `app.jwt` n'existe qu'après `registerJwt`, plus bas : la clé est calculée à la requête.
   if (!process.env['VITEST'] && process.env['NODE_ENV'] !== 'test') {
-    await app.register(rateLimit, { max: 300, timeWindow: '1 minute' })
+    await app.register(rateLimit, {
+      max: 300,
+      timeWindow: '1 minute',
+      keyGenerator: (req) => cleRateLimit(req, (jeton) => app.jwt.verify(jeton)),
+    })
   }
 
   await registerJwt(app)

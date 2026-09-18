@@ -208,6 +208,13 @@ export interface ResumeStatuts {
   inactifs: number
 }
 
+/**
+ * Filtre de cotisation de la liste : un statut précis, ou `A_RELANCER` = tout ce qui n'est pas à jour
+ * (partiel OU non à jour). C'est l'ensemble que compte la carte « À relancer » du tableau de bord
+ * (avec `statut=ACTIF`) : son lien « Voir tous » visait `NON_A_JOUR` seul et perdait les partiels.
+ */
+export type FiltreCotisation = StatutContributionValue | 'A_RELANCER'
+
 export interface OptionsStatutsPage {
   // `| undefined` explicite : le projet est en `exactOptionalPropertyTypes`, la route passe ces
   // champs directement depuis la querystring (souvent `undefined`).
@@ -215,7 +222,7 @@ export interface OptionsStatutsPage {
   recherche?: string | undefined
   filtreBranche?: string | undefined
   filtreStatut?: StatutMembreValue | undefined
-  filtreCotisation?: StatutContributionValue | undefined
+  filtreCotisation?: FiltreCotisation | undefined
   triCol?: ColonneTriMembre | undefined
   triDir?: 'asc' | 'desc' | undefined
   page: number
@@ -295,7 +302,11 @@ export async function calculerStatutsMembresPage(
     if (q && !`${m.nom} ${m.prenom}`.toLowerCase().includes(q)) return false
     if (options.filtreBranche && m.brancheId !== options.filtreBranche) return false
     if (options.filtreStatut && m.statut !== options.filtreStatut) return false
-    if (options.filtreCotisation && m.statutCotisation !== options.filtreCotisation) return false
+    if (options.filtreCotisation === 'A_RELANCER') {
+      if (m.statutCotisation === 'A_JOUR') return false
+    } else if (options.filtreCotisation && m.statutCotisation !== options.filtreCotisation) {
+      return false
+    }
     return true
   })
 

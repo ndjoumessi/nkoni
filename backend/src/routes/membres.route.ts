@@ -11,9 +11,9 @@ import {
   listerOptionsMembres,
   PLAFOND_STATUTS_MEMBRES,
   type ColonneTriMembre,
+  type FiltreCotisation,
   type StatutMembreValue,
 } from '../services/membreStatut.service'
-import type { StatutContributionValue } from '../services/statutContribution'
 import { resoudrePagination, PAGINATION_PROPS } from '../lib/pagination'
 import {
   analyserImport,
@@ -290,7 +290,7 @@ export const membresRoutes: FastifyPluginAsync = async (app: FastifyInstance) =>
       recherche?: string
       branche?: string
       statut?: StatutMembreValue
-      cotisation?: StatutContributionValue
+      cotisation?: FiltreCotisation
       tri?: ColonneTriMembre
       dir?: 'asc' | 'desc'
     }
@@ -307,7 +307,7 @@ export const membresRoutes: FastifyPluginAsync = async (app: FastifyInstance) =>
             recherche: { type: 'string', maxLength: 200 },
             branche: { type: 'string' },
             statut: { type: 'string', enum: STATUT_ENUM },
-            cotisation: { type: 'string', enum: ['A_JOUR', 'PARTIEL', 'NON_A_JOUR'] },
+            cotisation: { type: 'string', enum: ['A_JOUR', 'PARTIEL', 'NON_A_JOUR', 'A_RELANCER'] },
             tri: { type: 'string', enum: ['nom', 'branche', 'statut', 'cotisation', 'adhesion'] },
             dir: { type: 'string', enum: ['asc', 'desc'] },
           },

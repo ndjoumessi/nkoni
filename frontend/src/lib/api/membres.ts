@@ -96,7 +96,8 @@ export interface OptionsListeStatuts {
   recherche?: string
   branche?: string
   statut?: StatutMembre
-  cotisation?: StatutContribution
+  /** Un statut précis, ou `A_RELANCER` = partiel OU non à jour (ensemble de la carte « À relancer »). */
+  cotisation?: StatutContribution | 'A_RELANCER'
   tri?: 'nom' | 'branche' | 'statut' | 'cotisation' | 'adhesion'
   dir?: 'asc' | 'desc'
 }

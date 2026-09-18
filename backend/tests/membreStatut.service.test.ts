@@ -128,6 +128,24 @@ describe('calculerStatutsMembresPage (pagination réelle §1.3)', () => {
     expect(res.resume.total).toBe(3) // synthèse inchangée par le filtre
   })
 
+  it('filtre A_RELANCER = partiel OU non à jour ; avec statut ACTIF = l’ensemble de la carte « À relancer »', async () => {
+    // Le lien « Voir tous » de la carte visait `NON_A_JOUR` seul et perdait les partiels.
+    const tous = await calculerStatutsMembresPage(buildMock(), 2025, {
+      page: 1,
+      pageSize: 25,
+      filtreCotisation: 'A_RELANCER',
+    })
+    expect(tous.items.every((m) => m.statutCotisation !== 'A_JOUR')).toBe(true)
+    expect(tous.items.map((m) => m.statutCotisation).sort()).toEqual(['NON_A_JOUR', 'PARTIEL'])
+    const actifs = await calculerStatutsMembresPage(buildMock(), 2025, {
+      page: 1,
+      pageSize: 25,
+      filtreCotisation: 'A_RELANCER',
+      filtreStatut: 'ACTIF',
+    })
+    expect(actifs.items.map((m) => m.id)).toEqual(['m2'])
+  })
+
   it('recherche nom/prénom (insensible à la casse)', async () => {
     const res = await calculerStatutsMembresPage(buildMock(), 2025, {
       page: 1,

@@ -65,6 +65,7 @@ export default {
         A_JOUR: 'Up to date',
         PARTIEL: 'Partial',
         NON_A_JOUR: 'Not up to date',
+        A_RELANCER: 'To follow up (partial or not up to date)',
       },
       colonnes: {
         membre: 'Member',

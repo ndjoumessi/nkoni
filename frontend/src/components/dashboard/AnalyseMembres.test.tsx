@@ -40,7 +40,9 @@ describe('AnalyseMembres — analyse agrégée par le serveur', () => {
     analyse.mockResolvedValue(reponse([membre], 1170))
     render(<MemoryRouter><AnalyseMembres /></MemoryRouter>)
     expect(await screen.findByText('1170')).toBeTruthy()
-    expect(screen.getByRole('link', { name: /dashboard\.analyse\.voirTous/ })).toBeTruthy()
+    const voirTous = screen.getByRole('link', { name: /dashboard\.analyse\.voirTous/ })
+    // Même ensemble que le compteur : actifs partiels OU non à jour — pas les seuls non à jour.
+    expect(voirTous.getAttribute('href')).toBe('/membres?statut=ACTIF&cotisation=A_RELANCER')
   })
 
   it('tout est détaillé : pas de lien « voir tous »', async () => {

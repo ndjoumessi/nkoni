@@ -32,7 +32,8 @@ import { Pagination } from '@/components/ui/Pagination'
 type ColonneTri = 'nom' | 'branche' | 'statut' | 'cotisation' | 'adhesion'
 
 const STATUTS: StatutMembre[] = ['ACTIF', 'INACTIF', 'DECEDE']
-const COTISATIONS: StatutContribution[] = ['A_JOUR', 'PARTIEL', 'NON_A_JOUR']
+// `A_RELANCER` = partiel OU non à jour : cible du lien « Voir tous » de la carte « À relancer ».
+const COTISATIONS: (StatutContribution | 'A_RELANCER')[] = ['A_JOUR', 'PARTIEL', 'NON_A_JOUR', 'A_RELANCER']
 const PAGE_SIZE = 25
 const RESUME_VIDE: ResumeStatuts = { total: 0, actifs: 0, aJour: 0, nonAJour: 0, inactifs: 0 }
 
@@ -113,7 +114,7 @@ export function MembresPage() {
             recherche: rechercheDebounced || undefined,
             branche: filtreBranche || undefined,
             statut: (filtreStatut || undefined) as StatutMembre | undefined,
-            cotisation: (filtreCotisation || undefined) as StatutContribution | undefined,
+            cotisation: (filtreCotisation || undefined) as StatutContribution | 'A_RELANCER' | undefined,
             tri: triCol,
             dir: triDir,
           },

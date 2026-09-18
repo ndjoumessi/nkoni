@@ -16,7 +16,8 @@ export function routesMesurees(membreId: string): RouteMesuree[] {
   const annee = ANNEE_FIN
   return [
     { nom: 'Tableau de bord', url: '/dashboard' },
-    { nom: 'Statuts (analyse du tableau de bord)', url: '/membres/statuts' },
+    { nom: 'Analyse du tableau de bord (agrégée)', url: '/membres/statuts/analyse' },
+    { nom: 'Statuts (ancienne analyse, PWA en cache)', url: '/membres/statuts' },
     { nom: 'Liste des membres (page 1)', url: '/membres/statuts/page?page=1&pageSize=25' },
     { nom: 'Liste des membres (recherche + tri)', url: '/membres/statuts/page?page=2&pageSize=25&recherche=a&tri=cotisation' },
     { nom: 'Options de membres (sélecteurs)', url: '/membres/options' },

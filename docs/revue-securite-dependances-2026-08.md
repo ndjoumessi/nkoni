@@ -142,3 +142,22 @@ conclure** — le nombre d'alertes n'est pas une mesure de risque.
 les avis `fastify` et `fast-uri` ont **disparu** ; puis `undici` (PR suivante). **Restent 6 paquets, tous hors exécution ou déjà écartés** (chaîne `prisma`, `uuid` via `exceljs`). Build, 969 tests unitaires
 et **74 tests d'intégration** (11 fichiers, base jetable) au vert : la montée touche le routeur et la validation
 ajv, les mocks n'auraient rien prouvé.
+
+## 8. Montée Prisma 7.8 → 7.10 (2026-09-19) — et pourquoi pas Prisma 8
+
+`prisma`, `@prisma/client` et `@prisma/adapter-pg` passent de 7.8.0 à **7.10.0**, la dernière version
+**stable**. Prisma 8 n'existe qu'en release candidate : le dist-tag npm `latest` pointait sur
+`8.0.0-rc.15`, publiée quatre jours plus tôt, et aucune 8.0.0 finale n'est parue. Une RC ne va pas en
+production sur la couche qui porte l'isolation des tenants (extension `$extends`, adaptateur `pg`) d'un
+produit financier. **À rouvrir quand 8.0.0 sortira en version finale**, avec la même preuve qu'ici.
+
+**Effet** : la chaîne `@prisma/dev` disparaît du CLI, et avec elle `hono`, `@hono/node-server` et
+`valibot`. `npm audit` passe de 14 à **10 avis**, tous déjà classés hors exécution ci-dessus :
+`mysql2`, `deepmerge-ts`, `@prisma/config` et `prisma` pour la chaîne CLI ; `uuid` via `exceljs` ;
+l'outillage de test. En contrepartie, le CLI embarque désormais les dépendances de Prisma Studio (`d3`,
+`@visx`, `elkjs`). C'est du poids d'installation, pas du code exécuté par le serveur.
+
+**Preuve** : `prisma generate` 7.10.0, puis `migrate deploy` sur une base jetable, sans migration en
+attente. Build OK. **Suite complète au vert (140 fichiers, 1 248 tests), intégration comprise** :
+isolation tenant fail-closed, `findUnique` + `select`, purge, contraintes de reçus. C'est elle qui
+couvre l'extension Prisma ; les mocks n'auraient rien prouvé.

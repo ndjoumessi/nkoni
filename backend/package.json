@@ -13,6 +13,7 @@
     "mirror:blobs": "tsx prisma/mirror-blobs.ts",
     "rechiffrer:psp": "tsx prisma/rechiffrer-secrets-psp.ts",
     "demo:generer": "tsx prisma/generer-demo.ts",
+    "charge": "tsx perf/charge.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "postinstall": "prisma generate"
@@ -47,6 +48,7 @@
     "@types/node": "^26.1.0",
     "@types/pdfkit": "^0.17.6",
     "@types/qrcode": "^1.5.6",
+    "autocannon": "^8.0.0",
     "tsx": "^4.23.0",
     "typescript": "^6.0.3",
     "vitest": "^4.1.9"

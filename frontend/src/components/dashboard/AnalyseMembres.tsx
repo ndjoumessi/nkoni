@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { ArrowRight, BellRing, GitBranch, MessageCircle } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
-import { membresApi, type StatutsMembres } from '@/lib/api'
+import { membresApi, type AnalyseMembresReponse } from '@/lib/api'
 import { formatMontant, formatPourcent } from '@/lib/format'
 import { Card, Overline } from '@/components/ui/Card'
 import { Badge, type BadgeProps } from '@/components/ui/Badge'
@@ -11,10 +11,12 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { cn, lienRelanceWhatsApp } from '@/lib/utils'
 
 /**
- * Analyses complémentaires du dashboard, 100% côté client à partir de GET /membres/statuts
- * (attendu/valorisé déjà présents par membre) — aucun endpoint supplémentaire.
+ * Analyses complémentaires du dashboard, AGRÉGÉES PAR LE SERVEUR (`GET /membres/statuts/analyse`) :
  *  · Recouvrement par branche (classement, branches en retard en tête)
- *  · Membres à relancer (actifs non à jour / partiels)
+ *  · Membres à relancer (actifs non à jour / partiels) : le total, et les six premiers détaillés
+ * Auparavant calculées ici à partir du statut COMPLET de chaque membre (`/membres/statuts`), réponse
+ * plafonnée à 1000 : au-delà, l'analyse ne couvrait que les premiers de l'ordre alphabétique, et un
+ * téléphone téléchargeait des centaines de lignes pour en afficher six (§1.3).
  */
 
 interface BrancheStat {
@@ -48,10 +50,7 @@ function cleNiveau(taux: number) {
 export function AnalyseMembres() {
   const { t } = useTranslation()
   const { accessToken, modeDemo } = useAuth()
-  // Réponse BORNÉE (plafond serveur 1000) : au-delà, branches et relances ne portent que sur les
-  // premiers membres de l'ordre alphabétique — l'analyse doit le dire plutôt que se taire.
-  const [reponse, setReponse] = useState<StatutsMembres | null>(null)
-  const membres = reponse?.items ?? null
+  const [analyse, setAnalyse] = useState<AnalyseMembresReponse | null>(null)
   const [failed, setFailed] = useState(false)
 
   useEffect(() => {
@@ -60,8 +59,8 @@ export function AnalyseMembres() {
     let active = true
     void (async () => {
       try {
-        const data = await membresApi.listStatutsPage(accessToken, controller.signal)
-        if (active) setReponse(data)
+        const data = await membresApi.analyse(accessToken, controller.signal)
+        if (active) setAnalyse(data)
       } catch (e) {
         if (e instanceof DOMException && e.name === 'AbortError') return
         if (active) setFailed(true)
@@ -73,34 +72,19 @@ export function AnalyseMembres() {
     }
   }, [accessToken])
 
-  const branches = useMemo<BrancheStat[]>(() => {
-    if (!membres) return []
-    const map = new Map<string, BrancheStat>()
-    for (const m of membres) {
-      const id = m.branche?.id ?? '—'
-      const nom = m.branche?.nom ?? t('branches.sansBranche')
-      const cur = map.get(id) ?? { id, nom, attendu: 0, valorise: 0, taux: 0 }
-      cur.attendu += m.totalAttenduCumule
-      cur.valorise += m.totalValoriseCumule
-      map.set(id, cur)
-    }
-    return [...map.values()]
-      .filter((b) => b.attendu > 0)
-      .map((b) => ({ ...b, taux: Math.min(100, (b.valorise / b.attendu) * 100) }))
-      .sort((a, b) => a.taux - b.taux)
-  }, [membres, t])
-
-  const relance = useMemo(() => {
-    if (!membres) return []
-    return membres
-      .filter((m) => m.statut === 'ACTIF' && m.statutCotisation !== 'A_JOUR')
-      .map((m) => ({ ...m, manque: Math.max(0, m.totalAttenduCumule - m.totalValoriseCumule) }))
-      .sort((a, b) => {
-        if (a.statutCotisation !== b.statutCotisation)
-          return a.statutCotisation === 'NON_A_JOUR' ? -1 : 1
-        return b.manque - a.manque
-      })
-  }, [membres])
+  // Le serveur rend `id`/`nom` `null` pour les membres sans branche : on garde l'id sentinelle '—'
+  // (clé de liste et paramètre du lien de filtre, comme avant) et le libellé traduit.
+  const branches = useMemo<BrancheStat[]>(
+    () =>
+      (analyse?.branches ?? []).map((b) => ({
+        ...b,
+        id: b.id ?? '—',
+        nom: b.nom ?? t('branches.sansBranche'),
+      })),
+    [analyse, t],
+  )
+  const relance = analyse?.relance.membres ?? []
+  const totalRelance = analyse?.relance.total ?? 0
 
   // Vraies branches vs seul bucket « Sans branche » (id sentinelle '—') : quand aucune branche
   // réelle n'existe, la carte « par branche » ne ferait que RÉPÉTER le hero (mêmes 18 % / totaux)
@@ -110,7 +94,7 @@ export function AnalyseMembres() {
   // Best-effort : en cas d'échec (droit d'accès), on n'affiche rien.
   if (failed) return null
 
-  if (!membres) {
+  if (!analyse) {
     return (
       <div className="grid gap-4 lg:grid-cols-2">
         <Card className="p-5">
@@ -182,19 +166,19 @@ export function AnalyseMembres() {
             <BellRing className="h-4 w-4 text-terra" aria-hidden="true" />
             <Overline>{t('dashboard.analyse.aRelancer')}</Overline>
           </div>
-          {relance.length > 0 && (
+          {totalRelance > 0 && (
             <Badge tone="terra" size="sm">
-              {relance.length}
+              {totalRelance}
             </Badge>
           )}
         </div>
 
-        {relance.length === 0 ? (
+        {totalRelance === 0 ? (
           <p className="mt-4 text-sm text-jade">{t('dashboard.analyse.tousAJour')}</p>
         ) : (
           <>
             <ul className="mt-4 divide-y divide-hairline">
-              {relance.slice(0, 6).map((m) => {
+              {relance.map((m) => {
                 const lienWa = lienRelanceWhatsApp(
                   m.telephone,
                   t('dashboard.analyse.relanceMessage', { prenom: m.prenom, montant: formatMontant(m.manque) }),
@@ -214,8 +198,8 @@ export function AnalyseMembres() {
                           {m.branche ? ` · ${m.branche.nom}` : ''}
                         </span>
                       </span>
-                      <Badge tone={RELANCE_TONE[m.statutCotisation as 'PARTIEL' | 'NON_A_JOUR']} size="sm">
-                        {t(`dashboard.statut.${m.statutCotisation as 'PARTIEL' | 'NON_A_JOUR'}`)}
+                      <Badge tone={RELANCE_TONE[m.statutCotisation]} size="sm">
+                        {t(`dashboard.statut.${m.statutCotisation}`)}
                       </Badge>
                     </Link>
                     {lienWa &&
@@ -247,7 +231,7 @@ export function AnalyseMembres() {
                 )
               })}
             </ul>
-            {relance.length > 6 && (
+            {totalRelance > relance.length && (
               <Link
                 to="/membres?cotisation=NON_A_JOUR"
                 className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-brass transition-colors hover:text-amber"
@@ -259,11 +243,6 @@ export function AnalyseMembres() {
           </>
         )}
       </Card>
-      {reponse?.tronque && (
-        <p className="text-xs text-muted-foreground lg:col-span-2">
-          {t('dashboard.analyse.tronque', { plafond: reponse.items.length, total: reponse.total })}
-        </p>
-      )}
     </div>
   )
 }

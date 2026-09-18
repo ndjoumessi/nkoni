@@ -5,6 +5,7 @@ import type { CreationScopee } from '../lib/tenant-extension'
 import { authenticate } from '../middlewares/authenticate'
 import { requirePermission } from '../middlewares/permissions'
 import {
+  calculerAnalyseMembres,
   calculerStatutsMembres,
   calculerStatutsMembresPage,
   listerOptionsMembres,
@@ -259,6 +260,22 @@ export const membresRoutes: FastifyPluginAsync = async (app: FastifyInstance) =>
       // Réponse BORNÉE (audit m4) : { items, total, tronque }. `tronque` = plus de membres que le
       // plafond → l'analyse du dashboard le signale. Aucune org réelle ne l'atteint aujourd'hui.
       return calculerStatutsMembres(app.prisma, anneeCourante(), where, PLAFOND_STATUTS_MEMBRES)
+    },
+  )
+
+  // GET /membres/statuts/analyse — analyse du tableau de bord (§1.3) : recouvrement par branche +
+  // membres à relancer, agrégés côté SERVEUR sur TOUTE l'organisation. Remplace le calcul navigateur
+  // sur `/membres/statuts`, plafonné à 1000 membres ; réponse de taille constante. Même garde et même
+  // restriction MEMBRE_SIMPLE (sa seule fiche) que `/membres/statuts`.
+  app.get(
+    '/membres/statuts/analyse',
+    { preHandler: [authenticate, perm('read')] },
+    async (req) => {
+      const where =
+        req.user.role === 'MEMBRE_SIMPLE'
+          ? { compteUtilisateurId: req.user.sub ?? '' }
+          : undefined
+      return calculerAnalyseMembres(app.prisma, anneeCourante(), where)
     },
   )
 

@@ -1,4 +1,5 @@
 import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
+import { genererPdfHorsFil } from '../services/pdf-hors-fil.service'
 import { authenticate } from '../middlewares/authenticate'
 import { requirePermission } from '../middlewares/permissions'
 import { t, langueDeRequete } from '../lib/i18n'
@@ -20,7 +21,6 @@ import { assemblerDonneesContributions } from '../services/export.service'
 import {
   assemblerDonneesRecouvrement,
   genererRecouvrementExcel,
-  genererRecouvrementPdf,
 } from '../services/export-recouvrement.service'
 import { anneeCouranteApp } from '../lib/date-app'
 import { resoudreLocaleExport } from '../lib/export-locale'
@@ -317,7 +317,8 @@ export const rapportsRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
       const nomFichier = `recouvrement-${donnees.anneeCourante}.${format}`
       const buffer =
         format === 'pdf'
-          ? await genererRecouvrementPdf(donnees, langue, devise)
+          ? // Hors du fil principal : une ligne par membre, PDFKit synchrone (cf. pdf-hors-fil).
+            await genererPdfHorsFil({ type: 'recouvrement', args: [donnees, langue, devise] })
           : await genererRecouvrementExcel(donnees)
 
       return reply

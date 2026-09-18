@@ -2,10 +2,10 @@ import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
 import { authenticate } from '../middlewares/authenticate'
 import { requirePermission } from '../middlewares/permissions'
 import { resoudreLocaleExport } from '../lib/export-locale'
+import { genererPdfHorsFil } from '../services/pdf-hors-fil.service'
 import {
   assemblerDonneesContributions,
   genererExcel,
-  genererPdf,
   type FiltresExport,
 } from '../services/export.service'
 
@@ -54,7 +54,8 @@ export const exportsRoutes: FastifyPluginAsync = async (app: FastifyInstance) =>
       const nomFichier = `contributions${suffixe}.${format}`
       const buffer =
         format === 'pdf'
-          ? await genererPdf(donnees, langue, devise)
+          ? // Hors du fil principal : PDFKit est synchrone et la taille suit celle de l'organisation.
+            await genererPdfHorsFil({ type: 'contributions', args: [donnees, langue, devise] })
           : await genererExcel(donnees, langue)
 
       return reply

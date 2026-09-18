@@ -233,7 +233,8 @@ export function AnalyseMembres() {
             </ul>
             {totalRelance > relance.length && (
               <Link
-                to="/membres?cotisation=NON_A_JOUR"
+                // Même ensemble que le compteur : actifs PARTIELS ou NON À JOUR (pas les seuls non à jour).
+                to="/membres?statut=ACTIF&cotisation=A_RELANCER"
                 className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-brass transition-colors hover:text-amber"
               >
                 {t('dashboard.analyse.voirTous')}

@@ -84,4 +84,16 @@ describe('GET /membres/statuts', () => {
     expect(body.items).toHaveLength(1)
     expect(body.items[0].id).toBe('m1')
   })
+
+  // Route paginée : la querystring est validée par ENUM — une valeur hors liste est refusée (400),
+  // donc `A_RELANCER` (lien « Voir tous » de la carte « À relancer ») doit y figurer.
+  it('GET /membres/statuts/page : accepte cotisation=A_RELANCER (partiels + non à jour), refuse une valeur inconnue', async () => {
+    const page = (qs: string) =>
+      app.inject({ method: 'GET', url: `/membres/statuts/page?${qs}`, headers: auth('ADMIN') })
+    const res = await page('statut=ACTIF&cotisation=A_RELANCER')
+    expect(res.statusCode).toBe(200)
+    // m1 à jour, m2 sans versement (non à jour) : seul m2 est à relancer.
+    expect(res.json().items.map((m: { id: string }) => m.id)).toEqual(['m2'])
+    expect((await page('cotisation=N_IMPORTE_QUOI')).statusCode).toBe(400)
+  })
 })

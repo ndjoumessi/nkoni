@@ -6,6 +6,7 @@ import { env } from '../lib/env'
 import { signerStatutMembre, verifierStatutMembre } from '../lib/recu-lien'
 import { calculerStatutsMembres, type MembreAvecStatut } from '../services/membreStatut.service'
 import { genererCartesPdf, type DonneesCarte } from '../services/carte.service'
+import { genererPdfHorsFil } from '../services/pdf-hors-fil.service'
 import { formatDateHeure, type Langue } from '../lib/i18n'
 import { anneeCouranteApp } from '../lib/date-app'
 import QRCode from 'qrcode'
@@ -170,7 +171,12 @@ export const cartesRoutes: FastifyPluginAsync = async (app: FastifyInstance) => 
       select: { nom: true, langueDefaut: true },
     })
     const cartes = actifs.map((m) => avecPhoto(versDonneesCarte(m), photos))
-    const pdf = await genererCartesPdf(cartes, org?.nom ?? 'NKONI', org?.langueDefaut ?? 'FR')
+    // Planche de TOUTE l'organisation : rendue hors du fil principal (QR + PDFKit synchrone). Les
+    // cartes unitaires ci-dessous restent sur le fil, une page ne justifie pas un worker.
+    const pdf = await genererPdfHorsFil({
+      type: 'cartes',
+      args: [cartes, org?.nom ?? 'NKONI', org?.langueDefaut ?? 'FR'],
+    })
     reply.header('Content-Type', 'application/pdf')
     reply.header('Content-Disposition', 'inline; filename="cartes-membres.pdf"')
     return reply.send(pdf)

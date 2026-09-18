@@ -29,6 +29,8 @@ export function routesMesurees(membreId: string): RouteMesuree[] {
     { nom: 'Rapport financier (10 ans)', url: `/rapports/financier?anneeDebut=${annee - 9}&anneeFin=${annee}` },
     { nom: 'Export Excel des contributions', url: '/exports/contributions?format=xlsx' },
     { nom: 'Export PDF des contributions (année)', url: `/exports/contributions?format=pdf&annee=${annee}` },
+    { nom: 'Export PDF du recouvrement', url: '/rapports/recouvrement/export?format=pdf' },
+    { nom: 'Planche de cartes de membre (PDF)', url: '/membres/cartes' },
     { nom: 'Mon espace — situation', url: '/moi/situation', simple: true },
     { nom: 'Mon espace — contributions', url: '/moi/contributions', simple: true },
   ]

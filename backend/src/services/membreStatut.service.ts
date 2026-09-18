@@ -328,3 +328,95 @@ export async function calculerStatutsMembresPage(
     branches,
   }
 }
+
+/* -------------------------------------------------------------------------- */
+/* Analyse du tableau de bord (§1.3) — agrégée côté serveur, SANS plafond      */
+/* -------------------------------------------------------------------------- */
+
+/** Nombre de membres à relancer détaillés dans l'analyse (le reste n'est que compté). */
+export const NB_RELANCES_ANALYSE = 6
+
+export interface BrancheAnalyse {
+  /** `null` = membres sans branche. */
+  id: string | null
+  nom: string | null
+  attendu: number
+  valorise: number
+  /** Taux de recouvrement en %, plafonné à 100. */
+  taux: number
+}
+
+export interface RelanceAnalyse {
+  id: string
+  nom: string
+  prenom: string
+  telephone: string | null
+  branche: { id: string; nom: string } | null
+  statutCotisation: 'PARTIEL' | 'NON_A_JOUR'
+  /** Reste dû cumulé (attendu − valorisé), jamais négatif. */
+  manque: number
+}
+
+export interface AnalyseMembres {
+  /** Branches ayant un attendu, la plus en retard d'abord. */
+  branches: BrancheAnalyse[]
+  relance: { total: number; membres: RelanceAnalyse[] }
+}
+
+/**
+ * Cœur PUR de l'analyse du tableau de bord : recouvrement par branche et membres à relancer (actifs
+ * non à jour — « Non à jour » d'abord, puis le plus gros reste dû).
+ *
+ * Auparavant calculé DANS LE NAVIGATEUR à partir de `GET /membres/statuts`, réponse plafonnée à
+ * 1000 membres : au-delà, l'analyse ne portait que sur les premiers de l'ordre alphabétique, et le
+ * téléphone recevait le statut complet de chaque membre pour n'en afficher que six. Calculée ici sur
+ * TOUTE l'organisation, la réponse garde une taille constante (quelques branches + six membres).
+ */
+export function analyserMembres(
+  membres: MembreAvecStatut[],
+  nbRelances = NB_RELANCES_ANALYSE,
+): AnalyseMembres {
+  const parBranche = new Map<string | null, BrancheAnalyse>()
+  for (const m of membres) {
+    const id = m.branche?.id ?? null
+    const cur = parBranche.get(id) ?? { id, nom: m.branche?.nom ?? null, attendu: 0, valorise: 0, taux: 0 }
+    cur.attendu += m.totalAttenduCumule
+    cur.valorise += m.totalValoriseCumule
+    parBranche.set(id, cur)
+  }
+  const branches = [...parBranche.values()]
+    .filter((b) => b.attendu > 0)
+    .map((b) => ({ ...b, taux: Math.min(100, (b.valorise / b.attendu) * 100) }))
+    .sort((a, b) => a.taux - b.taux)
+
+  const aRelancer = membres
+    .filter(
+      (m): m is MembreAvecStatut & { statutCotisation: 'PARTIEL' | 'NON_A_JOUR' } =>
+        m.statut === 'ACTIF' && m.statutCotisation !== 'A_JOUR',
+    )
+    .map((m) => ({
+      id: m.id,
+      nom: m.nom,
+      prenom: m.prenom,
+      telephone: m.telephone,
+      branche: m.branche,
+      statutCotisation: m.statutCotisation,
+      manque: Math.max(0, m.totalAttenduCumule - m.totalValoriseCumule),
+    }))
+    .sort((a, b) => {
+      if (a.statutCotisation !== b.statutCotisation) return a.statutCotisation === 'NON_A_JOUR' ? -1 : 1
+      return b.manque - a.manque
+    })
+
+  return { branches, relance: { total: aRelancer.length, membres: aRelancer.slice(0, nbRelances) } }
+}
+
+/** Analyse du tableau de bord sur TOUTE l'organisation (aucun plafond, cf. `analyserMembres`). */
+export async function calculerAnalyseMembres(
+  prisma: MembreStatutPrisma,
+  anneeCourante: number,
+  where?: Record<string, unknown>,
+): Promise<AnalyseMembres> {
+  const { items } = await calculerStatutsMembres(prisma, anneeCourante, where)
+  return analyserMembres(items)
+}

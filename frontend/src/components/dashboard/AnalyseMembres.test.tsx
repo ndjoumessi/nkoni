@@ -4,9 +4,9 @@ import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { AnalyseMembres } from './AnalyseMembres'
 
-const listStatutsPage = vi.fn()
+const analyse = vi.fn()
 vi.mock('@/lib/api', () => ({
-  membresApi: { listStatutsPage: (...a: unknown[]) => listStatutsPage(...a) },
+  membresApi: { analyse: (...a: unknown[]) => analyse(...a) },
 }))
 let modeDemo = false
 vi.mock('@/contexts/auth-context', () => ({ useAuth: () => ({ accessToken: 'jeton', modeDemo }) }))
@@ -19,31 +19,48 @@ vi.mock('react-i18next', () => ({
 }))
 
 const membre = {
-  id: 'm1', nom: 'Tchoupa', prenom: 'Bernard', sexe: null, statut: 'ACTIF', telephone: null,
-  brancheId: null, branche: null, anneeAdhesion: 2024, anneeFinContribution: null,
-  statutCotisation: 'NON_A_JOUR', totalAttenduCumule: 10_000, totalValoriseCumule: 0,
+  id: 'm1', nom: 'Tchoupa', prenom: 'Bernard', telephone: null as string | null, branche: null,
+  statutCotisation: 'NON_A_JOUR' as const, manque: 10_000,
 }
+/** Réponse de `GET /membres/statuts/analyse` : `total` = TOUS les membres à relancer. */
+const reponse = (membres: (typeof membre)[], total = membres.length) => ({
+  branches: [],
+  relance: { total, membres },
+})
 
 beforeEach(() => {
-  listStatutsPage.mockReset()
+  analyse.mockReset()
   modeDemo = false
 })
 afterEach(cleanup)
 
-describe('AnalyseMembres — plafond des statuts calculés', () => {
-  it('liste tronquée par le serveur : l’analyse le dit (plafond et total réel)', async () => {
-    listStatutsPage.mockResolvedValue({ items: [membre], total: 1500, tronque: true })
+describe('AnalyseMembres — analyse agrégée par le serveur', () => {
+  it('le compteur annonce le TOTAL à relancer, et « voir tous » paraît quand il dépasse le détail', async () => {
+    // 1 170 à relancer, six détaillés : le compteur ne doit pas se limiter aux lignes affichées.
+    analyse.mockResolvedValue(reponse([membre], 1170))
     render(<MemoryRouter><AnalyseMembres /></MemoryRouter>)
-    const note = await screen.findByText(/dashboard\.analyse\.tronque/)
-    expect(note.textContent).toContain('"plafond":1')
-    expect(note.textContent).toContain('"total":1500')
+    expect(await screen.findByText('1170')).toBeTruthy()
+    expect(screen.getByRole('link', { name: /dashboard\.analyse\.voirTous/ })).toBeTruthy()
   })
 
-  it('liste complète : aucune mention de troncature', async () => {
-    listStatutsPage.mockResolvedValue({ items: [membre], total: 1, tronque: false })
+  it('tout est détaillé : pas de lien « voir tous »', async () => {
+    analyse.mockResolvedValue(reponse([membre]))
     render(<MemoryRouter><AnalyseMembres /></MemoryRouter>)
     await waitFor(() => expect(screen.getByText('Tchoupa Bernard', { exact: false })).toBeTruthy())
-    expect(screen.queryByText(/dashboard\.analyse\.tronque/)).toBeNull()
+    expect(screen.queryByRole('link', { name: /dashboard\.analyse\.voirTous/ })).toBeNull()
+  })
+
+  it('branche null (membres sans branche) : libellé traduit, lien de filtre sur la sentinelle', async () => {
+    analyse.mockResolvedValue({
+      branches: [
+        { id: 'b1', nom: 'Nord', attendu: 10, valorise: 2, taux: 20 },
+        { id: null, nom: null, attendu: 10, valorise: 5, taux: 50 },
+      ],
+      relance: { total: 0, membres: [] },
+    })
+    render(<MemoryRouter><AnalyseMembres /></MemoryRouter>)
+    const lien = await screen.findByRole('link', { name: 'branches.sansBranche' })
+    expect(lien.getAttribute('href')).toBe(`/membres?branche=${encodeURIComponent('—')}`)
   })
 })
 
@@ -51,7 +68,7 @@ describe('AnalyseMembres — relance WhatsApp en démo', () => {
   const joignable = { ...membre, telephone: '677123456' }
 
   it('hors démo : lien wa.me présent (contrôle du test)', async () => {
-    listStatutsPage.mockResolvedValue({ items: [joignable], total: 1, tronque: false })
+    analyse.mockResolvedValue(reponse([joignable]))
     render(<MemoryRouter><AnalyseMembres /></MemoryRouter>)
     const lien = await screen.findByRole('link', { name: 'dashboard.analyse.relancerWhatsApp' })
     expect(lien.getAttribute('href')).toContain('wa.me')
@@ -59,7 +76,7 @@ describe('AnalyseMembres — relance WhatsApp en démo', () => {
 
   it('en démo : aucun lien wa.me, bouton désactivé', async () => {
     modeDemo = true
-    listStatutsPage.mockResolvedValue({ items: [joignable], total: 1, tronque: false })
+    analyse.mockResolvedValue(reponse([joignable]))
     const { container } = render(<MemoryRouter><AnalyseMembres /></MemoryRouter>)
     const bouton = await screen.findByRole('button', { name: 'demo.whatsappDesactive' })
     expect((bouton as HTMLButtonElement).disabled).toBe(true)

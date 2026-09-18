@@ -49,11 +49,25 @@ export interface OptionsMembres {
   tronque: boolean
 }
 
-/** Réponse BORNÉE de GET /membres/statuts (audit m4) : liste + total réel + drapeau de troncature. */
-export interface StatutsMembres {
-  items: MembreStatut[]
-  total: number
-  tronque: boolean
+/**
+ * Analyse du tableau de bord (§1.3), agrégée par le SERVEUR sur TOUTE l'organisation —
+ * `GET /membres/statuts/analyse`. `id`/`nom` `null` = membres sans branche.
+ */
+export interface AnalyseMembresReponse {
+  branches: { id: string | null; nom: string | null; attendu: number; valorise: number; taux: number }[]
+  relance: {
+    /** Nombre TOTAL de membres à relancer ; seuls les premiers sont détaillés dans `membres`. */
+    total: number
+    membres: {
+      id: string
+      nom: string
+      prenom: string
+      telephone: string | null
+      branche: { id: string; nom: string } | null
+      statutCotisation: 'PARTIEL' | 'NON_A_JOUR'
+      manque: number
+    }[]
+  }
 }
 
 /** Compteurs de tête — sur l'ensemble NON filtré (§1.3). */
@@ -143,12 +157,12 @@ export interface Contribution {
 
 export const membresApi = {
   /**
-   * Statuts de cotisation CALCULÉS, réponse BORNÉE serveur `{ items, total, tronque }` (plafond
-   * 1000, audit m4). Réservée aux vues qui exploitent le statut (analyse du dashboard), qui doivent
-   * afficher `tronque`. Un sélecteur ou une recherche de nom passe par `listOptions`.
+   * Analyse du tableau de bord (recouvrement par branche, membres à relancer), calculée côté
+   * serveur sur toute l'organisation — sans le plafond de 1000 qu'avait `/membres/statuts`, et d'une
+   * taille constante quel que soit le nombre de membres.
    */
-  listStatutsPage: (accessToken: string, signal?: AbortSignal) =>
-    request<StatutsMembres>('/membres/statuts', { accessToken, signal }),
+  analyse: (accessToken: string, signal?: AbortSignal) =>
+    request<AnalyseMembresReponse>('/membres/statuts/analyse', { accessToken, signal }),
   /**
    * Identité des membres (id, nom, prénom, statut, branche) pour les sélecteurs et ⌘K — déballe
    * `.items`. Aucun statut de cotisation : ne pas l'utiliser pour une vue qui en a besoin.

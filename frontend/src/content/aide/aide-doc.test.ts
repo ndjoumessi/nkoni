@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { GUIDES, chargerDocument } from './registre'
-import type { Document } from './types'
+import type { Bloc, Document } from './types'
 
 /**
  * GARDES DE LA DOCUMENTATION (spec 2026-09-18).
@@ -23,13 +23,54 @@ describe('documentation — parité FR/EN', () => {
 
   // Un titre EN identique au titre FR PEUT être une coïncidence légitime (« Notifications », par
   // exemple) : la liste ci-dessous n'est donc PAS vide par défaut. Elle est asserté EXACTEMENT
-  // (`toEqual`, jamais `toEqual([])` en dur) — une coïncidence nouvelle doit être inscrite ici
-  // après relecture, et une traduction oubliée (id absent de cette liste mais titres identiques)
-  // fait échouer le test.
+  // contre une constante NOMMÉE (jamais `toEqual([])` en dur, cf. C3) — une coïncidence nouvelle
+  // doit être inscrite ici après relecture, et une traduction oubliée (id absent de cette liste
+  // mais titres identiques) fait échouer le test.
+  //
+  // Aujourd'hui vide : aucune coïncidence recensée dans les trois documents. Une constante VIDE
+  // mais NOMMÉE rend l'intention lisible (« on a vérifié, il n'y en a pas » plutôt qu'un
+  // `toEqual([])` que le lecteur suivant pourrait prendre pour un test resté à compléter).
+  const TITRES_IDENTIQUES_ASSUMES: string[] = []
+
   it.each(GUIDES)('%s : titres identiques FR/EN recensés explicitement', async (guide) => {
     const [fr, en] = await Promise.all([charger(guide, 'fr'), charger(guide, 'en')])
     const identiques = fr.sections.filter((s, i) => s.titre === en.sections[i]?.titre)
-    expect(identiques.map((s) => s.id)).toEqual([])
+    expect(identiques.map((s) => s.id)).toEqual(TITRES_IDENTIQUES_ASSUMES)
+  })
+
+  /**
+   * La parité d'`id`/titre (ci-dessus) ne prouve PAS qu'une section est traduite en entier : elle
+   * passerait telle quelle si un bloc EN perdait une étape, une note, ou un lien vers une AUTRE
+   * route que son homologue FR (spec §5 : « une section traduite à moitié ne passe pas »). On
+   * compare donc, section par section, la SIGNATURE de la séquence de blocs : même `type` dans le
+   * même ordre, même `ton` pour une note, même `vers` pour un lien, même nombre d'étapes/d'éléments
+   * pour `etapes`/`liste`. Le TEXTE lui-même reste volontairement hors de la comparaison — FR et EN
+   * ne sont pas des traductions mot à mot — seule la STRUCTURE doit concorder.
+   */
+  const signatureBloc = (bloc: Bloc): string => {
+    switch (bloc.type) {
+      case 'note':
+        return `note:${bloc.ton}`
+      case 'lien':
+        return `lien:${bloc.vers}`
+      case 'etapes':
+        return `etapes:${bloc.etapes.length}`
+      case 'liste':
+        return `liste:${bloc.items.length}`
+      case 'paragraphe':
+        return 'paragraphe'
+      default: {
+        const _exhaustif: never = bloc
+        return _exhaustif
+      }
+    }
+  }
+
+  it.each(GUIDES)('%s : même séquence de blocs (type, ton, vers, nombre) en FR et en EN', async (guide) => {
+    const [fr, en] = await Promise.all([charger(guide, 'fr'), charger(guide, 'en')])
+    const signature = (doc: Document) => doc.sections.map((s) => s.blocs.map(signatureBloc))
+    expect(signature(fr).flat().length).toBeGreaterThan(0)
+    expect(signature(en)).toEqual(signature(fr))
   })
 })
 

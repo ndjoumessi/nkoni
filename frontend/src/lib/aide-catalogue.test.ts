@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import fr from '@/locales/fr/aide'
 import en from '@/locales/en/aide'
 import { LIENS_AIDE, NOTIONS_AIDE } from './aide'
+import { chargerDocument, estGuide } from '@/content/aide/registre'
 
 /**
  * Chaque notion du catalogue a un titre et un texte NON VIDES dans les deux langues. Le typage EN
@@ -28,8 +29,34 @@ describe("catalogue d'aide", () => {
     expect(Object.keys(fr.aide.notions).sort()).toEqual([...NOTIONS_AIDE].sort())
   })
 
-  it('les liens « En savoir plus » visent des routes internes', () => {
-    for (const lien of Object.values(LIENS_AIDE)) expect(lien).toMatch(/^\/[a-z]/)
+  /**
+   * Chaque « En savoir plus » vise une SECTION RÉELLE de la documentation : l'ancre est confrontée
+   * aux identifiants du guide FR (la parité FR/EN des identifiants est tenue par `aide-doc.test.ts`,
+   * donc l'EN est couvert). Une ancre fausse n'échoue nulle part ailleurs — le navigateur ouvre
+   * simplement la page en haut, sans rapport avec la notion.
+   */
+  it('les liens « En savoir plus » visent une section existante de la documentation', async () => {
+    const liens = Object.entries(LIENS_AIDE)
+    expect(liens.length).toBeGreaterThan(0)
+    const invalides: string[] = []
+    for (const [notion, lien] of liens) {
+      const [, guide, ancre] = /^\/aide\/([a-z]+)#([a-z0-9-]+)$/.exec(lien) ?? []
+      if (!guide || !ancre || !estGuide(guide)) {
+        invalides.push(`${notion} → ${lien}`)
+        continue
+      }
+      const doc = await chargerDocument(guide, 'fr')
+      if (!doc.sections.some((s) => s.id === ancre)) invalides.push(`${notion} → ${lien}`)
+    }
+    expect(invalides).toEqual([])
+  })
+
+  it("aucune apostrophe droite entre deux lettres dans les textes (typographie)", () => {
+    for (const catalogue of [fr, en]) {
+      for (const [notion, { titre, texte }] of Object.entries(catalogue.aide.notions)) {
+        expect(`${titre} ${texte}`, notion).not.toMatch(/\p{L}'\p{L}/u)
+      }
+    }
   })
 
   it("3 phrases au plus par texte (règle de rédaction)", () => {

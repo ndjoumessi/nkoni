@@ -15,7 +15,7 @@ const membre: Document = {
         {
           type: 'paragraphe',
           texte:
-            "Pour votre première connexion, utilisez l'adresse e-mail et le mot de passe que le bureau de votre organisation vous a remis. Aucune inscription n'est nécessaire de votre côté.",
+            "Pour votre première connexion, utilisez l’adresse e-mail et le mot de passe que le bureau de votre organisation vous a remis. Aucune inscription n’est nécessaire de votre côté.",
         },
         {
           type: 'etapes',
@@ -44,7 +44,7 @@ const membre: Document = {
           type: 'note',
           ton: 'info',
           texte:
-            "Changer votre mot de passe met fin à toutes vos autres sessions ouvertes (par exemple sur un autre téléphone) : c'est volontaire, pour protéger votre compte.",
+            "Changer votre mot de passe met fin à toutes vos autres sessions ouvertes (par exemple sur un autre téléphone) : c’est volontaire, pour protéger votre compte.",
         },
       ],
     },
@@ -55,17 +55,17 @@ const membre: Document = {
         {
           type: 'paragraphe',
           texte:
-            "Sur « Mon espace », l'onglet « Aperçu » affiche trois montants : « Total dû », « Total versé » et « Reste à payer », avec une barre de progression.",
+            "Sur « Mon espace », l’onglet « Aperçu » affiche trois montants : « Total dû », « Total versé » et « Reste à payer », avec une barre de progression.",
         },
         {
           type: 'paragraphe',
           texte:
-            "Ces montants sont cumulés depuis votre année d'adhésion jusqu'à l'année en cours (ou jusqu'à votre fin de contribution, le cas échéant) — pas seulement l'année en cours.",
+            "Ces montants sont cumulés depuis votre année d’adhésion jusqu’à l’année en cours (ou jusqu’à votre fin de contribution, le cas échéant) — pas seulement l’année en cours.",
         },
         {
           type: 'liste',
           items: [
-            "« Année » : l'année de cotisation.",
+            "« Année » : l’année de cotisation.",
             "« Attendu » : le montant dû pour cette année, selon le barème.",
             "« Versé » : ce que vous avez versé pour cette année.",
             "« Valorisé » : le montant qui compte réellement pour votre statut (voir « Comprendre mon statut »).",
@@ -86,7 +86,7 @@ const membre: Document = {
         {
           type: 'paragraphe',
           texte:
-            "« À jour » : le montant valorisé couvre tout ce qui est attendu jusqu'à cette année. « Partiel » : il n'en couvre qu'une partie. « Non à jour » : aucun montant n'est encore valorisé.",
+            "« À jour » : le montant valorisé couvre tout ce qui est attendu jusqu’à cette année. « Partiel » : il n’en couvre qu’une partie. « Non à jour » : aucun montant n’est encore valorisé.",
         },
         {
           type: 'paragraphe',
@@ -97,7 +97,7 @@ const membre: Document = {
           type: 'note',
           ton: 'info',
           texte:
-            "Le statut porte sur le cumul depuis votre adhésion, pas sur la seule année en cours : un versement récent peut donc ne combler qu'une partie de ce qui est attendu au total, et votre statut peut rester « Partiel » même après avoir payé.",
+            "Le statut porte sur le cumul depuis votre adhésion, pas sur la seule année en cours : un versement récent peut donc ne combler qu’une partie de ce qui est attendu au total, et votre statut peut rester « Partiel » même après avoir payé.",
         },
       ],
     },
@@ -108,13 +108,13 @@ const membre: Document = {
         {
           type: 'paragraphe',
           texte:
-            "Le paiement en ligne n'apparaît que si votre organisation l'a configuré. Le bouton « Payer » se trouve sur chaque année dans l'onglet « Contributions » de « Mon espace ».",
+            "Le paiement en ligne n’apparaît que si votre organisation l’a configuré. Le bouton « Payer » se trouve sur chaque année dans l’onglet « Contributions » de « Mon espace ».",
         },
         {
           type: 'etapes',
           etapes: [
             "Ouvrez « Mon espace », onglet « Contributions ».",
-            "Cliquez sur « Payer » pour l'année concernée.",
+            "Cliquez sur « Payer » pour l’année concernée.",
             "Saisissez le montant à payer (le reste dû est proposé par défaut ; un paiement partiel est possible, sans dépasser le reste dû).",
             "Cliquez sur « Payer » pour confirmer.",
           ],
@@ -128,7 +128,7 @@ const membre: Document = {
           type: 'note',
           ton: 'attention',
           texte:
-            "Le montant est toujours plafonné à ce qu'il vous reste réellement à payer. Si le paiement n'aboutit pas, aucune somme n'est enregistrée : vous pouvez recommencer.",
+            "Le montant est toujours plafonné à ce qu’il vous reste réellement à payer. Si le paiement n’aboutit pas, aucune somme n’est enregistrée : vous pouvez recommencer.",
         },
       ],
     },
@@ -139,25 +139,25 @@ const membre: Document = {
         {
           type: 'paragraphe',
           texte:
-            "L'onglet « Reçus » de « Mon espace » liste tous vos reçus : numéro, date et montant.",
+            "L’onglet « Reçus » de « Mon espace » liste tous vos reçus : numéro, date et montant.",
         },
         {
           type: 'etapes',
           etapes: [
-            "Cliquez sur « Voir » pour un aperçu du reçu dans l'application.",
+            "Cliquez sur « Voir » pour un aperçu du reçu dans l’application.",
             "Cliquez sur « Télécharger » pour enregistrer le PDF.",
           ],
         },
         {
           type: 'paragraphe',
           texte:
-            "Le bureau peut aussi vous transmettre votre reçu directement par WhatsApp ou par e-mail, selon la disponibilité du service d'envoi et le téléphone ou l'e-mail renseigné sur votre fiche.",
+            "Le bureau peut aussi vous transmettre votre reçu directement par WhatsApp ou par e-mail, selon la disponibilité du service d’envoi et le téléphone ou l’e-mail renseigné sur votre fiche.",
         },
         {
           type: 'note',
           ton: 'attention',
           texte:
-            "Un reçu annulé (marqué « Annulé ») ne peut plus être consulté ni téléchargé depuis l'application. Il reste listé pour la trace, et un reçu corrigé vous sera transmis par le bureau si besoin.",
+            "Un reçu annulé (marqué « Annulé ») ne peut plus être consulté ni téléchargé depuis l’application. Il reste listé pour la trace, et un reçu corrigé vous sera transmis par le bureau si besoin.",
         },
       ],
     },
@@ -168,7 +168,7 @@ const membre: Document = {
         {
           type: 'paragraphe',
           texte:
-            "Les réunions à venir de votre organisation s'affichent sur l'onglet « Aperçu » de « Mon espace », avec la question « Serez-vous présent ? ».",
+            "Les réunions à venir de votre organisation s’affichent sur l’onglet « Aperçu » de « Mon espace », avec la question « Serez-vous présent ? ».",
         },
         {
           type: 'etapes',
@@ -180,19 +180,19 @@ const membre: Document = {
         {
           type: 'paragraphe',
           texte:
-            "« Votes en cours » liste les résolutions qu'un dirigeant a explicitement mises au vote. Répondez « Pour », « Contre » ou « Abstention ».",
+            "« Votes en cours » liste les résolutions qu’un dirigeant a explicitement mises au vote. Répondez « Pour », « Contre » ou « Abstention ».",
         },
         {
           type: 'note',
           ton: 'attention',
           texte:
-            "Revoter remplace votre réponse précédente (présence comme vote) : seul votre dernier choix compte. Un vote n'est plus possible une fois la résolution clôturée.",
+            "Revoter remplace votre réponse précédente (présence comme vote) : seul votre dernier choix compte. Un vote n’est plus possible une fois la résolution clôturée.",
         },
         {
           type: 'note',
           ton: 'info',
           texte:
-            "Qui a voté quoi reste réservé au bureau : vous voyez qu'une résolution est ouverte au vote, mais pas le détail nominatif des votes des autres membres.",
+            "Qui a voté quoi reste réservé au bureau : vous voyez qu’une résolution est ouverte au vote, mais pas le détail nominatif des votes des autres membres.",
         },
       ],
     },
@@ -203,18 +203,18 @@ const membre: Document = {
         {
           type: 'paragraphe',
           texte:
-            "Votre carte de membre, avec son QR code, est visible sur l'onglet « Aperçu » de « Mon espace ». Le bouton « Télécharger le PDF » vous permet de l'enregistrer.",
+            "Votre carte de membre, avec son QR code, est visible sur l’onglet « Aperçu » de « Mon espace ». Le bouton « Télécharger le PDF » vous permet de l’enregistrer.",
         },
         {
           type: 'paragraphe',
           texte:
-            "Le QR ouvre une page publique de vérification, consultable sans compte : elle affiche votre nom, votre branche, votre année d'adhésion et votre statut de cotisation (à jour, partiel ou non à jour).",
+            "Le QR ouvre une page publique de vérification, consultable sans compte : elle affiche votre nom, votre branche, votre année d’adhésion et votre statut de cotisation (à jour, partiel ou non à jour).",
         },
         {
           type: 'note',
           ton: 'info',
           texte:
-            "Cette page publique n'affiche jamais aucun montant : ni ce qui est attendu, ni ce que vous avez versé. Seul le statut est visible.",
+            "Cette page publique n’affiche jamais aucun montant : ni ce qui est attendu, ni ce que vous avez versé. Seul le statut est visible.",
         },
         {
           type: 'lien',
@@ -235,21 +235,21 @@ const membre: Document = {
         {
           type: 'paragraphe',
           texte:
-            "« Notifications sur cet appareil » permet de recevoir ces rappels même quand l'application est fermée, si votre téléphone ou navigateur le prend en charge.",
+            "« Notifications sur cet appareil » permet de recevoir ces rappels même quand l’application est fermée, si votre téléphone ou navigateur le prend en charge.",
         },
         {
           type: 'etapes',
           etapes: [
             "Ouvrez « Mon profil ».",
-            "Sous « Notifications sur cet appareil », activez l'interrupteur.",
-            "Acceptez la demande d'autorisation de votre téléphone ou navigateur.",
+            "Sous « Notifications sur cet appareil », activez l’interrupteur.",
+            "Acceptez la demande d’autorisation de votre téléphone ou navigateur.",
           ],
         },
         {
           type: 'note',
           ton: 'info',
           texte:
-            "Si votre navigateur ne prend pas en charge les notifications, cet interrupteur n'apparaît pas : les trois préférences ci-dessus restent réglables normalement.",
+            "Si votre navigateur ne prend pas en charge les notifications, cet interrupteur n’apparaît pas : les trois préférences ci-dessus restent réglables normalement.",
         },
       ],
     },
@@ -260,7 +260,7 @@ const membre: Document = {
         {
           type: 'paragraphe',
           texte:
-            "Sans connexion, les pages déjà chargées lors de votre dernière visite (votre situation, vos contributions, vos reçus…) restent consultables. Un indicateur « Hors ligne » apparaît alors dans l'application.",
+            "Sans connexion, les pages déjà chargées lors de votre dernière visite (votre situation, vos contributions, vos reçus…) restent consultables. Un indicateur « Hors ligne » apparaît alors dans l’application.",
         },
         {
           type: 'note',
@@ -271,7 +271,7 @@ const membre: Document = {
         {
           type: 'paragraphe',
           texte:
-            "Dès que la connexion revient, rouvrir ou rafraîchir l'application récupère vos données à jour.",
+            "Dès que la connexion revient, rouvrir ou rafraîchir l’application récupère vos données à jour.",
         },
       ],
     },
@@ -295,7 +295,7 @@ const membre: Document = {
         {
           type: 'paragraphe',
           texte:
-            "La « Langue de l'interface » se choisit entre Français et English : c'est une préférence personnelle, propre à votre compte, indépendante de la langue par défaut de votre organisation.",
+            "La « Langue de l’interface » se choisit entre Français et English : c’est une préférence personnelle, propre à votre compte, indépendante de la langue par défaut de votre organisation.",
         },
         {
           type: 'note',

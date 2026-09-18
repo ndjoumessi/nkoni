@@ -15,7 +15,7 @@ const membre: Document = {
         {
           type: 'paragraphe',
           texte:
-            "For your first sign-in, use the email address and password your organisation's office gave you. You don't need to register yourself.",
+            "For your first sign-in, use the email address and password your organisation’s office gave you. You don’t need to register yourself.",
         },
         {
           type: 'etapes',
@@ -122,7 +122,7 @@ const membre: Document = {
         {
           type: 'paragraphe',
           texte:
-            "Depending on your organisation's provider, you are either redirected to a secure payment page, or asked to approve the payment directly on your phone (Mobile Money).",
+            "Depending on your organisation’s provider, you are either redirected to a secure payment page, or asked to approve the payment directly on your phone (Mobile Money).",
         },
         {
           type: 'note',
@@ -167,7 +167,7 @@ const membre: Document = {
         {
           type: 'paragraphe',
           texte:
-            "Your organisation's upcoming meetings show on the \"Overview\" tab of \"My space\", with the question \"Will you attend?\".",
+            "Your organisation’s upcoming meetings show on the \"Overview\" tab of \"My space\", with the question \"Will you attend?\".",
         },
         {
           type: 'etapes',
@@ -291,7 +291,7 @@ const membre: Document = {
         {
           type: 'paragraphe',
           texte:
-            'The "Interface language" is chosen between Français and English: it is a personal preference, tied to your account, independent of your organisation\'s default language.',
+            'The "Interface language" is chosen between Français and English: it is a personal preference, tied to your account, independent of your organisation’s default language.',
         },
         {
           type: 'note',

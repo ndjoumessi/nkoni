@@ -11,18 +11,18 @@ const faq: Document = {
         {
           type: 'paragraphe',
           texte:
-            "Deux conditions sont nécessaires. D'abord, un barème doit exister pour cette année : sans montant attendu configuré, rien n'est encaissable. Ensuite, une contribution doit être ouverte pour ce membre sur cette année.",
+            "Deux conditions sont nécessaires. D’abord, un barème doit exister pour cette année : sans montant attendu configuré, rien n’est encaissable. Ensuite, une contribution doit être ouverte pour ce membre sur cette année.",
         },
         {
           type: 'paragraphe',
           texte:
-            "En pratique, vous n'avez rien à préparer à l'avance : le formulaire « Nouveau versement » ouvre l'année choisie à la volée pour ce membre, tant qu'un barème existe pour elle.",
+            "En pratique, vous n’avez rien à préparer à l’avance : le formulaire « Nouveau versement » ouvre l’année choisie à la volée pour ce membre, tant qu’un barème existe pour elle.",
         },
         {
           type: 'note',
           ton: 'info',
           texte:
-            "Cette ouverture à la volée peut malgré tout être refusée si l'année choisie est hors de la période de cotisation du membre : avant son année d'adhésion, ou après sa fin de contribution s'il en a une.",
+            "Cette ouverture à la volée peut malgré tout être refusée si l’année choisie est hors de la période de cotisation du membre : avant son année d’adhésion, ou après sa fin de contribution s’il en a une.",
         },
         {
           type: 'lien',
@@ -38,13 +38,13 @@ const faq: Document = {
         {
           type: 'paragraphe',
           texte:
-            "Le statut ne porte pas sur la seule année en cours : il cumule ce qui est attendu depuis l'année d'adhésion du membre jusqu'à l'année en cours (ou jusqu'à sa fin de contribution). Un paiement récent peut donc ne combler qu'une partie de cet attendu cumulé.",
+            "Le statut ne porte pas sur la seule année en cours : il cumule ce qui est attendu depuis l’année d’adhésion du membre jusqu’à l’année en cours (ou jusqu’à sa fin de contribution). Un paiement récent peut donc ne combler qu’une partie de cet attendu cumulé.",
         },
         {
           type: 'note',
           ton: 'info',
           texte:
-            "Comparez « Total attendu (cumulé) » et « Total valorisé (cumulé) » sur la fiche du membre : c'est le montant VALORISÉ, pas le montant versé, qui détermine le statut. Les deux sont égaux, sauf après un équilibrage, qui répartit les versements différemment entre les années sans changer leur somme.",
+            "Comparez « Total attendu (cumulé) » et « Total valorisé (cumulé) » sur la fiche du membre : c’est le montant VALORISÉ, pas le montant versé, qui détermine le statut. Les deux sont égaux, sauf après un équilibrage, qui répartit les versements différemment entre les années sans changer leur somme.",
         },
       ],
     },
@@ -74,13 +74,13 @@ const faq: Document = {
         {
           type: 'paragraphe',
           texte:
-            "Le reçu n'est pas supprimé : il est annulé, et reste listé, en trace, sous l'année du versement disparu. Son numéro est conservé et ne sera jamais réattribué à un autre reçu.",
+            "Le reçu n’est pas supprimé : il est annulé, et reste listé, en trace, sous l’année du versement disparu. Son numéro est conservé et ne sera jamais réattribué à un autre reçu.",
         },
         {
           type: 'note',
           ton: 'info',
           texte:
-            "Comme pour une modification, supprimer le versement d'un reçu ACTIF exige d'abord d'annuler ce reçu.",
+            "Comme pour une modification, supprimer le versement d’un reçu ACTIF exige d’abord d’annuler ce reçu.",
         },
       ],
     },
@@ -96,7 +96,7 @@ const faq: Document = {
         {
           type: 'paragraphe',
           texte:
-            "Une fiche INACTIVE ou DÉCÉDÉE ne compte pas dans ce plafond : seuls les membres actifs sont comptés, que ce soit à la création, à l'import ou à la réactivation d'une fiche.",
+            "Une fiche INACTIVE ou DÉCÉDÉE ne compte pas dans ce plafond : seuls les membres actifs sont comptés, que ce soit à la création, à l’import ou à la réactivation d’une fiche.",
         },
         {
           type: 'lien',
@@ -112,24 +112,24 @@ const faq: Document = {
         {
           type: 'paragraphe',
           texte:
-            "WhatsApp est essayé en premier. S'il ne délivre pas (numéro absent ou invalide, canal indisponible), l'e-mail prend le relais automatiquement.",
+            "WhatsApp est essayé en premier. S’il ne délivre pas (numéro absent ou invalide, canal indisponible), l’e-mail prend le relais automatiquement.",
         },
         {
           type: 'note',
           ton: 'attention',
           texte:
-            "Si le service d'envoi (WhatsApp ou e-mail) n'est pas disponible côté serveur, ou si le téléphone ou l'e-mail renseigné sur la fiche du membre est absent ou invalide, le reçu n'est envoyé par aucun canal — il reste toutefois disponible au téléchargement depuis l'application.",
+            "Si le service d’envoi (WhatsApp ou e-mail) n’est pas disponible côté serveur, ou si le téléphone ou l’e-mail renseigné sur la fiche du membre est absent ou invalide, le reçu n’est envoyé par aucun canal — il reste toutefois disponible au téléchargement depuis l’application.",
         },
       ],
     },
     {
       id: 'reouvrir-une-annee',
-      titre: "J'ai rouvert une année et rien ne s'est passé",
+      titre: "J’ai rouvert une année et rien ne s’est passé",
       blocs: [
         {
           type: 'paragraphe',
           texte:
-            "L'ouverture d'une année est idempotente : rouvrir une année déjà ouverte pour tous les membres concernés ne recrée rien, d'où le message « Rien à créer ».",
+            "L’ouverture d’une année est idempotente : rouvrir une année déjà ouverte pour tous les membres concernés ne recrée rien, d’où le message « Rien à créer ».",
         },
         {
           type: 'paragraphe',
@@ -145,24 +145,24 @@ const faq: Document = {
     },
     {
       id: 'annee-future',
-      titre: "Je ne peux pas ouvrir l'année prochaine",
+      titre: "Je ne peux pas ouvrir l’année prochaine",
       blocs: [
         {
           type: 'paragraphe',
           texte:
-            "Une année future ne peut pas être ouverte à la contribution : tant qu'elle n'est pas commencée, aucun montant n'est dû, et l'ouvrir la rendrait encaissable par erreur.",
+            "Une année future ne peut pas être ouverte à la contribution : tant qu’elle n’est pas commencée, aucun montant n’est dû, et l’ouvrir la rendrait encaissable par erreur.",
         },
         {
           type: 'note',
           ton: 'info',
           texte:
-            "Configurer le barème de l'année prochaine, en revanche, reste permis : seule son ouverture attend l'échéance.",
+            "Configurer le barème de l’année prochaine, en revanche, reste permis : seule son ouverture attend l’échéance.",
         },
       ],
     },
     {
       id: 'mot-de-passe-oublie',
-      titre: "J'ai oublié mon mot de passe",
+      titre: "J’ai oublié mon mot de passe",
       blocs: [
         {
           type: 'paragraphe',
@@ -183,13 +183,13 @@ const faq: Document = {
         {
           type: 'paragraphe',
           texte:
-            "Deux situations, distinctes d'un mot de passe oublié, empêchent toute connexion même avec les bons identifiants.",
+            "Deux situations, distinctes d’un mot de passe oublié, empêchent toute connexion même avec les bons identifiants.",
         },
         {
           type: 'liste',
           items: [
             "Compte désactivé : un administrateur de votre organisation a désactivé votre compte. Demandez-lui de le réactiver depuis la page « Utilisateurs ».",
-            "Espace suspendu : c'est l'organisation entière qui a été suspendue, pas votre compte. Dans ce cas, contactez directement le support NKONI.",
+            "Espace suspendu : c’est l’organisation entière qui a été suspendue, pas votre compte. Dans ce cas, contactez directement le support NKONI.",
           ],
         },
         {
@@ -201,18 +201,18 @@ const faq: Document = {
     },
     {
       id: 'sessions-et-deconnexion',
-      titre: "Changer mon mot de passe m'a déconnecté partout",
+      titre: "Changer mon mot de passe m’a déconnecté partout",
       blocs: [
         {
           type: 'paragraphe',
           texte:
-            "C'est voulu. Changer un mot de passe (le vôtre, ou une réinitialisation par un administrateur) met fin à toutes les autres sessions ouvertes.",
+            "C’est voulu. Changer un mot de passe (le vôtre, ou une réinitialisation par un administrateur) met fin à toutes les autres sessions ouvertes.",
         },
         {
           type: 'note',
           ton: 'info',
           texte:
-            "Cette mesure protège le compte : si quelqu'un d'autre y était connecté sans votre accord, changer le mot de passe le déconnecte aussitôt.",
+            "Cette mesure protège le compte : si quelqu’un d’autre y était connecté sans votre accord, changer le mot de passe le déconnecte aussitôt.",
         },
       ],
     },
@@ -223,12 +223,12 @@ const faq: Document = {
         {
           type: 'paragraphe',
           texte:
-            "Pour un document, la visibilité est celle de l'élément auquel il est rattaché (une réunion, une dépense…) : un document n'a pas ses propres règles, il hérite de celles de son parent.",
+            "Pour un document, la visibilité est celle de l’élément auquel il est rattaché (une réunion, une dépense…) : un document n’a pas ses propres règles, il hérite de celles de son parent.",
         },
         {
           type: 'paragraphe',
           texte:
-            "Le détail nominatif d'un vote (qui a voté quoi) n'est, lui, jamais visible d'un membre simple : seul le bureau peut le consulter, même si tout le monde peut voir qu'une résolution est ouverte au vote.",
+            "Le détail nominatif d’un vote (qui a voté quoi) n’est, lui, jamais visible d’un membre simple : seul le bureau peut le consulter, même si tout le monde peut voir qu’une résolution est ouverte au vote.",
         },
       ],
     },
@@ -239,12 +239,12 @@ const faq: Document = {
         {
           type: 'paragraphe',
           texte:
-            "Oui. Un administrateur ou le président peut exporter l'ensemble des données de l'organisation à tout moment, en libre-service.",
+            "Oui. Un administrateur ou le président peut exporter l’ensemble des données de l’organisation à tout moment, en libre-service.",
         },
         {
           type: 'paragraphe',
           texte:
-            "La suppression définitive de l'organisation se fait sur demande auprès de NKONI et est irréversible : elle n'est possible qu'une fois l'organisation suspendue.",
+            "La suppression définitive de l’organisation se fait sur demande auprès de NKONI et est irréversible : elle n’est possible qu’une fois l’organisation suspendue.",
         },
         {
           type: 'lien',

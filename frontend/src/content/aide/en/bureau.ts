@@ -24,17 +24,17 @@ const bureau: Document = {
         {
           type: 'etapes',
           etapes: [
-            "Configure the year's fee schedule on “Annual schedule”: the amount expected per member (Administrator only).",
-            "Open the year for the whole organisation with the “Open the year” button (Administrator and Treasurer): this pre-creates every eligible member's contribution. This step is optional — recording a payment on an unopened year opens it automatically for that member.",
+            "Configure the year’s fee schedule on “Annual schedule”: the amount expected per member (Administrator only).",
+            "Open the year for the whole organisation with the “Open the year” button (Administrator and Treasurer): this pre-creates every eligible member’s contribution. This step is optional — recording a payment on an unopened year opens it automatically for that member.",
             "Add your members, one at a time or by file import (Administrator and Secretary).",
-            "If you wish, designate the organisation head from a member's record (Administrator and President). This step is optional and can be done at any time.",
+            "If you wish, designate the organisation head from a member’s record (Administrator and President). This step is optional and can be done at any time.",
           ],
         },
         {
           type: 'note',
           ton: 'info',
           texte:
-            "The “Annual schedule” page is not available to the Secretary (read access is reserved to Administrator, President, Treasurer and Auditor): the secretariat's part starts at “Adding members”.",
+            "The “Annual schedule” page is not available to the Secretary (read access is reserved to Administrator, President, Treasurer and Auditor): the secretariat’s part starts at “Adding members”.",
         },
         {
           type: 'lien',
@@ -73,7 +73,7 @@ const bureau: Document = {
           type: 'note',
           ton: 'attention',
           texte:
-            "Beyond the plan's quota, creation, import or reactivation are refused. An import is then blocked ENTIRELY (nothing is created) as long as the number of rows to create exceeds the remaining room.",
+            "Beyond the plan’s quota, creation, import or reactivation are refused. An import is then blocked ENTIRELY (nothing is created) as long as the number of rows to create exceeds the remaining room.",
         },
         {
           type: 'lien',
@@ -99,7 +99,7 @@ const bureau: Document = {
           type: 'etapes',
           etapes: [
             'From the member’s record, click “Record a payment”.',
-            "Choose the year: the picker covers the member's whole membership window, not only the years already open.",
+            "Choose the year: the picker covers the member’s whole membership window, not only the years already open.",
             'Enter the amount, the date and the payment method.',
             'Click “Record the payment”.',
           ],
@@ -170,7 +170,7 @@ const bureau: Document = {
         {
           type: 'liste',
           items: [
-            "If you then delete the payment, the cancelled receipt is kept separately, as a read-only trace, under the member's year.",
+            "If you then delete the payment, the cancelled receipt is kept separately, as a read-only trace, under the member’s year.",
             'You can also choose not to delete the payment, and simply reissue a corrected receipt on that same payment.',
           ],
         },
@@ -266,7 +266,7 @@ const bureau: Document = {
         {
           type: 'paragraphe',
           texte:
-            "A meeting's PDF minutes are regenerated on every download from the saved text: they are never cached, unlike a receipt.",
+            "A meeting’s PDF minutes are regenerated on every download from the saved text: they are never cached, unlike a receipt.",
         },
         {
           type: 'lien',
@@ -295,7 +295,7 @@ const bureau: Document = {
           type: 'note',
           ton: 'attention',
           texte:
-            "A tontine is NEVER part of the association's treasury: the money it circulates belongs to the members among themselves (the contributions collected go entirely to that round's beneficiary), it is not income for the organisation. It therefore does not appear in the cash balance.",
+            "A tontine is NEVER part of the association’s treasury: the money it circulates belongs to the members among themselves (the contributions collected go entirely to that round’s beneficiary), it is not income for the organisation. It therefore does not appear in the cash balance.",
         },
         {
           type: 'lien',
@@ -345,7 +345,7 @@ const bureau: Document = {
         {
           type: 'paragraphe',
           texte:
-            "Your organisation's plan is shown on “Settings”, visible to every committee role. The Free plan limits the organisation to 50 active members and 500 MB of documents, with no online payment. The Pro and Enterprise plans are unlimited (20 GB of documents) and include online payment.",
+            "Your organisation’s plan is shown on “Settings”, visible to every committee role. The Free plan limits the organisation to 50 active members and 500 MB of documents, with no online payment. The Pro and Enterprise plans are unlimited (20 GB of documents) and include online payment.",
         },
         {
           type: 'paragraphe',
@@ -362,7 +362,7 @@ const bureau: Document = {
           type: 'note',
           ton: 'info',
           texte:
-            "A payment already settled by a member always stays recorded, even if the plan expired in the meantime: confirming a payment never depends on the plan's state.",
+            "A payment already settled by a member always stays recorded, even if the plan expired in the meantime: confirming a payment never depends on the plan’s state.",
         },
         {
           type: 'lien',
@@ -391,7 +391,7 @@ const bureau: Document = {
           type: 'note',
           ton: 'info',
           texte:
-            "The exported document's language follows your own interface preference (set in “My profile”), not necessarily your organisation's default language.",
+            "The exported document’s language follows your own interface preference (set in “My profile”), not necessarily your organisation’s default language.",
         },
         {
           type: 'lien',
@@ -417,7 +417,7 @@ const bureau: Document = {
         {
           type: 'paragraphe',
           texte:
-            "On “Settings”, your organisation's name, currency and default language are fixed when your space is created: no page lets you change them afterwards.",
+            "On “Settings”, your organisation’s name, currency and default language are fixed when your space is created: no page lets you change them afterwards.",
         },
         {
           type: 'note',
@@ -428,7 +428,7 @@ const bureau: Document = {
         {
           type: 'paragraphe',
           texte:
-            "This same page also shows, for information, the number of active members against your plan's limit, and the organisation head if one has been designated — two read-only pieces of information, updated from their own screens (a member's record for the head).",
+            "This same page also shows, for information, the number of active members against your plan’s limit, and the organisation head if one has been designated — two read-only pieces of information, updated from their own screens (a member’s record for the head).",
         },
         {
           type: 'lien',

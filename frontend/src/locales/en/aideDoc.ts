@@ -4,6 +4,7 @@ export default {
     titre: 'Help',
     intro: 'User guides and answers to frequently asked questions.',
     retour: 'Home',
+    retourApplication: 'Back to the app',
     sommaire: 'Contents',
     chargement: 'Loading help…',
     erreurTitre: 'Loading failed',

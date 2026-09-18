@@ -75,3 +75,9 @@
   `t()` : `PageLegale` lui passe ses chaînes françaises en dur (inchangé pour l'existant), les pages
   `/aide/*` lui passent des libellés résolus par `t()` (bilingues). L'intention de la spec — ne pas
   dupliquer le gabarit — est respectée ; son moyen (réutiliser `PageLegale` en l'état) ne l'était pas.
+- **Précache hors-ligne assumé.** Le service worker (`vite-plugin-pwa`, `globPatterns` incluant `js`)
+  précache TOUS les chunks JS buildés, y compris les six chunks de documentation (3 guides × FR/EN) —
+  comme n'importe quelle autre page chargée à la demande, ils ne bénéficient d'aucune exclusion
+  particulière. Chaque PWA installée les télécharge donc en arrière-plan (~20 Ko compressés au total),
+  même pour un membre qui ne consultera jamais `/aide` : c'est le prix assumé d'une aide lisible
+  hors connexion, cohérent avec le choix de rendre `/aide/*` publique et robuste au réseau.

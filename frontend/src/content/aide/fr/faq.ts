@@ -19,6 +19,12 @@ const faq: Document = {
             "En pratique, vous n'avez rien à préparer à l'avance : le formulaire « Nouveau versement » ouvre l'année choisie à la volée pour ce membre, tant qu'un barème existe pour elle.",
         },
         {
+          type: 'note',
+          ton: 'info',
+          texte:
+            "Cette ouverture à la volée peut malgré tout être refusée si l'année choisie est hors de la période de cotisation du membre : avant son année d'adhésion, ou après sa fin de contribution s'il en a une.",
+        },
+        {
           type: 'lien',
           vers: '/bareme',
           libelle: 'Barème annuel',
@@ -27,7 +33,7 @@ const faq: Document = {
     },
     {
       id: 'membre-non-a-jour-alors-quil-a-paye',
-      titre: 'Un membre a payé mais reste « non à jour »',
+      titre: 'Un membre a payé mais reste « partiel »',
       blocs: [
         {
           type: 'paragraphe',
@@ -54,7 +60,7 @@ const faq: Document = {
         {
           type: 'etapes',
           etapes: [
-            'Annuler le reçu depuis la fiche du versement (il garde son numéro, à titre de trace comptable).',
+            'Sur la ligne du versement, cliquez sur « Annuler le reçu » (il garde son numéro, à titre de trace comptable).',
             'Modifier le versement.',
             'Générer un nouveau reçu si besoin.',
           ],
@@ -68,7 +74,7 @@ const faq: Document = {
         {
           type: 'paragraphe',
           texte:
-            "Le reçu n'est pas supprimé : il reste consultable, en lecture seule, sous l'année du versement disparu. Son numéro est conservé et ne sera jamais réattribué à un autre reçu.",
+            "Le reçu n'est pas supprimé : il est annulé, et reste listé, en trace, sous l'année du versement disparu. Son numéro est conservé et ne sera jamais réattribué à un autre reçu.",
         },
         {
           type: 'note',
@@ -112,7 +118,7 @@ const faq: Document = {
           type: 'note',
           ton: 'attention',
           texte:
-            "Si ni WhatsApp ni l'e-mail ne sont configurés sur votre organisation, le reçu n'est envoyé par aucun canal — il reste toutefois disponible au téléchargement depuis l'application.",
+            "Si le service d'envoi (WhatsApp ou e-mail) n'est pas disponible côté serveur, ou si le téléphone ou l'e-mail renseigné sur la fiche du membre est absent ou invalide, le reçu n'est envoyé par aucun canal — il reste toutefois disponible au téléchargement depuis l'application.",
         },
       ],
     },
@@ -162,6 +168,29 @@ const faq: Document = {
           type: 'paragraphe',
           texte:
             "Vous ne pouvez pas le réinitialiser vous-même : demandez à un administrateur de votre organisation de le faire depuis la page « Utilisateurs », sur votre compte.",
+        },
+        {
+          type: 'lien',
+          vers: '/utilisateurs',
+          libelle: 'Utilisateurs',
+        },
+      ],
+    },
+    {
+      id: 'connexion-refusee',
+      titre: 'On me refuse la connexion, alors que je suis sûr de mon mot de passe',
+      blocs: [
+        {
+          type: 'paragraphe',
+          texte:
+            "Deux situations, distinctes d'un mot de passe oublié, empêchent toute connexion même avec les bons identifiants.",
+        },
+        {
+          type: 'liste',
+          items: [
+            "Compte désactivé : un administrateur de votre organisation a désactivé votre compte. Demandez-lui de le réactiver depuis la page « Utilisateurs ».",
+            "Espace suspendu : c'est l'organisation entière qui a été suspendue, pas votre compte. Dans ce cas, contactez directement le support NKONI.",
+          ],
         },
         {
           type: 'lien',

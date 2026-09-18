@@ -97,7 +97,7 @@ const membre: Document = {
           type: 'note',
           ton: 'info',
           texte:
-            "The status looks at the total since you joined, not just the current year: a recent payment may therefore only fill part of what is expected overall, and your status can stay \"Partial\" or \"Not up to date\" even after paying.",
+            'The status looks at the total since you joined, not just the current year: a recent payment may therefore only fill part of what is expected overall, and your status can stay "Partial" even after paying.',
         },
       ],
     },
@@ -150,7 +150,7 @@ const membre: Document = {
         {
           type: 'paragraphe',
           texte:
-            'The office can also send your receipt directly by WhatsApp or by email, depending on what your organisation has configured.',
+            'The office can also send your receipt directly by WhatsApp or by email, depending on the availability of the sending service and the phone number or email on your record.',
         },
         {
           type: 'note',

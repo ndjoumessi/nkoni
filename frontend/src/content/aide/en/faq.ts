@@ -19,6 +19,12 @@ const faq: Document = {
             "In practice you don't need to prepare anything in advance: the “New payment” form opens the chosen year on the fly for that member, as long as a schedule exists for it.",
         },
         {
+          type: 'note',
+          ton: 'info',
+          texte:
+            "This on-the-fly opening can still be refused if the chosen year is outside the member's contribution period: before their join year, or after the end of their contribution if they have one.",
+        },
+        {
           type: 'lien',
           vers: '/bareme',
           libelle: 'Annual schedule',
@@ -27,7 +33,7 @@ const faq: Document = {
     },
     {
       id: 'membre-non-a-jour-alors-quil-a-paye',
-      titre: 'A member paid but is still marked "not up to date"',
+      titre: 'A member paid but is still marked "partial"',
       blocs: [
         {
           type: 'paragraphe',
@@ -54,7 +60,7 @@ const faq: Document = {
         {
           type: 'etapes',
           etapes: [
-            'Cancel the receipt from the payment record (it keeps its number, as an accounting trace).',
+            'On the payment row, click “Cancel receipt” (it keeps its number, as an accounting trace).',
             'Edit the payment.',
             'Generate a new receipt if needed.',
           ],
@@ -68,7 +74,7 @@ const faq: Document = {
         {
           type: 'paragraphe',
           texte:
-            "The receipt is not deleted: it stays visible, read-only, under the year of the payment that disappeared. Its number is kept and will never be reused for another receipt.",
+            "The receipt is not deleted: it is cancelled, and stays listed, as a record, under the year of the payment that disappeared. Its number is kept and will never be reused for another receipt.",
         },
         {
           type: 'note',
@@ -112,7 +118,7 @@ const faq: Document = {
           type: 'note',
           ton: 'attention',
           texte:
-            "If neither WhatsApp nor email is configured for your organisation, the receipt is not sent through any channel — it remains available for download from the app.",
+            "If the sending service (WhatsApp or email) is not available on the server, or if the member's phone number or email on file is missing or invalid, the receipt is not sent through any channel — it remains available for download from the app.",
         },
       ],
     },
@@ -162,6 +168,29 @@ const faq: Document = {
           type: 'paragraphe',
           texte:
             'You cannot reset it yourself: ask an administrator of your organisation to do it from the "Users" page, on your account.',
+        },
+        {
+          type: 'lien',
+          vers: '/utilisateurs',
+          libelle: 'Users',
+        },
+      ],
+    },
+    {
+      id: 'connexion-refusee',
+      titre: "I'm refused sign-in, even though my password is right",
+      blocs: [
+        {
+          type: 'paragraphe',
+          texte:
+            'Two situations, distinct from a forgotten password, block sign-in even with the right credentials.',
+        },
+        {
+          type: 'liste',
+          items: [
+            'Account disabled: an administrator of your organisation disabled your account. Ask them to reactivate it from the "Users" page.',
+            "Workspace suspended: it is the whole organisation that has been suspended, not your account. In that case, contact NKONI support directly.",
+          ],
         },
         {
           type: 'lien',

@@ -97,7 +97,7 @@ const membre: Document = {
           type: 'note',
           ton: 'info',
           texte:
-            "Le statut porte sur le cumul depuis votre adhésion, pas sur la seule année en cours : un versement récent peut donc ne combler qu'une partie de ce qui est attendu au total, et votre statut peut rester « Partiel » ou « Non à jour » même après avoir payé.",
+            "Le statut porte sur le cumul depuis votre adhésion, pas sur la seule année en cours : un versement récent peut donc ne combler qu'une partie de ce qui est attendu au total, et votre statut peut rester « Partiel » même après avoir payé.",
         },
       ],
     },
@@ -151,7 +151,7 @@ const membre: Document = {
         {
           type: 'paragraphe',
           texte:
-            "Le bureau peut aussi vous transmettre votre reçu directement par WhatsApp ou par e-mail, selon ce que votre organisation a configuré.",
+            "Le bureau peut aussi vous transmettre votre reçu directement par WhatsApp ou par e-mail, selon la disponibilité du service d'envoi et le téléphone ou l'e-mail renseigné sur votre fiche.",
         },
         {
           type: 'note',

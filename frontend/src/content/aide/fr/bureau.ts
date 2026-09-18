@@ -24,22 +24,22 @@ const bureau: Document = {
         {
           type: 'etapes',
           etapes: [
-            "Configurez le barème de l'année sur « Barème » : montant attendu par membre (ADMIN uniquement).",
-            "Ouvrez l'année pour toute l'organisation avec le bouton « Ouvrir l'année » (ADMIN et TRÉSORIÈRE) : cela crée d'avance la cotisation de chaque membre éligible. Cette étape est facultative — encaisser un versement sur une année non ouverte l'ouvre automatiquement pour ce membre.",
-            "Ajoutez vos membres, un par un ou par import de fichier (ADMIN et SECRÉTAIRE).",
-            "Désignez, si vous le souhaitez, le chef de l'organisation depuis la fiche d'un membre (ADMIN et PRÉSIDENT). Cette étape est facultative et peut se faire à tout moment.",
+            "Configurez le barème de l'année sur « Barème annuel » : montant attendu par membre (Administrateur uniquement).",
+            "Ouvrez l'année pour toute l'organisation avec le bouton « Ouvrir l'année » (Administrateur et Trésorière) : cela crée d'avance la cotisation de chaque membre éligible. Cette étape est facultative — encaisser un versement sur une année non ouverte l'ouvre automatiquement pour ce membre.",
+            "Ajoutez vos membres, un par un ou par import de fichier (Administrateur et Secrétaire).",
+            "Désignez, si vous le souhaitez, le chef de l'organisation depuis la fiche d'un membre (Administrateur et Président). Cette étape est facultative et peut se faire à tout moment.",
           ],
         },
         {
           type: 'note',
           ton: 'info',
           texte:
-            "La page « Barème » n'est pas accessible au SECRÉTAIRE (lecture réservée à ADMIN, PRÉSIDENT, TRÉSORIÈRE et COMMISSAIRE AUX COMPTES) : le secrétariat prend le relais à l'étape « Ajouter des membres ».",
+            "La page « Barème annuel » n'est pas accessible au Secrétaire (lecture réservée à l'Administrateur, au Président, à la Trésorière et au Commissaire aux comptes) : le secrétariat prend le relais à l'étape « Ajouter des membres ».",
         },
         {
           type: 'lien',
           vers: '/bareme',
-          libelle: 'Barème',
+          libelle: 'Barème annuel',
         },
       ],
     },
@@ -50,7 +50,7 @@ const bureau: Document = {
         {
           type: 'paragraphe',
           texte:
-            "ADMIN et SECRÉTAIRE peuvent créer des membres, un par un depuis « Nouveau membre », ou en une fois par import d'un fichier CSV ou Excel.",
+            "L'Administrateur et le Secrétaire peuvent créer des membres, un par un depuis « Nouveau membre », ou en une fois par import d'un fichier CSV ou Excel.",
         },
         {
           type: 'etapes',
@@ -89,7 +89,7 @@ const bureau: Document = {
         {
           type: 'paragraphe',
           texte:
-            "Enregistrer, modifier ou supprimer un versement est réservé à ADMIN et TRÉSORIÈRE. PRÉSIDENT et COMMISSAIRE AUX COMPTES peuvent seulement consulter.",
+            "Enregistrer, modifier ou supprimer un versement est réservé à l'Administrateur et à la Trésorière. Le Président et le Commissaire aux comptes peuvent seulement consulter.",
         },
         {
           type: 'liste',
@@ -121,7 +121,7 @@ const bureau: Document = {
         {
           type: 'paragraphe',
           texte:
-            "Un reçu n'est jamais généré automatiquement. Générer et lire un reçu est réservé à ADMIN, PRÉSIDENT, TRÉSORIÈRE et COMMISSAIRE AUX COMPTES — le SECRÉTAIRE n'y a pas accès.",
+            "Un reçu n'est jamais généré automatiquement. Générer et lire un reçu est réservé à l'Administrateur, au Président, à la Trésorière et au Commissaire aux comptes — le Secrétaire n'y a pas accès.",
         },
         {
           type: 'etapes',
@@ -135,7 +135,7 @@ const bureau: Document = {
           type: 'note',
           ton: 'info',
           texte:
-            "« Télécharger » ouvre le PDF dans l'application. L'envoi automatique (« Envoyer ») dépend de la configuration WhatsApp ou e-mail de votre organisation ; sans aucun canal configuré, seuls « WhatsApp » (votre propre application) et « Télécharger » restent disponibles.",
+            "« Télécharger » ouvre le PDF dans l'application. L'envoi automatique (« Envoyer ») dépend de la disponibilité du service d'envoi (WhatsApp ou e-mail) côté serveur, et du téléphone ou de l'e-mail renseigné sur la fiche du membre ; si aucun canal n'est disponible, seuls « WhatsApp » (votre propre application) et « Télécharger » restent disponibles.",
         },
       ],
     },
@@ -151,7 +151,7 @@ const bureau: Document = {
         {
           type: 'etapes',
           etapes: [
-            "Sur la ligne du versement, cliquez sur « Annuler le reçu » (ADMIN, PRÉSIDENT ou TRÉSORIÈRE).",
+            "Sur la ligne du versement, cliquez sur « Annuler le reçu » (Administrateur, Président ou Trésorière).",
             "Le versement redevient modifiable et supprimable.",
             "Corrigez le versement (bouton crayon) si le versement lui-même doit changer, ou supprimez-le si vous vous étiez trompé de membre ou d'année.",
             "Générez un nouveau reçu si nécessaire : il portera un nouveau numéro.",
@@ -185,7 +185,7 @@ const bureau: Document = {
         {
           type: 'paragraphe',
           texte:
-            "Le tableau de bord affiche votre taux de recouvrement, le total collecté, le total attendu et le reste à collecter. Son contenu dépend de votre rôle : ADMIN et PRÉSIDENT voient tout, TRÉSORIÈRE et COMMISSAIRE AUX COMPTES voient les mêmes chiffres financiers.",
+            "Le tableau de bord affiche votre taux de recouvrement, le total collecté, le total attendu et le reste à collecter. Son contenu dépend de votre rôle : l'Administrateur et le Président voient tout, la Trésorière et le Commissaire aux comptes voient les mêmes chiffres financiers.",
         },
         {
           type: 'liste',
@@ -202,7 +202,7 @@ const bureau: Document = {
           type: 'note',
           ton: 'attention',
           texte:
-            "Le SECRÉTAIRE ne voit AUCUNE de ces informations : son tableau de bord est restreint aux données structurelles (membres, branches), sans aucun chiffre financier. La relance WhatsApp est aussi désactivée dans l'espace de démonstration.",
+            "Le Secrétaire ne voit AUCUNE de ces informations : son tableau de bord est restreint aux données structurelles (membres, branches), sans aucun chiffre financier. La relance WhatsApp est aussi désactivée dans l'espace de démonstration.",
         },
       ],
     },
@@ -213,7 +213,7 @@ const bureau: Document = {
         {
           type: 'paragraphe',
           texte:
-            "Une dépense suit un circuit fixe : Brouillon → En attente → Approuvée ou Rejetée → Payée. ADMIN, PRÉSIDENT et TRÉSORIÈRE créent et modifient les dépenses ; le SECRÉTAIRE et le COMMISSAIRE AUX COMPTES peuvent seulement consulter la liste.",
+            "Une dépense suit un circuit fixe : Brouillon → En attente → Approuvée ou Rejetée → Payée. L'Administrateur, le Président et la Trésorière créent et modifient les dépenses ; le Secrétaire et le Commissaire aux comptes peuvent seulement consulter la liste.",
         },
         {
           type: 'etapes',
@@ -227,7 +227,7 @@ const bureau: Document = {
           type: 'note',
           ton: 'attention',
           texte:
-            "« Approuver » et « Rejeter » sont réservés à ADMIN, PRÉSIDENT et COMMISSAIRE AUX COMPTES. « Marquer payée » est réservé à ADMIN, PRÉSIDENT et TRÉSORIÈRE. Ce sont deux rôles DIFFÉRENTS : la TRÉSORIÈRE ne peut pas approuver une dépense, et le COMMISSAIRE AUX COMPTES ne peut pas la payer.",
+            "« Approuver » et « Rejeter » sont réservés à l'Administrateur, au Président et au Commissaire aux comptes. « Marquer payée » est réservé à l'Administrateur, au Président et à la Trésorière. Ce sont deux rôles DIFFÉRENTS : la Trésorière ne peut pas approuver une dépense, et le Commissaire aux comptes ne peut pas la payer.",
         },
         {
           type: 'paragraphe',
@@ -248,22 +248,22 @@ const bureau: Document = {
         {
           type: 'paragraphe',
           texte:
-            "ADMIN, PRÉSIDENT et SECRÉTAIRE créent les réunions et leur ordre du jour, et y consignent les résolutions. Un vote en ligne se déroule en deux temps EXPLICITES : une résolution reste purement documentaire tant qu'elle n'a pas été mise au vote.",
+            "L'Administrateur, le Président et le Secrétaire créent les réunions et leur ordre du jour, et y consignent les résolutions. Un vote en ligne se déroule en deux temps EXPLICITES : une résolution reste purement documentaire tant qu'elle n'a pas été mise au vote.",
         },
         {
           type: 'etapes',
           etapes: [
-            "Cliquez sur « Ouvrir le vote » sur la résolution concernée (ADMIN, PRÉSIDENT ou SECRÉTAIRE).",
+            "Cliquez sur « Ouvrir le vote » sur la résolution concernée (Administrateur, Président ou Secrétaire).",
             "Les membres votent « Pour », « Contre » ou « Abstention » depuis leur espace.",
             "Cliquez sur « Dépouiller » pour voir le décompte nominatif.",
-            "Cliquez sur « Clôturer le vote » (ADMIN, PRÉSIDENT ou SECRÉTAIRE) : le statut « Adoptée » ou « Rejetée » est alors fixé selon le décompte, et plus aucun vote n'est accepté.",
+            "Cliquez sur « Clôturer le vote » (Administrateur, Président ou Secrétaire) : le statut « Adoptée » ou « Rejetée » est alors fixé selon le décompte, et plus aucun vote n'est accepté.",
           ],
         },
         {
           type: 'note',
           ton: 'info',
           texte:
-            "« Dépouiller » (qui a voté quoi) est réservé au bureau — ADMIN, PRÉSIDENT, SECRÉTAIRE, TRÉSORIÈRE et COMMISSAIRE AUX COMPTES — et n'est jamais visible d'un membre simple, même pour une résolution ouverte au vote.",
+            "« Dépouiller » (qui a voté quoi) est réservé au bureau — Administrateur, Président, Secrétaire, Trésorière et Commissaire aux comptes — et n'est jamais visible d'un membre simple, même pour une résolution ouverte au vote.",
         },
         {
           type: 'paragraphe',
@@ -289,8 +289,8 @@ const bureau: Document = {
         {
           type: 'liste',
           items: [
-            "Créer/modifier une cagnotte, une amende ou une tontine : ADMIN, PRÉSIDENT, TRÉSORIÈRE et SECRÉTAIRE (le SECRÉTAIRE ne peut pas supprimer).",
-            "Les flux d'argent — enregistrer un don, reverser une cagnotte, encaisser une amende, enregistrer ou reverser une mise de tontine — sont réservés à ADMIN, PRÉSIDENT et TRÉSORIÈRE, même pour le SECRÉTAIRE qui gère la fiche.",
+            "Créer/modifier une cagnotte, une amende ou une tontine : Administrateur, Président, Trésorière et Secrétaire (le Secrétaire ne peut pas supprimer).",
+            "Les flux d'argent — enregistrer un don, reverser une cagnotte, encaisser une amende, enregistrer ou reverser une mise de tontine — sont réservés à l'Administrateur, au Président et à la Trésorière, même pour le Secrétaire qui gère la fiche.",
           ],
         },
         {
@@ -313,7 +313,7 @@ const bureau: Document = {
         {
           type: 'paragraphe',
           texte:
-            "La page « Utilisateurs » — créer un compte, changer un rôle, réinitialiser un mot de passe — n'est accessible qu'à ADMIN. Les autres rôles du bureau ne la voient pas.",
+            "La page « Utilisateurs » — créer un compte, changer un rôle, réinitialiser un mot de passe — n'est accessible qu'à l'Administrateur. Les autres rôles du bureau ne la voient pas.",
         },
         {
           type: 'etapes',
@@ -326,11 +326,11 @@ const bureau: Document = {
         {
           type: 'liste',
           items: [
-            "ADMIN : accès complet à toute l'organisation, y compris les comptes.",
-            "PRÉSIDENT : accès large en lecture et en gestion (réunions, votes, cagnottes, amendes, tontines, dépenses), plus les flux d'argent.",
-            "TRÉSORIÈRE : versements, dépenses et flux d'argent des autres caisses ; lecture des réunions et résolutions.",
-            "SECRÉTAIRE : membres, réunions et ordre du jour, gestion (hors flux d'argent) des cagnottes/amendes/tontines ; lecture seule sur les paramètres de l'organisation et sur les dépenses ; aucun accès aux versements, aux reçus, au barème ni aux exports.",
-            "COMMISSAIRE AUX COMPTES : lecture financière large, approbation des dépenses, génération de reçus, dépouillement des votes.",
+            "Administrateur : accès complet à toute l'organisation, y compris les comptes.",
+            "Président : accès large en lecture et en gestion (réunions, votes, cagnottes, amendes, tontines, dépenses), plus les flux d'argent.",
+            "Trésorière : versements, dépenses et flux d'argent des autres caisses ; lecture des réunions et résolutions.",
+            "Secrétaire : membres, réunions et ordre du jour, gestion (hors flux d'argent) des cagnottes/amendes/tontines ; lecture seule sur les paramètres de l'organisation et sur les dépenses ; aucun accès aux versements, aux reçus, au barème ni aux exports.",
+            "Commissaire aux comptes : lecture financière large, approbation des dépenses, génération de reçus, dépouillement des votes.",
           ],
         },
         {
@@ -385,8 +385,8 @@ const bureau: Document = {
         {
           type: 'liste',
           items: [
-            "Accès réservé à ADMIN, PRÉSIDENT, TRÉSORIÈRE et COMMISSAIRE AUX COMPTES.",
-            "Le SECRÉTAIRE n'a accès à aucun export ni rapport financier.",
+            "Accès réservé à l'Administrateur, au Président, à la Trésorière et au Commissaire aux comptes.",
+            "Le Secrétaire n'a accès à aucun export ni rapport financier.",
           ],
         },
         {
@@ -399,6 +399,16 @@ const bureau: Document = {
           type: 'lien',
           vers: '/rapports',
           libelle: 'Rapports financiers',
+        },
+        {
+          type: 'paragraphe',
+          texte:
+            "L'export COMPLET des données de l'organisation (membres, versements, reçus, dépenses…) dans un fichier JSON se fait depuis « Paramètres », section « Exporter mes données » — réservé à l'Administrateur et au Président, un accès plus étroit que les exports et rapports financiers ci-dessus.",
+        },
+        {
+          type: 'lien',
+          vers: '/parametres',
+          libelle: 'Exporter mes données',
         },
       ],
     },

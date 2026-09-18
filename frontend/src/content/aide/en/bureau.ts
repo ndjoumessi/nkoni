@@ -133,7 +133,7 @@ const bureau: Document = {
           type: 'note',
           ton: 'info',
           texte:
-            '“Download” opens the PDF inside the application. Automatic delivery (“Send”) depends on your organisation’s WhatsApp or email configuration; with no channel configured, only “WhatsApp” (your own app) and “Download” remain available.',
+            '“Download” opens the PDF inside the application. Automatic delivery (“Send”) depends on the sending service (WhatsApp or email) being available on the server, and on the phone number or email on the member’s record; if no channel is available, only “WhatsApp” (your own app) and “Download” remain available.',
         },
       ],
     },
@@ -397,6 +397,16 @@ const bureau: Document = {
           type: 'lien',
           vers: '/rapports',
           libelle: 'Financial reports',
+        },
+        {
+          type: 'paragraphe',
+          texte:
+            'The COMPLETE export of the organisation’s data (members, payments, receipts, expenses…) as a JSON file is done from “Settings”, “Export my data” section — reserved to the Administrator and the President, a narrower access than the financial exports and reports above.',
+        },
+        {
+          type: 'lien',
+          vers: '/parametres',
+          libelle: 'Export my data',
         },
       ],
     },

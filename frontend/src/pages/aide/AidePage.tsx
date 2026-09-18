@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { ChevronRight } from 'lucide-react'
 import { PagePublique } from '@/components/public/PagePublique'
+import { useChromeAide } from './chrome-aide'
 import { GUIDES } from '@/content/aide/registre'
 import { cleI18n } from '@/lib/i18n'
 
@@ -12,12 +13,13 @@ import { cleI18n } from '@/lib/i18n'
  */
 export function AidePage() {
   const { t } = useTranslation()
+  const chrome = useChromeAide()
 
   return (
     <PagePublique
       titre={t('aideDoc.titre')}
       sousTitre={t('aideDoc.intro')}
-      retourLibelle={t('aideDoc.retour')}
+      {...chrome}
     >
       <nav aria-label={t('aideDoc.sommaire')} className="mt-8 space-y-3">
         {GUIDES.map((guide) => (

@@ -172,6 +172,7 @@ Chaque garde est **sabotée dans la direction utile** avant d'être considérée
 
 - **Brancher les « ? » de l'aide contextuelle sur les ancres de la documentation.** Naturel ensuite,
   mais coupler les deux chantiers double la surface de revue. `LIENS_AIDE` reste inchangé.
+  *(Fait ensuite, 2026-09-18 : `LIENS_AIDE` pointe vers les sections, ouvertes dans un nouvel onglet.)*
 - **Recherche plein texte.** Trois documents courts avec sommaire d'ancres ; un moteur de recherche
   serait du travail sans bénéfice mesurable à cette taille.
 - **Captures d'écran.** Elles périment à chaque refonte visuelle et alourdissent le chargement ; le

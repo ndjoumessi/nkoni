@@ -8,6 +8,7 @@ export default {
     titre: 'Aide',
     intro: 'Guides d’utilisation et réponses aux questions fréquentes.',
     retour: 'Accueil',
+    retourApplication: 'Retour à l’application',
     sommaire: 'Sommaire',
     chargement: 'Chargement de l’aide…',
     erreurTitre: 'Chargement impossible',

@@ -6,7 +6,7 @@ const faq: Document = {
   sections: [
     {
       id: 'annee-non-encaissable',
-      titre: "I can't record a payment for a year",
+      titre: "I can’t record a payment for a year",
       blocs: [
         {
           type: 'paragraphe',
@@ -16,13 +16,13 @@ const faq: Document = {
         {
           type: 'paragraphe',
           texte:
-            "In practice you don't need to prepare anything in advance: the “New payment” form opens the chosen year on the fly for that member, as long as a schedule exists for it.",
+            "In practice you don’t need to prepare anything in advance: the “New payment” form opens the chosen year on the fly for that member, as long as a schedule exists for it.",
         },
         {
           type: 'note',
           ton: 'info',
           texte:
-            "This on-the-fly opening can still be refused if the chosen year is outside the member's contribution period: before their join year, or after the end of their contribution if they have one.",
+            "This on-the-fly opening can still be refused if the chosen year is outside the member’s contribution period: before their join year, or after the end of their contribution if they have one.",
         },
         {
           type: 'lien',
@@ -38,19 +38,19 @@ const faq: Document = {
         {
           type: 'paragraphe',
           texte:
-            "The status doesn't only look at the current year: it cumulates what is expected from the member's join year up to the current year (or up to the end of their contribution). A recent payment may only fill part of that cumulative expectation.",
+            "The status doesn’t only look at the current year: it cumulates what is expected from the member’s join year up to the current year (or up to the end of their contribution). A recent payment may only fill part of that cumulative expectation.",
         },
         {
           type: 'note',
           ton: 'info',
           texte:
-            'Compare "Total expected (cumulative)" and "Total valued (cumulative)" on the member\'s record: it is the VALUED amount, not the amount paid, that determines the status. The two are equal, except after a rebalancing, which spreads payments differently across years without changing their sum.',
+            'Compare "Total expected (cumulative)" and "Total valued (cumulative)" on the member’s record: it is the VALUED amount, not the amount paid, that determines the status. The two are equal, except after a rebalancing, which spreads payments differently across years without changing their sum.',
         },
       ],
     },
     {
       id: 'modifier-un-versement',
-      titre: "I can't edit a payment",
+      titre: "I can’t edit a payment",
       blocs: [
         {
           type: 'paragraphe',
@@ -86,7 +86,7 @@ const faq: Document = {
     },
     {
       id: 'ajout-de-membre-bloque',
-      titre: "I can't add any more members",
+      titre: "I can’t add any more members",
       blocs: [
         {
           type: 'paragraphe',
@@ -96,7 +96,7 @@ const faq: Document = {
         {
           type: 'paragraphe',
           texte:
-            "An INACTIVE or DECEASED record doesn't count towards this cap: only active members are counted, whether on creation, import, or reactivation of a record.",
+            "An INACTIVE or DECEASED record doesn’t count towards this cap: only active members are counted, whether on creation, import, or reactivation of a record.",
         },
         {
           type: 'lien',
@@ -118,7 +118,7 @@ const faq: Document = {
           type: 'note',
           ton: 'attention',
           texte:
-            "If the sending service (WhatsApp or email) is not available on the server, or if the member's phone number or email on file is missing or invalid, the receipt is not sent through any channel — it remains available for download from the app.",
+            "If the sending service (WhatsApp or email) is not available on the server, or if the member’s phone number or email on file is missing or invalid, the receipt is not sent through any channel — it remains available for download from the app.",
         },
       ],
     },
@@ -145,18 +145,18 @@ const faq: Document = {
     },
     {
       id: 'annee-future',
-      titre: "I can't open next year",
+      titre: "I can’t open next year",
       blocs: [
         {
           type: 'paragraphe',
           texte:
-            "A future year cannot be opened for contribution: as long as it hasn't started, nothing is due, and opening it would make it collectible by mistake.",
+            "A future year cannot be opened for contribution: as long as it hasn’t started, nothing is due, and opening it would make it collectible by mistake.",
         },
         {
           type: 'note',
           ton: 'info',
           texte:
-            "Configuring next year's schedule, however, remains allowed: only its opening waits for the year to start.",
+            "Configuring next year’s schedule, however, remains allowed: only its opening waits for the year to start.",
         },
       ],
     },
@@ -178,7 +178,7 @@ const faq: Document = {
     },
     {
       id: 'connexion-refusee',
-      titre: "I'm refused sign-in, even though my password is right",
+      titre: "I’m refused sign-in, even though my password is right",
       blocs: [
         {
           type: 'paragraphe',
@@ -223,7 +223,7 @@ const faq: Document = {
         {
           type: 'paragraphe',
           texte:
-            "A document's visibility follows the item it is attached to (a meeting, an expense…): a document has no rules of its own, it inherits those of its parent.",
+            "A document’s visibility follows the item it is attached to (a meeting, an expense…): a document has no rules of its own, it inherits those of its parent.",
         },
         {
           type: 'paragraphe',
@@ -239,7 +239,7 @@ const faq: Document = {
         {
           type: 'paragraphe',
           texte:
-            'Yes. An administrator or the president can export all of the organisation\'s data at any time, self-service.',
+            'Yes. An administrator or the president can export all of the organisation’s data at any time, self-service.',
         },
         {
           type: 'paragraphe',

@@ -107,3 +107,27 @@ describe('documentation — liens internes', () => {
     expect(liens.filter((v) => !couvre(v))).toEqual([])
   })
 })
+
+describe('documentation — typographie', () => {
+  /**
+   * Apostrophe TYPOGRAPHIQUE (’) partout dans le texte affiché : un mélange ’/' se voit à la lecture,
+   * et l'apostrophe droite revient à chaque rédaction (clavier). On inspecte TOUTES les chaînes du
+   * document — titres, intro, paragraphes, étapes, listes, notes, libellés de lien — en parcourant
+   * l'objet plutôt qu'en énumérant des champs qu'un futur type de bloc oublierait.
+   */
+  const chaines = (valeur: unknown): string[] =>
+    typeof valeur === 'string'
+      ? [valeur]
+      : Array.isArray(valeur)
+        ? valeur.flatMap(chaines)
+        : valeur && typeof valeur === 'object'
+          ? Object.values(valeur).flatMap(chaines)
+          : []
+
+  it.each(GUIDES)('%s : aucune apostrophe droite entre deux lettres, en FR et en EN', async (guide) => {
+    const docs = await Promise.all([charger(guide, 'fr'), charger(guide, 'en')])
+    const textes = docs.flatMap(chaines)
+    expect(textes.length).toBeGreaterThan(0)
+    expect(textes.filter((t) => /\p{L}'\p{L}/u.test(t))).toEqual([])
+  })
+})

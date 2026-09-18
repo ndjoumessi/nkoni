@@ -2,6 +2,7 @@
 export default {
   aide: {
     libelleBouton: 'Help: {{titre}}',
+    nouvelOnglet: '(opens in a new tab)',
     enSavoirPlus: 'Learn more',
     notions: {
       bareme: {
@@ -12,12 +13,12 @@ export default {
       ouvrirAnnee: {
         titre: 'Open a year',
         texte:
-          "Prepares the year's contribution at once for every member concerned, that is, those for whom the year falls between their joining and the end of their contributions, at the schedule amount. It is not required to record payments: a payment for a year that is not open opens it for that member. A future year cannot be opened.",
+          "Prepares the year’s contribution at once for every member concerned, that is, those for whom the year falls between their joining and the end of their contributions, at the schedule amount. It is not required to record payments: a payment for a year that is not open opens it for that member. A future year cannot be opened.",
       },
       attendu: {
         titre: 'Total expected',
         texte:
-          "What members owe in total: each year's schedule, from each member's joining year up to the current year or to their contribution end year.",
+          "What members owe in total: each year’s schedule, from each member’s joining year up to the current year or to their contribution end year.",
       },
       verse: {
         titre: 'Total collected',
@@ -54,7 +55,7 @@ export default {
       chefOrganisation: {
         titre: 'Head of the organisation',
         texte:
-          "The organisation's designated leader, shown with their nickname. An administrator or the president designates them from the member's page.",
+          "The organisation’s designated leader, shown with their nickname. An administrator or the president designates them from the member’s page.",
       },
       recus: {
         titre: 'Receipts',
@@ -84,7 +85,7 @@ export default {
       forfaitEcheance: {
         titre: 'Plan and expiry',
         texte:
-          "The plan sets the space's capabilities (number of members, storage, online payment). At expiry, a 14-day grace period starts. After that, the space returns to the Free plan without losing its data.",
+          "The plan sets the space’s capabilities (number of members, storage, online payment). At expiry, a 14-day grace period starts. After that, the space returns to the Free plan without losing its data.",
       },
     },
   },

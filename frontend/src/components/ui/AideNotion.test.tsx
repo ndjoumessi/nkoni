@@ -130,7 +130,7 @@ describe('AideNotion', () => {
     fireEvent.click(bouton())
     const bulle = screen.getByRole('dialog')
     const conteneur = document.activeElement as HTMLElement
-    const lien = screen.getByRole('link', { name: 'aide.enSavoirPlus' })
+    const lien = screen.getByRole('link', { name: /aide\.enSavoirPlus/ })
     const focalisables = Array.from(bulle.querySelectorAll<HTMLElement>('[tabindex], a[href]'))
     expect(focalisables).toEqual([conteneur, lien])
     lien.focus()
@@ -180,12 +180,23 @@ describe('AideNotion', () => {
     expect(screen.queryByRole('dialog')).toBeNull()
   })
 
+  it('« En savoir plus » ouvre la documentation dans un nouvel onglet, annoncé au lecteur d’écran', () => {
+    rendre(<AideNotion notion="attendu" />)
+    fireEvent.click(bouton())
+    const lien = screen.getByRole('link', { name: /aide\.enSavoirPlus/ })
+    // Nouvel onglet : un « ? » voisin d'un champ ne doit pas faire perdre la saisie du formulaire.
+    expect(lien.getAttribute('target')).toBe('_blank')
+    expect(lien.getAttribute('rel')).toContain('noopener')
+    expect(lien.textContent).toContain('aide.nouvelOnglet')
+  })
+
   it('lien « En savoir plus » seulement pour une notion qui en a un', () => {
     rendre(<AideNotion notion="attendu" />)
     fireEvent.click(bouton())
-    expect(screen.getByRole('link', { name: 'aide.enSavoirPlus' }).getAttribute('href')).toBe('/bareme')
+    const lien = screen.getByRole('link', { name: /aide\.enSavoirPlus/ })
+    expect(lien.getAttribute('href')).toBe('/aide/bureau#suivre-le-recouvrement')
     cleanup()
-    rendre(<AideNotion notion="valorise" />)
+    rendre(<AideNotion notion="equilibrage" />)
     fireEvent.click(bouton())
     expect(screen.queryByRole('link')).toBeNull()
   })

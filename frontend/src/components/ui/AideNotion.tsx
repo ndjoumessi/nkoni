@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link } from 'react-router-dom'
-import { CircleHelp } from 'lucide-react'
+import { CircleHelp, ExternalLink } from 'lucide-react'
 import { LIENS_AIDE, type NotionAide } from '@/lib/aide'
 import { cleI18n } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
@@ -36,6 +35,9 @@ import { usePopoverFlottant } from './usePopoverFlottant'
  *   bouton LUI-MÊME (précédent `MonEspacePage`) : 24 × 24 px réels, sans recouvrir quoi que ce soit.
  *   C'est le minimum WCAG 2.2 AA (2.5.8) plutôt que l'AAA 2.5.5 — arbitrage assumé pour un contrôle
  *   secondaire et non destructif, voler l'appui d'un champ de saisie étant le pire des deux maux.
+ * - **« En savoir plus » ouvre la section de la documentation publique dans un NOUVEL ONGLET**
+ *   (`<a target="_blank">`, pas un `<Link>`) : une navigation dans l'onglet ferait perdre la saisie
+ *   d'un formulaire voisin. L'annonce « nouvel onglet » est portée par un texte `sr-only`.
  * - **Notion placée dans un `Modal` ⇒ PAS d'entrée `LIENS_AIDE`** : le piège à focus du `Modal`
  *   ramène le focus au premier contrôle du panneau dès qu'il sort vers le portail de la bulle, ce qui
  *   ferme la bulle — le lien « En savoir plus » y serait inatteignable.
@@ -134,13 +136,19 @@ export function AideNotion({ notion, className }: { notion: NotionAide; classNam
               {t(cleI18n(`aide.notions.${notion}.texte`))}
             </p>
             {lien && (
-              <Link
-                to={lien}
+              // Nouvel onglet, pas une navigation : le « ? » vit souvent à côté d'un champ de
+              // formulaire, et quitter la page ferait perdre la saisie (cf. `LIENS_AIDE`).
+              <a
+                href={lien}
+                target="_blank"
+                rel="noopener noreferrer"
                 onClick={() => setOpen(false)}
-                className="mt-2 inline-block text-sm font-medium text-brass underline-offset-4 hover:underline"
+                className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-brass underline-offset-4 hover:underline"
               >
                 {t('aide.enSavoirPlus')}
-              </Link>
+                <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+                <span className="sr-only">{t('aide.nouvelOnglet')}</span>
+              </a>
             )}
           </div>,
           { className: 'z-50', 'aria-label': titre },

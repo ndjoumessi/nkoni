@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useLocation } from 'react-router-dom'
 import { Loader2 } from 'lucide-react'
 import { PagePublique } from '@/components/public/PagePublique'
+import { useChromeAide } from './chrome-aide'
 import { ErrorState } from '@/components/ui/ErrorState'
 import { RenduDoc } from '@/components/aide/RenduDoc'
 import { chargerDocument, type Guide } from '@/content/aide/registre'
@@ -21,6 +22,7 @@ type Etat =
  */
 export function GuidePage({ guide }: { guide: Guide }) {
   const { t, i18n } = useTranslation()
+  const chrome = useChromeAide()
   const { hash } = useLocation()
   const [etat, setEtat] = useState<Etat>({ statut: 'chargement' })
 
@@ -53,7 +55,7 @@ export function GuidePage({ guide }: { guide: Guide }) {
 
   if (etat.statut === 'chargement') {
     return (
-      <PagePublique titre={titreGuide} retourLibelle={t('aideDoc.retour')}>
+      <PagePublique titre={titreGuide} {...chrome}>
         <div className="mt-10 flex items-center justify-center gap-2.5 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin text-brass" aria-hidden="true" />
           {t('aideDoc.chargement')}
@@ -64,7 +66,7 @@ export function GuidePage({ guide }: { guide: Guide }) {
 
   if (etat.statut === 'erreur') {
     return (
-      <PagePublique titre={titreGuide} retourLibelle={t('aideDoc.retour')}>
+      <PagePublique titre={titreGuide} {...chrome}>
         <div className="mt-10">
           <ErrorState
             title={t('aideDoc.erreurTitre')}
@@ -81,7 +83,7 @@ export function GuidePage({ guide }: { guide: Guide }) {
   }
 
   return (
-    <PagePublique titre={etat.document.titre} retourLibelle={t('aideDoc.retour')}>
+    <PagePublique titre={etat.document.titre} {...chrome}>
       <RenduDoc document={etat.document} libelleSommaire={t('aideDoc.sommaire')} />
     </PagePublique>
   )

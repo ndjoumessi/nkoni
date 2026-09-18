@@ -14,11 +14,17 @@ export function PagePublique({
   titre,
   sousTitre,
   retourLibelle,
+  retourVers = '/',
+  actions,
   children,
 }: {
   titre: string
   sousTitre?: string
   retourLibelle: string
+  /** Destination du lien de retour (défaut : l'accueil public). */
+  retourVers?: string
+  /** Contrôles additionnels dans l'en-tête, avant le lien de retour (ex. sélecteur de langue). */
+  actions?: ReactNode
   children: ReactNode
 }) {
   // React Router CONSERVE la position de défilement entre routes : arrivé depuis un pied de page
@@ -31,20 +37,27 @@ export function PagePublique({
   return (
     <main className="min-h-screen bg-background">
       <header className="border-b border-hairline">
-        <div className="mx-auto flex max-w-3xl items-center justify-between px-5 py-4">
-          <Link to="/" className="flex items-center gap-2">
+        <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-5 py-4">
+          <Link to="/" className="flex shrink-0 items-center gap-2">
             <NkoniMark className="h-7 w-7" />
-            <span className="font-display text-lg font-semibold tracking-tight text-foreground">
+            {/* Le nom s'efface sous `sm` quand l'en-tête porte des actions : à 360 px, logo +
+                sélecteur de langue + lien de retour ne tiennent pas sur une ligne avec lui. */}
+            <span
+              className={`font-display text-lg font-semibold tracking-tight text-foreground ${actions ? 'hidden sm:inline' : ''}`}
+            >
               NKONI
             </span>
           </Link>
-          <Link
-            to="/"
-            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-            {retourLibelle}
-          </Link>
+          <div className="flex min-w-0 items-center gap-3">
+            {actions}
+            <Link
+              to={retourVers}
+              className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden="true" />
+              {retourLibelle}
+            </Link>
+          </div>
         </div>
       </header>
 

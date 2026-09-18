@@ -20,7 +20,7 @@
 
 ## Aide contextuelle — `ui/AideNotion` (spec 2026-09-17)
 
-- **Primitive unique** : `<AideNotion notion="…" />` rend un « ? » (`.tap-target`, nom accessible
+- **Primitive unique** : `<AideNotion notion="…" />` rend un « ? » (bouton 24 px sans `.tap-target`, nom accessible
   « Aide : <titre> ») et une bulle en PORTAIL via `usePopoverFlottant`. Ouverture au clic/clavier, jamais
   au survol ; à l'ouverture, le focus se déplace dans la bulle — titre et texte lus, Tab atteint le lien « En savoir plus » quand la notion en a un — mais SEULEMENT une fois celle-ci positionnée donc visible (drapeau `positionne` de `usePopoverFlottant` : un navigateur ignore un `focus()` sur un élément `visibility:hidden`) ; le départ du focus la ferme sans rendre le focus au « ? » (sauf un `focusout` sans `relatedTarget`, ignoré : Safari ne focalise pas un bouton cliqué), et Échap ne ferme que la bulle (jamais un modal parent). Ne pas créer d'infobulle ad hoc.
 - **Contenu** : `lib/aide.ts` (`NOTIONS_AIDE`, `LIENS_AIDE`) + namespace i18n `aide` (FR source, EN
@@ -29,6 +29,11 @@
 - **Placement** : à côté d'un libellé — props `aide` de `Field` et `PageHeader` (jamais dans un `<label>`
   ou un `<h1>`), ou `flex items-center gap-1` autour d'un `Overline`. Au plus un « ? » par notion par
   écran, jamais dans une ligne de liste/tableau, jamais sur les écrans publics. Notion dans un `Modal` ⇒ pas d'entrée `LIENS_AIDE` (le piège à focus du Modal refermerait la bulle avant le lien).
+- **« En savoir plus » = une SECTION de la documentation publique** (`LIENS_AIDE` typé
+  `` `/aide/${Guide}#${string}` ``), ouverte dans un **NOUVEL ONGLET** (`<a target="_blank">`, annonce
+  `sr-only`) : le « ? » est souvent posé à côté d'un champ de formulaire, et naviguer dans l'onglet
+  ferait perdre la saisie. `aide-catalogue.test.ts` confronte chaque ancre aux sections RÉELLES du
+  guide — une ancre fausse ne casse rien ailleurs, elle ouvre juste la page en haut, sans rapport.
 - **Rédaction** : vouvoiement, 3 phrases au plus, aucun nom technique ; une règle métier citée suit le
   code (la changer = changer le texte dans la même PR).
 
@@ -75,6 +80,17 @@
   `t()` : `PageLegale` lui passe ses chaînes françaises en dur (inchangé pour l'existant), les pages
   `/aide/*` lui passent des libellés résolus par `t()` (bilingues). L'intention de la spec — ne pas
   dupliquer le gabarit — est respectée ; son moyen (réutiliser `PageLegale` en l'état) ne l'était pas.
+- **Le chrome des pages d'aide dépend de QUI lit** (`pages/aide/chrome-aide.tsx::useChromeAide`, via
+  les props `retourVers`/`actions` de `PagePublique`). Connecté (démo comprise) : retour vers SON
+  application (`cheminApresConnexion`) et **pas de sélecteur de langue** — la page suit déjà la langue
+  du compte, et `LangueToggle` ne persiste qu'en local, ce qui désaccorderait l'interface de la
+  préférence serveur. Visiteur : retour à l'accueil et `LangueToggle` visible (son seul moyen de changer
+  de langue avant connexion). Le contexte est lu par `useContext(AuthContext)`, pas `useAuth()` : page
+  publique, un contexte absent vaut « visiteur » au lieu de lever. À 360 px, le nom « NKONI » s'efface
+  quand l'en-tête porte des actions (logo + sélecteur + retour tiennent alors sur une ligne).
+- **Typographie** : apostrophe typographique (’) dans tout texte de la documentation et de l'aide
+  contextuelle, FR et EN — gardée par `aide-doc.test.ts` (parcours de TOUTES les chaînes d'un
+  `Document`) et `aide-catalogue.test.ts`. L'apostrophe droite revient à chaque rédaction au clavier.
 - **Précache hors-ligne assumé.** Le service worker (`vite-plugin-pwa`, `globPatterns` incluant `js`)
   précache TOUS les chunks JS buildés, y compris les six chunks de documentation (3 guides × FR/EN) —
   comme n'importe quelle autre page chargée à la demande, ils ne bénéficient d'aucune exclusion

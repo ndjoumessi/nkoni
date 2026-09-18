@@ -329,7 +329,7 @@ const bureau: Document = {
             "ADMIN : accès complet à toute l'organisation, y compris les comptes.",
             "PRÉSIDENT : accès large en lecture et en gestion (réunions, votes, cagnottes, amendes, tontines, dépenses), plus les flux d'argent.",
             "TRÉSORIÈRE : versements, dépenses et flux d'argent des autres caisses ; lecture des réunions et résolutions.",
-            "SECRÉTAIRE : membres, réunions et ordre du jour, gestion (hors flux d'argent) des cagnottes/amendes/tontines ; lecture seule sur le reste.",
+            "SECRÉTAIRE : membres, réunions et ordre du jour, gestion (hors flux d'argent) des cagnottes/amendes/tontines ; lecture seule sur les paramètres de l'organisation et sur les dépenses ; aucun accès aux versements, aux reçus, au barème ni aux exports.",
             "COMMISSAIRE AUX COMPTES : lecture financière large, approbation des dépenses, génération de reçus, dépouillement des votes.",
           ],
         },

@@ -327,7 +327,7 @@ const bureau: Document = {
             'Administrator: full access to the whole organisation, including accounts.',
             'President: broad read and management access (meetings, votes, event funds, fines, tontines, expenses), plus money flows.',
             'Treasurer: payments, expenses and money flows for the other funds; read access to meetings and resolutions.',
-            'Secretary: members, meetings and agenda, management (excluding money flows) of event funds/fines/tontines; read-only on the rest.',
+            'Secretary: members, meetings and agenda, management (excluding money flows) of event funds/fines/tontines; read-only on organisation settings and on expenses; no access at all to payments, receipts, the fee schedule or exports.',
             'Auditor: broad financial read access, expense approval, receipt generation, vote tallying.',
           ],
         },

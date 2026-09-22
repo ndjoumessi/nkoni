@@ -1,18 +1,25 @@
 import type { ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
+import { Languages } from 'lucide-react'
 import { PagePublique } from '@/components/public/PagePublique'
+import { useChromePublic } from '@/components/public/chrome-public'
+import { formatDate } from '@/lib/utils'
 
 /**
- * Coquille PUBLIQUE des pages légales (Confidentialité, CGU) — accessibles SANS authentification
- * (une politique de confidentialité DOIT être publique). Contenu volontairement en FRANÇAIS
- * (marché cible francophone) ; une version EN est un chantier de traduction séparé. Le corps
- * juridique porte des PLACEHOLDERS `[ … ]` à compléter et faire relire avant publication réelle.
+ * Coquille des MENTIONS LÉGALES — seule page légale restée en JSX français (les CGU et la politique
+ * de confidentialité sont désormais de la donnée traduite, cf. `content/legal/`).
  *
- * La mise en page (en-tête logo + lien retour, remontée en haut au montage) est FACTORISÉE dans
- * `PagePublique`, partagée avec les pages d'aide (bilingues) — ce composant ne fournit plus que
- * ses chaînes françaises en dur.
+ * C'est délibéré : les mentions légales répondent à une obligation du droit français (LCEN,
+ * art. 6-III) et n'ont pas de portée pour un lecteur anglophone ; les traduire ajouterait un texte
+ * à faire relire sans bénéfice. La page le DIT quand l'interface est en anglais, au lieu de laisser
+ * le lecteur buter sur du français sans explication.
+ *
+ * Le chrome (lien de retour, date de mise à jour, sélecteur de langue pour un visiteur) est lui
+ * traduit : il vient de `PagePublique` + `useChromePublic`, partagés avec l'aide.
  */
 export function PageLegale({
   titre,
+  /** Date ISO (`AAAA-MM-JJ`) : formatée dans la langue de lecture, jamais rédigée à la main. */
   majLe,
   children,
 }: {
@@ -20,9 +27,24 @@ export function PageLegale({
   majLe: string
   children: ReactNode
 }) {
+  const { t, i18n } = useTranslation()
+  const chrome = useChromePublic()
+  const enAnglais = i18n.language.toLowerCase().startsWith('en')
+
   return (
-    <PagePublique titre={titre} sousTitre={`Dernière mise à jour : ${majLe}`} retourLibelle="Accueil">
-      <div className="mt-8 space-y-9">{children}</div>
+    <PagePublique titre={titre} sousTitre={t('legal.majLe', { date: formatDate(majLe) })} {...chrome}>
+      <div className="mt-8 space-y-9">
+        {enAnglais && (
+          <p
+            role="note"
+            className="flex gap-2.5 rounded-xl border border-hairline bg-surface-2/50 p-4 text-sm text-muted-foreground"
+          >
+            <Languages className="mt-0.5 h-4 w-4 shrink-0 text-brass" aria-hidden="true" />
+            <span>{t('legal.mentionsFrancaisUniquement')}</span>
+          </p>
+        )}
+        {children}
+      </div>
     </PagePublique>
   )
 }

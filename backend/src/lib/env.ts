@@ -72,6 +72,13 @@ export const env = {
   // dérouler un paiement demo de bout en bout on abaisse ce plancher (ex. PAIEMENT_MONTANT_MIN=5) —
   // à remettre à 100 (ou retirer) une fois les tests demo faits.
   PAIEMENT_MONTANT_MIN: optionalInt('PAIEMENT_MONTANT_MIN', 100),
+  // Secret PARTAGÉ avec la Routing Middleware Vercel (`frontend/middleware.ts`), qui l'accompagne de
+  // l'IP réelle du client sur chaque requête `/api/*`. Sans lui, le trafic ANONYME (login, refresh,
+  // inscription) reste imputé à l'adresse de sortie de Vercel, donc mutualisé entre tous les
+  // visiteurs (cf. `docs/performance-charge.md` §2.4). À poser des DEUX côtés, avec la MÊME valeur :
+  // Railway (PROXY_SECRET) et Vercel (PROXY_SECRET). Posé d'un seul côté, il est simplement sans
+  // effet — rien ne casse. Générer p.ex. `openssl rand -base64 32`.
+  PROXY_SECRET: optional('PROXY_SECRET', ''),
   // Espace de démonstration partagé (spec 2026-09-15 §3.2). `true` = POST /demo/session émet des
   // sessions et la tâche de nuit régénère la démo ; toute autre valeur (défaut) = démo éteinte (404).
   DEMO_ACTIVEE: optional('DEMO_ACTIVEE', 'false'),
@@ -119,6 +126,11 @@ if (isProd) {
         'PSP_ENCRYPTION_KEY_PRECEDENTE est posée : rotation de clé EN COURS. Lancer le rechiffrement (npm run rechiffrer:psp) puis retirer cette variable (RUNBOOK_rotation_secrets §3).',
       )
     }
+  }
+  if (!process.env['PROXY_SECRET']) {
+    avertir(
+      "PROXY_SECRET non défini → le trafic ANONYME (login, inscription, refresh) reste imputé à l'adresse de sortie de Vercel, donc partagé entre tous les visiteurs : une poignée de connexions simultanées suffit à déclencher des 429 pour les autres. Posez la MÊME valeur sur Railway et sur Vercel (docs/performance-charge.md §2.4).",
+    )
   }
   // Canal de notification (§4.6, bloquant GA 0.4) : reçus et relances partent par WhatsApp d'abord,
   // email (Resend) en repli. Si AUCUN des deux n'est configuré, rien ne part — le plus utile est

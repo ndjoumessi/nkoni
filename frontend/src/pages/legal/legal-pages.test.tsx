@@ -3,14 +3,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import TexteLegalPage from './TexteLegalPage'
-import MentionsLegalesPage from './MentionsLegalesPage'
 import type { DocumentLegal } from '@/content/legal/types'
 
 /**
  * Pages légales (décision PO du 2026-09-22). Ce qui est verrouillé ici : la langue de lecture
- * atteint bien le CHARGEUR (une traduction affichée en français serait indétectable autrement), et
- * le lecteur anglophone est averti — soit que sa version est une traduction de courtoisie (CGU,
- * confidentialité), soit que la page n'existe qu'en français (mentions légales).
+ * atteint bien le CHARGEUR (une traduction affichée en français serait indétectable autrement) et
+ * le lecteur anglophone est averti que sa version est une traduction de courtoisie. Les trois textes
+ * — CGU, confidentialité et mentions légales — passent par la même page.
  */
 let langue = 'fr'
 vi.mock('react-i18next', () => ({
@@ -70,17 +69,11 @@ describe('TexteLegalPage', () => {
   })
 })
 
-describe('MentionsLegalesPage', () => {
-  it('en anglais : dit que la page n’existe qu’en français', () => {
+describe('les trois textes passent par la même page', () => {
+  it.each(['cgu', 'confidentialite', 'mentions-legales'] as const)('%s : chargé dans la langue de lecture', async (texte) => {
     langue = 'en'
-    rendre(<MentionsLegalesPage />)
-    expect(screen.getByRole('note').textContent).toContain('legal.mentionsFrancaisUniquement')
-  })
-
-  it('en français : aucun avis, et la date de mise à jour est formatée', () => {
-    rendre(<MentionsLegalesPage />)
-    expect(screen.queryByRole('note')).toBeNull()
-    // `legal.majLe` reçoit une date FORMATÉE, pas l'ISO brut du composant.
-    expect(screen.getByText(/legal\.majLe/).textContent).toContain('septembre')
+    chargerTexteLegal.mockResolvedValue(doc('Legal notice'))
+    rendre(<TexteLegalPage texte={texte} />)
+    await waitFor(() => expect(chargerTexteLegal).toHaveBeenCalledWith(texte, 'en'))
   })
 })

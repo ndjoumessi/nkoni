@@ -110,15 +110,28 @@ pour les autres), ce qui peut dépasser le délai du proxy Vercel. Au-delà de ~
 remède sera d'imprimer par branche, ou de générer la planche en tâche différée avec un lien de
 téléchargement.
 
-### 2.4 Rate-limit : un seul seau pour toute la plateforme (défaut de production, corrigé en partie)
+### 2.4 Rate-limit : des seaux partagés par tous les utilisateurs (défaut de production, corrigé en partie)
 
 **Constat, mesuré en production le 2026-09-19** (logs HTTP Railway + en-têtes `x-ratelimit-remaining`) :
 le navigateur appelle `nkoni.vercel.app/api/*`, que Vercel relaie vers Railway. **Railway réécrit
 `X-Forwarded-For`** avec l'adresse de son pair TCP. Malgré `trustProxy: true`, le backend voit donc
-pour TOUS les utilisateurs l'adresse de sortie de Vercel (`13.39.112.199` lors de la mesure) :
+pour TOUS les utilisateurs une adresse de SORTIE de Vercel, jamais celle du client :
 
-- **un seul seau de 300 requêtes/min pour toute la plateforme** ;
-- **un seul seau de 10 connexions/min**, puisque le login a son propre budget.
+- **un seau de 300 requêtes/min partagé** par tous ceux qui sortent par la même adresse ;
+- **un seau de 10 connexions/min partagé** de la même façon, le login ayant son propre budget.
+
+**Combien de seaux, exactement ?** Vercel sort par un **pool** d'adresses, pas une seule ; sa taille
+et sa composition varient et ne sont pas contractuelles. Relevé le 2026-09-22 sur 200 lignes de logs
+Railway, le trafic applicatif proxifié arrive de `51.44.162.123`, `35.180.23.203` et
+`35.180.62.180` ; deux autres adresses (`13.39.112.199`, `13.36.234.177`) avaient été vues le
+2026-09-19. C'est donc **une poignée de seaux pour toute la plateforme**, et non un seul comme
+l'affirmait d'abord cette section. La correction ne change pas la NATURE du défaut — le budget d'un
+utilisateur dépend de ce que consomment des inconnus, et rien ne le lui rend — mais elle en change
+l'ordre de grandeur, donc ne pas la perdre en relisant.
+
+> ⚠️ **Ne pas confondre avec les adresses qui frappent `/ready`** : c'est le moniteur d'uptime Sentry,
+> qui appelle Railway **en direct** sans passer par Vercel (huit adresses distinctes dans le même
+> relevé). Les compter comme des sorties Vercel donnerait un nombre de seaux largement surestimé.
 
 Consommation réelle d'un utilisateur, mesurée dans le navigateur sur la démo de production :
 
@@ -129,7 +142,7 @@ Consommation réelle d'un utilisateur, mesurée dans le navigateur sur la démo 
 | Trésorerie, retour au tableau de bord | 2 chacun |
 
 Un utilisateur actif consomme ainsi 20 à 40 requêtes par minute. **Une dizaine de personnes
-simultanées, sur toute la plateforme, suffisaient à provoquer des 429 pour tout le monde.** Le
+simultanées sortant par la même adresse suffisaient à provoquer des 429 pour toutes les autres.** Le
 défaut est passé inaperçu faute de trafic.
 
 Revers de la même réécriture : un `X-Forwarded-For` **forgé** en appelant Railway en direct n'a
@@ -150,14 +163,17 @@ requêtes sans refus, et la 301ᵉ d'un compte est refusée.
 
 **RESTE OUVERT — le trafic anonyme est toujours mutualisé derrière Vercel.** Sont concernés :
 
-- le **login** : 10/min pour toute la plateforme ;
+- le **login** : 10/min par adresse de sortie Vercel, donc pour de larges pans du trafic ;
 - l'**inscription** : 5/min ;
 - le **refresh**, qui porte un cookie mais pas de jeton Bearer, et chaque ouverture d'application en
   fait un ;
 - la **démo**, les **liens publics signés** et `/statut`.
 
-Exemple concret : une assemblée générale où 30 membres se connectent en même temps pour voter. À
-partir du 11ᵉ, les connexions sont refusées pendant une minute.
+Exemple concret : une assemblée générale où 30 membres se connectent en même temps pour voter.
+Réparti sur les trois adresses de sortie relevées, le budget cumulé est de 30 connexions par minute :
+l'assemblée passe tout juste, et la moindre saisie ratée bascule les suivants en refus. Le pool
+n'étant pas contractuel, il peut aussi se réduire — à une seule adresse, le 11ᵉ membre est déjà
+refusé pendant une minute.
 
 Le remède sûr exige de transmettre l'IP du client par un canal que Railway ne réécrit pas **et**
 qu'un appel direct à Railway ne peut pas forger. Faire confiance à `x-vercel-forwarded-for` seul

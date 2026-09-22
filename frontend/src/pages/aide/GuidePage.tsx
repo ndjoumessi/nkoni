@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useLocation } from 'react-router-dom'
 import { Loader2 } from 'lucide-react'
 import { PagePublique } from '@/components/public/PagePublique'
-import { useChromeAide } from './chrome-aide'
+import { useChromePublic } from '@/components/public/chrome-public'
 import { ErrorState } from '@/components/ui/ErrorState'
 import { RenduDoc } from '@/components/aide/RenduDoc'
 import { chargerDocument, type Guide } from '@/content/aide/registre'
@@ -22,7 +22,7 @@ type Etat =
  */
 export function GuidePage({ guide }: { guide: Guide }) {
   const { t, i18n } = useTranslation()
-  const chrome = useChromeAide()
+  const chrome = useChromePublic()
   const { hash } = useLocation()
   const [etat, setEtat] = useState<Etat>({ statut: 'chargement' })
 

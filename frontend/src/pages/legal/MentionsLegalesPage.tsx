@@ -22,7 +22,7 @@ import { CONTACT_EMAIL } from '@/lib/contact'
 export function MentionsLegalesPage() {
   const lien = 'text-brass underline-offset-2 hover:underline'
   return (
-    <PageLegale titre="Mentions légales" majLe="14 septembre 2026">
+    <PageLegale titre="Mentions légales" majLe="2026-09-14">
       <SectionLegale titre="1. Éditeur du service">
         <p>
           Le service NKONI, accessible à l’adresse nkoni.vercel.app, est édité par Nelson

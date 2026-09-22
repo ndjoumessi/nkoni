@@ -37,6 +37,7 @@ import cagnottes from './cagnottes'
 import tontines from './tontines'
 import amendes from './amendes'
 import statut from './statut'
+import legal from './legal'
 import demo from './demo'
 import aide from './aide'
 import aideDoc from './aideDoc'
@@ -75,6 +76,7 @@ const fr = {
   ...tontines,
   ...amendes,
   ...statut,
+  ...legal,
   ...demo,
   ...aide,
   ...aideDoc,

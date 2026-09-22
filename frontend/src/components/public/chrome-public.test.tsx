@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import AidePage from './AidePage'
+import AidePage from '@/pages/aide/AidePage'
 import { AuthContext, type AuthContextValue } from '@/contexts/auth-context'
 import type { AuthUser } from '@/lib/api'
 
@@ -28,7 +28,7 @@ function rendre(auth?: AuthContextValue) {
 
 const lienRetour = (libelle: string) => screen.getByRole('link', { name: libelle }).getAttribute('href')
 
-describe('chrome des pages d’aide', () => {
+describe('chrome des pages publiques (aide, pages légales)', () => {
   it('visiteur : retour à l’accueil public et sélecteur de langue visible', () => {
     rendre()
     expect(lienRetour('aideDoc.retour')).toBe('/')

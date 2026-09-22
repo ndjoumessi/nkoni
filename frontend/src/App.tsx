@@ -5,9 +5,6 @@ import { Routes, Route, Outlet } from 'react-router-dom'
 import LandingPage from '@/pages/LandingPage'
 import LoginPage from '@/pages/LoginPage'
 import InscriptionPage from '@/pages/InscriptionPage'
-import ConfidentialitePage from '@/pages/legal/ConfidentialitePage'
-import CGUPage from '@/pages/legal/CGUPage'
-import MentionsLegalesPage from '@/pages/legal/MentionsLegalesPage'
 import StatutPage from '@/pages/StatutPage'
 import DemoPage from '@/pages/DemoPage'
 import SortieDemoPage from '@/pages/SortieDemoPage'
@@ -22,6 +19,8 @@ import { RouteFallback } from '@/components/RouteFallback'
  * publiques ci-dessus y restent). Le `Suspense` de chaque zone affiche `RouteFallback` le temps
  * du chargement du chunk. Toutes les pages exportent un défaut → `import('@/pages/X')` direct.
  */
+const TexteLegalPage = lazy(() => import('@/pages/legal/TexteLegalPage'))
+const MentionsLegalesPage = lazy(() => import('@/pages/legal/MentionsLegalesPage'))
 const AidePage = lazy(() => import('@/pages/aide/AidePage'))
 const GuidePage = lazy(() => import('@/pages/aide/GuidePage'))
 const SuperAdminPage = lazy(() => import('@/pages/SuperAdminPage'))
@@ -80,9 +79,32 @@ function App() {
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/inscription" element={<InscriptionPage />} />
-      <Route path="/confidentialite" element={<ConfidentialitePage />} />
-      <Route path="/cgu" element={<CGUPage />} />
-      <Route path="/mentions-legales" element={<MentionsLegalesPage />} />
+      {/* CGU et confidentialité : contenu TRADUIT chargé à la demande (`content/legal/`), donc la
+          page part dans son propre chunk — le corps juridique ne pèse plus sur le paquet initial. */}
+      <Route
+        path="/confidentialite"
+        element={
+          <Suspense fallback={<RouteFallback pleinEcran />}>
+            <TexteLegalPage texte="confidentialite" />
+          </Suspense>
+        }
+      />
+      <Route
+        path="/cgu"
+        element={
+          <Suspense fallback={<RouteFallback pleinEcran />}>
+            <TexteLegalPage texte="cgu" />
+          </Suspense>
+        }
+      />
+      <Route
+        path="/mentions-legales"
+        element={
+          <Suspense fallback={<RouteFallback pleinEcran />}>
+            <MentionsLegalesPage />
+          </Suspense>
+        }
+      />
       <Route path="/statut" element={<StatutPage />} />
 
       {/* Documentation publique (spec 2026-09-18) — hors ProtectedRoute, comme les pages légales. */}

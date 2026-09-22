@@ -5,7 +5,7 @@ import { LangueToggle } from '@/components/ui/LangueToggle'
 import { cheminApresConnexion } from '@/lib/roles'
 
 /**
- * Chrome des pages d'aide (`/aide/*`), qui dépend de QUI lit :
+ * Chrome des pages PUBLIQUES de texte long (`/aide/*`, pages légales), qui dépend de QUI lit :
  *
  * - **Connecté** (y compris en démonstration) : le retour mène à SON application
  *   (`cheminApresConnexion`), pas à l'accueil public — arrivé par le menu « Aide », il y retournait
@@ -16,9 +16,10 @@ import { cheminApresConnexion } from '@/lib/roles'
  *   sélecteur de langue visible — c'est son seul moyen de changer de langue avant toute connexion.
  *
  * Lecture du contexte par `useContext` et non `useAuth()` : ces pages sont publiques, un contexte
- * absent vaut « visiteur » au lieu de lever.
+ * absent vaut « visiteur » au lieu de lever. Partagé par l'aide ET les pages légales : un visiteur
+ * arrivé sur les CGU depuis le pied de page doit pouvoir les lire dans sa langue.
  */
-export function useChromeAide(): { retourVers: string; retourLibelle: string; actions?: ReactNode } {
+export function useChromePublic(): { retourVers: string; retourLibelle: string; actions?: ReactNode } {
   const { t } = useTranslation()
   const auth = useContext(AuthContext)
   if (auth?.user) {

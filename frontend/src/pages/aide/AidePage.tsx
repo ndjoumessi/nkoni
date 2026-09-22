@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { ChevronRight } from 'lucide-react'
 import { PagePublique } from '@/components/public/PagePublique'
-import { useChromeAide } from './chrome-aide'
+import { useChromePublic } from '@/components/public/chrome-public'
 import { GUIDES } from '@/content/aide/registre'
 import { cleI18n } from '@/lib/i18n'
 
@@ -13,7 +13,7 @@ import { cleI18n } from '@/lib/i18n'
  */
 export function AidePage() {
   const { t } = useTranslation()
-  const chrome = useChromeAide()
+  const chrome = useChromePublic()
 
   return (
     <PagePublique

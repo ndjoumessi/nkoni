@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { API_URL, statutApi, type IncidentPublic, type GraviteIncident } from '@/lib/api'
 import { NkoniMark } from '@/components/ui/NkoniMark'
+import { useChromePublic } from '@/components/public/chrome-public'
 import { cleI18n } from '@/lib/i18n'
 import { cn, formatDateHeure } from '@/lib/utils'
 import { CONTACT_EMAIL } from '@/lib/contact'
@@ -58,6 +59,11 @@ function BanniereIncident({ incident }: { incident: Extract<IncidentPublic, { ac
  */
 export function StatutPage() {
   const { t } = useTranslation()
+  // En-tête MUTUALISÉ avec l'aide et les pages légales : un visiteur qui atterrit ici depuis un
+  // lien partagé doit pouvoir choisir sa langue, et un utilisateur connecté revenir à SON
+  // application. La coquille reste locale (mesure étroite, sur-titre) : c'est le COMPORTEMENT de
+  // l'en-tête qui est partagé, pas la mise en page.
+  const chrome = useChromePublic()
   const [etat, setEtat] = useState<Etat>('verification')
   const [verifieLe, setVerifieLe] = useState<string | null>(null)
   const [incident, setIncident] = useState<IncidentPublic | null>(null)
@@ -112,20 +118,30 @@ export function StatutPage() {
   return (
     <main className="min-h-screen bg-background">
       <header className="border-b border-hairline">
-        <div className="mx-auto flex max-w-2xl items-center justify-between px-5 py-4">
-          <Link to="/" className="flex items-center gap-2">
+        <div className="mx-auto flex max-w-2xl items-center justify-between gap-3 px-5 py-4">
+          <Link to="/" className="flex shrink-0 items-center gap-2">
             <NkoniMark className="h-7 w-7" />
-            <span className="font-display text-lg font-semibold tracking-tight text-foreground">
+            {/* Même contrainte que l'en-tête de `PagePublique` : à 360 px, logo + sélecteur de langue
+                + lien de retour ne tiennent pas sur une ligne avec le nom. */}
+            <span
+              className={cn(
+                'font-display text-lg font-semibold tracking-tight text-foreground',
+                chrome.actions && 'hidden sm:inline',
+              )}
+            >
               NKONI
             </span>
           </Link>
-          <Link
-            to="/"
-            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-            {t('statut.accueil')}
-          </Link>
+          <div className="flex min-w-0 items-center gap-3">
+            {chrome.actions}
+            <Link
+              to={chrome.retourVers}
+              className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden="true" />
+              {chrome.retourLibelle}
+            </Link>
+          </div>
         </div>
       </header>
 

@@ -14,20 +14,30 @@ import type { BlocLegal, DocumentLegal, Segment } from '@/content/legal/types'
  *    dans chaque document : un texte traduit plus tard l'obtient sans qu'on y pense, et personne
  *    ne peut publier une traduction sans cet avertissement en l'oubliant dans son fichier.
  *
- * Un lien `mailto:` sort en `<a>`, une route interne en `<Link>` (pas de rechargement complet) :
- * c'est la même règle que partout ailleurs dans l'application.
+ * Trois sortes de liens, trois rendus : une route interne en `<Link>` (pas de rechargement
+ * complet) ; un `mailto:`/`tel:` en `<a>` nu ; un lien EXTERNE (hébergeurs des mentions légales) en
+ * `<a target="_blank" rel="noopener noreferrer">` — on ne fait pas quitter un document juridique en
+ * cours de lecture, et `noopener` est la règle pour tout lien sortant.
  */
 const CLASSE_LIEN = 'text-brass underline-offset-2 hover:underline'
 
 function RenduSegment({ segment }: { segment: Segment }) {
   if (typeof segment === 'string') return <>{segment}</>
   if ('accent' in segment) return <span className="text-foreground">{segment.accent}</span>
-  return segment.vers.startsWith('/') ? (
-    <Link to={segment.vers} className={CLASSE_LIEN}>
-      {segment.texte}
-    </Link>
-  ) : (
-    <a href={segment.vers} className={CLASSE_LIEN}>
+  if (segment.vers.startsWith('/')) {
+    return (
+      <Link to={segment.vers} className={CLASSE_LIEN}>
+        {segment.texte}
+      </Link>
+    )
+  }
+  const externe = segment.vers.startsWith('http')
+  return (
+    <a
+      href={segment.vers}
+      className={CLASSE_LIEN}
+      {...(externe ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+    >
       {segment.texte}
     </a>
   )

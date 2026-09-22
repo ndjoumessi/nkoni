@@ -8,7 +8,5 @@ export default {
     erreurDescription: 'This document could not be loaded. Check your connection and try again.',
     avisTraduction:
       'Courtesy translation. Only the French version is binding: in the event of any discrepancy, the French version prevails.',
-    mentionsFrancaisUniquement:
-      'This page exists in French only: the legal notice meets a requirement of French law.',
   },
 }

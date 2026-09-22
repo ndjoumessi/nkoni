@@ -107,13 +107,27 @@ describe('textes légaux — ancres et liens', () => {
   /**
    * Un lien mort dans des CGU est pire qu'ailleurs : c'est la page vers laquelle le texte RENVOIE
    * pour une obligation (« notre politique de confidentialité »). Les routes sont lues en TEXTE
-   * dans `App.tsx`, seule source de vérité ; une adresse de contact est confrontée à `CONTACT_EMAIL`.
+   * dans `App.tsx`, seule source de vérité.
+   *
+   * Les cibles HORS de l'application sont énumérées ici, pas simplement autorisées par leur schéma :
+   * les mentions légales DÉSIGNENT des tiers (hébergeurs) et une adresse de contact, et changer l'un
+   * d'eux est une modification du document opposable, pas une retouche de lien. Ajouter un hôte
+   * demande donc de passer par ce test — c'est le but.
    */
   const routes = new Set(
     [...readFileSync('src/App.tsx', 'utf8').matchAll(/path="([^"]+)"/g)].map((m) => m[1]),
   )
+  const HOTES_EXTERNES = ['https://vercel.com', 'https://railway.com'] // hébergeurs, mentions légales §3
+  const TELEPHONE_PUBLIE = 'tel:+33661751923'
 
-  it.each(TEXTES_LEGAUX)('%s : chaque lien vise une route déclarée ou l’adresse de contact', async (texte) => {
+  const cibleValide = (vers: string): boolean => {
+    if (vers.startsWith('/')) return routes.has(vers)
+    if (vers.startsWith('mailto:')) return vers === `mailto:${CONTACT_EMAIL}`
+    if (vers.startsWith('tel:')) return vers === TELEPHONE_PUBLIE
+    return HOTES_EXTERNES.includes(vers) // jamais de http:// nu : la liste ne porte que du https
+  }
+
+  it.each(TEXTES_LEGAUX)('%s : chaque lien vise une cible connue (route, contact, hébergeur)', async (texte) => {
     const docs = await Promise.all([charger(texte, 'fr'), charger(texte, 'en')])
     const cibles = docs.flatMap((d) =>
       d.sections.flatMap((s) =>
@@ -124,10 +138,7 @@ describe('textes légaux — ancres et liens', () => {
     )
     expect(routes.size).toBeGreaterThan(0)
     expect(cibles.length).toBeGreaterThan(0)
-    const invalides = cibles.filter((vers) =>
-      vers.startsWith('mailto:') ? vers !== `mailto:${CONTACT_EMAIL}` : !routes.has(vers),
-    )
-    expect(invalides).toEqual([])
+    expect(cibles.filter((vers) => !cibleValide(vers))).toEqual([])
   })
 })
 

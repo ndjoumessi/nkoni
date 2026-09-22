@@ -20,7 +20,6 @@ import { RouteFallback } from '@/components/RouteFallback'
  * du chargement du chunk. Toutes les pages exportent un défaut → `import('@/pages/X')` direct.
  */
 const TexteLegalPage = lazy(() => import('@/pages/legal/TexteLegalPage'))
-const MentionsLegalesPage = lazy(() => import('@/pages/legal/MentionsLegalesPage'))
 const AidePage = lazy(() => import('@/pages/aide/AidePage'))
 const GuidePage = lazy(() => import('@/pages/aide/GuidePage'))
 const SuperAdminPage = lazy(() => import('@/pages/SuperAdminPage'))
@@ -101,7 +100,7 @@ function App() {
         path="/mentions-legales"
         element={
           <Suspense fallback={<RouteFallback pleinEcran />}>
-            <MentionsLegalesPage />
+            <TexteLegalPage texte="mentions-legales" />
           </Suspense>
         }
       />

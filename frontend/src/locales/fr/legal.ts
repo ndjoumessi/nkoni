@@ -16,7 +16,5 @@ export default {
     erreurDescription: 'Ce document n’a pas pu être chargé. Vérifiez votre connexion et réessayez.',
     avisTraduction:
       'Traduction de courtoisie. Seule la version française fait foi : en cas de divergence, c’est elle qui s’applique.',
-    mentionsFrancaisUniquement:
-      'Cette page n’existe qu’en français : les mentions légales répondent à une obligation du droit français.',
   },
 }

@@ -100,17 +100,23 @@
 
 ## Textes légaux — `/cgu`, `/confidentialite`, `/mentions-legales` (décision PO 2026-09-22)
 
-- **CGU et politique de confidentialité sont TRADUITES ; le FRANÇAIS fait foi.** Motif : l'application
+- **Les TROIS textes sont traduits ; le FRANÇAIS fait foi.** Motif : l'application
   est bilingue et le Cameroun compte une population anglophone — un membre anglophone acceptait
   jusque-là des conditions qu'il ne pouvait pas lire. Mais ces textes engagent l'éditeur et n'ont pas
   encore été relus par un juriste (bloquant GA 0.3) : l'anglais est donc publié comme **traduction de
   courtoisie**, avec la mention « seule la version française fait foi ». Cet encart est posé par
   `RenduLegal`, **une fois**, et non dans chaque document : une traduction ajoutée demain l'obtient
   sans qu'on y pense, et personne ne peut en publier une en oubliant l'avertissement dans son fichier.
-- **Les MENTIONS LÉGALES restent en français**, volontairement : c'est une formalité du droit français
-  (LCEN art. 6-III) sans portée pour un lecteur anglophone, et la traduire ajouterait un texte à faire
-  relire sans bénéfice. `PageLegale` le DIT quand l'interface est en anglais, plutôt que de laisser le
-  lecteur buter sur du français sans explication. C'est la seule page légale restée en JSX.
+- **Les mentions légales ont d'abord été laissées en français** — formalité du droit français (LCEN
+  art. 6-III), sans portée pour un lecteur anglophone —, avec un avis le disant. Une capture du PO
+  (2026-09-22) a montré ce que ça donnait vraiment : un chrome anglais sur un corps français, et
+  surtout un document déclarant `lang="en"` sur du texte français. Un lecteur d'écran en anglais
+  prononce alors « Le service NKONI, accessible à l'adresse… » avec la phonétique anglaise —
+  inintelligible (**WCAG 3.1.2**), sur une page que le test TalkBack allait traverser. Elles sont donc
+  traduites aussi, et **les valeurs légales ne le sont PAS** (raison sociale, SIREN/SIRET, code APE,
+  adresses des hébergeurs) : les transposer en dirait plus que la source. **Leçon générale** : une
+  page à moitié traduite n'est pas un compromis, c'est une page que le lecteur d'écran ne sait pas
+  lire — soit on traduit, soit on marque les parties dans leur langue (`lang` sur le fragment).
 - **Modèle de contenu DISTINCT de celui de l'aide** (`content/legal/types.ts`) : un paragraphe
   juridique est une suite de **segments** (texte, mise en évidence, lien), parce que les liens et les
   emphases vivent À L'INTÉRIEUR d'une phrase (« notre politique de confidentialité », « 30 jours ») —
@@ -121,14 +127,17 @@
   un document opposable la date engage — un garde vérifie d'ailleurs qu'elle est IDENTIQUE FR/EN.
 - **Gardes** (`content/legal/legal-parite.test.ts`, tous sabotés) : mêmes sections dans le même ordre ;
   même séquence de blocs ET mêmes cibles de lien ; même date ; titre réellement traduit ; ancres
-  uniques en kebab-case ; chaque lien vise une route déclarée dans `App.tsx` ou `CONTACT_EMAIL` ;
-  apostrophes typographiques. Le typage ne peut rien ici : `sections` est un TABLEAU, une clause
+  uniques en kebab-case ; apostrophes typographiques ; et chaque lien vise une cible ÉNUMÉRÉE — route
+  déclarée dans `App.tsx`, `CONTACT_EMAIL`, le téléphone publié, ou l'un des hôtes d'hébergeurs listés
+  dans le test. Ces cibles hors application DÉSIGNENT des tiers dans un document opposable : en
+  ajouter une doit passer par une relecture, pas par un schéma d'URL permissif. Le typage ne peut rien ici : `sections` est un TABLEAU, une clause
   présente d'un côté et absente de l'autre compile parfaitement.
 - **Effet de bord mesuré** : le corps juridique était jusque-là importé statiquement, donc présent
   dans le paquet initial de TOUS les visiteurs. Les trois pages sont désormais paresseuses et leur
   contenu part par langue (chunks de 4 à 7 Ko) ; plus une ligne de texte légal dans `index-*.js`.
 - **Transcription vérifiée** : le passage du JSX à la donnée a été contrôlé mot à mot contre la version
-  git précédente (661 et 729 mots, identiques). Sur un texte opposable, « ça s'affiche pareil » ne suffit pas.
+  git précédente (661, 729 et 199 mots, identiques). Sur un texte opposable, « ça s'affiche pareil »
+  ne suffit pas. Plus aucune page légale en JSX : `PageLegale`/`SectionLegale` ont été supprimés.
 - Le chrome (retour, sélecteur de langue pour un visiteur) vient de `useChromePublic`, PARTAGÉ avec
   l'aide (`components/public/chrome-public.tsx`, ex-`pages/aide/chrome-aide.tsx`).
 

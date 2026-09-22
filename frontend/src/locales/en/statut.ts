@@ -3,7 +3,6 @@ export default {
   statut: {
     overline: 'Service status',
     titre: 'NKONI status',
-    accueil: 'Home',
     etats: {
       verification: {
         titre: 'Checking…',

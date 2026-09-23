@@ -193,8 +193,12 @@ requise** avant de le faire.
 >
 > 1. **`next({ headers })` de `@vercel/functions` pose des en-têtes de RÉPONSE, pas de requête.** La
 >    middleware a donc publié le secret à tout client appelant `/api/*`. La documentation Vercel
->    illustre les deux usages avec la même signature sans les distinguer. **Prouver la propagation
->    sur une prévisualisation AVANT d'écrire la moindre ligne de production.**
+>    illustre les deux usages avec la même signature sans les distinguer. La voie CORRECTE est
+>    **`next({ request: { headers } })`** — vérifiée par le spike du 2026-09-23 : elle traverse bien
+>    un rewrite externe, un client ne peut pas écraser la valeur posée, et le protocole interne du
+>    routeur n'est pas injectable. **Toujours poser ou supprimer les en-têtes du canal sur TOUS les
+>    chemins de la middleware** : un retour anticipé (`if (!ip) return next()`) laisse survivre
+>    jusqu'au backend l'en-tête que le client a envoyé.
 > 2. **Ne pas transmettre un secret porteur.** Faire signer l'IP du client (HMAC de `PROXY_SECRET`
 >    sur l'IP) plutôt que d'envoyer le secret : divulguée, une telle signature ne vaut que pour
 >    l'adresse de son porteur, qui serait de toute façon sa clé. Le même bug serait resté

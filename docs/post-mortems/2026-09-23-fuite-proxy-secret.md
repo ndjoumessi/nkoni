@@ -106,11 +106,80 @@ Le délai de détection est court (≈ 3 minutes), mais il ne doit rien à un di
 | Action | Type | Échéance |
 |---|---|---|
 | Supprimer `PROXY_SECRET` sur Vercel **et** sur Railway — le considérer comme brûlé, ne jamais réutiliser cette valeur | atténuation | immédiat (PO) |
-| À la reprise du chantier : **spike d'abord**, sur un déploiement de prévisualisation, prouvant qu'un en-tête ajouté par la middleware atteint réellement le backend à travers le rewrite — avant toute ligne de code de production | prévention | à la reprise |
-| Reconcevoir le canal pour que la divulgation soit **sans valeur** : signature HMAC de l'IP du client, jamais un secret porteur transmis tel quel | prévention | à la reprise |
+| ~~Spike prouvant qu'un en-tête ajouté par la middleware atteint le backend à travers le rewrite~~ → **FAIT le 2026-09-23, résultat ci-dessous** | prévention | ✅ |
+| Reconcevoir le canal pour que la divulgation soit **sans valeur** : signature HMAC de l'IP du client, jamais un secret porteur transmis tel quel. **Le spike renforce cette action** : il reste un résidu d'en-têtes internes observé côté client, que seule une preuve sans valeur rend inoffensif | prévention | à la reprise |
 | Ne pas fusionner un mécanisme dont la preuve de bout en bout est **déclarée manquante** dans sa propre PR — la mention du manque n'est pas une mitigation | prévention | règle, immédiate |
 | Contrôle automatisé des en-têtes de réponse de la production : échouer si un en-tête inattendu (`x-nkoni-*` ou toute valeur ressemblant à un secret) apparaît. C'est la seule action qui aurait détecté cet incident **indépendamment** de la recette | détection | à inscrire au chantier 1.4 |
 
 > Le dernier point est celui qui compte. La prévention n'aurait pas empêché cette erreur : elle venait
 > d'une documentation ambiguë, et la prochaine viendra d'ailleurs. Un contrôle qui regarde ce que la
 > production **répond réellement** les attrape toutes.
+
+---
+
+## Suite — résultat du spike (2026-09-23)
+
+Mené après le revert, sur une branche jetable supprimée depuis, sans toucher à la production. Il
+répond aux deux actions de prévention ci-dessus et en ajoute une troisième, trouvée en chemin.
+
+### Méthode
+
+Point de départ : **lire le code de `@vercel/functions`**, pas sa documentation — c'est son ambiguïté
+qui a causé l'incident. La réponse y est explicite :
+
+| Champ | Destination | Encodage |
+|---|---|---|
+| `init.headers` | **réponse au client** (« sent to the user response ») | posé tel quel |
+| `init.request.headers` | **requête amont** | `x-middleware-request-<clé>` + `x-middleware-override-headers`, consommés par le routeur Vercel |
+
+Le champ `request.headers` exige un objet `Headers` (il lève sinon) et **remplace** les en-têtes de la
+requête amont : on part de `new Headers(request.headers)` puis on `set()`.
+
+Banc d'essai : une middleware posant DEUX marqueurs par les deux voies, et un rewrite `vercel.json`
+vers une origine **externe** qui renvoie les en-têtes reçus — la forme exacte de la production.
+
+### Ce qui est prouvé
+
+1. **`next({ request: { headers } })` traverse un rewrite EXTERNE.** L'origine a reçu le marqueur.
+   C'est la voie correcte ; `init.headers` est bien la voie fautive.
+2. **Un client ne peut pas écraser l'en-tête posé par la middleware.** Marqueur envoyé par le client
+   → l'origine reçoit la valeur de la middleware. La construction `new Headers(...)` + `set()` gagne.
+3. **Le protocole interne du routeur n'est pas injectable par le client.** Un client envoyant
+   lui-même `x-middleware-override-headers` et `x-middleware-request-<clé>` les voit arriver à
+   l'origine **comme du bruit inerte** : la valeur effective reste celle de la middleware.
+   **Corollaire impératif** : le backend doit lire **son propre nom d'en-tête**, jamais un
+   `x-middleware-request-*` — ceux-là traversent verbatim depuis le client.
+
+### Un trou trouvé en chemin, à ne pas reproduire
+
+La middleware reverté contenait `if (!ip) return next()`. Sur ce chemin, **un en-tête
+`x-nkoni-ip-client` envoyé par le client survit intact jusqu'au backend**, puisque rien ne l'écrase.
+Règle : **toujours poser ou supprimer les en-têtes du canal, sur TOUS les chemins** — jamais de
+retour anticipé qui laisse passer ce que le client a envoyé.
+
+### Limite, et pourquoi elle est acceptable
+
+Le banc tourne sur le routeur local de `vercel dev`, **pas sur l'edge**. Les déploiements de
+prévisualisation sont protégés par le SSO Vercel (`ssoProtection: all_except_custom_domains`) : un
+appel non authentifié reçoit un 302 vers la page de connexion. Une preuve au niveau edge demanderait
+d'activer *Protection Bypass for Automation* dans les réglages du projet (un interrupteur, qui génère
+un secret de contournement) — geste PO, non pris.
+
+Un résidu observé en dev appuie cette réserve : `x-middleware-request-connection` et
+`x-middleware-request-host` sont **ressortis dans la réponse au client**. Valeurs anodines, mais la
+démonstration qu'un résidu d'en-têtes internes peut atteindre le client.
+
+**C'est exactement pourquoi la conception doit être sans valeur en cas de divulgation.** Avec une
+signature HMAC de l'IP du client, un résidu ne donne rien : la signature ne vaut que pour l'adresse
+de son porteur, qui serait de toute façon sa clé de rate-limit. Résidu connu et borné : qui
+obtiendrait la signature d'un tiers pourrait consommer le seau de CETTE adresse — une nuisance sur
+une IP, pas un contournement du budget anti-force-brute.
+
+### Recette pour la reprise
+
+- `next({ request: { headers } })`, **jamais** `init.headers` ;
+- transmettre `x-nkoni-ip-client` **et sa signature HMAC**, jamais le secret ;
+- poser ou supprimer les deux en-têtes sur **tous** les chemins de la middleware ;
+- backend : vérification en temps constant, `isIP`, repli fail-closed sur l'IP du pair — le code
+  reverté était juste et testé, il se remet tel quel ;
+- livrer **avec** le contrôle des en-têtes de réponse de la production, pas après.

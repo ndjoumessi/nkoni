@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, Navigate } from 'react-router-dom'
 import { CalendarRange, CheckCircle2, ListChecks, MapPin, Plus, Gavel } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
-import { reunionsApi, messageErreur, type ReunionListItem } from '@/lib/api'
+import { useRessource } from '@/hooks/useRessource'
+import { reunionsApi, type ReunionListItem } from '@/lib/api'
 import { peutVoirReunions, peutGererReunions } from '@/lib/roles'
 import { formatDate, staggerDelay } from '@/lib/utils'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -18,38 +18,14 @@ import { StatutReunionBadge, TypeReunionBadge } from '@/components/reunions/Stat
 /** Liste des réunions (§5) — triée par date décroissante. Lecture pour tous les rôles. */
 export function ReunionsPage() {
   const { t } = useTranslation()
-  const { user, accessToken } = useAuth()
-
-  const [reunions, setReunions] = useState<ReunionListItem[] | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  // Incrémenté par le bouton « Réessayer » de l'ErrorState : relance l'effet de chargement.
-  const [reloadKey, setReloadKey] = useState(0)
+  const { user } = useAuth()
 
   const gestion = peutGererReunions(user?.role)
 
-  useEffect(() => {
-    if (!accessToken) return
-    const controller = new AbortController()
-    let active = true
-    setLoading(true)
-    setError(null)
-    void (async () => {
-      try {
-        const data = await reunionsApi.list(accessToken, controller.signal)
-        if (active) setReunions(data)
-      } catch (e) {
-        if (e instanceof DOMException && e.name === 'AbortError') return
-        if (active) setError(messageErreur(e))
-      } finally {
-        if (active) setLoading(false)
-      }
-    })()
-    return () => {
-      active = false
-      controller.abort()
-    }
-  }, [accessToken, reloadKey])
+  const { data: reunions, loading, error, recharger } = useRessource<ReunionListItem[]>(
+    (jeton, signal) => reunionsApi.list(jeton, signal),
+    [],
+  )
 
   if (!peutVoirReunions(user?.role)) {
     return <Navigate to="/dashboard" replace />
@@ -102,7 +78,7 @@ export function ReunionsPage() {
           <ErrorState
             title={t('commun.erreurs.chargementImpossible')}
             description={error}
-            onRetry={() => setReloadKey((k) => k + 1)}
+            onRetry={recharger}
           />
         )}
 

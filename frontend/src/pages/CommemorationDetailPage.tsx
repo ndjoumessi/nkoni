@@ -1,21 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { CalendarRange, Flame, MapPin, Pencil, Trash2, Users } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
-import {
-  commemorationsApi,
-  ApiError,
-  messageErreur,
-  type Commemoration,
-  type StatutCommemoration,
-} from '@/lib/api'
-import {
-  peutVoirCommemorations,
-  peutGererCommemorations,
-  peutSupprimerCommemoration,
-  peutGererDocument,
-} from '@/lib/roles'
+import { useRessource } from '@/hooks/useRessource'
+import { commemorationsApi, ApiError, type Commemoration, type StatutCommemoration } from '@/lib/api'
+import { peutVoirCommemorations, peutGererCommemorations, peutSupprimerCommemoration, peutGererDocument } from '@/lib/roles'
 import { DocumentsSection } from '@/components/documents/DocumentsSection'
 import { formatDate } from '@/lib/utils'
 import { useToast } from '@/components/ui/Toast'
@@ -25,10 +15,7 @@ import { Badge } from '@/components/ui/Badge'
 import { Button, ButtonLink } from '@/components/ui/Button'
 import { Field, Select } from '@/components/ui/Field'
 import { Modal } from '@/components/ui/Modal'
-import {
-  StatutCommemorationBadge,
-  TypeCommemorationBadge,
-} from '@/components/commemorations/CommemorationBadges'
+import { StatutCommemorationBadge, TypeCommemorationBadge } from '@/components/commemorations/CommemorationBadges'
 
 const STATUTS: StatutCommemoration[] = ['PLANIFIEE', 'TENUE', 'ANNULEE']
 
@@ -43,35 +30,14 @@ export function CommemorationDetailPage() {
   const gestion = peutGererCommemorations(user?.role)
   const peutSupprimer = peutSupprimerCommemoration(user?.role)
 
-  const [item, setItem] = useState<Commemoration | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const [statutSaving, setStatutSaving] = useState(false)
   const [deleteOuvert, setDeleteOuvert] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
-  useEffect(() => {
-    if (!accessToken || !id) return
-    const controller = new AbortController()
-    let active = true
-    setLoading(true)
-    setError(null)
-    void (async () => {
-      try {
-        const data = await commemorationsApi.get(id, accessToken, controller.signal)
-        if (active) setItem(data)
-      } catch (e) {
-        if (e instanceof DOMException && e.name === 'AbortError') return
-        if (active) setError(messageErreur(e))
-      } finally {
-        if (active) setLoading(false)
-      }
-    })()
-    return () => {
-      active = false
-      controller.abort()
-    }
-  }, [accessToken, id])
+  const { data: item, loading, error, setData: setItem } = useRessource<Commemoration>(
+    (jeton, signal) => commemorationsApi.get(id, jeton, signal),
+    [id],
+  )
 
   if (!peutVoirCommemorations(user?.role)) {
     return <Navigate to="/dashboard" replace />

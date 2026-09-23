@@ -50,7 +50,7 @@ export function LandingPage() {
 
   return (
     <main className="min-h-screen bg-background">
-      <GlassmorphismTrustHero loginHref="/login" />
+      <GlassmorphismTrustHero />
 
       {/* ── Démonstration vidéo ───────────────────────────────────────── */}
       <VideoDemo />

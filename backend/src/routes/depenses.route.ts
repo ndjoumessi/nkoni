@@ -4,8 +4,8 @@ import type { CreationScopee } from '../lib/tenant-extension'
 import { authenticate } from '../middlewares/authenticate'
 import { requirePermission, ROLES_ARGENT, type Role } from '../middlewares/permissions'
 import { t, langueDeRequete } from '../lib/i18n'
-import { reconcilierVersements } from '../services/versement.service'
-import { resoudrePagination, PAGINATION_PROPS } from '../lib/pagination'
+import { reconcilierVersements, recusActifsOrphelins } from '../services/versement.service'
+import { resoudrePagination, PAGINATION_PROPS, type PageResultat } from '../lib/pagination'
 import {
   calculerTresorerie,
   validerTransition,
@@ -140,8 +140,21 @@ export const depensesRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
     '/tresorerie/reconciliation',
     { preHandler: [authenticate, perm('read')] },
     async () => {
-      const ecarts = await reconcilierVersements(app.prisma)
-      return { coherent: ecarts.length === 0, nbEcarts: ecarts.length, ecarts }
+      // DEUX invariants, un seul verdict. `recusActifsOrphelins` était écrit, documenté sur douze
+      // lignes comme LA preuve de l'invariant « un reçu ACTIF a toujours un versement » et comme
+      // la parade à la course assumée en READ COMMITTED de `appliquerSuppressionVersement` — et
+      // n'avait aucun appelant. Une garantie qu'on ne vérifie nulle part n'est pas une garantie.
+      const [ecarts, recusOrphelins] = await Promise.all([
+        reconcilierVersements(app.prisma),
+        recusActifsOrphelins(app.prisma),
+      ])
+      return {
+        coherent: ecarts.length === 0 && recusOrphelins.length === 0,
+        nbEcarts: ecarts.length,
+        ecarts,
+        nbRecusActifsOrphelins: recusOrphelins.length,
+        recusActifsOrphelins: recusOrphelins,
+      }
     },
   )
 
@@ -172,7 +185,8 @@ export const depensesRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
         app.prisma.depense.count({ where }),
         app.prisma.depense.findMany({ where, orderBy: { date: 'desc' }, skip, take }),
       ])
-      return { items, total, page, pageSize }
+      const reponse: PageResultat<(typeof items)[number]> = { items, total, page, pageSize }
+      return reponse
     },
   )
 

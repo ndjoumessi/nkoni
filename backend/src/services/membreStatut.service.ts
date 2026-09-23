@@ -10,6 +10,7 @@
  * recalculé à partir des `montantValorise` courants.
  */
 
+import type { PageResultat } from '../lib/pagination'
 import {
   calculerStatutContribution,
   type StatutContributionValue,
@@ -229,12 +230,7 @@ export interface OptionsStatutsPage {
   pageSize: number
 }
 
-export interface StatutsMembresPageResultat {
-  items: MembreAvecStatut[]
-  /** Total APRÈS filtres (pilote la pagination). */
-  total: number
-  page: number
-  pageSize: number
+export interface StatutsMembresPageResultat extends PageResultat<MembreAvecStatut> {
   /** Compteurs de tête — sur l'ensemble NON filtré (comme la page aujourd'hui). */
   resume: ResumeStatuts
   /** Toutes les branches présentes — options du filtre, indépendantes de la page. */

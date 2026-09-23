@@ -1,3 +1,4 @@
+import { ErreurMetier } from '../lib/erreur-metier'
 import { Prisma } from '../generated/prisma/client'
 import type { CreationScopee } from '../lib/tenant-extension'
 import type { Role } from '../middlewares/permissions'
@@ -92,42 +93,37 @@ export function peutModifierConflit(conflit: ConflitAcces, u: DemandeurConflit):
 /* -------------------------------------------------------------------------- */
 
 /** Conflit introuvable. → 404 */
-export class ConflitIntrouvableError extends Error {
+export class ConflitIntrouvableError extends ErreurMetier {
   constructor() {
-    super('Conflit introuvable.')
-    this.name = 'ConflitIntrouvableError'
+    super(404, 'conflits.introuvable', 'Conflit introuvable.')
   }
 }
 
 /** Le demandeur n'a pas le droit de voir/modifier CE conflit. → 403 */
-export class AccesConflitRefuseError extends Error {
+export class AccesConflitRefuseError extends ErreurMetier {
   constructor() {
-    super("Vous n'avez pas accès à ce conflit.")
-    this.name = 'AccesConflitRefuseError'
+    super(403, 'conflits.accesRefuse', "Vous n'avez pas accès à ce conflit.")
   }
 }
 
 /** responsableSuiviId fourni pour un niveau ≠ CONFIDENTIEL (incohérent). → 400 */
-export class NiveauResponsableIncoherentError extends Error {
+export class NiveauResponsableIncoherentError extends ErreurMetier {
   constructor() {
-    super('Un responsable de suivi ne peut être désigné que pour un conflit CONFIDENTIEL.')
-    this.name = 'NiveauResponsableIncoherentError'
+    super(400, 'conflits.niveauResponsableIncoherent', 'Un responsable de suivi ne peut être désigné que pour un conflit CONFIDENTIEL.')
   }
 }
 
 /** responsableSuiviId ne référence aucun compte utilisateur. → 400 */
-export class ResponsableIntrouvableError extends Error {
+export class ResponsableIntrouvableError extends ErreurMetier {
   constructor() {
-    super('Le responsable de suivi désigné est introuvable.')
-    this.name = 'ResponsableIntrouvableError'
+    super(400, 'conflits.responsableIntrouvable', 'Le responsable de suivi désigné est introuvable.')
   }
 }
 
 /** Un id de membre concerné ne référence aucun membre. → 400 */
-export class MembreConcerneIntrouvableError extends Error {
+export class MembreConcerneIntrouvableError extends ErreurMetier {
   constructor() {
-    super('Un membre concerné est introuvable.')
-    this.name = 'MembreConcerneIntrouvableError'
+    super(400, 'conflits.membreConcerneIntrouvable', 'Un membre concerné est introuvable.')
   }
 }
 

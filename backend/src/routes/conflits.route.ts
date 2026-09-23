@@ -1,4 +1,4 @@
-import type { FastifyInstance, FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify'
+import type { FastifyInstance, FastifyPluginAsync, FastifyRequest } from 'fastify'
 import { authenticate } from '../middlewares/authenticate'
 import { requirePermission } from '../middlewares/permissions'
 import { t, langueDeRequete } from '../lib/i18n'
@@ -8,11 +8,6 @@ import {
   listerResponsablesPossibles,
   getConflitSiAutorise,
   majConflit,
-  ConflitIntrouvableError,
-  AccesConflitRefuseError,
-  NiveauResponsableIncoherentError,
-  ResponsableIntrouvableError,
-  MembreConcerneIntrouvableError,
   type DemandeurConflit,
 } from '../services/conflit.service'
 
@@ -71,38 +66,6 @@ function demandeur(req: FastifyRequest): DemandeurConflit {
   return { role: req.user.role, ...(req.user.sub !== undefined ? { id: req.user.sub } : {}) }
 }
 
-/** Mappe les erreurs métier du service en réponses 4xx ; renvoie true si traité. */
-function reply4xxSiMetier(err: unknown, reply: FastifyReply): boolean {
-  const langue = langueDeRequete(reply.request)
-  if (err instanceof ConflitIntrouvableError) {
-    reply.code(404).send({ error: 'Not Found', message: t(langue, 'conflits.introuvable') })
-    return true
-  }
-  if (err instanceof AccesConflitRefuseError) {
-    reply.code(403).send({ error: 'Forbidden', message: t(langue, 'conflits.accesRefuse') })
-    return true
-  }
-  if (err instanceof NiveauResponsableIncoherentError) {
-    reply
-      .code(400)
-      .send({ error: 'Bad Request', message: t(langue, 'conflits.niveauResponsableIncoherent') })
-    return true
-  }
-  if (err instanceof ResponsableIntrouvableError) {
-    reply
-      .code(400)
-      .send({ error: 'Bad Request', message: t(langue, 'conflits.responsableIntrouvable') })
-    return true
-  }
-  if (err instanceof MembreConcerneIntrouvableError) {
-    reply
-      .code(400)
-      .send({ error: 'Bad Request', message: t(langue, 'conflits.membreConcerneIntrouvable') })
-    return true
-  }
-  return false
-}
-
 export const conflitsRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
   // GET /conflits — liste filtrée selon la règle de confidentialité.
   app.get('/conflits', { preHandler: [authenticate] }, async (req) =>
@@ -122,12 +85,7 @@ export const conflitsRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
     '/conflits/:id',
     { preHandler: [authenticate] },
     async (req, reply) => {
-      try {
-        return await getConflitSiAutorise(app.prisma, req.params.id, demandeur(req))
-      } catch (err) {
-        if (reply4xxSiMetier(err, reply)) return
-        throw err
-      }
+      return await getConflitSiAutorise(app.prisma, req.params.id, demandeur(req))
     },
   )
 
@@ -142,14 +100,9 @@ export const conflitsRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
           .code(401)
           .send({ error: 'Unauthorized', message: t(langueDeRequete(req), 'commun.tokenInvalide') })
       }
-      try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const cree = await creerConflit(app.prisma, req.body as any, auteurId)
-        return reply.code(201).send(cree)
-      } catch (err) {
-        if (reply4xxSiMetier(err, reply)) return
-        throw err
-      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const cree = await creerConflit(app.prisma, req.body as any, auteurId)
+      return reply.code(201).send(cree)
     },
   )
 
@@ -158,13 +111,8 @@ export const conflitsRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
     '/conflits/:id',
     { schema: updateConflitSchema, preHandler: [authenticate] },
     async (req, reply) => {
-      try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return await majConflit(app.prisma, req.params.id, req.body as any, demandeur(req))
-      } catch (err) {
-        if (reply4xxSiMetier(err, reply)) return
-        throw err
-      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return await majConflit(app.prisma, req.params.id, req.body as any, demandeur(req))
     },
   )
 }

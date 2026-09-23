@@ -53,47 +53,51 @@ import { orgContext } from './org-context'
  */
 export type CreationScopee<T> = Omit<T, 'organisationId' | 'organisation'>
 
-/** Les 35 modèles métier scopés par organisation (tous portent `organisationId`).
- *  Inclut les 2 tables de jointure M2M explicites (Conflit/Commémoration ↔ Membre) :
- *  leurs liens sont créés/lus via des opérations scopées, pas via un M2M implicite.
- *  PARITÉ VÉRIFIÉE À LA COMPILATION par `tests/tenant-scoped-models.test.ts` (schéma ↔ Set). */
-export const SCOPED_MODELS = new Set<string>([
-  'Utilisateur',
-  'BrancheFamiliale',
-  'Membre',
-  'BaremeAnnuel',
-  'Contribution',
-  'Versement',
-  'EquilibrageContribution',
-  'EquilibrageDetail',
-  'Recu',
-  'Reunion',
-  'PointOrdreDuJour',
-  'PresenceReunion',
-  'Resolution',
-  'Vote',
-  'Tontine',
-  'CycleTontine',
-  'ParticipationTontine',
-  'TourTontine',
-  'MiseTontine',
-  'FonctionFamiliale',
-  'AffectationFonction',
-  'Conflit',
-  'ConflitMembreConcerne',
-  'Commemoration',
-  'CommemorationMembreConcerne',
-  'Document',
-  'AuditLog',
-  'Notification',
-  'Depense',
-  'CagnotteEvenement',
-  'DonCagnotte',
-  'Amende',
-  'ParametrePaiement',
-  'Paiement',
-  'PushSubscription',
-])
+/** Modèle dont l'absence prouve que la dérivation ci-dessous a cessé de fonctionner. */
+const SENTINELLES = ['Membre', 'Versement', 'AuditLog'] as const
+
+/**
+ * Modèles métier scopés par organisation — **DÉRIVÉS du client Prisma, jamais tenus à la main.**
+ *
+ * Prisma génère, pour chaque modèle, une constante `<Modèle>ScalarFieldEnum` qui énumère ses
+ * champs SCALAIRES. Un modèle est scopé si et seulement si cette énumération contient
+ * `organisationId` — c'est exactement la définition que la revue d'architecture appliquait à la
+ * main, et que le test de parité recalculait depuis `schema.prisma` pour la comparer à une liste
+ * de 35 noms recopiés.
+ *
+ * Pourquoi cette source et pas `schema.prisma` : la dérivation est **en mémoire**, sans lecture
+ * de fichier. Lire le schéma au démarrage ferait dépendre le boot d'un chemin relatif qui n'est
+ * pas le même depuis `src/` et depuis `dist/` — un échec de résolution serait une panne totale,
+ * pour une liste qui ne bouge que quand le schéma bouge.
+ *
+ * **La dérivation est FAIL-CLOSED.** Un ensemble vide ne désactiverait pas un garde-fou : il
+ * désactiverait l'isolation multi-tenant ENTIÈRE, en silence, sur toutes les requêtes. Si Prisma
+ * changeait la convention de nommage de ces énumérations, le filtre ci-dessous ne trouverait plus
+ * rien et l'extension laisserait tout passer. D'où le contrôle de sentinelles : trois modèles dont
+ * la disparition de l'ensemble ne peut signifier qu'une chose — la dérivation est cassée. Un
+ * simple plancher numérique aurait joué le même rôle, mais aurait dérivé à son tour.
+ *
+ * Y AJOUTER UN MODÈLE : il suffit de lui donner `organisationId` dans `schema.prisma`. Il n'y a
+ * plus de seconde liste où l'inscrire, donc plus d'oubli possible.
+ */
+function deriverModelesScopes(): Set<string> {
+  const SUFFIXE = 'ScalarFieldEnum'
+  const noms = Object.entries(Prisma as unknown as Record<string, unknown>)
+    .filter(([nom]) => nom.endsWith(SUFFIXE))
+    .filter(([, champs]) => typeof champs === 'object' && champs !== null && 'organisationId' in champs)
+    .map(([nom]) => nom.slice(0, -SUFFIXE.length))
+  const ensemble = new Set(noms)
+  const manquantes = SENTINELLES.filter((s) => !ensemble.has(s))
+  if (manquantes.length > 0) {
+    throw new Error(
+      `Isolation multi-tenant : la dérivation des modèles scopés a échoué (${ensemble.size} trouvés, ` +
+        `sentinelles manquantes : ${manquantes.join(', ')}). Refus de démarrer sans isolation.`,
+    )
+  }
+  return ensemble
+}
+
+export const SCOPED_MODELS: ReadonlySet<string> = deriverModelesScopes()
 
 /** Levée quand une requête scopée n'a pas de contexte org valide, ou vise une autre org. */
 export class TenantContextError extends Error {

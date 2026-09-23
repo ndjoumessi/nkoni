@@ -4,10 +4,18 @@ import { join } from 'node:path'
 import { SCOPED_MODELS } from '../src/lib/tenant-extension'
 
 /**
- * Garde-fou d'ISOLATION (audit C1) : `SCOPED_MODELS` est une allowlist manuelle — un modèle
- * portant `organisationId` mais OUBLIÉ dans le Set ne serait PAS isolé (fail-open silencieux).
- * Ce test parse le schéma Prisma et exige une PARITÉ STRICTE dans les deux sens : tout modèle
- * avec le champ scalaire `organisationId` doit être scopé, et le Set ne doit contenir aucun extra.
+ * Garde-fou d'ISOLATION (audit C1) — et ce qu'il garde a CHANGÉ.
+ *
+ * `SCOPED_MODELS` n'est plus une allowlist manuelle : elle est DÉRIVÉE du client Prisma généré
+ * (cf. `tenant-extension.ts`). Le risque « un modèle portant `organisationId` oublié dans le Set »
+ * a donc disparu — il n'y a plus de Set où l'oublier.
+ *
+ * Ce test n'est pas devenu inutile pour autant : il compare deux dérivations INDÉPENDANTES du même
+ * fait — celle du client généré (au chargement) et celle de `schema.prisma` (ici, par lecture).
+ * Un écart entre les deux ne signifie plus qu'un humain a oublié une ligne, mais que **le client
+ * généré est PÉRIMÉ** : le schéma a bougé et `npx prisma generate` n'a pas été relancé. C'est un
+ * défaut vécu, consigné dans CLAUDE.md, et dont la conséquence est ici maximale — un modèle
+ * fraîchement scopé ne serait pas isolé tant que le client n'est pas régénéré.
  */
 describe('Isolation multi-tenant — parité SCOPED_MODELS ↔ schéma Prisma', () => {
   it('tout modèle portant `organisationId` est déclaré scopé (et réciproquement)', () => {
@@ -27,16 +35,16 @@ describe('Isolation multi-tenant — parité SCOPED_MODELS ↔ schéma Prisma', 
 })
 
 /**
- * Garde-fou de PROSE : le nombre de modèles scopés est annoncé en toutes lettres à plusieurs
- * endroits, chaque fois recopié à la main. Rien ne le vérifiait, donc il dérivait en silence —
+ * Garde-fou de PROSE : le nombre de modèles scopés est annoncé en toutes lettres dans CLAUDE.md,
+ * recopié à la main. Rien ne le vérifiait, donc il dérivait en silence —
  * trois compteurs décrivant le MÊME Set ont fini par afficher trois valeurs différentes (27 dans
  * le docblock de `tenant-extension.ts`, 28 dans `CLAUDE.md`, 30 dans le libellé du fixture de
  * purge) pour 29 modèles réels. Le libellé du fixture est depuis DÉRIVÉ de `SCOPED_MODELS.size` ;
  * la prose, elle, ne peut pas l'être — d'où ce test.
  *
- * Chaque source a son propre MOTIF : la formulation diffère d'un fichier à l'autre, et un motif
- * trop large attraperait des nombres voisins sans rapport (le docblock parle de « 2 tables de
- * jointure M2M » deux lignes plus bas — elles ne sont pas le compte des modèles scopés).
+ * Il ne reste qu'UNE source depuis que la liste est dérivée : le docblock de
+ * `tenant-extension.ts` n'annonce plus de compte, puisqu'il ne recopie plus rien. CLAUDE.md, lui,
+ * est de la prose humaine et continue d'en annoncer un.
  *
  * Les fichiers étant lus par chemin, le test échoue aussi si l'un est déplacé ou renommé
  * (`readFileSync` lève) : c'est voulu, un garde-fou muet ne garde rien.
@@ -47,13 +55,6 @@ const SOURCES_PROSE = [
     chemin: join(__dirname, '../../CLAUDE.md'),
     // « les 29 `SCOPED_MODELS` » ET « l'un des 29 SCOPED_MODELS » (backticks optionnels).
     motif: /(\d+)\s+`?SCOPED_MODELS`?/g,
-  },
-  {
-    nom: 'src/lib/tenant-extension.ts',
-    chemin: join(__dirname, '../src/lib/tenant-extension.ts'),
-    // « Les 29 modèles métier scopés » — volontairement ancré sur les 3 mots, pour ne PAS
-    // capturer « les 2 tables de jointure M2M » de la ligne suivante.
-    motif: /(\d+)\s+modèles\s+métier\s+scopés/g,
   },
 ]
 

@@ -10,6 +10,8 @@
  * amende ANNULEE ne compte NI dans le dû NI dans l'encaissé. Poche de suivi séparée : les
  * montants ne sont PAS (encore) injectés dans le solde de trésorerie générale.
  */
+import { ErreurMetier } from '../lib/erreur-metier'
+
 
 export type TypeAmendeValue = 'RETARD_COTISATION' | 'ABSENCE_REUNION' | 'AUTRE'
 export type StatutAmendeValue = 'IMPAYEE' | 'PAYEE' | 'ANNULEE'
@@ -28,22 +30,14 @@ const TRANSITIONS: Record<StatutAmendeValue, StatutAmendeValue[]> = {
   ANNULEE: [],
 }
 
-/** Levée quand on édite/supprime une amende qui n'est plus IMPAYEE. */
-export class AmendeNonEditableError extends Error {
-  constructor(public readonly statut: StatutAmendeValue) {
-    super(`Amende ${statut} : non modifiable (seule une amende IMPAYEE l'est).`)
-    this.name = 'AmendeNonEditableError'
-  }
-}
 
 /** Levée sur une transition de statut non autorisée. */
-export class TransitionAmendeInvalideError extends Error {
+export class TransitionAmendeInvalideError extends ErreurMetier {
   constructor(
     public readonly de: StatutAmendeValue,
     public readonly vers: StatutAmendeValue,
   ) {
-    super(`Transition d'amende invalide : ${de} → ${vers}.`)
-    this.name = 'TransitionAmendeInvalideError'
+    super(409, 'amendes.transition', `Transition d'amende invalide : ${de} → ${vers}.`)
   }
 }
 

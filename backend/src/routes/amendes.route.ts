@@ -9,7 +9,6 @@ import {
   estEditableAmende,
   validerTransitionAmende,
   totauxAmendes,
-  TransitionAmendeInvalideError,
   type StatutAmendeValue,
 } from '../services/amende.service'
 
@@ -194,14 +193,8 @@ export const amendesRoutes: FastifyPluginAsync = async (app: FastifyInstance) =>
     async (req, reply) => {
       const a = await charger(req.params.id)
       if (!a) return reply.code(404).send({ error: 'Not Found', message: t(langueDeRequete(req), 'amendes.introuvable') })
-      try {
-        validerTransitionAmende((a as unknown as AmendeRow).statut, 'PAYEE')
-      } catch (err) {
-        if (err instanceof TransitionAmendeInvalideError) {
-          return reply.code(409).send({ error: 'Conflict', message: t(langueDeRequete(req), 'amendes.transition') })
-        }
-        throw err
-      }
+      validerTransitionAmende((a as unknown as AmendeRow).statut, 'PAYEE')
+    
       return await app.prisma.amende.update({
         where: { id: req.params.id },
         data: {
@@ -221,14 +214,8 @@ export const amendesRoutes: FastifyPluginAsync = async (app: FastifyInstance) =>
     async (req, reply) => {
       const a = await charger(req.params.id)
       if (!a) return reply.code(404).send({ error: 'Not Found', message: t(langueDeRequete(req), 'amendes.introuvable') })
-      try {
-        validerTransitionAmende((a as unknown as AmendeRow).statut, 'ANNULEE')
-      } catch (err) {
-        if (err instanceof TransitionAmendeInvalideError) {
-          return reply.code(409).send({ error: 'Conflict', message: t(langueDeRequete(req), 'amendes.transition') })
-        }
-        throw err
-      }
+      validerTransitionAmende((a as unknown as AmendeRow).statut, 'ANNULEE')
+    
       return await app.prisma.amende.update({
         where: { id: req.params.id },
         data: { statut: 'ANNULEE' },

@@ -7,7 +7,6 @@ import {
   calculerDashboardRestreint,
   calculerDashboardPerso,
   calculerFinancesConsolidees,
-  MembreIntrouvableError,
 } from '../services/dashboard.service'
 import { anneeCouranteApp } from '../lib/date-app'
 
@@ -76,19 +75,8 @@ export const dashboardRoutes: FastifyPluginAsync = async (app: FastifyInstance) 
               message: t(langueDeRequete(req), 'dashboard.aucunMembreRattache'),
             })
           }
-          try {
-            return await calculerDashboardPerso(app.prisma, membre.id, annee)
-          } catch (err) {
-            if (err instanceof MembreIntrouvableError) {
-              return reply.code(404).send({
-                error: 'Not Found',
-                message: t(langueDeRequete(req), 'dashboard.membreIntrouvable', {
-                  membreId: err.membreId,
-                }),
-              })
-            }
-            throw err
-          }
+          return await calculerDashboardPerso(app.prisma, membre.id, annee)
+        
         }
 
         default:

@@ -20,6 +20,7 @@
  * ne contient AUCUNE donnée structurelle (branches, décès…).
  */
 
+import { ErreurMetier } from '../lib/erreur-metier'
 import {
   calculerStatutContribution,
   type BaremeAnnuelInput,
@@ -35,13 +36,16 @@ import { moisCourantApp } from '../lib/date-app'
 /* Erreurs                                                                     */
 /* -------------------------------------------------------------------------- */
 
-/** Levée par la vue PERSO si aucun membre ne correspond (→ 404 côté route). */
-export class MembreIntrouvableError extends Error {
+/** Levée par la vue PERSO si aucun membre ne correspond . */
+export class MembreIntrouvableError extends ErreurMetier {
   readonly membreId: string
   constructor(membreId: string) {
-    super(`Membre ${membreId} introuvable.`)
-    this.name = 'MembreIntrouvableError'
+    super(404, 'dashboard.membreIntrouvable', `Membre ${membreId} introuvable.`)
     this.membreId = membreId
+  }
+
+  override parametres() {
+    return { membreId: this.membreId }
   }
 }
 

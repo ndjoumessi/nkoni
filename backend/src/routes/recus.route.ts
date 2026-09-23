@@ -3,14 +3,7 @@ import { Prisma } from '../generated/prisma/client'
 import { t, langueDeRequete } from '../lib/i18n'
 import { authenticate } from '../middlewares/authenticate'
 import { requirePermission, requireRoles, ROLES_ARGENT } from '../middlewares/permissions'
-import {
-  genererRecu,
-  annulerRecu,
-  VersementIntrouvableError,
-  RecuIntrouvableError,
-  RecuDejaAnnuleError,
-  RecuActifExistantError,
-} from '../services/recu.service'
+import { genererRecu, annulerRecu } from '../services/recu.service'
 import { chargerDonneesRecuPdf, produireRecuPdf } from '../services/recu-pdf.service'
 import { envoyerRecuWhatsApp } from '../services/whatsapp.service'
 import { envoyerRecu } from '../services/envoi-recu.service'
@@ -82,26 +75,9 @@ export const recusRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
         }
       }
 
-      try {
-        const recu = await genererRecu(app.prisma, versementId, req.user.sub ?? '')
-        return reply.code(201).send(avecLienPartage(recu))
-      } catch (err) {
-        if (err instanceof RecuActifExistantError) {
-          return reply.code(409).send({
-            error: 'Conflict',
-            message: t(langueDeRequete(req), 'recus.actifExistant', { numero: err.numero }),
-          })
-        }
-        if (err instanceof VersementIntrouvableError) {
-          return reply.code(404).send({
-            error: 'Not Found',
-            message: t(langueDeRequete(req), 'recus.versementIntrouvableGeneration', {
-              versementId: err.versementId,
-            }),
-          })
-        }
-        throw err
-      }
+      const recu = await genererRecu(app.prisma, versementId, req.user.sub ?? '')
+      return reply.code(201).send(avecLienPartage(recu))
+    
     },
   )
 
@@ -356,26 +332,14 @@ export const recusRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
       preHandler: [authenticate, requireRoles(ROLES_ARGENT)],
     },
     async (req, reply) => {
-      try {
-        const recu = await annulerRecu(
-          app.prisma,
-          req.params.id,
-          req.user.sub ?? '',
-          req.body?.motif,
-        )
-        return reply.code(200).send(recu)
-      } catch (err) {
-        if (err instanceof RecuIntrouvableError) {
-          return reply.code(404).send({ error: 'Not Found' })
-        }
-        if (err instanceof RecuDejaAnnuleError) {
-          return reply.code(409).send({
-            error: 'Conflict',
-            message: t(langueDeRequete(req), 'recus.dejaAnnule'),
-          })
-        }
-        throw err
-      }
+      const recu = await annulerRecu(
+        app.prisma,
+        req.params.id,
+        req.user.sub ?? '',
+        req.body?.motif,
+      )
+      return reply.code(200).send(recu)
+    
     },
   )
 }

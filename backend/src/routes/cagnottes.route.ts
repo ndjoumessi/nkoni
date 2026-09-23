@@ -11,7 +11,6 @@ import {
   progressionCagnotte,
   estEditableCagnotte,
   validerReversement,
-  ReversementInvalideError,
   type StatutCagnotteValue,
 } from '../services/cagnotte.service'
 
@@ -26,7 +25,6 @@ import {
  */
 
 const TYPES = ['DEUIL', 'MARIAGE', 'NAISSANCE', 'AUTRE'] as const
-
 
 interface CreateBody {
   titre: string
@@ -344,14 +342,8 @@ export const cagnottesRoutes: FastifyPluginAsync = async (app: FastifyInstance) 
       })
       const collecte = agg._sum.montant ?? 0
       const montantReverse = req.body.montantReverse ?? 0
-      try {
-        validerReversement(montantReverse, collecte)
-      } catch (err) {
-        if (err instanceof ReversementInvalideError) {
-          return reply.code(400).send({ error: 'Bad Request', message: t(langueDeRequete(req), 'cagnottes.reversement') })
-        }
-        throw err
-      }
+      validerReversement(montantReverse, collecte)
+    
       const maj = await app.prisma.cagnotteEvenement.update({
         where: { id: req.params.id },
         data: {

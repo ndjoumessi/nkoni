@@ -12,6 +12,8 @@
  * Cycle de vie : OUVERTE → CLOTUREE. On n'édite plus (dons/paramètres) une cagnotte CLÔTURÉE
  * (elle peut être rouverte explicitement). Le reversement est borné à [0, collecte].
  */
+import { ErreurMetier } from '../lib/erreur-metier'
+
 
 export type TypeCagnotteValue = 'DEUIL' | 'MARIAGE' | 'NAISSANCE' | 'AUTRE'
 export type StatutCagnotteValue = 'OUVERTE' | 'CLOTUREE'
@@ -42,22 +44,18 @@ export function estEditableCagnotte(statut: StatutCagnotteValue): boolean {
   return statut === 'OUVERTE'
 }
 
-/** Levée quand on tente d'écrire (don/édition) sur une cagnotte CLÔTURÉE. */
-export class CagnotteClotureeError extends Error {
-  constructor() {
-    super('Cagnotte clôturée : aucune modification possible (rouvrir d’abord).')
-    this.name = 'CagnotteClotureeError'
-  }
-}
 
 /** Levée quand le montant reversé est hors bornes [0, collecte]. */
-export class ReversementInvalideError extends Error {
+export class ReversementInvalideError extends ErreurMetier {
   constructor(
     public readonly montantReverse: number,
     public readonly collecte: number,
   ) {
-    super(`Reversement invalide : ${montantReverse} hors de [0, ${collecte}].`)
-    this.name = 'ReversementInvalideError'
+    super(
+      400,
+      'cagnottes.reversement',
+      `Reversement invalide : ${montantReverse} hors de [0, ${collecte}].`,
+    )
   }
 }
 

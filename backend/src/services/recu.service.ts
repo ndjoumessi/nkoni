@@ -24,6 +24,7 @@
  * à Douala doit numéroter sur la nouvelle année, pas sur celle encore en cours en UTC).
  */
 
+import { ErreurMetier } from '../lib/erreur-metier'
 import { anneeCouranteApp } from '../lib/date-app'
 
 /**
@@ -32,28 +33,29 @@ import { anneeCouranteApp } from '../lib/date-app'
  * justificatifs pour un seul paiement. La séquence correcte est ANNULER puis RÉÉMETTRE — l'annulation
  * libère l'émission d'un nouveau numéro.
  */
-export class RecuActifExistantError extends Error {
+export class RecuActifExistantError extends ErreurMetier {
   readonly numero: string
   constructor(numero: string) {
-    super(`Un reçu actif (${numero}) existe déjà pour ce versement.`)
-    this.name = 'RecuActifExistantError'
+    super(409, 'recus.actifExistant', `Un reçu actif (${numero}) existe déjà pour ce versement.`)
     this.numero = numero
+  }
+
+  override parametres() {
+    return { numero: this.numero }
   }
 }
 
 /** Levée quand on tente d'annuler un reçu déjà annulé (l'annulation n'est pas rejouable). */
-export class RecuDejaAnnuleError extends Error {
+export class RecuDejaAnnuleError extends ErreurMetier {
   constructor() {
-    super('Ce reçu est déjà annulé.')
-    this.name = 'RecuDejaAnnuleError'
+    super(409, 'recus.dejaAnnule', 'Ce reçu est déjà annulé.')
   }
 }
 
 /** Levée quand le reçu visé n'existe pas (ou appartient à une autre organisation). */
-export class RecuIntrouvableError extends Error {
+export class RecuIntrouvableError extends ErreurMetier {
   constructor() {
-    super('Reçu introuvable.')
-    this.name = 'RecuIntrouvableError'
+    super(404, 'recus.introuvable', 'Reçu introuvable.')
   }
 }
 
@@ -94,13 +96,20 @@ export async function annulerRecu(
   })
 }
 
-/** Levée quand le Versement ciblé n'existe pas (→ 404 côté route). */
-export class VersementIntrouvableError extends Error {
+/** Levée quand le Versement ciblé n'existe pas . */
+export class VersementIntrouvableError extends ErreurMetier {
   readonly versementId: string
   constructor(versementId: string) {
-    super(`Versement ${versementId} introuvable : impossible de générer un reçu.`)
-    this.name = 'VersementIntrouvableError'
+    super(
+      404,
+      'recus.versementIntrouvableGeneration',
+      `Versement ${versementId} introuvable : impossible de générer un reçu.`,
+    )
     this.versementId = versementId
+  }
+
+  override parametres() {
+    return { versementId: this.versementId }
   }
 }
 

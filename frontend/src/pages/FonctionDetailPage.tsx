@@ -1,22 +1,14 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useMemo, useEffect, useRef, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
-import {
-  History,
-  Landmark,
-  Pencil,
-  Trash2,
-  UserCheck,
-  UserPlus,
-  UserX,
-} from 'lucide-react'
+import { History, Landmark, Pencil, Trash2, UserCheck, UserPlus, UserX } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
+import { useRessource } from '@/hooks/useRessource'
 import {
   fonctionsApi,
   affectationsApi,
   membresApi,
   ApiError,
-  messageErreur,
   type FonctionDetail,
   type Affectation,
   type OptionMembre,
@@ -54,10 +46,26 @@ export function FonctionDetailPage() {
   const gestion = peutGererFonctions(user?.role)
   const peutSupprimer = peutSupprimerFonction(user?.role)
 
-  const [fonction, setFonction] = useState<FonctionDetail | null>(null)
-  const [membres, setMembres] = useState<OptionMembre[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  // Ressource COMPOSITE : la fonction, puis la liste des membres pour le sélecteur de titulaire —
+  // SÉQUENTIELLE, car cette seconde lecture est réservée aux rôles de gestion. BEST-EFFORT.
+  const { data, loading, error, setData } = useRessource<{
+    fonction: FonctionDetail
+    membres: OptionMembre[]
+  }>(
+    async (jeton, signal) => {
+      const detail = await fonctionsApi.get(id ?? '', jeton, signal)
+      const liste = gestion
+        ? await membresApi.listOptions(jeton, signal).catch(() => [] as OptionMembre[])
+        : []
+      return { fonction: detail, membres: liste }
+    },
+    [id, gestion],
+    { pret: Boolean(id) },
+  )
+  const fonction = data?.fonction ?? null
+  const membres = useMemo(() => data?.membres ?? [], [data])
+  const setFonction = (v: FonctionDetail) =>
+    setData((d) => (d ? { ...d, fonction: v } : { fonction: v, membres: [] }))
 
   // Édition de la fonction (nom / description).
   const [nom, setNom] = useState('')
@@ -79,38 +87,13 @@ export function FonctionDetailPage() {
   const [deleteOuvert, setDeleteOuvert] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
+  // `nom` et `description` sont des BROUILLONS éditables : amorcés depuis la fonction lue, ils
+  // divergent dès que l'utilisateur tape.
   useEffect(() => {
-    if (!accessToken || !id) return
-    const controller = new AbortController()
-    let active = true
-    setLoading(true)
-    setError(null)
-    void (async () => {
-      try {
-        const data = await fonctionsApi.get(id, accessToken, controller.signal)
-        if (!active) return
-        setFonction(data)
-        setNom(data.nom)
-        setDescription(data.description ?? '')
-        // Liste des membres pour le sélecteur de titulaire (réservé aux gestionnaires).
-        if (gestion) {
-          const liste = await membresApi
-            .listOptions(accessToken, controller.signal)
-            .catch(() => [] as OptionMembre[])
-          if (active) setMembres(liste)
-        }
-      } catch (e) {
-        if (e instanceof DOMException && e.name === 'AbortError') return
-        if (active) setError(messageErreur(e))
-      } finally {
-        if (active) setLoading(false)
-      }
-    })()
-    return () => {
-      active = false
-      controller.abort()
-    }
-  }, [accessToken, id, gestion])
+    if (!data?.fonction) return
+    setNom(data.fonction.nom)
+    setDescription(data.fonction.description ?? '')
+  }, [data?.fonction])
 
   if (!peutVoirFonctions(user?.role)) {
     return <Navigate to="/dashboard" replace />

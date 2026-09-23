@@ -2,10 +2,10 @@ import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Bell } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
+import { useRessource } from '@/hooks/useRessource'
 import {
   notificationsApi,
   pushApi,
-  messageErreur,
   ApiError,
   type PreferencesNotification,
   type TypeNotificationDesactivable,
@@ -50,29 +50,15 @@ export function NotificationPreferences() {
   const { accessToken, modeDemo } = useAuth()
   const toast = useToast()
 
-  const [prefs, setPrefs] = useState<PreferencesNotification | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const {
+    data: prefs,
+    error,
+    setData: setPrefs,
+  } = useRessource<PreferencesNotification>(
+    (jeton, signal) => notificationsApi.getPreferences(jeton, signal),
+    [],
+  )
   const [saving, setSaving] = useState<TypeNotificationDesactivable | null>(null)
-
-  useEffect(() => {
-    if (!accessToken) return
-    const controller = new AbortController()
-    let actif = true
-    void notificationsApi
-      .getPreferences(accessToken, controller.signal)
-      .then((p) => {
-        if (actif) setPrefs(p)
-      })
-      .catch((e) => {
-        if (actif && !(e instanceof DOMException && e.name === 'AbortError')) {
-          setError(messageErreur(e))
-        }
-      })
-    return () => {
-      actif = false
-      controller.abort()
-    }
-  }, [accessToken])
 
   // --- Web Push par APPAREIL (indépendant des préférences par type ci-dessus) ---
   const [etatPush, setEtatPush] = useState<EtatPush>('chargement')

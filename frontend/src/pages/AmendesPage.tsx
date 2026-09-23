@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { useMemo, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Navigate } from 'react-router-dom'
 import { Ban, Check, Gavel, Pencil, Plus, Trash2, X } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
+import { useRessource } from '@/hooks/useRessource'
 import {
   amendesApi,
   membresApi,
@@ -52,11 +53,6 @@ export function AmendesPage() {
   const { user, accessToken } = useAuth()
   const toast = useToast()
 
-  const [data, setData] = useState<AmendesReponse | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [membres, setMembres] = useState<OptionMembre[]>([])
-
   const [fStatut, setFStatut] = useState<StatutAmende | ''>('')
   const [fMembre, setFMembre] = useState('')
 
@@ -80,46 +76,28 @@ export function AmendesPage() {
   const gestion = peutGererAmende(user?.role)
   const argent = peutEncaisserAmende(user?.role)
 
-  const charger = useCallback(
-    async (signal?: AbortSignal) => {
-      if (!accessToken) return
+  // Ressource COMPOSITE : les amendes filtrées et la liste des membres (sélecteur, BEST-EFFORT).
+  // `recharger` remplace l'ancien `charger()` manuel appelé après chaque action.
+  const {
+    data: donnees,
+    loading,
+    error,
+    recharger,
+  } = useRessource<{ amendes: AmendesReponse; membres: OptionMembre[] }>(
+    async (jeton, signal) => {
       const filtre: { membreId?: string; statut?: StatutAmende } = {}
       if (fMembre) filtre.membreId = fMembre
       if (fStatut) filtre.statut = fStatut
-      const res = await amendesApi.list(filtre, accessToken, signal)
-      setData(res)
+      const [res, liste] = await Promise.all([
+        amendesApi.list(filtre, jeton, signal),
+        membresApi.listOptions(jeton, signal).catch(() => [] as OptionMembre[]),
+      ])
+      return { amendes: res, membres: liste }
     },
-    [accessToken, fMembre, fStatut],
+    [fMembre, fStatut],
   )
-
-  useEffect(() => {
-    if (!accessToken) return
-    const controller = new AbortController()
-    let active = true
-    setLoading(true)
-    setError(null)
-    void (async () => {
-      try {
-        const [, liste] = await Promise.all([
-          charger(controller.signal),
-          membres.length === 0
-            ? membresApi.listOptions(accessToken, controller.signal).catch(() => [] as OptionMembre[])
-            : Promise.resolve(membres),
-        ])
-        if (active && liste) setMembres(liste)
-      } catch (e) {
-        if (e instanceof DOMException && e.name === 'AbortError') return
-        if (active) setError(messageErreur(e))
-      } finally {
-        if (active) setLoading(false)
-      }
-    })()
-    return () => {
-      active = false
-      controller.abort()
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accessToken, fMembre, fStatut])
+  const data = donnees?.amendes ?? null
+  const membres = useMemo(() => donnees?.membres ?? [], [donnees])
 
   if (!peutVoirAmendes(user?.role)) return <Navigate to="/dashboard" replace />
 
@@ -165,7 +143,7 @@ export function AmendesPage() {
         )
         toast.success(t('amendes.form.toast.cree'))
       }
-      await charger()
+      recharger()
       setModal(null)
     } catch (err) {
       toast.error(t('amendes.form.toast.erreur'), err instanceof ApiError ? err.message : messageErreur(err))
@@ -184,7 +162,7 @@ export function AmendesPage() {
         { datePaiement: new Date(payDate).toISOString(), modePaiement: payMode },
         accessToken,
       )
-      await charger()
+      recharger()
       toast.success(t('amendes.payer.toast.paye'))
       setModal(null)
       setAPayer(null)
@@ -200,7 +178,7 @@ export function AmendesPage() {
     setBusy(true)
     try {
       await amendesApi.annuler(aAnnuler.id, accessToken)
-      await charger()
+      recharger()
       toast.success(t('amendes.confirm.toast.annulee'))
       setAAnnuler(null)
     } catch (err) {
@@ -215,7 +193,7 @@ export function AmendesPage() {
     setBusy(true)
     try {
       await amendesApi.remove(aSupprimer.id, accessToken)
-      await charger()
+      recharger()
       toast.success(t('amendes.confirm.toast.supprimee'))
       setASupprimer(null)
     } catch (err) {

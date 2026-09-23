@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
@@ -14,6 +14,7 @@ import {
 import { API_URL, statutApi, type IncidentPublic, type GraviteIncident } from '@/lib/api'
 import { NkoniMark } from '@/components/ui/NkoniMark'
 import { useChromePublic } from '@/components/public/chrome-public'
+import { useRessourcePublique } from '@/hooks/useRessource'
 import { cleI18n } from '@/lib/i18n'
 import { cn, formatDateHeure } from '@/lib/utils'
 import { CONTACT_EMAIL } from '@/lib/contact'
@@ -64,47 +65,32 @@ export function StatutPage() {
   // application. La coquille reste locale (mesure étroite, sur-titre) : c'est le COMPORTEMENT de
   // l'en-tête qui est partagé, pas la mise en page.
   const chrome = useChromePublic()
-  const [etat, setEtat] = useState<Etat>('verification')
-  const [verifieLe, setVerifieLe] = useState<string | null>(null)
-  const [incident, setIncident] = useState<IncidentPublic | null>(null)
-
-  useEffect(() => {
-    const controller = new AbortController()
-    let actif = true
-    void (async () => {
-      try {
-        // `/ready` renvoie 200 si la base répond, 503 sinon → `res.ok` distingue les deux.
-        const res = await fetch(`${API_URL}/ready`, { signal: controller.signal })
-        if (!actif) return
-        setEtat(res.ok ? 'operationnel' : 'incident')
-      } catch {
-        if (actif) setEtat('incident')
-      } finally {
-        if (actif) setVerifieLe(new Date().toISOString())
-      }
-    })()
-    return () => {
-      actif = false
-      controller.abort()
-    }
-  }, [])
+  // Les DEUX lectures de cette page sont PUBLIQUES : un visiteur sans compte doit pouvoir la
+  // consulter, c'est tout son objet. D'où `useRessourcePublique`, dont le `charger` ne reçoit
+  // aucun jeton — la signature interdit d'en oublier un.
+  //
+  // La sonde `/ready` ne LÈVE pas sur 503 : `res.ok` distingue « base debout » de « dégradé », et
+  // seule une panne de transport passe par le `catch` du module. Les deux cas rendent 'incident',
+  // d'où la conversion en bas.
+  const { data: sonde, loading: sondeEnCours } = useRessourcePublique<'operationnel' | 'incident'>(
+    async (signal) => {
+      const res = await fetch(`${API_URL}/ready`, { signal })
+      return res.ok ? 'operationnel' : 'incident'
+    },
+    [],
+  )
+  const etat: Etat = sondeEnCours ? 'verification' : (sonde ?? 'incident')
+  const verifieLe = useMemo(
+    () => (sondeEnCours ? null : new Date().toISOString()),
+    [sondeEnCours],
+  )
 
   // Bannière d'incident publiée par le SUPER_ADMIN (indépendante de la sonde). Best-effort : en
-  // cas d'échec, on n'affiche simplement rien — l'état sondé reste, sans conséquence.
-  useEffect(() => {
-    const controller = new AbortController()
-    let vivant = true
-    void statutApi
-      .incidentPublic(controller.signal)
-      .then((i) => {
-        if (vivant) setIncident(i)
-      })
-      .catch(() => {})
-    return () => {
-      vivant = false
-      controller.abort()
-    }
-  }, [])
+  // cas d'échec on n'affiche rien — l'état sondé reste, sans conséquence.
+  const { data: incident } = useRessourcePublique<IncidentPublic>(
+    (signal) => statutApi.incidentPublic(signal),
+    [],
+  )
 
   // Seuls l'icône et les tons sont figés ici ; les libellés sont résolus par `t()` au rendu
   // (convention §4 : pas de map de libellés figée au niveau module).

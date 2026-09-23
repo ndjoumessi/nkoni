@@ -6,6 +6,10 @@ import { AnalyseMembres } from './AnalyseMembres'
 
 const analyse = vi.fn()
 vi.mock('@/lib/api', () => ({
+  // `ApiError` : le composant passe par `useRessource`, qui la consulte dans son `catch`. Un
+  // mock qui l'omet fait lever le hook — tests verts, mais vitest rapporte une erreur non attribuée.
+  ApiError: class extends Error {},
+
   membresApi: { analyse: (...a: unknown[]) => analyse(...a) },
 }))
 let modeDemo = false

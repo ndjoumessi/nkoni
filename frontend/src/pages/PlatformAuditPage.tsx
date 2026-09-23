@@ -1,14 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { LogOut, History, Building2, Megaphone } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
-import {
-  platformApi,
-  messageErreur,
-  type PlatformAuditEntry,
-  type ActionPlateforme,
-} from '@/lib/api'
+import { useRessource } from '@/hooks/useRessource'
+import { platformApi, type PlatformAuditEntry, type ActionPlateforme } from '@/lib/api'
 import { cleI18n } from '@/lib/i18n'
 import { formatDateApp, formatDateHeure, cn } from '@/lib/utils'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -83,35 +79,19 @@ function resumeDetails(e: PlatformAuditEntry): string {
  */
 export function PlatformAuditPage() {
   const { t } = useTranslation()
-  const { user, accessToken, logout } = useAuth()
+  const { user, logout } = useAuth()
 
-  const [entrees, setEntrees] = useState<PlatformAuditEntry[] | null>(null)
-  const [total, setTotal] = useState(0)
-  const [tronque, setTronque] = useState(false)
-  const [erreur, setErreur] = useState<string | null>(null)
+  // Les trois morceaux viennent d'UNE réponse : ce n'étaient pas trois états mais trois champs.
+  const { data, error: erreur, recharger } = useRessource(
+    (jeton, signal) => platformApi.listAudit({}, jeton, signal),
+    [],
+  )
+  const entrees = data?.items ?? null
+  const total = data?.total ?? 0
+  const tronque = data?.tronque ?? false
 
   const [filtreAction, setFiltreAction] = useState<ActionPlateforme | 'tous'>('tous')
   const [filtreOrg, setFiltreOrg] = useState<string>('tous')
-
-  const charger = () => {
-    if (!accessToken) return
-    const controller = new AbortController()
-    setErreur(null)
-    void platformApi
-      .listAudit({}, accessToken, controller.signal)
-      .then((r) => {
-        setEntrees(r.items)
-        setTotal(r.total)
-        setTronque(r.tronque)
-      })
-      .catch((e) => {
-        if (e instanceof DOMException && e.name === 'AbortError') return
-        setErreur(messageErreur(e))
-      })
-    return () => controller.abort()
-  }
-
-  useEffect(charger, [accessToken])
 
   // Options du sélecteur d'org : orgs DISTINCTES présentes dans le journal (nom snapshot), triées.
   const orgs = useMemo(() => {
@@ -213,7 +193,7 @@ export function PlatformAuditPage() {
 
         {erreur ? (
           <div className="mt-7">
-            <ErrorState title={t('superAdmin.historique.erreur')} description={erreur} onRetry={charger} />
+            <ErrorState title={t('superAdmin.historique.erreur')} description={erreur} onRetry={recharger} />
           </div>
         ) : entrees === null ? (
           <div className="mt-7 overflow-hidden rounded-2xl border border-hairline">

@@ -4,6 +4,7 @@ import type { TFunction } from 'i18next'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { AlertTriangle, ArrowRight, Check, Scale } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
+import { useRessource } from '@/hooks/useRessource'
 import {
   membresApi,
   contributionsApi,
@@ -50,10 +51,6 @@ export function EquilibrageFormPage() {
   const navigate = useNavigate()
   const toast = useToast()
 
-  const [membreNom, setMembreNom] = useState('')
-  const [contributions, setContributions] = useState<Contribution[]>([])
-  const [loading, setLoading] = useState(true)
-
   const [anneeDebut, setAnneeDebut] = useState<number | null>(null)
   const [anneeFin, setAnneeFin] = useState<number | null>(null)
 
@@ -62,38 +59,39 @@ export function EquilibrageFormPage() {
   const [simulating, setSimulating] = useState(false)
   const [applying, setApplying] = useState(false)
 
-  useEffect(() => {
-    if (!accessToken || !id) return
-    const controller = new AbortController()
-    const { signal } = controller
-    let active = true
-    setLoading(true)
-    void (async () => {
-      try {
-        const [membre, list] = await Promise.all([
-          membresApi.get(id, accessToken, signal),
-          contributionsApi.listByMembre(id, accessToken, signal),
-        ])
-        if (!active) return
-        setMembreNom(`${membre.nom} ${membre.prenom}`)
-        const tri = [...list].sort((a, b) => a.annee - b.annee)
-        setContributions(tri)
-        if (tri.length > 0) {
-          setAnneeDebut(tri[0].annee)
-          setAnneeFin(tri[tri.length - 1].annee)
-        }
-      } catch (e) {
-        if (e instanceof DOMException && e.name === 'AbortError') return
-        if (active) toast.error(t('equilibrages.toast.chargementImpossible'), e instanceof ApiError ? e.message : undefined)
-      } finally {
-        if (active) setLoading(false)
+  // Ressource COMPOSITE : le membre et ses contributions. Le TRI par année est fait DANS le
+  // chargeur : c'est une propriété de la donnée servie, pas un état de la page.
+  const { data, loading, error } = useRessource<{
+    membreNom: string
+    contributions: Contribution[]
+  }>(
+    async (jeton, signal) => {
+      const [membre, list] = await Promise.all([
+        membresApi.get(id ?? '', jeton, signal),
+        contributionsApi.listByMembre(id ?? '', jeton, signal),
+      ])
+      return {
+        membreNom: `${membre.nom} ${membre.prenom}`,
+        contributions: [...list].sort((a, b) => a.annee - b.annee),
       }
-    })()
-    return () => {
-      active = false
-      controller.abort()
-    }
-  }, [accessToken, id, toast, t])
+    },
+    [id],
+    { pret: Boolean(id) },
+  )
+  const membreNom = data?.membreNom ?? ''
+  const contributions = useMemo(() => data?.contributions ?? [], [data])
+
+  useEffect(() => {
+    if (error) toast.error(t('equilibrages.toast.chargementImpossible'), error)
+  }, [error, toast, t])
+
+  // AMORÇAGE des bornes de la fenêtre d'équilibrage : brouillon, l'utilisateur les resserre ensuite.
+  useEffect(() => {
+    const tri = data?.contributions
+    if (!tri || tri.length === 0) return
+    setAnneeDebut(tri[0]!.annee)
+    setAnneeFin(tri[tri.length - 1]!.annee)
+  }, [data?.contributions])
 
   const annees = useMemo(() => contributions.map((c) => c.annee), [contributions])
   const anneesSet = useMemo(() => new Set(annees), [annees])

@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render, screen, waitFor, act } from '@testing-library/react'
-import { useRessource } from './useRessource'
+import { readdirSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { useRessource, useRessourcePublique } from './useRessource'
 
 /**
  * Le cycle de chargement d'une page, testé UNE fois.
@@ -42,7 +44,7 @@ function Sonde({
   charger: (jeton: string, signal: AbortSignal) => Promise<string>
   deps?: readonly unknown[]
 }) {
-  const { data, loading, error } = useRessource(charger, deps, 'commun.erreur')
+  const { data, loading, error } = useRessource(charger, deps, { cleErreur: 'commun.erreur' })
   return (
     <div>
       <span data-testid="etat">{loading ? 'chargement' : (error ?? data ?? 'vide')}</span>
@@ -150,5 +152,88 @@ describe('useRessource — le cycle de chargement', () => {
     await waitFor(() => expect(appels).toBe(1))
     rerender(<Sonde charger={charger} deps={[2]} />)
     await waitFor(() => expect(appels).toBe(2))
+  })
+})
+
+describe('useRessource — les deux gardes ajoutées pour les composites', () => {
+  function SondePret({ pret, onCharge }: { pret: boolean; onCharge: () => void }) {
+    const { data, loading } = useRessource(
+      async () => {
+        onCharge()
+        return 'ok'
+      },
+      [],
+      { pret },
+    )
+    return <span data-testid="etat">{loading ? 'chargement' : (data ?? 'vide')}</span>
+  }
+
+  it('`pret: false` ne charge RIEN et ne laisse pas la page en chargement', async () => {
+    // Une garde de rôle ou un id d'URL absent sont des états DÉFINITIFS. Laisser `loading` à true
+    // afficherait un squelette qui ne se résout jamais — le symptôme exact qu'on évite ici.
+    let appels = 0
+    render(<SondePret pret={false} onCharge={() => (appels += 1)} />)
+    await waitFor(() => expect(screen.getByTestId('etat').textContent).toBe('vide'))
+    expect(appels).toBe(0)
+  })
+
+  it('`pret` qui passe à true déclenche le chargement', async () => {
+    let appels = 0
+    const compter = () => (appels += 1)
+    const { rerender } = render(<SondePret pret={false} onCharge={compter} />)
+    await waitFor(() => expect(screen.getByTestId('etat').textContent).toBe('vide'))
+    rerender(<SondePret pret onCharge={compter} />)
+    await waitFor(() => expect(screen.getByTestId('etat').textContent).toBe('ok'))
+    expect(appels).toBe(1)
+  })
+
+  it('la variante PUBLIQUE charge sans jeton — et son `charger` n’en reçoit pas', async () => {
+    function SondePublique() {
+      // La signature elle-même porte la garantie : un seul paramètre, le signal.
+      const { data, loading } = useRessourcePublique(async (signal) => {
+        expect(signal).toBeInstanceOf(AbortSignal)
+        return 'public'
+      }, [])
+      return <span data-testid="etat">{loading ? 'chargement' : (data ?? 'vide')}</span>
+    }
+    render(<SondePublique />)
+    await waitFor(() => expect(screen.getByTestId('etat').textContent).toBe('public'))
+  })
+})
+
+/**
+ * GARDE TEXTUEL — plus aucune page ni composant ne réécrit le cycle de chargement.
+ *
+ * Il était recopié 37 fois. Rien dans le typage n'empêche d'en écrire une trente-huitième : un
+ * `AbortController`, un drapeau, un `try`/`catch`/`finally`, et la page repart avec sa propre
+ * version — dont le mapping d'erreur, la garde d'annulation et la stabilité des dépendances
+ * seront à revérifier une par une.
+ *
+ * Le garde vise le SYMPTÔME le plus fiable : un `AbortController` construit dans un composant.
+ * Aucune exception, et c'est ce qui a décidé du périmètre — les deux derniers cas récalcitrants
+ * (`PlatformAuditPage`, qui passait une fonction nommée à `useEffect`, et `useDashboard`, l'ancêtre
+ * du module) ont été migrés plutôt qu'inscrits sur une allowlist que personne ne relirait.
+ */
+describe('garde — le cycle de chargement n’est écrit qu’ici', () => {
+  const RACINE = join(__dirname, '..')
+
+  function sources(dossier: string): string[] {
+    return readdirSync(dossier, { withFileTypes: true }).flatMap((e) => {
+      const chemin = join(dossier, e.name)
+      if (e.isDirectory()) return e.name === 'locales' ? [] : sources(chemin)
+      return /\.tsx?$/.test(e.name) ? [chemin] : []
+    })
+  }
+
+  // Le module lui-même et ce fichier de test le mentionnent légitimement.
+  const fichiers = sources(RACINE).filter((f) => !/useRessource\.(ts|test\.tsx)$/.test(f))
+
+  it('inspecte réellement les sources (le garde n’est pas vacant)', () => {
+    expect(fichiers.length).toBeGreaterThan(100)
+  })
+
+  it('aucun composant ne construit son propre `AbortController`', () => {
+    const fautifs = fichiers.filter((f) => readFileSync(f, 'utf8').includes('new AbortController()'))
+    expect(fautifs.map((f) => f.slice(RACINE.length + 1))).toEqual([])
   })
 })

@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useMemo, useEffect, useRef, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { HeartHandshake } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
+import { useRessource } from '@/hooks/useRessource'
 import { focusPremierChampInvalide } from '@/lib/utils'
 import {
   cagnottesApi,
@@ -43,52 +44,56 @@ export function CagnotteFormPage() {
   const [benefMembreId, setBenefMembreId] = useState('')
   const [benefNom, setBenefNom] = useState('')
 
-  const [membres, setMembres] = useState<OptionMembre[]>([])
-  const [loading, setLoading] = useState(editing)
   const [submitting, setSubmitting] = useState(false)
   const [errTitre, setErrTitre] = useState<string | undefined>(undefined)
   const formRef = useRef<HTMLFormElement>(null)
 
   const autorise = peutGererCagnotte(user?.role)
 
-  useEffect(() => {
-    if (!accessToken || !autorise) return
-    const controller = new AbortController()
-    let active = true
-    void (async () => {
+  // Ressource COMPOSITE : la liste des membres (sélecteur de bénéficiaire, BEST-EFFORT) et, en
+  // édition seulement, la cagnotte à modifier.
+  const { data, loading: chargement, error } = useRessource<{
+    membres: OptionMembre[]
+    cagnotte: Awaited<ReturnType<typeof cagnottesApi.get>> | null
+  }>(
+    async (jeton, signal) => {
       const liste = await membresApi
-        .listOptions(accessToken, controller.signal)
+        .listOptions(jeton, signal)
         .catch(() => [] as OptionMembre[])
-      if (active) setMembres(liste)
+      const c = editing && id ? await cagnottesApi.get(id, jeton, signal) : null
+      return { membres: liste, cagnotte: c }
+    },
+    [autorise, editing, id],
+    { pret: autorise },
+  )
+  const membres = useMemo(() => data?.membres ?? [], [data])
+  // En CRÉATION il n'y a rien à charger d'obligatoire : l'écran ne doit pas attendre la liste des
+  // membres pour s'afficher. C'était déjà le sens de `useState(editing)`.
+  const loading = editing && chargement
 
-      if (editing && id) {
-        try {
-          const c = await cagnottesApi.get(id, accessToken, controller.signal)
-          if (!active) return
-          setTitre(c.titre)
-          setType(c.type)
-          setDescription(c.description ?? '')
-          setObjectif(c.objectif != null ? String(c.objectif) : '')
-          setDateEvenement(c.dateEvenement ? c.dateEvenement.slice(0, 10) : '')
-          if (c.beneficiaireMembreId) {
-            setBenefMode('membre')
-            setBenefMembreId(c.beneficiaireMembreId)
-          } else if (c.beneficiaireNom) {
-            setBenefMode('nom')
-            setBenefNom(c.beneficiaireNom)
-          }
-        } catch (e) {
-          if (active) toast.error(t('cagnottes.form.toast.erreur'), messageErreur(e))
-        } finally {
-          if (active) setLoading(false)
-        }
-      }
-    })()
-    return () => {
-      active = false
-      controller.abort()
+  // Échec de lecture : un TOAST, pas un état d'erreur — le formulaire reste utilisable.
+  useEffect(() => {
+    if (error) toast.error(t('cagnottes.form.toast.erreur'), error)
+  }, [error, toast, t])
+
+  // AMORÇAGE du formulaire depuis la cagnotte lue. Ce qui suit est un brouillon éditable, pas la
+  // donnée : il diverge dès la première frappe.
+  useEffect(() => {
+    const c = data?.cagnotte
+    if (!c) return
+    setTitre(c.titre)
+    setType(c.type)
+    setDescription(c.description ?? '')
+    setObjectif(c.objectif != null ? String(c.objectif) : '')
+    setDateEvenement(c.dateEvenement ? c.dateEvenement.slice(0, 10) : '')
+    if (c.beneficiaireMembreId) {
+      setBenefMode('membre')
+      setBenefMembreId(c.beneficiaireMembreId)
+    } else if (c.beneficiaireNom) {
+      setBenefMode('nom')
+      setBenefNom(c.beneficiaireNom)
     }
-  }, [accessToken, autorise, editing, id, toast, t])
+  }, [data?.cagnotte])
 
   if (!autorise) {
     return <Navigate to="/cagnottes" replace />

@@ -6,7 +6,13 @@ import type { OrganisationCourante } from '@/lib/api'
 import { BandeauForfait } from './BandeauForfait'
 
 const moi = vi.fn()
-vi.mock('@/lib/api', () => ({ organisationApi: { moi: (...a: unknown[]) => moi(...a) } }))
+// `ApiError` fait partie du mock : le composant passe désormais par `useRessource`, qui distingue
+// une erreur d'API (message déjà traduit par le serveur) d'une panne réseau. Un mock qui l'omet
+// fait lever le hook au moment du `catch` — test vert, erreur non attribuée.
+vi.mock('@/lib/api', () => ({
+  organisationApi: { moi: (...a: unknown[]) => moi(...a) },
+  ApiError: class extends Error {},
+}))
 let role = 'ADMIN'
 vi.mock('@/contexts/auth-context', () => ({ useAuth: () => ({ user: { role }, accessToken: 'jeton' }) }))
 // t → « clé » ou « clé|{options JSON} ».

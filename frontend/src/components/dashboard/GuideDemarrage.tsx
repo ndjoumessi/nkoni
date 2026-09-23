@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import {
@@ -16,7 +16,7 @@ import {
 } from 'lucide-react'
 import { Card, Overline } from '@/components/ui/Card'
 import { ButtonLink, Button } from '@/components/ui/Button'
-import { useAuth } from '@/contexts/auth-context'
+import { useRessource } from '@/hooks/useRessource'
 import { organisationApi } from '@/lib/api'
 import { cn } from '@/lib/utils'
 
@@ -62,22 +62,23 @@ export function GuideDemarrage({
   montrerPaiement?: boolean
 }) {
   const { t } = useTranslation()
-  const { accessToken } = useAuth()
-  // Le paiement en ligne n'est inclus qu'aux forfaits Pro/Entreprise (ou par droit acquis, spec 1.1
+    // Le paiement en ligne n'est inclus qu'aux forfaits Pro/Entreprise (ou par droit acquis, spec 1.1
   // §1.3) : l'astuce ne doit pas envoyer une org Gratuite vers une carte verrouillée. `chargement` →
   // rien (pas de clignotement) ; lecture en échec ou API sans le champ → comportement antérieur.
-  const [paiementInclus, setPaiementInclus] = useState<boolean | 'chargement'>(montrerPaiement ? 'chargement' : false)
-  useEffect(() => {
-    if (!montrerPaiement || !accessToken) return
-    const controleur = new AbortController()
-    organisationApi
-      .moi(accessToken, controleur.signal)
-      .then((org) => setPaiementInclus(org.paiementEnLigneInclus !== false))
-      .catch(() => {
-        if (!controleur.signal.aborted) setPaiementInclus(true)
-      })
-    return () => controleur.abort()
-  }, [montrerPaiement, accessToken])
+  const { data: org, loading: chargementOrg, error: erreurOrg } = useRessource(
+    (jeton, signal) => organisationApi.moi(jeton, signal),
+    [],
+    { pret: montrerPaiement },
+  )
+  // Trois états, et l'ordre compte : tant qu'on charge on n'affiche rien (pas de clignotement) ;
+  // une lecture en échec retombe sur le comportement antérieur (astuce affichée).
+  const paiementInclus: boolean | 'chargement' = !montrerPaiement
+    ? false
+    : chargementOrg
+      ? 'chargement'
+      : erreurOrg || !org
+        ? true
+        : org.paiementEnLigneInclus !== false
   const [masque, setMasque] = useState(() => {
     try {
       return localStorage.getItem(CLE_MASQUE) === '1'

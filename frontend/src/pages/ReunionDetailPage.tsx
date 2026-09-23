@@ -16,6 +16,7 @@ import {
   Users,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
+import { useRessource } from '@/hooks/useRessource'
 import {
   reunionsApi,
   resolutionsApi,
@@ -84,10 +85,6 @@ export function ReunionDetailPage() {
   const peutSupprimer = peutSupprimerReunion(user?.role)
   const peutDepouiller = peutDepouillerVotes(user?.role)
 
-  const [reunion, setReunion] = useState<ReunionDetail | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
   // Compte-rendu (édition).
   const [compteRendu, setCompteRendu] = useState('')
   const [crSaving, setCrSaving] = useState(false)
@@ -113,7 +110,6 @@ export function ReunionDetailPage() {
   const resFormRef = useRef<HTMLFormElement>(null)
 
   // Présences / RSVP (vue dirigeant).
-  const [presences, setPresences] = useState<PresencesReunion | null>(null)
   const [presenceMaj, setPresenceMaj] = useState<string | null>(null)
 
   // Téléchargement du compte-rendu PDF.
@@ -125,36 +121,45 @@ export function ReunionDetailPage() {
   const [clotureEnCours, setClotureEnCours] = useState<string | null>(null)
   const [ouvertureEnCours, setOuvertureEnCours] = useState<string | null>(null)
 
+  // Ressource COMPOSITE : la réunion, puis les présences — SÉQUENTIELLES et non parallèles, car
+  // les présences ne sont chargées que pour un rôle de gestion. Elles sont BEST-EFFORT : leur
+  // échec ne doit pas priver la page de la réunion elle-même.
+  const { data, loading, error, setData } = useRessource<{
+    reunion: ReunionDetail
+    presences: PresencesReunion | null
+  }>(
+    async (jeton, signal) => {
+      const detail = await reunionsApi.get(id ?? '', jeton, signal)
+      const pres = gestion
+        ? await reunionsApi.presences(id ?? '', jeton, signal).catch(() => null)
+        : null
+      return { reunion: detail, presences: pres }
+    },
+    [id, gestion],
+    { pret: Boolean(id) },
+  )
+  const reunion = data?.reunion ?? null
+  const presences = data?.presences ?? null
+
+  // Mêmes signatures que les `setState` remplacés : valeur DIRECTE ou fonction de mise à jour.
+  const setReunion = (
+    v: ReunionDetail | null | ((prev: ReunionDetail | null) => ReunionDetail | null),
+  ) =>
+    setData((d) => {
+      const maj = typeof v === 'function' ? v(d?.reunion ?? null) : v
+      return maj ? { reunion: maj, presences: d?.presences ?? null } : d
+    })
+  const setPresences = (
+    v: PresencesReunion | null | ((p: PresencesReunion | null) => PresencesReunion | null),
+  ) =>
+    setData((d) =>
+      d ? { ...d, presences: typeof v === 'function' ? v(d.presences) : v } : d,
+    )
+
+  // `compteRendu` est un BROUILLON éditable : il reste un `useState`, amorcé depuis la réunion lue.
   useEffect(() => {
-    if (!accessToken || !id) return
-    const controller = new AbortController()
-    let active = true
-    setLoading(true)
-    setError(null)
-    void (async () => {
-      try {
-        const data = await reunionsApi.get(id, accessToken, controller.signal)
-        if (active) {
-          setReunion(data)
-          setCompteRendu(data.compteRenduTexte ?? '')
-        }
-        // Présences (best-effort : un échec ne bloque pas le reste de la page).
-        if (gestion) {
-          const pres = await reunionsApi.presences(id, accessToken, controller.signal).catch(() => null)
-          if (active && pres) setPresences(pres)
-        }
-      } catch (e) {
-        if (e instanceof DOMException && e.name === 'AbortError') return
-        if (active) setError(messageErreur(e))
-      } finally {
-        if (active) setLoading(false)
-      }
-    })()
-    return () => {
-      active = false
-      controller.abort()
-    }
-  }, [accessToken, id, gestion])
+    if (data?.reunion) setCompteRendu(data.reunion.compteRenduTexte ?? '')
+  }, [data?.reunion])
 
   const pointsLabel = useMemo(() => {
     const map = new Map<string, string>()

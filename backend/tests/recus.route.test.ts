@@ -172,10 +172,14 @@ describe('Routes Reçu (§4.6)', () => {
     expect(res.json().numero).toBe(num(1))
   })
 
-  it('MEMBRE_SIMPLE : refusé sur le versement d’un autre (403)', async () => {
-    // u-simple tente v2 (appartient à u-autre).
-    const res = await genererPour('v2', 'MEMBRE_SIMPLE', 'u-simple')
-    expect(res.statusCode).toBe(403)
+  it('MEMBRE_SIMPLE : refusé sur le versement d’un autre — 404, comme un id inconnu', async () => {
+    // Anciennement 403. Générer un reçu sur le versement d'autrui est refusé, et le refus ne doit
+    // pas confirmer que ce versement existe (cf. `lib/portee-lecteur.ts`).
+    const autre = await genererPour('v2', 'MEMBRE_SIMPLE', 'u-simple') // appartient à u-autre
+    const inconnu = await genererPour('v-inexistant', 'MEMBRE_SIMPLE', 'u-simple')
+    expect(autre.statusCode).toBe(404)
+    expect(autre.statusCode).toBe(inconnu.statusCode)
+    expect(autre.json()).toEqual(inconnu.json())
     expect(store.recus.size).toBe(0) // rien créé
   })
 

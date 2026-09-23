@@ -1,4 +1,5 @@
 import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
+import { exigerPortee, porteeViaMembre } from '../lib/portee-lecteur'
 import { Prisma } from '../generated/prisma/client'
 import { t, langueDeRequete } from '../lib/i18n'
 import { authenticate } from '../middlewares/authenticate'
@@ -67,12 +68,7 @@ export const recusRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
             message: t(langueDeRequete(req), 'recus.versementIntrouvable'),
           })
         }
-        if (v.contribution?.membre?.compteUtilisateurId !== req.user.sub) {
-          return reply.code(403).send({
-            error: 'Forbidden',
-            message: t(langueDeRequete(req), 'recus.accesVersementsLimite'),
-          })
-        }
+        exigerPortee(req.user, v.contribution?.membre?.compteUtilisateurId, 'recus.versementIntrouvable')
       }
 
       const recu = await genererRecu(app.prisma, versementId, req.user.sub ?? '')
@@ -99,12 +95,10 @@ export const recusRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
       const where: Prisma.RecuWhereInput = {}
       if (versementId !== undefined) where.versementId = versementId
       if (membreId !== undefined) where.membreId = membreId
-      if (req.user.role === 'MEMBRE_SIMPLE') {
-        // Restriction à SES reçus. Le filtre relationnel n'est pas re-scopé par l'extension
-        // tenant (limite documentée dans `lib/tenant-extension.ts`), mais il ne fait que
-        // RESTREINDRE : l'`organisationId` reste injecté sur l'opération top-level.
-        where.membre = { compteUtilisateurId: req.user.sub ?? '' }
-      }
+      // Restriction à SES reçus. Le filtre relationnel n'est pas re-scopé par l'extension
+      // tenant (limite documentée dans `lib/tenant-extension.ts`), mais il ne fait que
+      // RESTREINDRE : l'`organisationId` reste injecté sur l'opération top-level.
+      Object.assign(where, porteeViaMembre(req.user) ?? {})
 
       const rs = await app.prisma.recu.findMany({ where, orderBy: { dateGeneration: 'desc' } })
       return rs.map(avecLienPartage)

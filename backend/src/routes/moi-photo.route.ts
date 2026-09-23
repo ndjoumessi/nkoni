@@ -1,4 +1,5 @@
 import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
+import { membreDuCompte } from '../lib/portee-lecteur'
 import { authenticate } from '../middlewares/authenticate'
 import { t, langueDeRequete } from '../lib/i18n'
 import { validerImageTeleversee } from '../lib/upload-image'
@@ -17,7 +18,7 @@ export const moiPhotoRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
   const fiche = async (sub: string | undefined) => {
     if (!sub) return null
     return app.prisma.membre.findFirst({
-      where: { compteUtilisateurId: sub },
+      where: membreDuCompte(sub),
       select: { id: true, photoBlobUrl: true, photoMime: true },
     })
   }

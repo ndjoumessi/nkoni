@@ -1,4 +1,5 @@
 import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
+import { membreDuCompte } from '../lib/portee-lecteur'
 import { authenticate } from '../middlewares/authenticate'
 import { requirePermission, requireRoles, ROLES_BUREAU } from '../middlewares/permissions'
 import { t, langueDeRequete } from '../lib/i18n'
@@ -36,7 +37,7 @@ export const votesRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
     { preHandler: [authenticate], schema: { body: voteSchema } },
     async (req, reply) => {
       const membre = await app.prisma.membre.findFirst({
-        where: { compteUtilisateurId: req.user.sub as string },
+        where: membreDuCompte(req.user.sub),
         select: { id: true },
       })
       if (!membre) {

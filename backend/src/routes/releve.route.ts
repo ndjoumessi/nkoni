@@ -1,4 +1,5 @@
 import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
+import { exigerPortee } from '../lib/portee-lecteur'
 import { authenticate } from '../middlewares/authenticate'
 import { requirePermission } from '../middlewares/permissions'
 import { calculerStatutsMembres } from '../services/membreStatut.service'
@@ -57,9 +58,7 @@ export const releveRoutes: FastifyPluginAsync = async (app: FastifyInstance) => 
       if (!membre) return reply.code(404).send({ error: 'Not Found' })
 
       // MEMBRE_SIMPLE : seulement SON relevé (indistinguable d'un id inconnu).
-      if (req.user.role === 'MEMBRE_SIMPLE' && membre.compteUtilisateurId !== req.user.sub) {
-        return reply.code(404).send({ error: 'Not Found' })
-      }
+      exigerPortee(req.user, membre.compteUtilisateurId, 'membres.introuvable')
 
       const org = await app.prisma.organisation.findUnique({
         where: { id: req.user.organisationId ?? '' },

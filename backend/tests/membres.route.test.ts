@@ -121,14 +121,24 @@ describe('CRUD Membre', () => {
     expect(res.json()).toMatchObject({ id: 'm1' })
   })
 
-  it('MEMBRE_SIMPLE ne peut PAS lire la fiche d’un autre (403, pas un vide)', async () => {
-    const res = await app.inject({
+  it('MEMBRE_SIMPLE ne peut PAS lire la fiche d’un autre — 404, INDISTINGUABLE d’un id inconnu', async () => {
+    // C'était un 403. Un MEMBRE_SIMPLE ne voyant que sa propre fiche dans les listes, distinguer
+    // « existe mais pas à toi » (403) d'« introuvable » (404) lui permettait d'ÉNUMÉRER les
+    // identifiants des autres membres en sondant la route. Ce test l'affirme par la COMPARAISON
+    // des deux réponses, pas par le seul code : c'est l'indiscernabilité qui est l'invariant.
+    const autre = await app.inject({
       method: 'GET',
       url: '/membres/m2', // appartient à 'u-autre'
       headers: auth('MEMBRE_SIMPLE', 'u-simple'),
     })
-    expect(res.statusCode).toBe(403)
-    expect(res.json()).toMatchObject({ error: 'Forbidden' })
+    const inconnu = await app.inject({
+      method: 'GET',
+      url: '/membres/m-inexistant',
+      headers: auth('MEMBRE_SIMPLE', 'u-simple'),
+    })
+    expect(autre.statusCode).toBe(404)
+    expect(autre.statusCode).toBe(inconnu.statusCode)
+    expect(autre.json()).toEqual(inconnu.json())
   })
 
   it('MEMBRE_SIMPLE sur GET /membres ne reçoit QUE sa fiche (1 élément)', async () => {

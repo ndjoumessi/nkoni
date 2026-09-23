@@ -6,5 +6,4 @@ export const messages = {
   'contributions.membreNonEligible':
     'This member is not eligible for the {annee} contribution (outside their membership period).',
   'contributions.membreIntrouvable': 'Member not found.',
-  'contributions.accesStatutLimite': 'Access limited to your own status.',
 }

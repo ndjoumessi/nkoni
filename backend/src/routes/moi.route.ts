@@ -1,4 +1,5 @@
 import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
+import { membreDuCompte } from '../lib/portee-lecteur'
 import { authenticate } from '../middlewares/authenticate'
 import { calculerStatutContribution } from '../services/statutContribution'
 import { t, langueDeRequete } from '../lib/i18n'
@@ -25,7 +26,7 @@ interface SommeDons {
 /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
 async function membreConnecte(prisma: any, sub: string | undefined) {
   if (!sub) return null
-  return prisma.membre.findFirst({ where: { compteUtilisateurId: sub } })
+  return prisma.membre.findFirst({ where: membreDuCompte(sub) })
 }
 
 export const moiRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {

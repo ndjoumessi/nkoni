@@ -10,7 +10,6 @@ export const messages = {
   'recus.email.sujet': 'Votre reçu NKONI n° {numero}',
   'recus.email.corps':
     'Bonjour,\n\nVeuillez trouver ci-joint votre reçu NKONI n° {numero}.\n\nCe message est envoyé automatiquement, merci de ne pas y répondre.',
-  'recus.accesVersementsLimite': 'Accès limité à vos propres versements.',
   'recus.versementIntrouvableGeneration':
     'Versement {versementId} introuvable : impossible de générer un reçu.',
 } as const

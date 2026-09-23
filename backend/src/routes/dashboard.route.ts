@@ -1,4 +1,5 @@
 import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
+import { membreDuCompte } from '../lib/portee-lecteur'
 import { authenticate } from '../middlewares/authenticate'
 import { t, langueDeRequete } from '../lib/i18n'
 import {
@@ -66,7 +67,7 @@ export const dashboardRoutes: FastifyPluginAsync = async (app: FastifyInstance) 
         case 'MEMBRE_SIMPLE': {
           // Résout le membre rattaché au compte connecté, puis renvoie sa vue perso.
           const membre = await app.prisma.membre.findUnique({
-            where: { compteUtilisateurId: req.user.sub ?? '' },
+            where: membreDuCompte(req.user.sub),
             select: { id: true },
           })
           if (!membre) {

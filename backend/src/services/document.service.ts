@@ -1,3 +1,4 @@
+import { ErreurMetier } from '../lib/erreur-metier'
 import { Prisma } from '../generated/prisma/client'
 import { PERMISSIONS, type Entite, type Role } from '../middlewares/permissions'
 import { peutVoirConflit, type ConflitAcces } from './conflit.service'
@@ -145,34 +146,29 @@ export function peutGererDocumentPourEntite(entiteType: EntiteDocument, role: Ro
 /* Erreurs métier                                                             */
 /* -------------------------------------------------------------------------- */
 
-export class DocumentIntrouvableError extends Error {
+export class DocumentIntrouvableError extends ErreurMetier {
   constructor() {
-    super('Document introuvable.')
-    this.name = 'DocumentIntrouvableError'
+    super(404, 'documents.introuvable', "Document introuvable.")
   }
 }
-export class AccesDocumentRefuseError extends Error {
+export class AccesDocumentRefuseError extends ErreurMetier {
   constructor() {
-    super("Vous n'avez pas accès à ce document.")
-    this.name = 'AccesDocumentRefuseError'
+    super(403, 'documents.accesRefuse', "Vous n'avez pas accès à ce document.")
   }
 }
-export class EntiteParenteIntrouvableError extends Error {
+export class EntiteParenteIntrouvableError extends ErreurMetier {
   constructor() {
-    super("L'entité à laquelle rattacher le document est introuvable.")
-    this.name = 'EntiteParenteIntrouvableError'
+    super(404, 'documents.entiteParenteIntrouvable', "L'entité à laquelle rattacher le document est introuvable.")
   }
 }
-export class TypeFichierNonAutoriseError extends Error {
+export class TypeFichierNonAutoriseError extends ErreurMetier {
   constructor() {
-    super('Type de fichier non autorisé (PDF, JPEG, PNG ou DOCX uniquement).')
-    this.name = 'TypeFichierNonAutoriseError'
+    super(400, 'documents.typeFichierNonAutorise', "Type de fichier non autorisé (PDF, JPEG, PNG ou DOCX uniquement).")
   }
 }
-export class FichierTropVolumineuxError extends Error {
+export class FichierTropVolumineuxError extends ErreurMetier {
   constructor() {
-    super('Fichier trop volumineux (10 Mo maximum).')
-    this.name = 'FichierTropVolumineuxError'
+    super(400, 'documents.fichierTropVolumineux', "Fichier trop volumineux (10 Mo maximum).")
   }
 }
 

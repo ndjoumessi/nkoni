@@ -1,20 +1,14 @@
-import type { FastifyInstance, FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify'
+import type { FastifyInstance, FastifyPluginAsync, FastifyRequest } from 'fastify'
 import { authenticate } from '../middlewares/authenticate'
-import { t, langueDeRequete, formatTailleOctets } from '../lib/i18n'
+import { t, langueDeRequete } from '../lib/i18n'
 import {
   verifierQuotaStockage,
-  QuotaStockageDepasseError,
 } from '../services/capacites-organisation.service'
 import {
   televerserDocument,
   listerDocumentsVisibles,
   supprimerDocument,
   getDocumentPourTelechargement,
-  DocumentIntrouvableError,
-  AccesDocumentRefuseError,
-  EntiteParenteIntrouvableError,
-  TypeFichierNonAutoriseError,
-  FichierTropVolumineuxError,
   type DemandeurDocument,
   type EntiteDocument,
 } from '../services/document.service'
@@ -50,37 +44,6 @@ function demandeur(req: FastifyRequest): DemandeurDocument {
   return { role: req.user.role, ...(req.user.sub !== undefined ? { id: req.user.sub } : {}) }
 }
 
-function reply4xxSiMetier(err: unknown, reply: FastifyReply): boolean {
-  const langue = langueDeRequete(reply.request)
-  if (err instanceof DocumentIntrouvableError) {
-    reply.code(404).send({ error: 'Not Found', message: t(langue, 'documents.introuvable') })
-    return true
-  }
-  if (err instanceof EntiteParenteIntrouvableError) {
-    reply
-      .code(404)
-      .send({ error: 'Not Found', message: t(langue, 'documents.entiteParenteIntrouvable') })
-    return true
-  }
-  if (err instanceof AccesDocumentRefuseError) {
-    reply.code(403).send({ error: 'Forbidden', message: t(langue, 'documents.accesRefuse') })
-    return true
-  }
-  if (err instanceof TypeFichierNonAutoriseError) {
-    reply
-      .code(400)
-      .send({ error: 'Bad Request', message: t(langue, 'documents.typeFichierNonAutorise') })
-    return true
-  }
-  if (err instanceof FichierTropVolumineuxError) {
-    reply
-      .code(400)
-      .send({ error: 'Bad Request', message: t(langue, 'documents.fichierTropVolumineux') })
-    return true
-  }
-  return false
-}
-
 export const documentsRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
   // GET /documents — liste filtrée (visibilité héritée du parent).
   app.get<{ Querystring: { entiteType?: EntiteDocument; entiteId?: string } }>(
@@ -99,26 +62,21 @@ export const documentsRoutes: FastifyPluginAsync = async (app: FastifyInstance) 
     '/documents/:id/contenu',
     { preHandler: [authenticate] },
     async (req, reply) => {
-      try {
-        const { url, typeFichier, nom } = await getDocumentPourTelechargement(
-          app.prisma,
-          req.params.id,
-          demandeur(req),
-        )
-        // Store PRIVÉ : lecture authentifiée par token (jamais un fetch d'URL publique).
-        const buffer = await app.blob.lireContenu(url)
-        if (!buffer) {
-          return reply
-            .code(502)
-            .send({ error: 'Bad Gateway', message: t(langueDeRequete(req), 'documents.fichierIndisponible') })
-        }
-        reply.header('Content-Type', typeFichier)
-        reply.header('Content-Disposition', `inline; filename="${encodeURIComponent(nom)}"`)
-        return reply.send(buffer)
-      } catch (err) {
-        if (reply4xxSiMetier(err, reply)) return
-        throw err
+      const { url, typeFichier, nom } = await getDocumentPourTelechargement(
+        app.prisma,
+        req.params.id,
+        demandeur(req),
+      )
+      // Store PRIVÉ : lecture authentifiée par token (jamais un fetch d'URL publique).
+      const buffer = await app.blob.lireContenu(url)
+      if (!buffer) {
+        return reply
+          .code(502)
+          .send({ error: 'Bad Gateway', message: t(langueDeRequete(req), 'documents.fichierIndisponible') })
       }
+      reply.header('Content-Type', typeFichier)
+      reply.header('Content-Disposition', `inline; filename="${encodeURIComponent(nom)}"`)
+      return reply.send(buffer)
     },
   )
 
@@ -171,35 +129,20 @@ export const documentsRoutes: FastifyPluginAsync = async (app: FastifyInstance) 
           )
       : undefined
 
-    try {
-      const cree = await televerserDocument(
-        app.prisma,
-        app.blob,
-        {
-          nom,
-          ...(fields['description'] ? { description: fields['description'] } : {}),
-          entiteType,
-          entiteId,
-          fichier: { buffer: fichier.buffer, mimetype: fichier.mimetype },
-        },
-        demandeur(req),
-        verifierQuota,
-      )
-      return reply.code(201).send(cree)
-    } catch (err) {
-      if (err instanceof QuotaStockageDepasseError) {
-        const langue = langueDeRequete(req)
-        return reply.code(403).send({
-          error: 'Forbidden',
-          message: t(langue, 'documents.quotaStockage', {
-            utilise: formatTailleOctets(err.utiliseOctets, langue),
-            quota: formatTailleOctets(err.quotaOctets, langue),
-          }),
-        })
-      }
-      if (reply4xxSiMetier(err, reply)) return
-      throw err
-    }
+    const cree = await televerserDocument(
+      app.prisma,
+      app.blob,
+      {
+        nom,
+        ...(fields['description'] ? { description: fields['description'] } : {}),
+        entiteType,
+        entiteId,
+        fichier: { buffer: fichier.buffer, mimetype: fichier.mimetype },
+      },
+      demandeur(req),
+      verifierQuota,
+    )
+    return reply.code(201).send(cree)
   })
 
   // DELETE /documents/:id — retire du Blob ET de la DB.
@@ -207,13 +150,8 @@ export const documentsRoutes: FastifyPluginAsync = async (app: FastifyInstance) 
     '/documents/:id',
     { preHandler: [authenticate] },
     async (req, reply) => {
-      try {
-        await supprimerDocument(app.prisma, app.blob, req.params.id, demandeur(req))
-        return reply.code(204).send()
-      } catch (err) {
-        if (reply4xxSiMetier(err, reply)) return
-        throw err
-      }
+      await supprimerDocument(app.prisma, app.blob, req.params.id, demandeur(req))
+      return reply.code(204).send()
     },
   )
 }

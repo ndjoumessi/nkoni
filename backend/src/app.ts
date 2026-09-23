@@ -6,7 +6,9 @@ import rateLimit from '@fastify/rate-limit'
 import { cleRateLimit } from './lib/rate-limit'
 import multipart from '@fastify/multipart'
 import { env, isProd } from './lib/env'
+import { STATUS_CODES } from 'node:http'
 import { t, langueDeRequete } from './lib/i18n'
+import { ErreurMetier } from './lib/erreur-metier'
 import { prisma as defaultPrisma, type PrismaClient } from './lib/prisma'
 import { vercelBlobClient } from './lib/blob'
 import type { BlobClient } from './services/document.service'
@@ -107,6 +109,18 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   // 5xx : journaliser en détail mais NE JAMAIS exposer le message interne au client (fuite de
   // schéma/contraintes Prisma). Les erreurs 4xx déjà typées (validation, métier) passent telles quelles.
   app.setErrorHandler((error: FastifyError, req, reply) => {
+    // REFUS MÉTIER (ADR-0001) — le statut et la clé voyagent avec l'erreur, pas avec la route.
+    // Cette branche précède le passe-plat ci-dessous, et ce n'est pas un détail d'ordre :
+    // `reply.send(error)` renverrait `error.message`, le message TECHNIQUE, que l'on ne montre
+    // jamais au client.
+    if (error instanceof ErreurMetier) {
+      const langue = langueDeRequete(req)
+      reply.code(error.statut).send({
+        error: STATUS_CODES[error.statut] ?? 'Error',
+        message: t(langue, error.cleMessage, error.parametres(langue)),
+      })
+      return
+    }
     const statut = error.statusCode ?? 500
     if (statut < 500) {
       reply.send(error)

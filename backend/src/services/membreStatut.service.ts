@@ -91,7 +91,7 @@ export async function calculerStatutsMembres(
         branche: { select: { id: true, nom: true } },
         anneeAdhesion: true,
         anneeFinContribution: true,
-        contributions: { select: { annee: true, montantValorise: true } },
+        contributions: { select: { annee: true, montantAttendu: true, montantValorise: true } },
       },
     }),
   ])
@@ -270,7 +270,7 @@ export async function calculerStatutsMembresPage(
         branche: { select: { id: true, nom: true } },
         anneeAdhesion: true,
         anneeFinContribution: true,
-        contributions: { select: { annee: true, montantValorise: true } },
+        contributions: { select: { annee: true, montantAttendu: true, montantValorise: true } },
       },
     }),
   ])

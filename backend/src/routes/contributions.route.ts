@@ -130,7 +130,7 @@ export const contributionsRoutes: FastifyPluginAsync = async (
         app.prisma.baremeAnnuel.findMany({ select: { annee: true, montantAttendu: true } }),
         app.prisma.contribution.findMany({
           where: { membreId: membre.id },
-          select: { annee: true, montantValorise: true },
+          select: { annee: true, montantAttendu: true, montantValorise: true },
         }),
       ])
 

@@ -1,15 +1,12 @@
-import type { FastifyInstance, FastifyPluginAsync, FastifyReply } from 'fastify'
+import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
 import { authenticate } from '../middlewares/authenticate'
 import { requirePermission } from '../middlewares/permissions'
 import {
   creerAffectation,
   listerAffectationsActives,
   listerParMembre,
-  FonctionIntrouvableError,
-  MembreIntrouvableError,
-  DateDebutIncoherenteError,
 } from '../services/affectation.service'
-import { t, langueDeRequete } from '../lib/i18n'
+import { t } from '../lib/i18n'
 
 /**
  * V1.1 (§5) — Historique des nominations (AffectationFonction).
@@ -37,26 +34,6 @@ const createAffectationSchema = {
   },
 } as const
 
-/** Mappe les erreurs métier du service en réponses 4xx ; renvoie true si traité. */
-function reply4xxSiMetier(err: unknown, reply: FastifyReply): boolean {
-  const langue = langueDeRequete(reply.request)
-  if (err instanceof FonctionIntrouvableError) {
-    reply.code(404).send({ error: 'Not Found', message: t(langue, 'fonctions.introuvable') })
-    return true
-  }
-  if (err instanceof MembreIntrouvableError) {
-    reply.code(404).send({ error: 'Not Found', message: t(langue, 'membres.introuvable') })
-    return true
-  }
-  if (err instanceof DateDebutIncoherenteError) {
-    reply
-      .code(400)
-      .send({ error: 'Bad Request', message: t(langue, 'affectations.dateDebutIncoherente') })
-    return true
-  }
-  return false
-}
-
 export const affectationsRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
   const perm = (action: 'create' | 'read' | 'update' | 'delete') =>
     requirePermission('Affectation', action)
@@ -73,12 +50,8 @@ export const affectationsRoutes: FastifyPluginAsync = async (app: FastifyInstanc
     '/membres/:membreId/affectations',
     { preHandler: [authenticate, perm('read')] },
     async (req, reply) => {
-      try {
-        return await listerParMembre(app.prisma, req.params.membreId)
-      } catch (err) {
-        if (reply4xxSiMetier(err, reply)) return
-        throw err
-      }
+      return await listerParMembre(app.prisma, req.params.membreId)
+    
     },
   )
 
@@ -87,14 +60,10 @@ export const affectationsRoutes: FastifyPluginAsync = async (app: FastifyInstanc
     '/affectations',
     { schema: createAffectationSchema, preHandler: [authenticate, perm('create')] },
     async (req, reply) => {
-      try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const cree = await creerAffectation(app.prisma, req.body as any)
-        return reply.code(201).send(cree)
-      } catch (err) {
-        if (reply4xxSiMetier(err, reply)) return
-        throw err
-      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const cree = await creerAffectation(app.prisma, req.body as any)
+      return reply.code(201).send(cree)
+    
     },
   )
 }

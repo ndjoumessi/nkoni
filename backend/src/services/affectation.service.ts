@@ -1,3 +1,4 @@
+import { ErreurMetier } from '../lib/erreur-metier'
 import { Prisma } from '../generated/prisma/client'
 import { FonctionIntrouvableError } from './fonction.service'
 
@@ -28,11 +29,10 @@ export { FonctionIntrouvableError }
 /* Erreurs métier (mappées en 4xx par la route)                               */
 /* -------------------------------------------------------------------------- */
 
-/** Membre introuvable (titulaire visé inexistant). → 404 */
-export class MembreIntrouvableError extends Error {
+/** Membre introuvable (titulaire visé inexistant). */
+export class MembreIntrouvableError extends ErreurMetier {
   constructor() {
-    super('Membre introuvable.')
-    this.name = 'MembreIntrouvableError'
+    super(404, 'membres.introuvable', 'Membre introuvable.')
   }
 }
 
@@ -41,12 +41,13 @@ export class MembreIntrouvableError extends Error {
  * place : clôturer produirait un intervalle [dateDebut, dateFin) vide ou négatif
  * (incohérence d'historique). → 400
  */
-export class DateDebutIncoherenteError extends Error {
+export class DateDebutIncoherenteError extends ErreurMetier {
   constructor() {
     super(
+      400,
+      'affectations.dateDebutIncoherente',
       "La date de début doit être postérieure à celle de l'affectation active en cours.",
     )
-    this.name = 'DateDebutIncoherenteError'
   }
 }
 

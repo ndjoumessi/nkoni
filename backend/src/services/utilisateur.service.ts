@@ -1,3 +1,4 @@
+import { ErreurMetier } from '../lib/erreur-metier'
 import { Prisma } from '../generated/prisma/client'
 import type { CreationScopee } from '../lib/tenant-extension'
 import { hashPassword } from './auth.service'
@@ -17,34 +18,38 @@ import type { Role } from '../middlewares/permissions'
 /* -------------------------------------------------------------------------- */
 
 /** Email déjà pris (contrainte @unique). → 409. `email` exposé pour la traduction (§4). */
-export class EmailDejaUtiliseError extends Error {
+export class EmailDejaUtiliseError extends ErreurMetier {
   constructor(readonly email: string) {
-    super(`Un compte existe déjà avec l'email ${email}.`)
-    this.name = 'EmailDejaUtiliseError'
+    super(409, 'utilisateurs.emailDejaUtilise', `Un compte existe déjà avec l'email ${email}.`)
+  }
+
+  override parametres() {
+    return { email: this.email }
   }
 }
 
 /** Le membre à lier n'existe pas. → 400. `membreId` exposé pour la traduction (§4). */
-export class MembreIntrouvableError extends Error {
+export class MembreIntrouvableError extends ErreurMetier {
   constructor(readonly membreId: string) {
-    super(`Membre introuvable (${membreId}).`)
-    this.name = 'MembreIntrouvableError'
+    super(400, 'utilisateurs.membreIntrouvable', `Membre introuvable (${membreId}).`)
+  }
+
+  override parametres() {
+    return { membreId: this.membreId }
   }
 }
 
-/** Le membre à lier a déjà un compte (compteUtilisateurId @unique). → 409 */
-export class MembreDejaLieError extends Error {
+/** Le membre à lier a déjà un compte (compteUtilisateurId @unique). */
+export class MembreDejaLieError extends ErreurMetier {
   constructor() {
-    super('Ce membre est déjà lié à un compte.')
-    this.name = 'MembreDejaLieError'
+    super(409, 'utilisateurs.membreDejaLie', 'Ce membre est déjà lié à un compte.')
   }
 }
 
-/** Le compte visé par une mise à jour n'existe pas. → 404 */
-export class UtilisateurIntrouvableError extends Error {
+/** Le compte visé par une mise à jour n'existe pas. */
+export class UtilisateurIntrouvableError extends ErreurMetier {
   constructor() {
-    super('Utilisateur introuvable.')
-    this.name = 'UtilisateurIntrouvableError'
+    super(404, 'utilisateurs.introuvable', 'Utilisateur introuvable.')
   }
 }
 

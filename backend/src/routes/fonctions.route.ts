@@ -1,4 +1,4 @@
-import type { FastifyInstance, FastifyPluginAsync, FastifyReply } from 'fastify'
+import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
 import { authenticate } from '../middlewares/authenticate'
 import { requirePermission } from '../middlewares/permissions'
 import {
@@ -7,11 +7,9 @@ import {
   creerFonction,
   majFonction,
   supprimerFonction,
-  FonctionIntrouvableError,
-  FonctionNomDuplicateError,
 } from '../services/fonction.service'
 import { listerHistorique } from '../services/affectation.service'
-import { t, langueDeRequete } from '../lib/i18n'
+import { t } from '../lib/i18n'
 
 /**
  * V1.1 (§5) — Fonctions/organes familiaux.
@@ -51,20 +49,6 @@ const updateFonctionSchema = {
   },
 } as const
 
-/** Mappe les erreurs métier du service en réponses 4xx ; renvoie true si traité. */
-function reply4xxSiMetier(err: unknown, reply: FastifyReply): boolean {
-  const langue = langueDeRequete(reply.request)
-  if (err instanceof FonctionIntrouvableError) {
-    reply.code(404).send({ error: 'Not Found', message: t(langue, 'fonctions.introuvable') })
-    return true
-  }
-  if (err instanceof FonctionNomDuplicateError) {
-    reply.code(409).send({ error: 'Conflict', message: t(langue, 'fonctions.nomDuplique') })
-    return true
-  }
-  return false
-}
-
 export const fonctionsRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
   const perm = (action: 'create' | 'read' | 'update' | 'delete') =>
     requirePermission('Fonction', action)
@@ -81,12 +65,8 @@ export const fonctionsRoutes: FastifyPluginAsync = async (app: FastifyInstance) 
     '/fonctions/:id',
     { preHandler: [authenticate, perm('read')] },
     async (req, reply) => {
-      try {
-        return await getFonction(app.prisma, req.params.id)
-      } catch (err) {
-        if (reply4xxSiMetier(err, reply)) return
-        throw err
-      }
+      return await getFonction(app.prisma, req.params.id)
+    
     },
   )
 
@@ -95,12 +75,8 @@ export const fonctionsRoutes: FastifyPluginAsync = async (app: FastifyInstance) 
     '/fonctions/:id/affectations',
     { preHandler: [authenticate, perm('read')] },
     async (req, reply) => {
-      try {
-        return await listerHistorique(app.prisma, req.params.id)
-      } catch (err) {
-        if (reply4xxSiMetier(err, reply)) return
-        throw err
-      }
+      return await listerHistorique(app.prisma, req.params.id)
+    
     },
   )
 
@@ -109,14 +85,10 @@ export const fonctionsRoutes: FastifyPluginAsync = async (app: FastifyInstance) 
     '/fonctions',
     { schema: createFonctionSchema, preHandler: [authenticate, perm('create')] },
     async (req, reply) => {
-      try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const cree = await creerFonction(app.prisma, req.body as any)
-        return reply.code(201).send(cree)
-      } catch (err) {
-        if (reply4xxSiMetier(err, reply)) return
-        throw err
-      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const cree = await creerFonction(app.prisma, req.body as any)
+      return reply.code(201).send(cree)
+    
     },
   )
 
@@ -125,13 +97,9 @@ export const fonctionsRoutes: FastifyPluginAsync = async (app: FastifyInstance) 
     '/fonctions/:id',
     { schema: updateFonctionSchema, preHandler: [authenticate, perm('update')] },
     async (req, reply) => {
-      try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return await majFonction(app.prisma, req.params.id, req.body as any)
-      } catch (err) {
-        if (reply4xxSiMetier(err, reply)) return
-        throw err
-      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return await majFonction(app.prisma, req.params.id, req.body as any)
+    
     },
   )
 
@@ -140,13 +108,9 @@ export const fonctionsRoutes: FastifyPluginAsync = async (app: FastifyInstance) 
     '/fonctions/:id',
     { preHandler: [authenticate, perm('delete')] },
     async (req, reply) => {
-      try {
-        await supprimerFonction(app.prisma, req.params.id)
-        return reply.code(204).send()
-      } catch (err) {
-        if (reply4xxSiMetier(err, reply)) return
-        throw err
-      }
+      await supprimerFonction(app.prisma, req.params.id)
+      return reply.code(204).send()
+    
     },
   )
 }

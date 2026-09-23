@@ -1,3 +1,4 @@
+import { ErreurMetier } from '../lib/erreur-metier'
 import { ResolutionIntrouvableError } from './resolution.service'
 
 /**
@@ -20,27 +21,24 @@ import { ResolutionIntrouvableError } from './resolution.service'
 export type SensVote = 'POUR' | 'CONTRE' | 'ABSTENTION'
 export const SENS_VOTE: SensVote[] = ['POUR', 'CONTRE', 'ABSTENTION']
 
-/** Le membre visé n'existe pas DANS l'organisation courante (lecture scopée). → 404 */
-export class MembreIntrouvableError extends Error {
+/** Le membre visé n'existe pas DANS l'organisation courante (lecture scopée). */
+export class MembreIntrouvableError extends ErreurMetier {
   constructor() {
-    super('Membre introuvable.')
-    this.name = 'MembreIntrouvableError'
+    super(404, 'membres.introuvable', 'Membre introuvable.')
   }
 }
 
-/** La résolution est clôturée : elle n'accepte plus de vote. → 409 */
-export class ResolutionClotureeError extends Error {
+/** La résolution est clôturée : elle n'accepte plus de vote. */
+export class ResolutionClotureeError extends ErreurMetier {
   constructor() {
-    super('Résolution clôturée : le vote est fermé.')
-    this.name = 'ResolutionClotureeError'
+    super(409, 'resolutions.cloturee', 'Résolution clôturée : le vote est fermé.')
   }
 }
 
-/** La résolution n'a pas été mise au vote (pas de scrutin ouvert). → 409 */
-export class ResolutionNonOuverteError extends Error {
+/** La résolution n'a pas été mise au vote (pas de scrutin ouvert). */
+export class ResolutionNonOuverteError extends ErreurMetier {
   constructor() {
-    super("La résolution n'est pas ouverte au vote.")
-    this.name = 'ResolutionNonOuverteError'
+    super(409, 'resolutions.nonOuverte', "La résolution n'est pas ouverte au vote.")
   }
 }
 

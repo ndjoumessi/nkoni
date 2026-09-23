@@ -1,16 +1,12 @@
-import type { FastifyInstance, FastifyPluginAsync, FastifyReply } from 'fastify'
+import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
 import { authenticate } from '../middlewares/authenticate'
 import { requirePermission, requireRoles, ROLES_BUREAU } from '../middlewares/permissions'
 import { t, langueDeRequete } from '../lib/i18n'
-import { ResolutionIntrouvableError } from '../services/resolution.service'
 import {
   voterResolution,
   depouillerResolution,
   cloturerResolution,
   ouvrirVoteResolution,
-  ResolutionClotureeError,
-  ResolutionNonOuverteError,
-  MembreIntrouvableError,
   SENS_VOTE,
 } from '../services/vote.service'
 
@@ -33,30 +29,6 @@ const voteSchema = {
   properties: { sens: { type: 'string', enum: SENS_VOTE } },
 } as const
 
-/** Mappe les erreurs métier en 4xx ; renvoie true si traité. */
-function reply4xxSiMetier(err: unknown, reply: FastifyReply): boolean {
-  const langue = langueDeRequete(reply.request)
-  if (err instanceof ResolutionIntrouvableError) {
-    reply.code(404).send({ error: 'Not Found', message: t(langue, 'resolutions.introuvable') })
-    return true
-  }
-  if (err instanceof ResolutionClotureeError) {
-    reply.code(409).send({ error: 'Conflict', message: t(langue, 'resolutions.cloturee') })
-    return true
-  }
-  if (err instanceof ResolutionNonOuverteError) {
-    reply.code(409).send({ error: 'Conflict', message: t(langue, 'resolutions.nonOuverte') })
-    return true
-  }
-  // Sans ce mappage, le refus métier remonterait en 500 opaque (défaut déjà vécu sur
-  // `versements.modificationRecuActif` : garde posée dans le service, jamais traduite en HTTP).
-  if (err instanceof MembreIntrouvableError) {
-    reply.code(404).send({ error: 'Not Found', message: t(langue, 'membres.introuvable') })
-    return true
-  }
-  return false
-}
-
 export const votesRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
   // PUT /moi/resolutions/:id/vote — le membre pose SON vote (self-service, hors matrice).
   app.put<{ Params: { id: string }; Body: { sens: 'POUR' | 'CONTRE' | 'ABSTENTION' } }>(
@@ -72,12 +44,8 @@ export const votesRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
           .code(404)
           .send({ error: 'Not Found', message: t(langueDeRequete(req), 'monEspace.aucuneFiche') })
       }
-      try {
-        return await voterResolution(app.prisma, req.params.id, membre.id, req.body.sens)
-      } catch (err) {
-        if (reply4xxSiMetier(err, reply)) return
-        throw err
-      }
+      return await voterResolution(app.prisma, req.params.id, membre.id, req.body.sens)
+    
     },
   )
 
@@ -91,12 +59,8 @@ export const votesRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
     '/resolutions/:id/votes',
     { preHandler: [authenticate, requireRoles(ROLES_BUREAU)] },
     async (req, reply) => {
-      try {
-        return await depouillerResolution(app.prisma, req.params.id)
-      } catch (err) {
-        if (reply4xxSiMetier(err, reply)) return
-        throw err
-      }
+      return await depouillerResolution(app.prisma, req.params.id)
+    
     },
   )
 
@@ -106,12 +70,8 @@ export const votesRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
     '/resolutions/:id/ouvrir-vote',
     { preHandler: [authenticate, requirePermission('Reunion', 'update')] },
     async (req, reply) => {
-      try {
-        return await ouvrirVoteResolution(app.prisma, req.params.id)
-      } catch (err) {
-        if (reply4xxSiMetier(err, reply)) return
-        throw err
-      }
+      return await ouvrirVoteResolution(app.prisma, req.params.id)
+    
     },
   )
 
@@ -120,12 +80,8 @@ export const votesRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
     '/resolutions/:id/cloturer',
     { preHandler: [authenticate, requirePermission('Reunion', 'update')] },
     async (req, reply) => {
-      try {
-        return await cloturerResolution(app.prisma, req.params.id)
-      } catch (err) {
-        if (reply4xxSiMetier(err, reply)) return
-        throw err
-      }
+      return await cloturerResolution(app.prisma, req.params.id)
+    
     },
   )
 }

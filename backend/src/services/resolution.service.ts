@@ -1,3 +1,4 @@
+import { ErreurMetier } from '../lib/erreur-metier'
 import { Prisma } from '../generated/prisma/client'
 import type { CreationScopee } from '../lib/tenant-extension'
 
@@ -18,27 +19,24 @@ import type { CreationScopee } from '../lib/tenant-extension'
 /* Erreurs métier (mappées en 4xx par la route)                               */
 /* -------------------------------------------------------------------------- */
 
-/** Résolution introuvable. → 404 */
-export class ResolutionIntrouvableError extends Error {
+/** Résolution introuvable. */
+export class ResolutionIntrouvableError extends ErreurMetier {
   constructor() {
-    super('Résolution introuvable.')
-    this.name = 'ResolutionIntrouvableError'
+    super(404, 'resolutions.introuvable', 'Résolution introuvable.')
   }
 }
 
-/** Réunion cible introuvable. → 404 */
-export class ReunionIntrouvableError extends Error {
+/** Réunion cible introuvable. */
+export class ReunionIntrouvableError extends ErreurMetier {
   constructor() {
-    super('Réunion introuvable.')
-    this.name = 'ReunionIntrouvableError'
+    super(404, 'resolutions.reunionIntrouvable', 'Réunion introuvable.')
   }
 }
 
-/** Point d'ordre du jour référencé introuvable. → 404 */
-export class PointIntrouvableError extends Error {
+/** Point d'ordre du jour référencé introuvable. */
+export class PointIntrouvableError extends ErreurMetier {
   constructor() {
-    super("Point d'ordre du jour introuvable.")
-    this.name = 'PointIntrouvableError'
+    super(404, 'resolutions.pointIntrouvable', "Point d'ordre du jour introuvable.")
   }
 }
 
@@ -46,10 +44,13 @@ export class PointIntrouvableError extends Error {
  * Le point d'ordre du jour référencé appartient à une AUTRE réunion que la résolution.
  * Incohérence structurelle → refus. → 400
  */
-export class PointHorsReunionError extends Error {
+export class PointHorsReunionError extends ErreurMetier {
   constructor() {
-    super("Le point d'ordre du jour n'appartient pas à cette réunion.")
-    this.name = 'PointHorsReunionError'
+    super(
+      400,
+      'resolutions.pointHorsReunion',
+      "Le point d'ordre du jour n'appartient pas à cette réunion.",
+    )
   }
 }
 

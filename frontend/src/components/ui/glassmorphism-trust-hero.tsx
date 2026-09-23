@@ -25,11 +25,15 @@ import { LangueToggle } from '@/components/ui/LangueToggle'
  * donnée réelle de membre n'est exposée ici.
  */
 
-interface GlassmorphismTrustHeroProps {
-  loginHref?: string
-  inscriptionHref?: string
-  onDiscover?: () => void
-}
+/**
+ * Destinations de la vitrine. C'étaient trois PROPS optionnelles — `loginHref`, `inscriptionHref`,
+ * `onDiscover` — dont l'unique appelant ne passait que la première, avec exactement sa valeur par
+ * défaut. Trois boutons de réglage que personne n'a jamais tournés : le composant annonçait une
+ * variabilité qu'il n'avait pas. Rendues constantes ; s'il faut un jour paramétrer la vitrine,
+ * le prop se réintroduit au moment où un deuxième appelant existe.
+ */
+const LOGIN_HREF = '/login'
+const INSCRIPTION_HREF = '/inscription'
 
 const SAMPLE_STATS = { membres: 128, branches: 6, cotisationsAJour: 94 }
 
@@ -49,11 +53,7 @@ const STATUS_LEGEND = [
   { key: 'nonAJour', dot: 'bg-terra' },
 ]
 
-export function GlassmorphismTrustHero({
-  loginHref = '/login',
-  inscriptionHref = '/inscription',
-  onDiscover,
-}: GlassmorphismTrustHeroProps) {
+export function GlassmorphismTrustHero() {
   const { t } = useTranslation()
 
   const STAT_ITEMS = [
@@ -63,7 +63,6 @@ export function GlassmorphismTrustHero({
   ]
 
   const handleDiscover = () => {
-    if (onDiscover) return onDiscover()
     document.getElementById('a-propos')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
@@ -91,10 +90,10 @@ export function GlassmorphismTrustHero({
         </div>
         <div className="flex items-center gap-2 sm:gap-3">
           <LangueToggle />
-          <ButtonLink to={inscriptionHref} size="sm" className="hidden sm:inline-flex">
+          <ButtonLink to={INSCRIPTION_HREF} size="sm" className="hidden sm:inline-flex">
             {t('commun.actions.creerMonEspace')}
           </ButtonLink>
-          <ButtonLink to={loginHref} variant="outline" size="sm">
+          <ButtonLink to={LOGIN_HREF} variant="outline" size="sm">
             {t('commun.actions.seConnecter')}
           </ButtonLink>
         </div>
@@ -125,7 +124,7 @@ export function GlassmorphismTrustHero({
           </p>
 
           <div className="nk-reveal nk-d4 mt-8 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:flex-wrap lg:justify-start">
-            <ButtonLink to={inscriptionHref} size="lg" icon={undefined}>
+            <ButtonLink to={INSCRIPTION_HREF} size="lg" icon={undefined}>
               {t('commun.actions.creerMonEspace')}
               <ArrowRight
                 className="h-4 w-4 transition-transform group-hover:translate-x-0.5"

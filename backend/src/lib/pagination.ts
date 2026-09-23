@@ -3,8 +3,10 @@
  * limite (dépenses, versements, audit…). Évite de sérialiser des milliers de lignes sur un forfait
  * illimité. Contrat de réponse stable `{ items, total, page, pageSize }` réutilisé côté front.
  */
-export const PAGE_SIZE_DEFAUT = 25
-export const PAGE_SIZE_MAX = 100
+// Privées : elles n'ont jamais eu de consommateur hors de ce module. Les exporter offrait deux
+// poignées de plus à apprendre pour des bornes que seul `resoudrePagination` doit appliquer.
+const PAGE_SIZE_DEFAUT = 25
+const PAGE_SIZE_MAX = 100
 
 export interface Pagination {
   page: number
@@ -21,7 +23,11 @@ export function resoudrePagination(q?: { page?: number; pageSize?: number }): Pa
   return { page, pageSize, skip: (page - 1) * pageSize, take: pageSize }
 }
 
-/** Enveloppe de réponse paginée. */
+/**
+ * Enveloppe de réponse paginée — le contrat que le front consomme (`Paginated<T>` côté client).
+ * Les routes paginées TYPENT leur retour avec elle : sans cela le contrat n'était affirmé nulle
+ * part, et `StatutsMembresPageResultat` en recopiait les quatre champs au lieu de l'étendre.
+ */
 export interface PageResultat<T> {
   items: T[]
   total: number

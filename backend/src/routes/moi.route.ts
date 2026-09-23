@@ -43,7 +43,7 @@ export const moiRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
       app.prisma.baremeAnnuel.findMany({ select: { annee: true, montantAttendu: true } }),
       app.prisma.contribution.findMany({
         where: { membreId: membre.id },
-        select: { annee: true, montantValorise: true, montantVerse: true },
+        select: { annee: true, montantAttendu: true, montantValorise: true, montantVerse: true },
       }),
       membre.brancheId
         ? app.prisma.brancheFamiliale.findFirst({
@@ -55,7 +55,11 @@ export const moiRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
 
     const statut = calculerStatutContribution({
       baremes,
-      contributions: contributions.map((c) => ({ annee: c.annee, montantValorise: c.montantValorise })),
+      contributions: contributions.map((c) => ({
+        annee: c.annee,
+        montantAttendu: c.montantAttendu,
+        montantValorise: c.montantValorise,
+      })),
       anneeAdhesion: membre.anneeAdhesion,
       anneeFinContribution: membre.anneeFinContribution,
       anneeCourante: anneeCourante(),

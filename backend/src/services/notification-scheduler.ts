@@ -112,7 +112,7 @@ export async function executerVerificationRetards(
       compteUtilisateurId: true,
       anneeAdhesion: true,
       anneeFinContribution: true,
-      contributions: { select: { annee: true, montantValorise: true } },
+      contributions: { select: { annee: true, montantAttendu: true, montantValorise: true } },
     },
   })
 

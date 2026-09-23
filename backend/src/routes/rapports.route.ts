@@ -127,7 +127,9 @@ function statutMonoAnnee(
 ): StatutContributionValue {
   return calculerStatutContribution({
     baremes: [{ annee, montantAttendu }],
-    contributions: [{ annee, montantValorise }],
+    // `montantAttendu` est ici CELUI de la ligne affichée (le snapshot, déjà lu par l'appelant) :
+    // barème et snapshot portent donc la même valeur, le calcul est inchangé.
+    contributions: [{ annee, montantAttendu, montantValorise }],
     anneeAdhesion: annee,
     anneeCourante: annee,
   }).statut

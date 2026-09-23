@@ -132,6 +132,7 @@ export function rapportPourAnnee(
 
   let membresEligibles = 0
   let totalCollecte = 0
+  let totalAttendu = 0
   const membresParStatut: RepartitionStatutContribution = { A_JOUR: 0, PARTIEL: 0, NON_A_JOUR: 0 }
 
   for (const m of membres) {
@@ -150,10 +151,14 @@ export function rapportPourAnnee(
       anneeCourante: annee,
     })
     totalCollecte += r.totalValoriseCumule
+    // ATTENDU membre par membre, et non `barème × éligibles` (ADR-0002) : le montant qui fait foi
+    // est celui FIGÉ à l'ouverture pour CE membre. Multiplier par l'effectif supposait que tous
+    // doivent la même chose — faux dès qu'un barème a été édité après des ouvertures, et c'est
+    // exactement l'écart que le rapport affichait sans que personne ne le possède.
+    totalAttendu += r.totalAttenduCumule
     membresParStatut[r.statut] += 1
   }
 
-  const totalAttendu = bareme.montantAttendu * membresEligibles
   const tauxRecouvrement = totalAttendu > 0 ? arrondi2((totalCollecte / totalAttendu) * 100) : 0
 
   return {
@@ -311,7 +316,8 @@ const SELECT_BAREME = { annee: true, montantAttendu: true } as const
 const SELECT_MEMBRE_RAPPORT = {
   anneeAdhesion: true,
   anneeFinContribution: true,
-  contributions: { select: { annee: true, montantValorise: true } },
+  // `montantAttendu` REQUIS : c'est le snapshot qui fait foi (cf. `attendu.ts`).
+  contributions: { select: { annee: true, montantAttendu: true, montantValorise: true } },
 } as const
 
 /**

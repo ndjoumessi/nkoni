@@ -8,7 +8,9 @@
  *
  * Principe (spec §4.1) :
  *   borneFin            = min(anneeCourante, anneeFinContribution ?? anneeCourante)
- *   totalAttenduCumule  = Σ BaremeAnnuel.montantAttendu   pour anneeAdhesion ≤ année ≤ borneFin
+ *   totalAttenduCumule  = Σ attendu(année)                pour anneeAdhesion ≤ année ≤ borneFin
+ *                         où attendu(année) = Contribution.montantAttendu s'il existe (snapshot
+ *                         FIGÉ à l'ouverture, qui fait foi), sinon BaremeAnnuel.montantAttendu
  *   totalValoriseCumule = Σ Contribution.montantValorise  pour les mêmes années
  *
  *   statut :
@@ -22,20 +24,14 @@
  * un membre déjà à jour.
  */
 
+import { attenduCumule, valoriseCumule } from './attendu'
+import type { BaremeAnnuelInput, ContributionInput } from './attendu'
+
 /** Valeurs alignées sur l'enum Prisma `StatutContribution` (sans importer Prisma). */
 export type StatutContributionValue = 'A_JOUR' | 'PARTIEL' | 'NON_A_JOUR'
 
-/** Barème annuel global (montant attendu uniforme pour l'année). */
-export interface BaremeAnnuelInput {
-  annee: number
-  montantAttendu: number
-}
-
-/** Contribution du membre pour une année (valeur valorisée courante). */
-export interface ContributionInput {
-  annee: number
-  montantValorise: number
-}
+// Les entrées et la règle d'attendu vivent dans `attendu.ts` ; réexportées pour les appelants.
+export type { BaremeAnnuelInput, ContributionInput } from './attendu'
 
 export interface StatutContributionParams {
   /** Barèmes annuels connus (l'ordre est indifférent). */
@@ -84,21 +80,11 @@ export function calculerStatutContribution(
     anneeCourante,
   } = params
 
-  // Borne haute du cumul : on cesse d'accumuler après l'année de fin de contribution
-  // (membre DECEDE/INACTIF), sans jamais dépasser l'année courante.
-  const borneFin = Math.min(anneeCourante, anneeFinContribution ?? anneeCourante)
-
-  const dansLaBorne = (annee: number): boolean =>
-    annee >= anneeAdhesion && annee <= borneFin
-
-  // Années non configurées (pas de BaremeAnnuel) : absentes de cette somme => ignorées.
-  const totalAttenduCumule = baremes
-    .filter((b) => dansLaBorne(b.annee))
-    .reduce((somme, b) => somme + b.montantAttendu, 0)
-
-  const totalValoriseCumule = contributions
-    .filter((c) => dansLaBorne(c.annee))
-    .reduce((somme, c) => somme + c.montantValorise, 0)
+  // L'ATTENDU et le VALORISÉ sont calculés par `attendu.ts`, seul module à répondre « combien ce
+  // membre doit-il ? ». Ce cœur-ci ne porte plus que le SEUIL (à jour / partiel / pas à jour).
+  const fenetre = { baremes, contributions, anneeAdhesion, anneeFinContribution, anneeCourante }
+  const totalAttenduCumule = attenduCumule(fenetre)
+  const totalValoriseCumule = valoriseCumule(fenetre)
 
   // Ordre des tests important : `>=` traité en premier pour couvrir le cas
   // attendu == 0 (rien dû) => A_JOUR, y compris quand valorisé == 0.

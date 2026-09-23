@@ -301,7 +301,7 @@ const SELECT_MEMBRE_COTISANT = {
   statut: true,
   anneeAdhesion: true,
   anneeFinContribution: true,
-  contributions: { select: { annee: true, montantValorise: true } },
+  contributions: { select: { annee: true, montantAttendu: true, montantValorise: true } },
 } as const
 
 function baremeManquant(baremes: BaremeAnnuelInput[], annee: number): boolean {
@@ -502,7 +502,7 @@ export async function calculerDashboardPerso(
     select: {
       anneeAdhesion: true,
       anneeFinContribution: true,
-      contributions: { select: { annee: true, montantValorise: true } },
+      contributions: { select: { annee: true, montantAttendu: true, montantValorise: true } },
     },
   })
   if (!membre) throw new MembreIntrouvableError(membreId)

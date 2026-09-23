@@ -81,7 +81,7 @@ const SELECT_MEMBRE = {
   branche: { select: { nom: true } },
   anneeAdhesion: true,
   anneeFinContribution: true,
-  contributions: { select: { annee: true, montantValorise: true } },
+  contributions: { select: { annee: true, montantAttendu: true, montantValorise: true } },
 } satisfies Prisma.MembreSelect
 
 /** Un membre tel que lu ici — DÉRIVÉ du schéma via le `select` ci-dessus, jamais recopié à la main. */

@@ -1,3 +1,4 @@
+import { ErreurMetier } from '../lib/erreur-metier'
 import argon2 from 'argon2'
 import type { Role } from '../middlewares/permissions'
 import type { Langue, Devise } from '../lib/i18n'
@@ -57,10 +58,9 @@ export interface AuthPrisma {
  * L'ancien mot de passe fourni lors d'un changement self-service ne correspond pas.
  * Mappée en 401 par la route (on ne confirme rien sur le compte). → 401
  */
-export class AncienMotDePasseIncorrectError extends Error {
+export class AncienMotDePasseIncorrectError extends ErreurMetier {
   constructor() {
-    super('Ancien mot de passe incorrect.')
-    this.name = 'AncienMotDePasseIncorrectError'
+    super(401, 'auth.ancienMotDePasseIncorrect', 'Ancien mot de passe incorrect.')
   }
 }
 
@@ -133,7 +133,7 @@ export async function verifyCredentials(
  * Change le mot de passe d'un compte APRÈS vérification de l'ancien (changement
  * self-service : l'utilisateur connecté change son propre mot de passe).
  *
- * Lève `AncienMotDePasseIncorrectError` (→ 401) si le compte est introuvable OU si
+ * Lève `AncienMotDePasseIncorrectError`  si le compte est introuvable OU si
  * l'ancien mot de passe ne correspond pas — on ne distingue pas les deux cas.
  */
 export async function changerMotDePasse(

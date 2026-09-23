@@ -88,6 +88,28 @@ export class QuotaStockageDepasseError extends ErreurMetier {
 }
 
 /**
+ * Plafond de membres ACTIFS du forfait atteint. Levée DANS la transaction de création/import et
+ * à la réactivation — les trois voies qui ajoutent un actif.
+ *
+ * 403 et non 409 : ce n'est pas un conflit d'état mais un droit que le forfait n'accorde pas.
+ *
+ * Vit ICI, avec le quota de stockage, et non dans la route qui la levait : les deux plafonds sont
+ * la même règle appliquée à deux ressources, et une erreur déclarée dans un module route ne peut
+ * être levée par aucun service.
+ */
+export class QuotaMembresDepasseError extends ErreurMetier {
+  readonly plafond: number
+  constructor(plafond: number) {
+    super(403, 'membres.plafondPlanGratuit', `Plafond de membres du forfait atteint (${plafond}).`)
+    this.plafond = plafond
+  }
+
+  override parametres() {
+    return { plafond: this.plafond }
+  }
+}
+
+/**
  * Refuse un envoi qui ferait dépasser le quota (limite INCLUSE : atteindre exactement le quota passe).
  * Organisation introuvable → quota GRATUIT : le plus restrictif, jamais d'ouverture par défaut.
  * Non atomique face à deux envois simultanés (dépassement borné à la taille d'un fichier, 10 Mo) :

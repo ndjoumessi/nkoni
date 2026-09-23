@@ -11,7 +11,6 @@ import {
   appliquerCreationVersement,
   appliquerModificationVersement,
   appliquerSuppressionVersement,
-  VersementAvecRecuError,
   type PatchVersement,
 } from '../services/versement.service'
 
@@ -32,7 +31,6 @@ import {
  *     versements de ses propres contributions.
  */
 
-
 interface VersementCreateBody {
   contributionId: string
   montant: number
@@ -46,7 +44,6 @@ interface VersementUpdateBody {
   mode?: ModeVersement
   note?: string
 }
-
 
 const createVersementSchema = {
   body: {
@@ -231,16 +228,6 @@ export const versementsRoutes: FastifyPluginAsync = async (
         )
         return versement
       } catch (err) {
-        // Garde symétrique de celle de la suppression : sans ce mappage, le refus métier
-        // (reçu ACTIF) remontait en 500 « erreur inattendue » au lieu d'un 409 explicite.
-        if (err instanceof VersementAvecRecuError) {
-          return reply.code(409).send({
-            error: 'Conflict',
-            message: t(langueDeRequete(req), 'versements.modificationRecuActif', {
-              numero: err.numero,
-            }),
-          })
-        }
         if (isP2025(err)) {
           return reply.code(404).send({
             error: 'Not Found',
@@ -261,14 +248,6 @@ export const versementsRoutes: FastifyPluginAsync = async (
         await app.prisma.$transaction((tx) => appliquerSuppressionVersement(tx, req.params.id))
         return reply.code(204).send()
       } catch (err) {
-        if (err instanceof VersementAvecRecuError) {
-          return reply.code(409).send({
-            error: 'Conflict',
-            message: t(langueDeRequete(req), 'versements.suppressionRecuEmis', {
-              numero: err.numero,
-            }),
-          })
-        }
         if (isP2025(err)) {
           return reply.code(404).send({
             error: 'Not Found',

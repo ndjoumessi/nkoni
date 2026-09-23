@@ -8,7 +8,6 @@ import {
   compterNonLues,
   lirePreferences,
   majPreferences,
-  NotificationIntrouvableError,
   TYPES_NOTIFICATION,
   type PreferencesNotification,
 } from '../services/notification.service'
@@ -100,16 +99,9 @@ export const notificationsRoutes: FastifyPluginAsync = async (app: FastifyInstan
     '/notifications/:id/lu',
     { preHandler: [authenticate] },
     async (req, reply) => {
-      try {
-        await marquerCommeLue(app.prisma, req.params.id, req.user.sub ?? '')
-        return reply.code(204).send()
-      } catch (err) {
-        // Notif inexistante OU appartenant à un autre compte → 404 (pas de fuite).
-        if (err instanceof NotificationIntrouvableError) {
-          return reply.code(404).send({ error: 'Not Found', message: 'Notification introuvable.' })
-        }
-        throw err
-      }
+      await marquerCommeLue(app.prisma, req.params.id, req.user.sub ?? '')
+      return reply.code(204).send()
+    
     },
   )
 
@@ -117,16 +109,9 @@ export const notificationsRoutes: FastifyPluginAsync = async (app: FastifyInstan
     '/notifications/:id',
     { preHandler: [authenticate] },
     async (req, reply) => {
-      try {
-        await supprimerNotification(app.prisma, req.params.id, req.user.sub ?? '')
-        return reply.code(204).send()
-      } catch (err) {
-        // Notif inexistante OU appartenant à un autre compte → 404 (pas de fuite).
-        if (err instanceof NotificationIntrouvableError) {
-          return reply.code(404).send({ error: 'Not Found', message: 'Notification introuvable.' })
-        }
-        throw err
-      }
+      await supprimerNotification(app.prisma, req.params.id, req.user.sub ?? '')
+      return reply.code(204).send()
+    
     },
   )
 

@@ -1,3 +1,4 @@
+import { ErreurMetier } from '../lib/erreur-metier'
 import { hashPassword } from './auth.service'
 import type { AuthenticatedUser } from './auth.service'
 import {
@@ -32,10 +33,13 @@ type Langue = 'FR' | 'EN'
 
 /** Email déjà utilisé. → 409, message GÉNÉRIQUE (anti-énumération : on ne révèle pas
  *  qu'un compte existe déjà, ici ou dans une autre organisation). */
-export class EmailDejaUtiliseError extends Error {
+export class EmailDejaUtiliseError extends ErreurMetier {
   constructor() {
-    super("Impossible de créer cet espace avec ces informations.")
-    this.name = 'EmailDejaUtiliseError'
+    super(
+      409,
+      'organisations.inscriptionImpossible',
+      "Impossible de créer cet espace avec ces informations.",
+    )
   }
 }
 
@@ -261,27 +265,32 @@ export async function definirForfaitOrganisation(
 // Prolongation de l'échéance du forfait (spec 1.1 §2.5/§3.1) — action PLATEFORME (SUPER_ADMIN).
 // ===========================================================================
 
-/** Organisation inconnue (→ 404). */
-export class OrganisationIntrouvableError extends Error {
+/** Organisation inconnue . */
+export class OrganisationIntrouvableError extends ErreurMetier {
   constructor(readonly organisationId: string) {
-    super(`Organisation introuvable : ${organisationId}`)
-    this.name = 'OrganisationIntrouvableError'
+    super(404, 'platform.organisationIntrouvable', `Organisation introuvable : ${organisationId}`)
   }
 }
 
-/** Le forfait GRATUIT n'a pas d'échéance : rien à prolonger (→ 409). */
-export class ProlongationForfaitGratuitError extends Error {
+/** Le forfait GRATUIT n'a pas d'échéance : rien à prolonger . */
+export class ProlongationForfaitGratuitError extends ErreurMetier {
   constructor(readonly organisationId: string) {
-    super(`Forfait GRATUIT sans échéance : ${organisationId}`)
-    this.name = 'ProlongationForfaitGratuitError'
+    super(
+      409,
+      'platform.prolongationForfaitGratuit',
+      `Forfait GRATUIT sans échéance : ${organisationId}`,
+    )
   }
 }
 
-/** L'échéance a changé entre la lecture et l'écriture — prolongation concurrente (→ 409). */
-export class ProlongationConcurrenteError extends Error {
+/** L'échéance a changé entre la lecture et l'écriture — prolongation concurrente . */
+export class ProlongationConcurrenteError extends ErreurMetier {
   constructor(readonly organisationId: string) {
-    super(`Échéance modifiée pendant la prolongation : ${organisationId}`)
-    this.name = 'ProlongationConcurrenteError'
+    super(
+      409,
+      'platform.prolongationConcurrente',
+      `Échéance modifiée pendant la prolongation : ${organisationId}`,
+    )
   }
 }
 
@@ -470,12 +479,15 @@ export async function chargerOrganisationCourante(
 //     jamais `{ connect }` (cf. CLAUDE.md — écritures scopées en scalaire).
 // ===========================================================================
 
-/** Membre désigné comme chef mais introuvable dans l'organisation courante (→ 404 côté route). */
-export class MembreHorsOrganisationError extends Error {
+/** Membre désigné comme chef mais introuvable dans l'organisation courante . */
+export class MembreHorsOrganisationError extends ErreurMetier {
   readonly membreId: string
   constructor(membreId: string) {
-    super(`Membre ${membreId} introuvable dans l'organisation courante.`)
-    this.name = 'MembreHorsOrganisationError'
+    super(
+      404,
+      'organisations.chefMembreIntrouvable',
+      `Membre ${membreId} introuvable dans l'organisation courante.`,
+    )
     this.membreId = membreId
   }
 }

@@ -1,3 +1,4 @@
+import { ErreurMetier } from '../lib/erreur-metier'
 import { chiffrerSecret, dechiffrerSecret, chiffrementPspDisponible } from '../lib/crypto-secret'
 import { validerIdentifiants, type PspProviderCode, type EnvironnementPsp } from './psp.service'
 
@@ -27,10 +28,9 @@ export class ChiffrementIndisponibleError extends Error {
     this.name = 'ChiffrementIndisponibleError'
   }
 }
-export class IdentifiantsInvalidesError extends Error {
+export class IdentifiantsInvalidesError extends ErreurMetier {
   constructor(public readonly code: string) {
-    super(`Identifiants PSP invalides : ${code}`)
-    this.name = 'IdentifiantsInvalidesError'
+    super(400, 'paiement.identifiantsInvalides', `Identifiants PSP invalides : ${code}`)
   }
 }
 

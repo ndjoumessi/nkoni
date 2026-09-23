@@ -9,8 +9,6 @@ import {
   inscrireOrganisation,
   chargerOrganisationCourante,
   definirChefOrganisation,
-  EmailDejaUtiliseError,
-  MembreHorsOrganisationError,
 } from '../services/organisation.service'
 import { assemblerExportOrganisation } from '../services/organisation-purge.service'
 import { chargerCapacitesOrganisation } from '../services/capacites-organisation.service'
@@ -18,7 +16,6 @@ import {
   lireConfigPaiement,
   enregistrerConfigPaiement,
   ChiffrementIndisponibleError,
-  IdentifiantsInvalidesError,
 } from '../services/parametre-paiement.service'
 import type { PspProviderCode } from '../services/psp.service'
 
@@ -71,34 +68,25 @@ export const organisationsRoutes: FastifyPluginAsync = async (app: FastifyInstan
     // Rate-limit resserré (anti-spam de création d'espaces). Ignoré en test (plugin non enregistré).
     { schema: inscriptionSchema, config: { rateLimit: { max: 5, timeWindow: '1 minute' } } },
     async (req, reply) => {
-      try {
-        // Flux public : pas encore d'organisation ni de contexte → runUnscoped (l'email est
-        // global, et l'org de l'admin est renseignée explicitement dans le service).
-        const admin = await orgContext.runUnscoped(async () =>
-          inscrireOrganisation(app.prisma, req.body),
-        )
-        // Connexion directe : émet le même couple access token + cookie refresh qu'un login.
-        const accessToken = await emettreSession(reply, admin, false, { prisma: app.prisma })
-        return reply.code(201).send({
-          accessToken,
-          user: {
-            id: admin.id,
-            email: admin.email,
-            role: admin.role,
-            langue: langueEffective(admin),
-            devise: admin.devise,
-            nomOrganisation: admin.nomOrganisation,
-          },
-        })
-      } catch (err) {
-        if (err instanceof EmailDejaUtiliseError) {
-          // Flux public non authentifié : on traduit dans la langue CHOISIE au formulaire.
-          return reply
-            .code(409)
-            .send({ error: 'Conflict', message: t(req.body.langue, 'organisations.inscriptionImpossible') })
-        }
-        throw err
-      }
+      // Flux public : pas encore d'organisation ni de contexte → runUnscoped (l'email est
+      // global, et l'org de l'admin est renseignée explicitement dans le service).
+      const admin = await orgContext.runUnscoped(async () =>
+        inscrireOrganisation(app.prisma, req.body),
+      )
+      // Connexion directe : émet le même couple access token + cookie refresh qu'un login.
+      const accessToken = await emettreSession(reply, admin, false, { prisma: app.prisma })
+      return reply.code(201).send({
+        accessToken,
+        user: {
+          id: admin.id,
+          email: admin.email,
+          role: admin.role,
+          langue: langueEffective(admin),
+          devise: admin.devise,
+          nomOrganisation: admin.nomOrganisation,
+        },
+      })
+    
     },
   )
 
@@ -183,21 +171,13 @@ export const organisationsRoutes: FastifyPluginAsync = async (app: FastifyInstan
           .code(404)
           .send({ error: 'Not Found', message: t(langueDeRequete(req), 'organisations.introuvable') })
       }
-      try {
-        return await definirChefOrganisation(
-          app.prisma,
-          organisationId,
-          req.body.membreId,
-          req.body.surnom ?? null,
-        )
-      } catch (err) {
-        if (err instanceof MembreHorsOrganisationError) {
-          return reply
-            .code(404)
-            .send({ error: 'Not Found', message: t(langueDeRequete(req), 'organisations.chefMembreIntrouvable') })
-        }
-        throw err
-      }
+      return await definirChefOrganisation(
+        app.prisma,
+        organisationId,
+        req.body.membreId,
+        req.body.surnom ?? null,
+      )
+    
     },
   )
 
@@ -265,11 +245,6 @@ export const organisationsRoutes: FastifyPluginAsync = async (app: FastifyInstan
           return reply
             .code(503)
             .send({ error: 'Service Unavailable', message: t(langueDeRequete(req), 'paiement.chiffrementIndisponible') })
-        }
-        if (err instanceof IdentifiantsInvalidesError) {
-          return reply
-            .code(400)
-            .send({ error: 'Bad Request', message: t(langueDeRequete(req), 'paiement.identifiantsInvalides') })
         }
         throw err
       }

@@ -161,8 +161,7 @@ restent volontairement à l'IP :
 Vérifié de bout en bout (phase 3, rate-limit actif, une seule IP) : deux comptes font chacun 300
 requêtes sans refus, et la 301ᵉ d'un compte est refusée.
 
-**Volet anonyme LIVRÉ (2026-09-23), actif dès que `PROXY_SECRET` est posé des deux côtés.** Étaient
-concernés :
+**RESTE OUVERT — le trafic anonyme est toujours mutualisé derrière Vercel.** Sont concernés :
 
 - le **login** : 10/min par adresse de sortie Vercel, donc pour de larges pans du trafic ;
 - l'**inscription** : 5/min ;
@@ -170,57 +169,23 @@ concernés :
   fait un ;
 - la **démo**, les **liens publics signés** et `/statut`.
 
-Exemple concret, avant correction : une assemblée générale où 30 membres se connectent en même temps
-pour voter. Réparti sur les trois adresses de sortie relevées, le budget cumulé est de 30 connexions
-par minute — l'assemblée passe tout juste, et la moindre saisie ratée bascule les suivants en refus.
-Le pool n'étant pas contractuel, il peut aussi se réduire : à une seule adresse, le 11ᵉ membre est
-déjà refusé pendant une minute.
+Exemple concret : une assemblée générale où 30 membres se connectent en même temps pour voter.
+Réparti sur les trois adresses de sortie relevées, le budget cumulé est de 30 connexions par minute :
+l'assemblée passe tout juste, et la moindre saisie ratée bascule les suivants en refus. Le pool
+n'étant pas contractuel, il peut aussi se réduire — à une seule adresse, le 11ᵉ membre est déjà
+refusé pendant une minute.
 
-Le remède devait transmettre l'IP du client par un canal que Railway ne réécrit pas **et** qu'un
-appel direct à Railway ne peut pas forger. Faire confiance à `x-vercel-forwarded-for` seul rouvrait
-la force brute : il suffit de l'inventer en appelant Railway en direct — l'API y est publiquement
-joignable. D'où un canal **authentifié** :
+Le remède sûr exige de transmettre l'IP du client par un canal que Railway ne réécrit pas **et**
+qu'un appel direct à Railway ne peut pas forger. Faire confiance à `x-vercel-forwarded-for` seul
+rouvrirait la force brute : il suffirait de l'inventer en appelant Railway en direct. **Option
+recommandée** :
 
-1. la Routing Middleware Vercel (`frontend/middleware.ts`, matcher `/api/*`) ajoute à chaque requête
-   l'IP du client (`x-nkoni-ip-client`) et un **secret partagé** (`x-nkoni-proxy` = `PROXY_SECRET`) ;
-2. le backend (`lib/rate-limit.ts::ipPourRateLimit`) n'honore cette IP que si le secret concorde en
-   **temps constant** et que `isIP` la valide — sans quoi la valeur, arbitrairement longue,
-   deviendrait une clé du magasin de rate-limit. Sinon : IP du pair, exactement l'état d'avant.
+1. une Routing Middleware Vercel (`frontend/middleware.ts`) ajoute à chaque requête `/api/*` l'IP du
+   client et un **secret partagé** (`PROXY_SECRET`, posé sur Vercel ET sur Railway) ;
+2. le backend n'utilise cette IP que si le secret concorde, et garde l'IP du pair sinon.
 
-**Fail-closed des deux côtés, et c'est ce qui rend le déploiement sans risque** : secret absent de la
-configuration, non concordant, en-tête absent, répété (donc reçu en tableau) ou non parsable →
-repli sur l'IP du pair. Poser la variable d'un seul côté, ou d'aucun, ne casse rien : le mécanisme
-est simplement inactif. C'est pourquoi le code se déploie AVANT que les variables existent.
-
-### Poser le secret (geste PO, une fois)
-
-Générer la valeur **sur ton poste**, jamais dans un canal de discussion :
-
-```bash
-openssl rand -base64 32
-```
-
-Poser la MÊME valeur des deux côtés — Vercel d'abord (cf. `RUNBOOK_rotation_secrets.md` §2) :
-
-- **Vercel** → *Settings → Environment Variables* → `PROXY_SECRET` (Production), puis **redéployer** :
-  une variable n'est lue qu'au déploiement suivant. Ne **jamais** la préfixer `VITE_`, qui la
-  publierait dans le bundle du navigateur.
-- **Railway** → variable `PROXY_SECRET`, puis `railway redeploy`. L'avertissement `[env]` au
-  démarrage disparaît une fois posée.
-
-**Contrôle, sans outil particulier** : appeler `https://nkoni.vercel.app/api/ready`, puis
-`https://nkoni-backend-production.up.railway.app/ready`, et comparer `x-ratelimit-remaining`. Si le
-compteur se **suit** d'un appel à l'autre, les deux chemins sont imputés à la même clé — ta propre
-adresse — donc la chaîne fonctionne de bout en bout. S'il repart d'une valeur sans rapport, le
-secret ne concorde pas (ou le déploiement n'a pas repris la variable).
-
-### Ce que ce remède ne fait PAS
-
-Il n'isole pas les visiteurs derrière un même NAT — un cybercafé, un campus, un opérateur mobile en
-CGNAT partagent une adresse publique, donc un seau. C'est le comportement normal d'un rate-limit par
-IP, et il reste très au-dessus de l'état précédent, où c'était TOUTE la plateforme. Les budgets
-propres au login (10/min) et à l'inscription (5/min) n'ont pas été relevés pour autant : ils sont
-désormais appliqués là où ils ont un sens.
+Cela demande deux variables d'environnement, donc un geste PO sur Vercel et Railway. **Décision PO
+requise** avant de le faire.
 
 ## 3. Ce que ces mesures ne couvrent pas
 

@@ -53,7 +53,6 @@ que sa rotation casse, dans quel ordre la faire et comment vérifier qu'elle a p
 | `WHATSAPP_TOKEN` | Jeton Meta | Canal WhatsApp muet tant que le nouveau jeton n'est pas posé | Selon expiration Meta |
 | `VAPID_PRIVATE_KEY` / `VAPID_PUBLIC_KEY` | Paire de clés | **Tous les abonnements push existants deviennent inutilisables** ; chaque appareil doit réactiver le push | **Jamais en routine** |
 | `PSP_ENCRYPTION_KEY_PRECEDENTE` | Clé maître précédente | **Temporaire** : posée seulement pendant une rotation (§3), à retirer ensuite — un avertissement `[env]` le rappelle à chaque démarrage | — |
-| `PROXY_SECRET` | Secret partagé Vercel ↔ Railway | **Posé des deux côtés** : tant que les deux valeurs diffèrent, le rate-limit du trafic anonyme retombe sur l'adresse de sortie de Vercel — dégradation silencieuse, aucune panne | Annuelle — **poser Vercel d'abord, cf. §2** |
 | `SENTRY_DSN` | Identifiant d'envoi (peu sensible) | Aucun, si la nouvelle clé client est créée avant la désactivation de l'ancienne | Sur abus (spam d'événements) |
 
 Configuration **non secrète** (aucune rotation) : `NODE_ENV`, `CORS_ORIGIN`, `JWT_ACCESS_TTL`,
@@ -89,28 +88,6 @@ machine ne change rien au compte existant.
 ---
 
 ## 2. Secrets à rotation simple
-
-### `PROXY_SECRET`
-
-Seul secret **partagé entre deux plateformes** : la Routing Middleware Vercel le pose sur chaque
-requête `/api/*`, le backend Railway ne croit l'IP annoncée que s'il concorde. Il ne chiffre rien et
-n'authentifie aucun utilisateur — le tourner n'a donc aucun effet visible, seulement une fenêtre de
-dégradation pendant laquelle le trafic anonyme repart dans les seaux mutualisés.
-
-1. Générer la valeur **sur ton poste**, jamais dans un canal de discussion :
-   `openssl rand -base64 32`.
-2. Poser la MÊME valeur des deux côtés — **Vercel d'abord**, parce qu'un secret que Railway ne
-   reconnaît pas est simplement ignoré (repli sur l'IP du pair), alors que l'ordre inverse laisse
-   Railway attendre un en-tête que Vercel n'envoie plus. Aucun des deux ordres ne casse quoi que ce
-   soit ; celui-ci réduit la fenêtre.
-   - Vercel → *Settings → Environment Variables* → `PROXY_SECRET` (Production), puis **redéployer**
-     (une variable n'est lue qu'au déploiement suivant).
-   - Railway → variable `PROXY_SECRET`, puis `railway redeploy`.
-3. Contrôle, sans outil particulier : appeler `https://nkoni.vercel.app/api/ready` puis
-   `https://nkoni-backend-production.up.railway.app/ready` et comparer `x-ratelimit-remaining`. Si le
-   compteur se SUIT d'un appel à l'autre, les deux chemins sont imputés à la même clé — ton IP — donc
-   la chaîne fonctionne. S'il repart d'une valeur différente, le secret ne concorde pas.
-4. Au démarrage de Railway, `[env]` avertit si `PROXY_SECRET` est absent.
 
 ### `JWT_ACCESS_SECRET`
 1. Vérifier que `RECU_LINK_SECRET` est **posé** sur Railway (aucun avertissement `[env]` au dernier

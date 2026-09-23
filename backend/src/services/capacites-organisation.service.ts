@@ -7,6 +7,8 @@
  * `confirmerPaiement`) : un membre qui a payé doit voir son versement enregistré même si l'abonnement
  * a expiré entre le démarrage et la confirmation. Seul le DÉMARRAGE d'un paiement est soumis au forfait.
  */
+import { ErreurMetier } from '../lib/erreur-metier'
+import { formatTailleOctets, type Langue } from '../lib/i18n'
 import {
   CAPACITES_FORFAIT,
   capacitesEffectives,
@@ -66,14 +68,22 @@ export async function stockageUtiliseOctets(prisma: StockagePrisma): Promise<num
 }
 
 /** Levée quand un envoi ferait dépasser le quota de stockage du forfait effectif. */
-export class QuotaStockageDepasseError extends Error {
+export class QuotaStockageDepasseError extends ErreurMetier {
   readonly utiliseOctets: number
   readonly quotaOctets: number
   constructor(utiliseOctets: number, quotaOctets: number) {
-    super(`Quota de stockage dépassé (${utiliseOctets} / ${quotaOctets} octets).`)
-    this.name = 'QuotaStockageDepasseError'
+    super(403, 'documents.quotaStockage', `Quota de stockage dépassé (${utiliseOctets} / ${quotaOctets} octets).`)
     this.utiliseOctets = utiliseOctets
     this.quotaOctets = quotaOctets
+  }
+
+  // Les tailles se FORMATENT dans la langue du lecteur (« 500 Mo » / « 500 MB ») : c'est la raison
+  // d'être du paramètre `langue` sur `parametres`, et pas une généralité de confort.
+  override parametres(langue: Langue): Record<string, string | number> {
+    return {
+      utilise: formatTailleOctets(this.utiliseOctets, langue),
+      quota: formatTailleOctets(this.quotaOctets, langue),
+    }
   }
 }
 

@@ -1,3 +1,4 @@
+import { ErreurMetier } from '../lib/erreur-metier'
 import { randomUUID } from 'node:crypto'
 import { env } from '../lib/env'
 import { dechiffrerSecret } from '../lib/crypto-secret'
@@ -27,35 +28,30 @@ export interface PaiementDeps {
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
-export class ConfigPaiementIndisponibleError extends Error {
+export class ConfigPaiementIndisponibleError extends ErreurMetier {
   constructor() {
-    super('Paiement en ligne non configuré ou inactif pour cette organisation.')
-    this.name = 'ConfigPaiementIndisponibleError'
+    super(409, 'paiement.nonConfigure', 'Paiement en ligne non configuré ou inactif pour cette organisation.')
   }
 }
-export class MontantInvalideError extends Error {
+export class MontantInvalideError extends ErreurMetier {
   constructor() {
-    super('Montant de paiement invalide (inférieur au minimum autorisé).')
-    this.name = 'MontantInvalideError'
+    super(400, 'paiement.montantInvalide', 'Montant de paiement invalide (inférieur au minimum autorisé).')
   }
 }
-export class ContributionIntrouvableError extends Error {
+export class ContributionIntrouvableError extends ErreurMetier {
   constructor() {
-    super('Contribution introuvable pour ce membre.')
-    this.name = 'ContributionIntrouvableError'
+    super(404, 'paiement.contributionIntrouvable', 'Contribution introuvable pour ce membre.')
   }
 }
-export class MontantSuperieurAuResteError extends Error {
+export class MontantSuperieurAuResteError extends ErreurMetier {
   constructor(public readonly reste: number) {
-    super(`Montant supérieur au reste dû (${reste} XAF).`)
-    this.name = 'MontantSuperieurAuResteError'
+    super(400, 'paiement.montantSuperieurReste', `Montant supérieur au reste dû (${reste} XAF).`)
   }
 }
 /** Collecte directe (CamPay) sans numéro de payeur valide : impossible de déclencher l'invite MoMo. */
-export class TelephonePayeurRequisError extends Error {
+export class TelephonePayeurRequisError extends ErreurMetier {
   constructor() {
-    super('Numéro de téléphone du payeur requis pour ce mode de paiement.')
-    this.name = 'TelephonePayeurRequisError'
+    super(400, 'paiement.telephoneRequis', 'Numéro de téléphone du payeur requis pour ce mode de paiement.')
   }
 }
 

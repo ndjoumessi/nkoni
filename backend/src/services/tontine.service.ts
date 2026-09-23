@@ -1,3 +1,4 @@
+import { ErreurMetier } from '../lib/erreur-metier'
 import { randomInt } from 'node:crypto'
 
 /**
@@ -30,84 +31,72 @@ export type ModeRotation = 'ORDRE_FIXE' | 'TIRAGE' | 'ENCHERE'
 /* Erreurs métier (mappées en 4xx par la route)                               */
 /* -------------------------------------------------------------------------- */
 
-export class TontineIntrouvableError extends Error {
+export class TontineIntrouvableError extends ErreurMetier {
   constructor() {
-    super('Tontine introuvable.')
-    this.name = 'TontineIntrouvableError'
+    super(404, 'tontines.introuvable', 'Tontine introuvable.')
   }
 }
-export class CycleIntrouvableError extends Error {
+export class CycleIntrouvableError extends ErreurMetier {
   constructor() {
-    super('Cycle de tontine introuvable.')
-    this.name = 'CycleIntrouvableError'
+    super(404, 'tontines.cycleIntrouvable', 'Cycle de tontine introuvable.')
   }
 }
-export class TourIntrouvableError extends Error {
+export class TourIntrouvableError extends ErreurMetier {
   constructor() {
-    super('Tour de tontine introuvable.')
-    this.name = 'TourIntrouvableError'
+    super(404, 'tontines.tourIntrouvable', 'Tour de tontine introuvable.')
   }
 }
-export class MembreIntrouvableError extends Error {
+export class MembreIntrouvableError extends ErreurMetier {
   constructor() {
-    super('Membre introuvable.')
-    this.name = 'MembreIntrouvableError'
+    super(404, 'membres.introuvable', 'Membre introuvable.')
   }
 }
 /** Moins de 2 participants : une tontine n'a pas de sens à un seul membre. → 400 */
-export class ParticipantsInsuffisantsError extends Error {
+export class ParticipantsInsuffisantsError extends ErreurMetier {
   constructor() {
-    super('Au moins deux participants sont requis.')
-    this.name = 'ParticipantsInsuffisantsError'
+    super(400, 'tontines.participantsInsuffisants', 'Au moins deux participants sont requis.')
   }
 }
 /** Participant en double dans la liste d'ouverture. → 400 */
-export class ParticipantDupliqueError extends Error {
+export class ParticipantDupliqueError extends ErreurMetier {
   constructor() {
-    super('Un membre est présent plusieurs fois dans la liste.')
-    this.name = 'ParticipantDupliqueError'
+    super(400, 'tontines.participantDuplique', 'Un membre est présent plusieurs fois dans la liste.')
   }
 }
 /** Le tour n'a pas de bénéficiaire (reversement impossible). → 409 */
-export class TourNonAttribueError extends Error {
+export class TourNonAttribueError extends ErreurMetier {
   constructor() {
-    super("Le tour n'a pas de bénéficiaire.")
-    this.name = 'TourNonAttribueError'
+    super(409, 'tontines.tourNonAttribue', "Le tour n'a pas de bénéficiaire.")
   }
 }
 /** Le tour est déjà reversé (non rejouable). → 409 */
-export class TourDejaReverseError extends Error {
+export class TourDejaReverseError extends ErreurMetier {
   constructor() {
-    super('Le tour est déjà reversé.')
-    this.name = 'TourDejaReverseError'
+    super(409, 'tontines.tourDejaReverse', 'Le tour est déjà reversé.')
   }
 }
 /** Reverser un pot VIDE (aucune mise encaissée) n'a pas de sens sur un flux d'argent. → 409 */
-export class PotVideError extends Error {
+export class PotVideError extends ErreurMetier {
   constructor() {
-    super('Aucune mise encaissée : rien à reverser.')
-    this.name = 'PotVideError'
+    super(409, 'tontines.potVide', 'Aucune mise encaissée : rien à reverser.')
   }
 }
 /** Le tour a déjà un bénéficiaire (tirage/attribution non rejouable). → 409 */
-export class TourDejaAttribueError extends Error {
+export class TourDejaAttribueError extends ErreurMetier {
   constructor() {
-    super('Le tour a déjà un bénéficiaire.')
-    this.name = 'TourDejaAttribueError'
+    super(409, 'tontines.tourDejaAttribue', 'Le tour a déjà un bénéficiaire.')
   }
 }
 /** Opération non disponible pour ce mode de rotation (ex. tirage en ENCHERE). → 409 */
-export class ModeNonSupporteError extends Error {
+export class ModeNonSupporteError extends ErreurMetier {
   constructor(public mode: string) {
-    super(`Opération non supportée pour le mode ${mode}.`)
-    this.name = 'ModeNonSupporteError'
+    super(409, 'tontines.modeNonSupporte', `Opération non supportée pour le mode ${mode}.`)
   }
 }
 /** Plus aucun participant éligible à tirer (tous ont déjà reçu). → 409 */
-export class AucunEligibleError extends Error {
+export class AucunEligibleError extends ErreurMetier {
   constructor() {
-    super('Aucun participant éligible au tirage.')
-    this.name = 'AucunEligibleError'
+    super(409, 'tontines.aucunEligible', 'Aucun participant éligible au tirage.')
   }
 }
 

@@ -1,4 +1,4 @@
-import { useEffect, useState, type ComponentType, type ReactNode } from 'react'
+import { useState, type ComponentType, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { cleI18n } from '@/lib/i18n'
 import { Navigate } from 'react-router-dom'
@@ -16,6 +16,7 @@ import {
   type LucideProps,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
+import { useRessource } from '@/hooks/useRessource'
 import { organisationApi, messageErreur, type OrganisationCourante } from '@/lib/api'
 import { peutVoirParametres, peutExporterDonnees, peutConfigurerPaiement } from '@/lib/roles'
 import { ConfigPaiement } from '@/components/ConfigPaiement'
@@ -73,9 +74,13 @@ export function ParametresPage() {
   const { user, accessToken } = useAuth()
   const toast = useToast()
 
-  const [org, setOrg] = useState<OrganisationCourante | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { data: org, loading, error } = useRessource<OrganisationCourante>(
+    (jeton, signal) => organisationApi.moi(jeton, signal),
+    [user?.role],
+    // Garde de rôle CONNUE avant la requête : MEMBRE_SIMPLE ne la déclenche pas, et la page ne
+    // reste pas en chargement pour autant (elle redirige juste en dessous).
+    { pret: peutVoirParametres(user?.role) },
+  )
   const [exporting, setExporting] = useState(false)
 
   // Export self-service (portabilité RGPD) : télécharge le JSON de l'organisation. Le nom du fichier
@@ -100,30 +105,6 @@ export function ParametresPage() {
       setExporting(false)
     }
   }
-
-  useEffect(() => {
-    if (!accessToken || !peutVoirParametres(user?.role)) return
-    const controller = new AbortController()
-    let active = true
-    setLoading(true)
-    setError(null)
-    organisationApi
-      .moi(accessToken, controller.signal)
-      .then((d) => {
-        if (active) setOrg(d)
-      })
-      .catch((e) => {
-        if (e instanceof DOMException && e.name === 'AbortError') return
-        if (active) setError(messageErreur(e))
-      })
-      .finally(() => {
-        if (active) setLoading(false)
-      })
-    return () => {
-      active = false
-      controller.abort()
-    }
-  }, [accessToken, user?.role])
 
   // Garde d'accès (miroir de la matrice back Organisation:read) : MEMBRE_SIMPLE redirigé.
   if (!peutVoirParametres(user?.role)) {

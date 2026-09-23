@@ -1,8 +1,18 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useMemo, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, Navigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Check, Circle, CircleDollarSign, Dices, HandCoins, Plus, Trash2 } from 'lucide-react'
+import {
+  ArrowLeft,
+  Check,
+  Circle,
+  CircleDollarSign,
+  Dices,
+  HandCoins,
+  Plus,
+  Trash2,
+} from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
+import { useRessource } from '@/hooks/useRessource'
 import {
   tontinesApi,
   membresApi,
@@ -42,11 +52,6 @@ export function TontineDetailPage() {
   const gestion = peutGererTontines(user?.role)
   const fluxArgent = peutFluxArgentTontine(user?.role)
 
-  const [tontine, setTontine] = useState<TontineDetail | null>(null)
-  const [membres, setMembres] = useState<OptionMembre[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
   const [tirageEnCours, setTirageEnCours] = useState<string | null>(null)
   const [reversementEnCours, setReversementEnCours] = useState<string | null>(null)
 
@@ -64,38 +69,36 @@ export function TontineDetailPage() {
   const [miseEnCours, setMiseEnCours] = useState(false)
   const [errMiseMembre, setErrMiseMembre] = useState<string | undefined>(undefined)
 
-  const charger = async (signal?: AbortSignal) => {
-    if (!accessToken) return
-    const [detail, liste] = await Promise.all([
-      tontinesApi.get(id, accessToken, signal),
-      membresApi.listOptions(accessToken, signal).catch(() => [] as OptionMembre[]),
-    ])
-    setTontine(detail)
-    setMembres(liste)
-  }
-
-  useEffect(() => {
-    if (!accessToken || !id) return
-    const controller = new AbortController()
-    let actif = true
-    setLoading(true)
-    setError(null)
-    void (async () => {
-      try {
-        await charger(controller.signal)
-      } catch (e) {
-        if (e instanceof DOMException && e.name === 'AbortError') return
-        if (actif) setError(messageErreur(e))
-      } finally {
-        if (actif) setLoading(false)
-      }
-    })()
-    return () => {
-      actif = false
-      controller.abort()
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accessToken, id])
+  // Ressource COMPOSITE : la tontine et la liste des membres (sélecteur de participant,
+  // BEST-EFFORT). `recharger` remplace l'ancien `charger()` manuel des actions.
+  const {
+    data,
+    loading,
+    error,
+    recharger,
+    setData,
+  } = useRessource<{ tontine: TontineDetail; membres: OptionMembre[] }>(
+    async (jeton, signal) => {
+      const [detail, liste] = await Promise.all([
+        tontinesApi.get(id, jeton, signal),
+        membresApi.listOptions(jeton, signal).catch(() => [] as OptionMembre[]),
+      ])
+      return { tontine: detail, membres: liste }
+    },
+    [id],
+    { pret: Boolean(id) },
+  )
+  const tontine = data?.tontine ?? null
+  const membres = useMemo(() => data?.membres ?? [], [data])
+  // Même signature que le `setState` remplacé : valeur directe ou fonction de mise à jour, pour
+  // que les mises à jour optimistes et leurs rollbacks restent écrits tels quels.
+  const setTontine = (
+    v: TontineDetail | null | ((prev: TontineDetail | null) => TontineDetail | null),
+  ) =>
+    setData((d) => {
+      const maj = typeof v === 'function' ? v(d?.tontine ?? null) : v
+      return maj ? { tontine: maj, membres: d?.membres ?? [] } : d
+    })
 
   const nomParMembre = useMemo(() => {
     const map = new Map<string, string>()
@@ -189,7 +192,7 @@ export function TontineDetailPage() {
       )
       // Rechargement plutôt que MAJ optimiste : le serveur génère cycle, tours et — en ORDRE_FIXE —
       // les bénéficiaires. Les recalculer côté client dupliquerait la règle de rotation.
-      await charger()
+      recharger()
       setModaleCycle(false)
       setBrouillon([])
       toast.success(t('tontines.ouvrirCycleModale.succes'))
@@ -218,7 +221,7 @@ export function TontineDetailPage() {
         miseMontant.trim() !== '' && Number.isFinite(montantNombre) ? montantNombre : undefined,
       )
       // Rechargement : la mise met à jour la checklist payé/non-payé + le collecté du tour.
-      await charger()
+      recharger()
       setModaleMise(null)
       setMiseMembreId('')
       setMiseMontant('')

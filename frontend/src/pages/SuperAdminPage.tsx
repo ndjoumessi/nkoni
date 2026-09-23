@@ -28,7 +28,8 @@ import {
   X,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
-import { platformApi, ApiError, messageErreur, type PlatformOrganisation } from '@/lib/api'
+import { useRessource } from '@/hooks/useRessource'
+import { platformApi, ApiError, type PlatformOrganisation } from '@/lib/api'
 import { useToast } from '@/components/ui/Toast'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, Overline } from '@/components/ui/Card'
@@ -245,9 +246,15 @@ export function SuperAdminPage() {
   const toast = useToast()
   const navigate = useNavigate()
 
-  const [organisations, setOrganisations] = useState<PlatformOrganisation[] | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const {
+    data: organisations,
+    loading,
+    error,
+    setData: setOrganisations,
+  } = useRessource<PlatformOrganisation[]>(
+    async (jeton, signal) => (await platformApi.listOrganisations(jeton, signal)).organisations,
+    [],
+  )
   const [pendingId, setPendingId] = useState<string | null>(null)
 
   const [recherche, setRecherche] = useState('')
@@ -274,30 +281,6 @@ export function SuperAdminPage() {
   const [exportingId, setExportingId] = useState<string | null>(null)
   const [suspending, setSuspending] = useState(false)
   const [detailId, setDetailId] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (!accessToken) return
-    const controller = new AbortController()
-    const { signal } = controller
-    let active = true
-    setLoading(true)
-    setError(null)
-    void (async () => {
-      try {
-        const { organisations: orgs } = await platformApi.listOrganisations(accessToken, signal)
-        if (active) setOrganisations(orgs)
-      } catch (e) {
-        if (e instanceof DOMException && e.name === 'AbortError') return
-        if (active) setError(messageErreur(e))
-      } finally {
-        if (active) setLoading(false)
-      }
-    })()
-    return () => {
-      active = false
-      controller.abort()
-    }
-  }, [accessToken])
 
   // Persiste filtres + tri (pas la recherche) à chaque changement — restaurés au prochain montage.
   useEffect(() => {

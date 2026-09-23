@@ -1,14 +1,14 @@
-import { useEffect, useRef, useState } from 'react'
+import { useMemo, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { Phone, User, Users } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
+import { useRessource } from '@/hooks/useRessource'
 import { focusPremierChampInvalide } from '@/lib/utils'
 import {
   membresApi,
   branchesApi,
   ApiError,
-  type Branche,
   type MembreInput,
   type OptionMembre,
   type StatutMembre,
@@ -69,9 +69,6 @@ export function MembreFormPage() {
   const toast = useToast()
 
   const [form, setForm] = useState<FormState>(VIDE)
-  const [branches, setBranches] = useState<Branche[]>([])
-  const [membres, setMembres] = useState<OptionMembre[]>([])
-  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   // Erreur serveur PERSISTANTE, en plus du toast : un toast dure 8 s et, raté, l'information est
   // perdue — alors que l'utilisateur vient de saisir une fiche entière (audit UI/UX, m6).
@@ -103,58 +100,53 @@ export function MembreFormPage() {
     return errs
   }
 
+  // Ressource COMPOSITE : branches + membres (sélecteurs) en parallèle, puis, en édition, la
+  // fiche à modifier. La liste des membres est BEST-EFFORT — sans elle seul le choix du chef de
+  // sous-famille reste vide, le formulaire doit rester utilisable.
+  const { data, loading, error } = useRessource<{
+    branches: Awaited<ReturnType<typeof branchesApi.list>>
+    membres: OptionMembre[]
+    membre: Awaited<ReturnType<typeof membresApi.get>> | null
+  }>(
+    async (jeton, signal) => {
+      const [b, m] = await Promise.all([
+        branchesApi.list(jeton, signal),
+        membresApi.listOptions(jeton, signal).catch(() => [] as OptionMembre[]),
+      ])
+      const membre = isEdit && id ? await membresApi.get(id, jeton, signal) : null
+      return { branches: b, membres: m, membre }
+    },
+    [id, isEdit],
+  )
+  const branches = useMemo(() => data?.branches ?? [], [data])
+  const membres = useMemo(() => data?.membres ?? [], [data])
+
   useEffect(() => {
-    if (!accessToken) return
-    const controller = new AbortController()
-    const { signal } = controller
-    let active = true
-    setLoading(true)
-    void (async () => {
-      try {
-        const [b, m] = await Promise.all([
-          branchesApi.list(accessToken, signal),
-          // Best-effort comme les autres sélecteurs : sans liste, seul le choix du chef de
-          // sous-famille reste vide — le formulaire, lui, doit rester utilisable.
-          membresApi.listOptions(accessToken, signal).catch(() => [] as OptionMembre[]),
-        ])
-        if (active) {
-          setBranches(b)
-          setMembres(m)
-        }
-        if (isEdit && id) {
-          const membre = await membresApi.get(id, accessToken, signal)
-          if (active) {
-            setForm({
-              nom: membre.nom,
-              prenom: membre.prenom,
-              sexe: membre.sexe ?? '',
-              dateNaissance: membre.dateNaissance ? membre.dateNaissance.slice(0, 10) : '',
-              fonctionSociale: membre.fonctionSociale ?? '',
-              statut: membre.statut,
-              telephone: membre.telephone ?? '',
-              email: membre.email ?? '',
-              adresse: membre.adresse ?? '',
-              brancheId: membre.brancheId ?? '',
-              chefSousFamilleId: membre.chefSousFamilleId ?? '',
-              anneeAdhesion: String(membre.anneeAdhesion),
-              anneeFinContribution: membre.anneeFinContribution
-                ? String(membre.anneeFinContribution)
-                : '',
-            })
-          }
-        }
-      } catch (e) {
-        if (e instanceof DOMException && e.name === 'AbortError') return
-        if (active) toast.error(t('membres.form.toast.chargementImpossible'), e instanceof ApiError ? e.message : undefined)
-      } finally {
-        if (active) setLoading(false)
-      }
-    })()
-    return () => {
-      active = false
-      controller.abort()
-    }
-  }, [accessToken, id, isEdit, toast, t])
+    if (error) toast.error(t('membres.form.toast.chargementImpossible'), error)
+  }, [error, toast, t])
+
+  // AMORÇAGE du formulaire depuis la fiche lue : brouillon éditable, pas la donnée.
+  useEffect(() => {
+    const membre = data?.membre
+    if (!membre) return
+    setForm({
+      nom: membre.nom,
+      prenom: membre.prenom,
+      sexe: membre.sexe ?? '',
+      dateNaissance: membre.dateNaissance ? membre.dateNaissance.slice(0, 10) : '',
+      fonctionSociale: membre.fonctionSociale ?? '',
+      statut: membre.statut,
+      telephone: membre.telephone ?? '',
+      email: membre.email ?? '',
+      adresse: membre.adresse ?? '',
+      brancheId: membre.brancheId ?? '',
+      chefSousFamilleId: membre.chefSousFamilleId ?? '',
+      anneeAdhesion: String(membre.anneeAdhesion),
+      anneeFinContribution: membre.anneeFinContribution
+        ? String(membre.anneeFinContribution)
+        : '',
+    })
+  }, [data?.membre])
 
   if (!peutGererMembres(user?.role)) {
     return <Navigate to="/membres" replace />

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { LogOut, History, Building2, Megaphone } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
+import { useRessource } from '@/hooks/useRessource'
 import { statutApi, messageErreur, type GraviteIncident } from '@/lib/api'
 import { cleI18n } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
@@ -28,36 +29,25 @@ export function PlatformIncidentPage() {
   const { user, accessToken, logout } = useAuth()
   const toast = useToast()
 
-  const [chargement, setChargement] = useState(true)
   const [actif, setActif] = useState(false)
   const [gravite, setGravite] = useState<GraviteIncident>('INFO')
   const [message, setMessage] = useState('')
   const [enregistrement, setEnregistrement] = useState(false)
 
+  // Le cycle est au module ; reste l'AMORÇAGE de l'éditeur depuis la bannière existante. L'erreur
+  // est volontairement ignorée : pas de bannière encore configurée est le cas NORMAL au premier
+  // passage, et on garde alors les valeurs par défaut.
+  const { data: incident, loading: chargement } = useRessource(
+    (jeton, signal) => statutApi.incidentAdmin(jeton, signal),
+    [],
+  )
+
   useEffect(() => {
-    if (!accessToken) return
-    const controller = new AbortController()
-    let vivant = true
-    setChargement(true)
-    void statutApi
-      .incidentAdmin(accessToken, controller.signal)
-      .then((i) => {
-        if (!vivant) return
-        setActif(i.actif)
-        setGravite(i.gravite)
-        setMessage(i.message)
-      })
-      .catch(() => {
-        /* pas de bannière encore configurée → on garde les valeurs par défaut */
-      })
-      .finally(() => {
-        if (vivant) setChargement(false)
-      })
-    return () => {
-      vivant = false
-      controller.abort()
-    }
-  }, [accessToken])
+    if (!incident) return
+    setActif(incident.actif)
+    setGravite(incident.gravite)
+    setMessage(incident.message)
+  }, [incident])
 
   const enregistrer = async () => {
     if (!accessToken) return

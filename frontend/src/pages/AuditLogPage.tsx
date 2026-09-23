@@ -1,13 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { cleI18n } from '@/lib/i18n'
 import { Link, Navigate } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, ExternalLink, RotateCcw, ScrollText } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
+import { useRessource } from '@/hooks/useRessource'
 import {
   auditLogApi,
   utilisateursApi,
-  messageErreur,
   type AuditEntry,
   type AuditPage,
   type ActionAudit,
@@ -50,7 +50,6 @@ function lienEntite(entiteType: string, entiteId: string): string | null {
   if (entiteType === 'Conflit') return `/conflits/${entiteId}`
   return null
 }
-
 
 /**
  * Libellé humain d'un champ technique du journal d'audit → clé i18n. On RÉUTILISE les libellés
@@ -206,7 +205,7 @@ function DiffDetails({ entry }: { entry: AuditEntry }) {
 /** Journal d'audit (§5) — consultation ADMIN uniquement. */
 export function AuditLogPage() {
   const { t } = useTranslation()
-  const { user, accessToken } = useAuth()
+  const { user } = useAuth()
 
   const [entiteType, setEntiteType] = useState('')
   const [acteurId, setActeurId] = useState('')
@@ -214,49 +213,28 @@ export function AuditLogPage() {
   const [dateFin, setDateFin] = useState('')
   const [page, setPage] = useState(1)
 
-  const [data, setData] = useState<AuditPage | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [utilisateurs, setUtilisateurs] = useState<Utilisateur[]>([])
+  const autorise = peutVoirAudit(user?.role)
 
-  // Liste des comptes pour le filtre « acteur » (ADMIN a le droit).
-  useEffect(() => {
-    if (!accessToken || !peutVoirAudit(user?.role)) return
-    const controller = new AbortController()
-    utilisateursApi
-      .list(accessToken, controller.signal)
-      .then(setUtilisateurs)
-      .catch(() => setUtilisateurs([]))
-    return () => controller.abort()
-  }, [accessToken, user?.role])
+  // Liste des comptes pour le filtre « acteur ». BEST-EFFORT : son échec ne doit pas empêcher de
+  // lire le journal, la page ignore donc son `error` et retombe sur une liste vide.
+  const { data: comptes } = useRessource<Utilisateur[]>(
+    (jeton, signal) => utilisateursApi.list(jeton, signal),
+    [user?.role],
+    { pret: autorise },
+  )
+  const utilisateurs = useMemo(() => comptes ?? [], [comptes])
 
   // Chargement du journal (refetch sur changement de filtre/page).
-  useEffect(() => {
-    if (!accessToken || !peutVoirAudit(user?.role)) return
-    const controller = new AbortController()
-    let active = true
-    setLoading(true)
-    setError(null)
-    void (async () => {
-      try {
-        const res = await auditLogApi.list(
-          construireFiltresAudit({ page, entiteType, acteurId, dateDebut, dateFin }),
-          accessToken,
-          controller.signal,
-        )
-        if (active) setData(res)
-      } catch (e) {
-        if (e instanceof DOMException && e.name === 'AbortError') return
-        if (active) setError(messageErreur(e))
-      } finally {
-        if (active) setLoading(false)
-      }
-    })()
-    return () => {
-      active = false
-      controller.abort()
-    }
-  }, [accessToken, user?.role, page, entiteType, acteurId, dateDebut, dateFin])
+  const { data, loading, error } = useRessource<AuditPage>(
+    (jeton, signal) =>
+      auditLogApi.list(
+        construireFiltresAudit({ page, entiteType, acteurId, dateDebut, dateFin }),
+        jeton,
+        signal,
+      ),
+    [user?.role, page, entiteType, acteurId, dateDebut, dateFin],
+    { pret: autorise },
+  )
 
   if (!peutVoirAudit(user?.role)) {
     return <Navigate to="/dashboard" replace />

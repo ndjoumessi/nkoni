@@ -1,10 +1,25 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
+import { useCallback, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { Camera, ChevronDown, ChevronRight, CreditCard, Crown, FileText, MessageCircle, MoreHorizontal, Pencil, Plus, Scale, Trash2, UserMinus } from 'lucide-react'
+import {
+  Camera,
+  ChevronDown,
+  ChevronRight,
+  CreditCard,
+  Crown,
+  FileText,
+  MessageCircle,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  Scale,
+  Trash2,
+  UserMinus,
+} from 'lucide-react'
 import { AvatarMembre } from '@/components/membres/AvatarMembre'
 import { CropperPhoto } from '@/components/membres/CropperPhoto'
 import { useAuth } from '@/contexts/auth-context'
+import { useRessource } from '@/hooks/useRessource'
 import {
   membresApi,
   branchesApi,
@@ -67,19 +82,9 @@ export function MembreDetailPage() {
   const navigate = useNavigate()
   const toast = useToast()
 
-  const [membre, setMembre] = useState<Membre | null>(null)
-  const [statut, setStatut] = useState<StatutCumule | null>(null)
-  const [contributions, setContributions] = useState<Contribution[]>([])
-  const [financierAccessible, setFinancierAccessible] = useState(false)
-  const [equilibrages, setEquilibrages] = useState<Equilibrage[] | null>(null)
-  const [branches, setBranches] = useState<Branche[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   // Incrémenté par le bouton « Réessayer » de l'ErrorState : relance l'effet de chargement.
-  const [reloadKey, setReloadKey] = useState(0)
   const [expandedContrib, setExpandedContrib] = useState<string | null>(null)
   // Chef de l'organisation (§ dirigeant) — badge + actions ADMIN/PRESIDENT.
-  const [chef, setChef] = useState<ChefOrganisation | null>(null)
   const [chefModal, setChefModal] = useState<'designer' | 'retirer' | null>(null)
   const [surnom, setSurnom] = useState('')
   const [chefSubmitting, setChefSubmitting] = useState(false)
@@ -161,90 +166,92 @@ export function MembreDetailPage() {
     }
   }
 
-  useEffect(() => {
-    if (!accessToken || !id) return
-    const controller = new AbortController()
-    const { signal } = controller
-    let active = true
-    setLoading(true)
-    setError(null)
-    void (async () => {
+  // DEUX ressources, et la séparation n'est pas cosmétique : la FICHE pilote l'état de chargement
+  // de l'écran, les cinq lectures annexes arrivent ensuite sans le bloquer. Les fondre en une
+  // seule ferait attendre la page entière sur la plus lente — alors que le détail du membre
+  // s'affiche dès qu'il est là, comme avant.
+  const {
+    data: membre,
+    loading,
+    error,
+    recharger: rechargerMembre,
+    setData: setMembre,
+  } = useRessource<Membre>(
+    async (jeton, signal) => {
       try {
-        const m = await membresApi.get(id, accessToken, signal)
-        if (!active) return
-        setMembre(m)
-        setLoading(false)
+        return await membresApi.get(id ?? '', jeton, signal)
       } catch (e) {
-        if (e instanceof DOMException && e.name === 'AbortError') return
-        if (e instanceof ApiError && e.status === 403) {
-          navigate('/dashboard', { replace: true })
-          return
-        }
-        if (active) {
-          setError(e instanceof ApiError ? e.message : t('membres.detail.erreurChargement'))
-          setLoading(false)
-        }
-        return
+        // 403 : pas le droit de voir CETTE fiche → on quitte l'écran au lieu d'afficher une
+        // erreur sur une page qu'on n'aurait pas dû ouvrir.
+        if (e instanceof ApiError && e.status === 403) navigate('/dashboard', { replace: true })
+        throw e
       }
+    },
+    [id],
+    { cleErreur: 'membres.detail.erreurChargement', pret: Boolean(id) },
+  )
 
-      // Contributions : pilote la VISIBILITÉ de la carte financière (lecture `Contribution`).
-      // Succès → carte visible ; 403 (pas de droit, ex. SECRETAIRE) ou erreur → carte masquée.
-      try {
-        const c = await contributionsApi.listByMembre(id, accessToken, signal)
-        if (active) {
-          setContributions([...c].sort((a, b) => b.annee - a.annee))
-          setFinancierAccessible(true)
-        }
-      } catch (e) {
-        if (e instanceof DOMException && e.name === 'AbortError') return
-        /* pas d'accès financier (ex. SECRETAIRE) ou erreur de lecture → carte masquée */
+  // Annexes, toutes BEST-EFFORT et INDÉPENDANTES : un `catch` chacune, pour qu'un refus sur l'une
+  // (le SECRETAIRE n'a pas la lecture financière) n'emporte pas les autres. Elles sont désormais
+  // PARALLÈLES là où elles s'enchaînaient : le même refus coûtait un aller-retour à chaque étape.
+  const { data: annexes, setData: setAnnexes } = useRessource<{
+    contributions: Contribution[]
+    financierAccessible: boolean
+    statut: StatutCumule | null
+    branches: Branche[]
+    equilibrages: Equilibrage[] | null
+    chef: ChefOrganisation | null
+  }>(
+    async (jeton, signal) => {
+      const [c, s, b, eq, org] = await Promise.all([
+        contributionsApi.listByMembre(id ?? '', jeton, signal).catch(() => null),
+        membresApi.statut(id ?? '', jeton, signal).catch(() => null),
+        branchesApi.list(jeton, signal).catch(() => null),
+        equilibragesApi.listByMembre(id ?? '', jeton, signal).catch(() => null),
+        organisationApi.moi(jeton, signal).catch(() => null),
+      ])
+      return {
+        // Le SUCCÈS de la lecture des contributions est ce qui rend la carte financière visible.
+        contributions: c ? [...c].sort((a, b2) => b2.annee - a.annee) : [],
+        financierAccessible: c !== null,
+        statut: s,
+        branches: b ?? [],
+        equilibrages: eq,
+        chef: org
+          ? {
+              chefMembreId: org.chefMembreId,
+              chefSurnom: org.chefSurnom,
+              chefNom: org.chefNom,
+              chefPrenom: org.chefPrenom,
+            }
+          : null,
       }
+    },
+    [id],
+    { pret: Boolean(id) },
+  )
+  const contributions = useMemo(() => annexes?.contributions ?? [], [annexes])
+  const financierAccessible = annexes?.financierAccessible ?? false
+  const statut = annexes?.statut ?? null
+  const branches = useMemo(() => annexes?.branches ?? [], [annexes])
+  const equilibrages = annexes?.equilibrages ?? null
+  const chef = annexes?.chef ?? null
 
-      // Statut cumulatif : AUXILIAIRE (badge + synthèse, déjà null-safe dans le rendu) → chargé
-      // indépendamment pour qu'un échec ici ne fasse PAS disparaître la carte ni la saisie.
-      try {
-        const s = await membresApi.statut(id, accessToken, signal)
-        if (active) setStatut(s)
-      } catch {
-        /* statut best-effort — la carte reste utilisable sans lui */
-      }
-
-      try {
-        const b = await branchesApi.list(accessToken, signal)
-        if (active) setBranches(b)
-      } catch {
-        /* pas d'accès aux branches → nom non résolu */
-      }
-
-      // Équilibrages appliqués : best-effort (lecture ADMIN/PRESIDENT/TRESORIERE/COMMISSAIRE).
-      // Le SECRETAIRE / MEMBRE_SIMPLE reçoit 403 → section masquée.
-      try {
-        const eq = await equilibragesApi.listByMembre(id, accessToken, signal)
-        if (active) setEquilibrages(eq)
-      } catch {
-        /* pas d'accès aux équilibrages → section masquée */
-      }
-
-      // Chef de l'organisation : best-effort (bureau OK, MEMBRE_SIMPLE 403) → badge + actions.
-      try {
-        const org = await organisationApi.moi(accessToken, signal)
-        if (active) {
-          setChef({
-            chefMembreId: org.chefMembreId,
-            chefSurnom: org.chefSurnom,
-            chefNom: org.chefNom,
-            chefPrenom: org.chefPrenom,
-          })
-        }
-      } catch {
-        /* pas d'accès → aucune action/badge chef */
-      }
-    })()
-    return () => {
-      active = false
-      controller.abort()
-    }
-  }, [accessToken, id, navigate, t, reloadKey])
+  // `useCallback` : ces setters entrent dans les dépendances de `rechargerFinancier` plus bas.
+  // Recréés à chaque rendu, ils en feraient une fonction instable — donc une prop instable pour
+  // les enfants qui la reçoivent.
+  const setContributions = useCallback(
+    (v: Contribution[]) => setAnnexes((a) => (a ? { ...a, contributions: v } : a)),
+    [setAnnexes],
+  )
+  const setStatut = useCallback(
+    (v: StatutCumule) => setAnnexes((a) => (a ? { ...a, statut: v } : a)),
+    [setAnnexes],
+  )
+  const setChef = useCallback(
+    (v: ChefOrganisation | null) => setAnnexes((a) => (a ? { ...a, chef: v } : a)),
+    [setAnnexes],
+  )
 
   // Rafraîchit les montants affichés après modification/suppression d'un versement
   // (totaux cumulés en tête + totaux par année dans l'accordéon des contributions).
@@ -266,7 +273,7 @@ export function MembreDetailPage() {
     } catch {
       /* statut best-effort */
     }
-  }, [accessToken, id])
+  }, [accessToken, id, setMembre, setContributions, setStatut])
 
   const brancheNom = useMemo(() => {
     if (!membre?.brancheId) return '—'
@@ -328,7 +335,7 @@ export function MembreDetailPage() {
           className="mt-6"
           title={t('commun.erreurs.chargementImpossible')}
           description={error}
-          onRetry={() => setReloadKey((k) => k + 1)}
+          onRetry={rechargerMembre}
         />
       </div>
     )

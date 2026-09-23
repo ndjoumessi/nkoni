@@ -1,10 +1,16 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useLocation } from 'react-router-dom'
 import { AlertTriangle, CalendarClock, Info, X, type LucideIcon } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
+import { useRessource } from '@/hooks/useRessource'
 import { organisationApi, type OrganisationCourante } from '@/lib/api'
-import { bandeauForfait, estBandeauFerme, fermerBandeau, type BandeauForfaitVue } from '@/lib/bandeau-forfait'
+import {
+  bandeauForfait,
+  estBandeauFerme,
+  fermerBandeau,
+  type BandeauForfaitVue,
+} from '@/lib/bandeau-forfait'
 import { cleI18n } from '@/lib/i18n'
 import { peutGererForfait } from '@/lib/roles'
 import { cn, formatDateApp } from '@/lib/utils'
@@ -25,21 +31,18 @@ const STYLE: Record<BandeauForfaitVue['ton'], { cadre: string; texte: string; ic
  */
 export function BandeauForfait() {
   const { t } = useTranslation()
-  const { user, accessToken } = useAuth()
+  const { user } = useAuth()
   const { pathname } = useLocation()
   const autorise = peutGererForfait(user?.role)
-  const [org, setOrg] = useState<OrganisationCourante | null>(null)
+  // BEST-EFFORT : un échec laisse `org` à null et le bandeau ne s'affiche pas (`return null`
+  // juste en dessous). La garde de rôle passe par `pret` — inutile d'interroger l'API pour un
+  // rôle qui n'a pas le droit de gérer le forfait.
+  const { data: org } = useRessource<OrganisationCourante>(
+    (jeton, signal) => organisationApi.moi(jeton, signal),
+    [autorise],
+    { pret: autorise },
+  )
   const [fermes, setFermes] = useState<string[]>([])
-
-  useEffect(() => {
-    if (!autorise || !accessToken) return
-    const controleur = new AbortController()
-    organisationApi
-      .moi(accessToken, controleur.signal)
-      .then(setOrg)
-      .catch(() => undefined)
-    return () => controleur.abort()
-  }, [autorise, accessToken])
 
   if (!autorise || !org) return null
   // La carte d'échéance de /parametres dit déjà la même chose (lien redondant vers soi-même).

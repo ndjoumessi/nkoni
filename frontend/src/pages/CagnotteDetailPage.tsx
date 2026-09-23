@@ -1,8 +1,9 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
+import { useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { HeartHandshake, Pencil, Plus, Trash2, Lock, Unlock } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
+import { useRessource } from '@/hooks/useRessource'
 import {
   cagnottesApi,
   membresApi,
@@ -48,11 +49,6 @@ export function CagnotteDetailPage() {
   const toast = useToast()
   const navigate = useNavigate()
 
-  const [c, setC] = useState<CagnotteDetail | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [membres, setMembres] = useState<OptionMembre[]>([])
-
   const [modal, setModal] = useState<'don' | 'cloture' | 'suppr' | null>(null)
   const [donASupprimer, setDonASupprimer] = useState<DonCagnotte | null>(null)
   const [busy, setBusy] = useState(false)
@@ -70,39 +66,31 @@ export function CagnotteDetailPage() {
   const gestion = peutGererCagnotte(user?.role)
   const argent = peutSaisirDon(user?.role)
 
+  // Ressource COMPOSITE : la cagnotte et la liste des membres (sélecteur de donateur, BEST-EFFORT)
+  // arrivent ensemble.
+  const { data, loading, error, setData } = useRessource<{
+    c: CagnotteDetail
+    membres: OptionMembre[]
+  }>(
+    async (jeton, signal) => {
+      const [detail, liste] = await Promise.all([
+        cagnottesApi.get(id ?? '', jeton, signal),
+        membresApi.listOptions(jeton, signal).catch(() => [] as OptionMembre[]),
+      ])
+      return { c: detail, membres: liste }
+    },
+    [id],
+    { pret: Boolean(id) },
+  )
+  const c = data?.c ?? null
+  const membres = useMemo(() => data?.membres ?? [], [data])
+
+  /** Rafraîchit la seule cagnotte après une action, sans faire clignoter le squelette. */
   const recharger = async (signal?: AbortSignal) => {
     if (!accessToken || !id) return
-    const data = await cagnottesApi.get(id, accessToken, signal)
-    setC(data)
+    const detail = await cagnottesApi.get(id, accessToken, signal)
+    setData((d) => (d ? { ...d, c: detail } : { c: detail, membres: [] }))
   }
-
-  useEffect(() => {
-    if (!accessToken || !id) return
-    const controller = new AbortController()
-    let active = true
-    setLoading(true)
-    setError(null)
-    void (async () => {
-      try {
-        const [data, liste] = await Promise.all([
-          cagnottesApi.get(id, accessToken, controller.signal),
-          membresApi.listOptions(accessToken, controller.signal).catch(() => [] as OptionMembre[]),
-        ])
-        if (!active) return
-        setC(data)
-        setMembres(liste)
-      } catch (e) {
-        if (e instanceof DOMException && e.name === 'AbortError') return
-        if (active) setError(messageErreur(e))
-      } finally {
-        if (active) setLoading(false)
-      }
-    })()
-    return () => {
-      active = false
-      controller.abort()
-    }
-  }, [accessToken, id])
 
   if (!peutVoirCagnottes(user?.role)) return <Navigate to="/dashboard" replace />
 

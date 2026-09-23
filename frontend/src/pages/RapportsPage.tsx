@@ -19,6 +19,7 @@ import {
   X,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
+import { useRessource } from '@/hooks/useRessource'
 import {
   baremeApi,
   rapportsApi,
@@ -26,7 +27,6 @@ import {
   downloadRapportComparaisonMulti,
   downloadExportContributions,
   downloadRecouvrement,
-  messageErreur,
   ApiError,
   type ComparaisonMulti,
   type DetailMembres,
@@ -56,11 +56,6 @@ import { RowsSkeleton } from '@/components/ui/Skeleton'
 import { GrapheEvolution, type PointEvolution } from '@/components/dashboard/GrapheEvolution'
 
 type Mode = 'evolution' | 'comparaison' | 'detail'
-
-/** Est-ce une annulation de requête (à ignorer) ? */
-function estAbort(e: unknown): boolean {
-  return e instanceof DOMException && e.name === 'AbortError'
-}
 
 /* -------------------------------------------------------------------------- */
 /* Variation                                                                  */
@@ -409,8 +404,6 @@ export function RapportsPage() {
   const { user, accessToken } = useAuth()
   const toast = useToast()
 
-  const [annees, setAnnees] = useState<number[]>([])
-  const [chargementAnnees, setChargementAnnees] = useState(true)
   const [mode, setMode] = useState<Mode>('evolution')
   const [exportEnCours, setExportEnCours] = useState<'xlsx' | 'pdf' | null>(null)
   // Export recouvrement : indépendant du mode/année ci-dessus (reste dû cumulé, calculé serveur).
@@ -444,8 +437,6 @@ export function RapportsPage() {
   const [rapport, setRapport] = useState<RapportFinancier | null>(null)
   const [comparaison, setComparaison] = useState<ComparaisonMulti | null>(null)
   const [detail, setDetail] = useState<DetailMembres | null>(null)
-  const [chargement, setChargement] = useState(false)
-  const [erreur, setErreur] = useState<string | null>(null)
 
   // Années disponibles = années ayant un barème configuré, BORNÉES à l'année courante applicative.
   // Un barème peut être configuré en avance (permis, cf. Wave 33), mais une année future n'a pas
@@ -453,96 +444,81 @@ export function RapportsPage() {
   // rapport « attendu plein / collecté 0 / tous non à jour » qui gonfle le total et écrase le taux.
   // Filtrer ici cape d'un coup les trois sélecteurs (De/À, comparaison, détail) et fait viser les
   // défauts sur la dernière année ÉCHUE — miroir du défaut de la page Barème.
+  // Années SÉLECTIONNABLES, dérivées des barèmes. Le filtre sur l'année courante est le point :
+  // une année future n'a aucun attendu exigible, et la proposer produirait un rapport « attendu
+  // plein / collecté 0 » qui gonfle le total et écrase le taux.
+  const { data: anneesChargees, loading: chargementAnnees, error: erreurAnnees } = useRessource<number[]>(
+    async (jeton, signal) => {
+      const list = await baremeApi.list(jeton, signal)
+      const maintenant = anneeCouranteApp()
+      return [...new Set(list.map((b) => b.annee))]
+        .filter((y) => y <= maintenant)
+        .sort((a, b) => a - b)
+    },
+    [],
+  )
+  const annees = useMemo(() => anneesChargees ?? [], [anneesChargees])
+
+  // AMORÇAGE des trois sélecteurs (De/À, comparaison, détail) : des brouillons que l'utilisateur
+  // change ensuite, d'où des `useState` et non des dérivations.
   useEffect(() => {
-    if (!accessToken) return
-    const controller = new AbortController()
-    let actif = true
-    void baremeApi
-      .list(accessToken, controller.signal)
-      .then((list) => {
-        if (!actif) return
-        const maintenant = anneeCouranteApp()
-        const ys = [...new Set(list.map((b) => b.annee))]
-          .filter((y) => y <= maintenant)
-          .sort((a, b) => a - b)
-        setAnnees(ys)
-        if (ys.length > 0) {
-          setDebut(ys[0])
-          setFin(ys[ys.length - 1])
-          // Comparaison : par défaut les deux années les plus récentes (si ≥ 2 dispo).
-          setAnneesComp(ys.length >= 2 ? [ys[ys.length - 2], ys[ys.length - 1]] : [...ys])
-          // Détail : par défaut l'année la plus récente ayant un barème.
-          setDetailAnnee(ys[ys.length - 1])
+    if (annees.length === 0) return
+    setDebut(annees[0]!)
+    setFin(annees[annees.length - 1]!)
+    // Comparaison : par défaut les deux années les plus récentes (si ≥ 2 disponibles).
+    setAnneesComp(annees.length >= 2 ? [annees[annees.length - 2]!, annees[annees.length - 1]!] : [...annees])
+    // Détail : par défaut l'année la plus récente ayant un barème.
+    setDetailAnnee(annees[annees.length - 1]!)
+  }, [annees])
+
+  // Rapport selon le mode et la sélection. UNE ressource pour les trois modes, le résultat porte
+  // le mode qui l'a produit — sans ce marqueur, une réponse en retard d'un mode précédent
+  // écraserait celle du mode courant.
+  type Resultat =
+    | { mode: 'evolution'; rapport: RapportFinancier }
+    | { mode: 'comparaison'; comparaison: ComparaisonMulti }
+    | { mode: 'detail'; detail: DetailMembres }
+
+  const selectionValide =
+    annees.length > 0 &&
+    (mode === 'evolution'
+      ? debut !== null && fin !== null && debut <= fin
+      : mode === 'comparaison'
+        ? anneesComp.length >= 2
+        : detailAnnee !== null)
+
+  const { data: resultat, loading: chargement, error: erreurRapport } = useRessource<Resultat>(
+    async (jeton, signal) => {
+      if (mode === 'evolution') {
+        return {
+          mode: 'evolution',
+          rapport: await rapportsApi.financier(debut!, fin!, jeton, signal),
         }
-      })
-      .catch((e) => {
-        if (actif && !estAbort(e)) setErreur(messageErreur(e))
-      })
-      .finally(() => {
-        if (actif) setChargementAnnees(false)
-      })
-    return () => {
-      actif = false
-      controller.abort()
-    }
-  }, [accessToken])
+      }
+      if (mode === 'comparaison') {
+        return {
+          mode: 'comparaison',
+          comparaison: await rapportsApi.comparaisonMulti(anneesComp, jeton, signal),
+        }
+      }
+      return { mode: 'detail', detail: await rapportsApi.detailMembres(detailAnnee!, jeton, signal) }
+    },
+    [mode, debut, fin, anneesComp, detailAnnee, annees.length],
+    { pret: selectionValide },
+  )
 
-  // Chargement du rapport selon le mode et la sélection.
+  // Les trois résultats gardent leur propre état : revenir à un mode déjà consulté le réaffiche
+  // sans attendre, comme avant.
   useEffect(() => {
-    if (!accessToken || annees.length === 0) return
-    const controller = new AbortController()
-    let actif = true
-    setErreur(null)
+    if (!resultat) return
+    if (resultat.mode === 'evolution') setRapport(resultat.rapport)
+    else if (resultat.mode === 'comparaison') setComparaison(resultat.comparaison)
+    else setDetail(resultat.detail)
+  }, [resultat])
 
-    if (mode === 'evolution') {
-      if (debut === null || fin === null || debut > fin) return
-      setChargement(true)
-      void rapportsApi
-        .financier(debut, fin, accessToken, controller.signal)
-        .then((r) => {
-          if (actif) setRapport(r)
-        })
-        .catch((e) => {
-          if (actif && !estAbort(e)) setErreur(messageErreur(e))
-        })
-        .finally(() => {
-          if (actif) setChargement(false)
-        })
-    } else if (mode === 'comparaison') {
-      if (anneesComp.length < 2) return
-      setChargement(true)
-      void rapportsApi
-        .comparaisonMulti(anneesComp, accessToken, controller.signal)
-        .then((r) => {
-          if (actif) setComparaison(r)
-        })
-        .catch((e) => {
-          if (actif && !estAbort(e)) setErreur(messageErreur(e))
-        })
-        .finally(() => {
-          if (actif) setChargement(false)
-        })
-    } else {
-      if (detailAnnee === null) return
-      setChargement(true)
-      void rapportsApi
-        .detailMembres(detailAnnee, accessToken, controller.signal)
-        .then((r) => {
-          if (actif) setDetail(r)
-        })
-        .catch((e) => {
-          if (actif && !estAbort(e)) setErreur(messageErreur(e))
-        })
-        .finally(() => {
-          if (actif) setChargement(false)
-        })
-    }
-
-    return () => {
-      actif = false
-      controller.abort()
-    }
-  }, [mode, debut, fin, anneesComp, detailAnnee, accessToken, annees.length])
+  // Les deux ressources sont les SEULES sources d'erreur de cette page ; les actions (exports)
+  // passent par des toasts.
+  const erreur = erreurRapport ?? erreurAnnees
 
   // Synthèse cumulée sur la plage (mode évolution).
   const synthese = useMemo(() => {

@@ -5,6 +5,10 @@ import { ConfigPaiement } from './ConfigPaiement'
 
 const configPaiement = vi.fn()
 vi.mock('@/lib/api', () => ({
+  // `ApiError` : le composant passe par `useRessource`, qui la consulte dans son `catch`. Un
+  // mock qui l'omet fait lever le hook — tests verts, mais vitest rapporte une erreur non attribuée.
+  ApiError: class extends Error {},
+
   organisationApi: { configPaiement: (...a: unknown[]) => configPaiement(...a) },
   messageErreur: (e: unknown) => String(e),
 }))

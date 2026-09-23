@@ -5,7 +5,13 @@ import { MemoryRouter } from 'react-router-dom'
 import { GuideDemarrage } from './GuideDemarrage'
 
 const moi = vi.fn()
-vi.mock('@/lib/api', () => ({ organisationApi: { moi: (...a: unknown[]) => moi(...a) } }))
+// `ApiError` fait partie du mock : le composant passe désormais par `useRessource`, qui distingue
+// une erreur d'API (message déjà traduit par le serveur) d'une panne réseau. Un mock qui l'omet
+// fait lever le hook au moment du `catch` — test vert, erreur non attribuée.
+vi.mock('@/lib/api', () => ({
+  organisationApi: { moi: (...a: unknown[]) => moi(...a) },
+  ApiError: class extends Error {},
+}))
 vi.mock('@/contexts/auth-context', () => ({ useAuth: () => ({ accessToken: 'jeton' }) }))
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (cle: string) => cle, i18n: { language: 'fr' } }),

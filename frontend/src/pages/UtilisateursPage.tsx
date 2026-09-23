@@ -1,15 +1,15 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { cleI18n } from '@/lib/i18n'
 import { Navigate } from 'react-router-dom'
 import { KeyRound, Mail, Power, ShieldUser, UserPlus } from 'lucide-react'
 import type { FormEvent } from 'react'
 import { useAuth } from '@/contexts/auth-context'
+import { useRessource } from '@/hooks/useRessource'
 import {
   utilisateursApi,
   membresApi,
   ApiError,
-  messageErreur,
   type Utilisateur,
   type OptionMembre,
 } from '@/lib/api'
@@ -39,10 +39,24 @@ export function UtilisateursPage() {
   const { user, accessToken } = useAuth()
   const toast = useToast()
 
-  const [utilisateurs, setUtilisateurs] = useState<Utilisateur[] | null>(null)
-  const [membres, setMembres] = useState<OptionMembre[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  // UNE ressource composite, chargée en un `Promise.all` : les deux listes arrivent ensemble et
+  // la page n'a qu'un état de chargement. Les membres alimentent le select « membre lié » et sont
+  // BEST-EFFORT — leur échec ne doit pas priver l'écran de la liste des comptes.
+  const { data, loading, error, setData } = useRessource<{
+    utilisateurs: Utilisateur[]
+    membres: OptionMembre[]
+  }>(async (jeton, signal) => {
+    const [us, ms] = await Promise.all([
+      utilisateursApi.list(jeton, signal),
+      membresApi.listOptions(jeton, signal).catch(() => [] as OptionMembre[]),
+    ])
+    return { utilisateurs: us, membres: ms }
+  }, [])
+  const utilisateurs = data?.utilisateurs ?? null
+  const membres = useMemo(() => data?.membres ?? [], [data])
+  /** Mise à jour optimiste de la seule liste des comptes, l'autre moitié du couple intacte. */
+  const majUtilisateurs = (f: (prev: Utilisateur[]) => Utilisateur[]) =>
+    setData((d) => (d ? { ...d, utilisateurs: f(d.utilisateurs) } : d))
 
   // Formulaire de création.
   const [email, setEmail] = useState('')
@@ -65,36 +79,6 @@ export function UtilisateursPage() {
   const [resetting, setResetting] = useState(false)
   const [erreurReset, setErreurReset] = useState<string | undefined>(undefined)
   const resetFormRef = useRef<HTMLFormElement>(null)
-
-  useEffect(() => {
-    if (!accessToken) return
-    const controller = new AbortController()
-    const { signal } = controller
-    let active = true
-    setLoading(true)
-    setError(null)
-    void (async () => {
-      try {
-        // Les membres alimentent le select « membre lié » ; best-effort (non bloquant).
-        const [us, ms] = await Promise.all([
-          utilisateursApi.list(accessToken, signal),
-          membresApi.listOptions(accessToken, signal).catch(() => [] as OptionMembre[]),
-        ])
-        if (!active) return
-        setUtilisateurs(us)
-        setMembres(ms)
-      } catch (e) {
-        if (e instanceof DOMException && e.name === 'AbortError') return
-        if (active) setError(messageErreur(e))
-      } finally {
-        if (active) setLoading(false)
-      }
-    })()
-    return () => {
-      active = false
-      controller.abort()
-    }
-  }, [accessToken])
 
   // Membres déjà rattachés à un compte → exclus du select (évite un 409 côté backend).
   const membresLibres = useMemo(() => {
@@ -127,7 +111,7 @@ export function UtilisateursPage() {
         { email: email.trim(), password, role, ...(membreId ? { membreId } : {}) },
         accessToken,
       )
-      setUtilisateurs((prev) => (prev ? [cree, ...prev] : [cree]))
+      majUtilisateurs((prev) => [cree, ...prev])
       setEmail('')
       setPassword('')
       setRole('SECRETAIRE')
@@ -180,7 +164,7 @@ export function UtilisateursPage() {
     setPendingId(u.id)
     try {
       const maj = await utilisateursApi.update(u.id, body, accessToken)
-      setUtilisateurs((prev) => (prev ? prev.map((x) => (x.id === u.id ? maj : x)) : prev))
+      majUtilisateurs((prev) => prev.map((x) => (x.id === u.id ? maj : x)))
       toast.success(
         body.actif === false
           ? t('utilisateurs.toast.compteDesactive')

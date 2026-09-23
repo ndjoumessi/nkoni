@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Navigate } from 'react-router-dom'
 import { CalendarPlus, CalendarRange, Check, Pencil, Plus, X } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
+import { useRessource } from '@/hooks/useRessource'
 import { baremeApi, contributionsApi, ApiError, messageErreur, type Bareme } from '@/lib/api'
 import { peutVoirBareme, peutGererBareme, peutOuvrirAnnee } from '@/lib/roles'
 import { focusPremierChampInvalide, cn } from '@/lib/utils'
@@ -30,9 +31,16 @@ export function BaremePage() {
   const gestion = peutGererBareme(user?.role)
   const ouvrirAutorise = peutOuvrirAnnee(user?.role)
 
-  const [baremes, setBaremes] = useState<Bareme[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const {
+    data: baremesCharges,
+    loading,
+    error,
+    setData: setBaremes,
+  } = useRessource<Bareme[]>((jeton, signal) => baremeApi.list(jeton, signal), [])
+  // La page travaille sur une liste, jamais sur `null` : le vide et le « pas encore chargé » se
+  // distinguent par `loading`. `useMemo` et non `?? []` en ligne : le repli fabriquerait un
+  // tableau NEUF à chaque rendu, ce qui invalide les mémoïsations qui en dépendent.
+  const baremes = useMemo(() => baremesCharges ?? [], [baremesCharges])
 
   const [annee, setAnnee] = useState(String(anneeCouranteApp()))
   const [montant, setMontant] = useState('')
@@ -91,29 +99,6 @@ export function BaremePage() {
     if (!Number.isFinite(n) || n < 0) return t('bareme.erreurs.montantInvalide')
     return undefined
   }
-
-  useEffect(() => {
-    if (!accessToken) return
-    const controller = new AbortController()
-    let active = true
-    setLoading(true)
-    setError(null)
-    void (async () => {
-      try {
-        const list = await baremeApi.list(accessToken, controller.signal)
-        if (active) setBaremes(list)
-      } catch (e) {
-        if (e instanceof DOMException && e.name === 'AbortError') return
-        if (active) setError(messageErreur(e))
-      } finally {
-        if (active) setLoading(false)
-      }
-    })()
-    return () => {
-      active = false
-      controller.abort()
-    }
-  }, [accessToken])
 
   if (!peutVoirBareme(user?.role)) {
     return <Navigate to="/dashboard" replace />
@@ -181,7 +166,7 @@ export function BaremePage() {
     setSaving(true)
     try {
       const maj = await baremeApi.update(id, Number(editMontant), accessToken)
-      setBaremes((prev) => prev.map((b) => (b.id === id ? maj : b)))
+      setBaremes((prev) => (prev ?? []).map((b) => (b.id === id ? maj : b)))
       setEditId(null)
       toast.success(
         t('bareme.toast.miseAJour'),

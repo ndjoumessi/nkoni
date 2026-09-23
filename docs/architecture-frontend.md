@@ -37,12 +37,37 @@ changer de langue ne recharge plus les données de la page.
 serveur… ») dans 93 appels : un lecteur anglophone hors réseau lisait du français. Migrer une page
 vers ce module ferme ce trou au passage.
 
-**Ce qui n'est pas migré, et pourquoi.** Sept pages sont passées au module — celles dont le cycle
-charge UNE ressource et pose UN état, où la substitution est équivalente par construction. Les
-dix-neuf cycles restants sont COMPOSITES : ils font un `Promise.all` et répartissent le résultat
-sur plusieurs états (`MembreDetailPage` en pose sept, `MonEspacePage` quinze). Les migrer demande
-de remodeler l'état de chaque page, sur des pages qui n'ont aucun test de rendu — c'est un chantier
-distinct, pas la fin de celui-ci.
+**Tout est migré : 37 cycles, 0 restant.** Les sept premiers étaient les cycles « une ressource,
+un état ». Les trente autres étaient COMPOSITES, et c'est là que le module a montré ce qu'il vaut :
+
+- **un `Promise.all` réparti sur plusieurs états devient UN objet.** `MembresPage` en tenait quatre
+  (items, total, résumé, branches) issus d'UNE réponse : ce n'étaient pas quatre états mais quatre
+  champs, et les stocker séparément permettait de les désynchroniser ;
+- **deux ressources plutôt qu'une quand le chargement est en CASCADE.** `MembreDetailPage` charge
+  la fiche (qui pilote l'état de chargement) puis cinq lectures annexes best-effort ; les fondre
+  ferait attendre la page sur la plus lente. Idem pour `MonEspacePage` : sans fiche membre liée
+  (404, cas NORMAL), les dix listes n'ont pas lieu d'être — c'est ce que porte `pret` ;
+- **le brouillon n'est pas la donnée.** Sur les formulaires (`MembreFormPage`, `CagnotteFormPage`,
+  `ConflitDetailPage`…) il reste un petit `useEffect` d'AMORÇAGE, sans requête ni annulation : la
+  ressource chargée est une donnée, les champs éditables sont un brouillon qui diverge dès la
+  première frappe ;
+- **une seule ressource pour trois modes.** `RapportsPage` en avait trois branches ; le résultat
+  porte désormais le mode qui l'a produit — sans ce marqueur, une réponse en retard d'un mode
+  précédent écraserait celle du mode courant ;
+- **un cas garde son effet, et pour une raison.** La photo de `/moi` crée une URL d'objet qu'il faut
+  RÉVOQUER au démontage. Aucune ressource ne peut le faire à sa place.
+
+`hooks/useDashboard.ts` a disparu : il était l'ancêtre du module avec un seul consommateur, et la
+revue demandait de le GÉNÉRALISER, pas de le laisser à côté.
+
+**Deux pièges rencontrés en migrant, tous deux attrapés par `oxlint`** : un repli `?? []` écrit en
+ligne fabrique un tableau NEUF à chaque rendu et invalide les mémoïsations en aval (d'où les
+`useMemo`) ; et un setter dérivé (`setContributions`, `setReunions`…) doit être stabilisé par
+`useCallback` dès qu'il entre dans les dépendances d'un `useCallback` d'action.
+
+**Garde textuel** (`useRessource.test.tsx`) : aucun composant ne construit son propre
+`AbortController`. Sans exception — les deux derniers cas récalcitrants ont été migrés plutôt
+qu'inscrits sur une allowlist que personne ne relirait.
 
 **⚠️ La garde `AbortError` absente de 14 cycles n'est PAS un défaut**, contrairement à ce qu'on
 pourrait croire en la comptant : le drapeau `actif` est mis à `false` AVANT `controller.abort()`

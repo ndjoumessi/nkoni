@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { ArrowRight, BellRing, GitBranch, MessageCircle } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
+import { useRessource } from '@/hooks/useRessource'
 import { membresApi, type AnalyseMembresReponse } from '@/lib/api'
 import { formatMontant, formatPourcent } from '@/lib/format'
 import { Card, Overline } from '@/components/ui/Card'
@@ -49,28 +50,14 @@ function cleNiveau(taux: number) {
 
 export function AnalyseMembres() {
   const { t } = useTranslation()
-  const { accessToken, modeDemo } = useAuth()
-  const [analyse, setAnalyse] = useState<AnalyseMembresReponse | null>(null)
-  const [failed, setFailed] = useState(false)
-
-  useEffect(() => {
-    if (!accessToken) return
-    const controller = new AbortController()
-    let active = true
-    void (async () => {
-      try {
-        const data = await membresApi.analyse(accessToken, controller.signal)
-        if (active) setAnalyse(data)
-      } catch (e) {
-        if (e instanceof DOMException && e.name === 'AbortError') return
-        if (active) setFailed(true)
-      }
-    })()
-    return () => {
-      active = false
-      controller.abort()
-    }
-  }, [accessToken])
+  const { modeDemo } = useAuth()
+  // Carte BEST-EFFORT : en cas d'échec elle se masque (`return null` plus bas) plutôt que de
+  // faire échouer le dashboard. « A échoué » se lit donc directement sur `error`, sans second état.
+  const { data: analyse, error } = useRessource<AnalyseMembresReponse>(
+    (jeton, signal) => membresApi.analyse(jeton, signal),
+    [],
+  )
+  const failed = error !== null
 
   // Le serveur rend `id`/`nom` `null` pour les membres sans branche : on garde l'id sentinelle '—'
   // (clé de liste et paramètre du lien de filtre, comme avant) et le libellé traduit.

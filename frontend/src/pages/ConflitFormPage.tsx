@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useMemo, useRef, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { Lock, ShieldAlert, Users } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
+import { useRessource } from '@/hooks/useRessource'
 import { focusPremierChampInvalide } from '@/lib/utils'
 import {
   conflitsApi,
@@ -41,30 +42,26 @@ export function ConflitFormPage() {
   const [errDescription, setErrDescription] = useState<string | undefined>(undefined)
   const formRef = useRef<HTMLFormElement>(null)
 
-  const [membres, setMembres] = useState<OptionMembre[]>([])
-  const [responsables, setResponsables] = useState<ConflitUtilisateurRef[]>([])
-
   const autorise = peutDeclarerConflit(user?.role)
 
-  useEffect(() => {
-    if (!accessToken || !autorise) return
-    const controller = new AbortController()
-    let active = true
-    void (async () => {
+  // Les deux listes alimentent des sélecteurs et sont BEST-EFFORT, chacune de son côté : un
+  // `catch` par appel, pour qu'une panne de l'une ne vide pas l'autre.
+  const { data: options } = useRessource<{
+    membres: OptionMembre[]
+    responsables: ConflitUtilisateurRef[]
+  }>(
+    async (jeton, signal) => {
       const [m, r] = await Promise.all([
-        membresApi.listOptions(accessToken, controller.signal).catch(() => [] as OptionMembre[]),
-        conflitsApi.responsables(accessToken, controller.signal).catch(() => [] as ConflitUtilisateurRef[]),
+        membresApi.listOptions(jeton, signal).catch(() => [] as OptionMembre[]),
+        conflitsApi.responsables(jeton, signal).catch(() => [] as ConflitUtilisateurRef[]),
       ])
-      if (active) {
-        setMembres(m)
-        setResponsables(r)
-      }
-    })()
-    return () => {
-      active = false
-      controller.abort()
-    }
-  }, [accessToken, autorise])
+      return { membres: m, responsables: r }
+    },
+    [autorise],
+    { pret: autorise },
+  )
+  const membres = useMemo(() => options?.membres ?? [], [options])
+  const responsables = useMemo(() => options?.responsables ?? [], [options])
 
   const aideNiveau = t(`conflits.form.niveauAide.${niveau}`)
 

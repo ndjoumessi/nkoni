@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
+import { useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
 import { Download, FileText, Image as ImageIcon, Paperclip, Trash2, Upload, X } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
+import { useRessource } from '@/hooks/useRessource'
 import {
   documentsApi,
   ApiError,
@@ -54,8 +55,16 @@ export function DocumentsSection({
   const toast = useToast()
   const { t } = useTranslation()
 
-  const [docs, setDocs] = useState<DocumentMeta[] | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const {
+    data: docs,
+    error,
+    setData: setDocs,
+  } = useRessource<DocumentMeta[]>(
+    (jeton, signal) => documentsApi.listByEntite(entiteType, entiteId, jeton, signal),
+    [entiteType, entiteId],
+    // Une section de documents rattachée à une entité pas encore créée n'a rien à charger.
+    { pret: Boolean(entiteId) },
+  )
 
   const fileRef = useRef<HTMLInputElement>(null)
   const uploadFormRef = useRef<HTMLFormElement>(null)
@@ -66,26 +75,6 @@ export function DocumentsSection({
   const [uploading, setUploading] = useState(false)
   const [pendingId, setPendingId] = useState<string | null>(null)
   const [downloadId, setDownloadId] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (!accessToken || !entiteId) return
-    const controller = new AbortController()
-    let active = true
-    setError(null)
-    void (async () => {
-      try {
-        const data = await documentsApi.listByEntite(entiteType, entiteId, accessToken, controller.signal)
-        if (active) setDocs(data)
-      } catch (e) {
-        if (e instanceof DOMException && e.name === 'AbortError') return
-        if (active) setError(messageErreur(e))
-      }
-    })()
-    return () => {
-      active = false
-      controller.abort()
-    }
-  }, [accessToken, entiteType, entiteId])
 
   const choisir = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { CreditCard, Check, ShieldCheck, Pencil, Lock } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
+import { useRessource } from '@/hooks/useRessource'
 import {
   organisationApi,
   messageErreur,
@@ -58,28 +59,24 @@ export function ConfigPaiement({ inclus = true }: { inclus?: boolean }) {
   // il s'ouvre au clic « Modifier ». En 1ʳᵉ configuration (aucune config), il reste ouvert d'emblée.
   const [editionOuverte, setEditionOuverte] = useState(false)
 
+  // Le CYCLE est au module ; ce qui reste ici est l'AMORÇAGE du formulaire depuis la config lue —
+  // un effet sans requête, sans annulation et sans mapping d'erreur. La distinction compte : la
+  // config chargée est une donnée, les champs du formulaire sont un brouillon que l'utilisateur
+  // modifie ensuite.
+  const { data: configChargee, error: erreurChargement } = useRessource<Config>(
+    (jeton, signal) => organisationApi.configPaiement(jeton, signal),
+    [inclus],
+    { pret: inclus },
+  )
+
   useEffect(() => {
-    if (!accessToken || !inclus) return
-    const controller = new AbortController()
-    let vivant = true
-    organisationApi
-      .configPaiement(accessToken, controller.signal)
-      .then((c) => {
-        if (!vivant) return
-        setConfig(c)
-        if (c.provider) setProvider(c.provider)
-        if (c.environnement) setEnvironnement(c.environnement)
-        setActif(c.actif)
-      })
-      .catch((e) => {
-        if (e instanceof DOMException && e.name === 'AbortError') return
-        if (vivant) setErreur(messageErreur(e))
-      })
-    return () => {
-      vivant = false
-      controller.abort()
-    }
-  }, [accessToken, inclus])
+    if (erreurChargement) setErreur(erreurChargement)
+    if (!configChargee) return
+    setConfig(configChargee)
+    if (configChargee.provider) setProvider(configChargee.provider)
+    if (configChargee.environnement) setEnvironnement(configChargee.environnement)
+    setActif(configChargee.actif)
+  }, [configChargee, erreurChargement])
 
   // Toute modification invalide la confirmation précédente et efface l'erreur (retour visuel honnête :
   // le bandeau « enregistré » ne doit pas survivre à un changement non sauvegardé).

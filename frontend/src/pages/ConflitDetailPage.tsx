@@ -3,13 +3,8 @@ import { useTranslation } from 'react-i18next'
 import { Navigate, useParams } from 'react-router-dom'
 import { CalendarRange, CheckCircle2, FileText, ShieldAlert, UserCog, Users } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
-import {
-  conflitsApi,
-  ApiError,
-  messageErreur,
-  type Conflit,
-  type StatutConflit,
-} from '@/lib/api'
+import { useRessource } from '@/hooks/useRessource'
+import { conflitsApi, ApiError, type Conflit, type StatutConflit } from '@/lib/api'
 import { peutVoirConflits, peutGererDocument } from '@/lib/roles'
 import { DocumentsSection } from '@/components/documents/DocumentsSection'
 import { formatDate } from '@/lib/utils'
@@ -30,39 +25,24 @@ export function ConflitDetailPage() {
   const { user, accessToken } = useAuth()
   const toast = useToast()
 
-  const [conflit, setConflit] = useState<Conflit | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const {
+    data: conflit,
+    loading,
+    error,
+    setData: setConflit,
+  } = useRessource<Conflit>((jeton, signal) => conflitsApi.get(id ?? '', jeton, signal), [id], {
+    pret: Boolean(id),
+  })
 
   const [notes, setNotes] = useState('')
   const [statutSaving, setStatutSaving] = useState(false)
   const [notesSaving, setNotesSaving] = useState(false)
 
+  // `notes` est un BROUILLON éditable, pas la donnée chargée : il reste un `useState`, amorcé
+  // depuis le conflit lu. Le cycle, lui, est au module.
   useEffect(() => {
-    if (!accessToken || !id) return
-    const controller = new AbortController()
-    let active = true
-    setLoading(true)
-    setError(null)
-    void (async () => {
-      try {
-        const data = await conflitsApi.get(id, accessToken, controller.signal)
-        if (active) {
-          setConflit(data)
-          setNotes(data.notes ?? '')
-        }
-      } catch (e) {
-        if (e instanceof DOMException && e.name === 'AbortError') return
-        if (active) setError(messageErreur(e))
-      } finally {
-        if (active) setLoading(false)
-      }
-    })()
-    return () => {
-      active = false
-      controller.abort()
-    }
-  }, [accessToken, id])
+    if (conflit) setNotes(conflit.notes ?? '')
+  }, [conflit])
 
   if (!peutVoirConflits(user?.role)) {
     return <Navigate to="/dashboard" replace />

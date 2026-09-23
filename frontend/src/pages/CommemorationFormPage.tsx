@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useMemo, useEffect, useRef, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { Flame, Users } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
+import { useRessource } from '@/hooks/useRessource'
 import { focusPremierChampInvalide } from '@/lib/utils'
 import {
   commemorationsApi,
@@ -46,8 +47,6 @@ export function CommemorationFormPage() {
   const [notes, setNotes] = useState('')
   const [membresConcernes, setMembresConcernes] = useState<Set<string>>(new Set())
 
-  const [membres, setMembres] = useState<CommemorationMembreRef[]>([])
-  const [loading, setLoading] = useState(editing)
   const [submitting, setSubmitting] = useState(false)
   const [errTitre, setErrTitre] = useState<string | undefined>(undefined)
   const [errDate, setErrDate] = useState<string | undefined>(undefined)
@@ -55,40 +54,44 @@ export function CommemorationFormPage() {
 
   const autorise = peutGererCommemorations(user?.role)
 
-  useEffect(() => {
-    if (!accessToken || !autorise) return
-    const controller = new AbortController()
-    let active = true
-    void (async () => {
+  // Ressource COMPOSITE : la liste des membres concernables (BEST-EFFORT) et, en édition
+  // seulement, la commémoration à modifier.
+  const { data, loading: chargement, error } = useRessource<{
+    membres: CommemorationMembreRef[]
+    commemoration: Awaited<ReturnType<typeof commemorationsApi.get>> | null
+  }>(
+    async (jeton, signal) => {
       const listeMembres = await commemorationsApi
-        .membres(accessToken, controller.signal)
+        .membres(jeton, signal)
         .catch(() => [] as CommemorationMembreRef[])
-      if (active) setMembres(listeMembres)
+      const c = editing && id ? await commemorationsApi.get(id, jeton, signal) : null
+      return { membres: listeMembres, commemoration: c }
+    },
+    [autorise, editing, id],
+    { pret: autorise },
+  )
+  const membres = useMemo(() => data?.membres ?? [], [data])
+  // En CRÉATION rien d'obligatoire à charger : l'écran s'affiche tout de suite (sens du
+  // `useState(editing)` d'origine).
+  const loading = editing && chargement
 
-      if (editing && id) {
-        try {
-          const c = await commemorationsApi.get(id, accessToken, controller.signal)
-          if (!active) return
-          setTitre(c.titre)
-          setType(c.type)
-          setDate(c.date.slice(0, 10))
-          setLieu(c.lieu ?? '')
-          setDescription(c.description ?? '')
-          setStatut(c.statut)
-          setNotes(c.notes ?? '')
-          setMembresConcernes(new Set(c.membresConcernes.map((m) => m.id)))
-        } catch (e) {
-          if (active) toast.error(t('commemorations.form.toast.chargementImpossible'), messageErreur(e))
-        } finally {
-          if (active) setLoading(false)
-        }
-      }
-    })()
-    return () => {
-      active = false
-      controller.abort()
-    }
-  }, [accessToken, autorise, editing, id, toast, t])
+  useEffect(() => {
+    if (error) toast.error(t('commemorations.form.toast.chargementImpossible'), error)
+  }, [error, toast, t])
+
+  // AMORÇAGE du formulaire : ce qui suit est un brouillon éditable, pas la donnée lue.
+  useEffect(() => {
+    const c = data?.commemoration
+    if (!c) return
+    setTitre(c.titre)
+    setType(c.type)
+    setDate(c.date.slice(0, 10))
+    setLieu(c.lieu ?? '')
+    setDescription(c.description ?? '')
+    setStatut(c.statut)
+    setNotes(c.notes ?? '')
+    setMembresConcernes(new Set(c.membresConcernes.map((m) => m.id)))
+  }, [data?.commemoration])
 
   if (!autorise) {
     return <Navigate to="/commemorations" replace />

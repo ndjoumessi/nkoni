@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useMemo, useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Wallet,
@@ -26,6 +26,7 @@ import {
   Clock,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
+import { useRessource } from '@/hooks/useRessource'
 import {
   moiApi,
   recusApi,
@@ -107,31 +108,16 @@ export function MonEspacePage() {
   const { accessToken } = useAuth()
   const toast = useToast()
 
-  const [situation, setSituation] = useState<SituationMembre | null>(null)
-  const [contributions, setContributions] = useState<ContributionMembre[]>([])
-  const [reunions, setReunions] = useState<ReunionAVenir[]>([])
-  const [resolutions, setResolutions] = useState<ResolutionOuverte[]>([])
-  const [recus, setRecus] = useState<RecuMembre[]>([])
-  const [amendes, setAmendes] = useState<AmendeMembre[]>([])
-  const [cagnottes, setCagnottes] = useState<CagnotteMembre[]>([])
-  const [tontines, setTontines] = useState<TontineMembre[]>([])
-  const [notifications, setNotifications] = useState<Notification[]>([])
-  const [carteApercu, setCarteApercu] = useState<CarteApercu | null>(null)
   const [photoUrl, setPhotoUrl] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [sansFiche, setSansFiche] = useState(false)
-  const [erreur, setErreur] = useState<string | null>(null)
   const [carteEnCours, setCarteEnCours] = useState(false)
   const [annulesOuverts, setAnnulesOuverts] = useState(false)
   const [rappelsOuverts, setRappelsOuverts] = useState(false)
   const [rsvpEnCours, setRsvpEnCours] = useState<string | null>(null)
   const [voteEnCours, setVoteEnCours] = useState<string | null>(null)
-  const [paiementActif, setPaiementActif] = useState(false)
   // Onglet actif de la page (segmentation §3b). Défaut « aperçu ».
   const [tab, setTab] = useState('apercu')
   // Montant minimum d'un paiement, fourni par le SERVEUR (source unique = PAIEMENT_MONTANT_MIN). Évite
   // tout couplage build-time front/back : plus de variable VITE_ ni de rebuild Vercel à synchroniser.
-  const [montantMin, setMontantMin] = useState(100)
   const [paiementEnCours, setPaiementEnCours] = useState<string | null>(null)
   const [paiementCible, setPaiementCible] = useState<ContributionMembre | null>(null)
   const [montantSaisi, setMontantSaisi] = useState('')
@@ -141,72 +127,142 @@ export function MonEspacePage() {
   const [recuApercu, setRecuApercu] = useState<RecuMembre | null>(null)
   const [recuDetail, setRecuDetail] = useState<RecuDetail | null>(null)
 
+  // DEUX ressources, en CASCADE. La SITUATION du membre commande : sans fiche liée (404), il n'y
+  // a rien à lister, et c'est un cas NORMAL du produit — pas une panne. Les dix listes ne partent
+  // donc qu'une fois la situation obtenue, ce que porte le `pret` de la seconde.
+  const {
+    data: base,
+    loading: chargementSituation,
+    error: erreur,
+    setData: setBase,
+  } = useRessource<{ situation: SituationMembre | null; sansFiche: boolean }>(
+    async (jeton, signal) => {
+      try {
+        return { situation: await moiApi.situation(jeton, signal), sansFiche: false }
+      } catch (e) {
+        // 404 = ce compte n'a pas de fiche membre liée ; toute autre erreur est une panne réelle
+        // (réseau/500) et doit remonter, pour ne pas la présenter comme « aucune fiche ».
+        if (e instanceof ApiError && e.status === 404) return { situation: null, sansFiche: true }
+        throw e
+      }
+    },
+    [],
+  )
+  const situation = base?.situation ?? null
+  const sansFiche = base?.sansFiche ?? false
+  const setSituation = useCallback(
+    (v: SituationMembre) =>
+      setBase((b) => (b ? { ...b, situation: v } : { situation: v, sansFiche: false })),
+    [setBase],
+  )
+
+  // Listes, aperçu de carte et disponibilité du paiement : toutes BEST-EFFORT et parallèles, avec
+  // un `catch` chacune — une section indisponible ne doit pas emporter les neuf autres.
+  type Listes = {
+    contributions: ContributionMembre[]
+    reunions: ReunionAVenir[]
+    resolutions: ResolutionOuverte[]
+    recus: RecuMembre[]
+    amendes: AmendeMembre[]
+    cagnottes: CagnotteMembre[]
+    tontines: TontineMembre[]
+    notifications: Notification[]
+    carteApercu: CarteApercu | null
+    paiementActif: boolean
+    montantMin: number
+  }
+  const { data: listes, setData: setListes } = useRessource<Listes>(
+    async (jeton, signal) => {
+      const [c, r, rc, n, ca, pd, ro, am, cg, tn] = await Promise.all([
+        moiApi.contributions(jeton, signal).catch(() => []),
+        moiApi.reunions(jeton, signal).catch(() => []),
+        moiApi.recus(jeton, signal).catch(() => []),
+        notificationsApi.list(jeton, signal).catch(() => []),
+        moiApi.carteApercu(jeton, signal).catch(() => null),
+        moiApi
+          .paiementDisponible(jeton, signal)
+          .catch(() => ({ actif: false, montantMin: 100 })),
+        moiApi.resolutionsOuvertes(jeton, signal).catch(() => []),
+        moiApi.amendes(jeton, signal).catch(() => []),
+        moiApi.cagnottes(jeton, signal).catch(() => []),
+        moiApi.tontines(jeton, signal).catch(() => []),
+      ])
+      return {
+        contributions: c,
+        reunions: r,
+        resolutions: ro,
+        recus: rc,
+        amendes: am,
+        cagnottes: cg,
+        tontines: tn,
+        notifications: n,
+        carteApercu: ca,
+        paiementActif: pd.actif,
+        montantMin: pd.montantMin ?? 100,
+      }
+    },
+    [situation],
+    { pret: situation !== null },
+  )
+
+  const contributions = useMemo(() => listes?.contributions ?? [], [listes])
+  const reunions = useMemo(() => listes?.reunions ?? [], [listes])
+  const resolutions = useMemo(() => listes?.resolutions ?? [], [listes])
+  const recus = useMemo(() => listes?.recus ?? [], [listes])
+  const amendes = useMemo(() => listes?.amendes ?? [], [listes])
+  const cagnottes = useMemo(() => listes?.cagnottes ?? [], [listes])
+  const tontines = useMemo(() => listes?.tontines ?? [], [listes])
+  const notifications = useMemo(() => listes?.notifications ?? [], [listes])
+  const carteApercu = listes?.carteApercu ?? null
+  const paiementActif = listes?.paiementActif ?? false
+  const montantMin = listes?.montantMin ?? 100
+
+  /**
+   * Fabrique un setter pour UNE liste, les autres intactes — pour les mises à jour optimistes et
+   * leurs rollbacks. `useCallback` : ces setters entrent dans les dépendances des `useCallback`
+   * d'action plus bas ; recréés à chaque rendu, ils en feraient des fonctions instables.
+   */
+  const majListe = useCallback(
+    <K extends keyof Listes>(cle: K) =>
+      (v: Listes[K] | ((prev: Listes[K]) => Listes[K])) =>
+        setListes((l) =>
+          l
+            ? { ...l, [cle]: typeof v === 'function' ? (v as (p: Listes[K]) => Listes[K])(l[cle]) : v }
+            : l,
+        ),
+    [setListes],
+  )
+  const setContributions = useMemo(() => majListe('contributions'), [majListe])
+  const setReunions = useMemo(() => majListe('reunions'), [majListe])
+  const setResolutions = useMemo(() => majListe('resolutions'), [majListe])
+  const setNotifications = useMemo(() => majListe('notifications'), [majListe])
+
+  // L'écran attend la situation, puis les listes — sauf s'il n'y a pas de fiche : il n'y a alors
+  // rien à attendre.
+  const loading = chargementSituation || (situation !== null && listes === null && !erreur)
+
+  // PHOTO : seule lecture qui garde son propre effet, et pour une raison précise — l'URL d'objet
+  // créée ici doit être RÉVOQUÉE au démontage, ce qu'aucune ressource ne peut faire à sa place.
+  // Best-effort : sans elle, la carte retombe sur les initiales.
   useEffect(() => {
-    if (!accessToken) return
-    const controller = new AbortController()
+    if (!accessToken || !carteApercu?.aPhoto) return
     let actif = true
     let objectUrl: string | null = null
-    setLoading(true)
-    void (async () => {
-      try {
-        const s = await moiApi.situation(accessToken, controller.signal)
+    void moiApi
+      .photo(accessToken)
+      .then((blob) => {
         if (!actif) return
-        setSituation(s)
-      } catch (e) {
-        if (e instanceof DOMException && e.name === 'AbortError') return
-        if (!actif) return
-        // 404 = ce compte n'a pas de fiche membre liée ; toute autre erreur = panne réelle
-        // (réseau/500) → état d'erreur distinct, pour ne pas la présenter comme « aucune fiche ».
-        if (e instanceof ApiError && e.status === 404) setSansFiche(true)
-        else setErreur(messageErreur(e))
-        setLoading(false)
-        return
-      }
-      // Listes + aperçu carte + disponibilité paiement (best-effort, chargés en parallèle).
-      const [c, r, rc, n, ca, pd, ro, am, cg, tn] = await Promise.all([
-        moiApi.contributions(accessToken, controller.signal).catch(() => []),
-        moiApi.reunions(accessToken, controller.signal).catch(() => []),
-        moiApi.recus(accessToken, controller.signal).catch(() => []),
-        notificationsApi.list(accessToken, controller.signal).catch(() => []),
-        moiApi.carteApercu(accessToken, controller.signal).catch(() => null),
-        moiApi.paiementDisponible(accessToken, controller.signal).catch(() => ({ actif: false, montantMin: 100 })),
-        moiApi.resolutionsOuvertes(accessToken, controller.signal).catch(() => []),
-        moiApi.amendes(accessToken, controller.signal).catch(() => []),
-        moiApi.cagnottes(accessToken, controller.signal).catch(() => []),
-        moiApi.tontines(accessToken, controller.signal).catch(() => []),
-      ])
-      if (!actif) return
-      setContributions(c)
-      setReunions(r)
-      setResolutions(ro)
-      setRecus(rc)
-      setAmendes(am)
-      setCagnottes(cg)
-      setTontines(tn)
-      setNotifications(n)
-      setCarteApercu(ca)
-      setPaiementActif(pd.actif)
-      setMontantMin(pd.montantMin ?? 100)
-      setLoading(false)
-      // Photo (proxy authentifié → blob) seulement si le membre en a une ; sinon on retombe sur
-      // les initiales dans la carte. Best-effort : un échec ne casse pas la page.
-      if (ca?.aPhoto) {
-        try {
-          const blob = await moiApi.photo(accessToken)
-          if (!actif) return
-          objectUrl = URL.createObjectURL(blob)
-          setPhotoUrl(objectUrl)
-        } catch {
-          /* photo indisponible → initiales */
-        }
-      }
-    })()
+        objectUrl = URL.createObjectURL(blob)
+        setPhotoUrl(objectUrl)
+      })
+      .catch(() => {
+        /* photo indisponible → initiales */
+      })
     return () => {
       actif = false
-      controller.abort()
       if (objectUrl) URL.revokeObjectURL(objectUrl)
     }
-  }, [accessToken])
+  }, [accessToken, carteApercu?.aPhoto])
 
   // Sonde le statut d'un paiement quelques fois (le webhook peut arriver avec un léger décalage), puis
   // rafraîchit les finances sur REUSSI. `verifierStatut` côté serveur reste la source de vérité. PARTAGÉ
@@ -246,7 +302,7 @@ export function MonEspacePage() {
       }
       void sonder()
     },
-    [accessToken, toast, t],
+    [accessToken, toast, t, setSituation, setContributions],
   )
 
   // RSVP : le membre pose SA réponse de présence à une réunion à venir (MAJ optimiste + toast).
@@ -266,7 +322,7 @@ export function MonEspacePage() {
         setRsvpEnCours(null)
       }
     },
-    [accessToken, reunions, toast, t],
+    [accessToken, reunions, toast, t, setReunions],
   )
 
   // Vote : le membre exprime son sens sur une résolution ouverte (MAJ optimiste + toast).
@@ -286,7 +342,7 @@ export function MonEspacePage() {
         setVoteEnCours(null)
       }
     },
-    [accessToken, resolutions, toast, t],
+    [accessToken, resolutions, toast, t, setResolutions],
   )
 
   // Retour de la page de paiement hébergée (Fapshi) : si un paiement était en cours (id mémorisé AVANT
@@ -296,7 +352,7 @@ export function MonEspacePage() {
     if (!id) return
     sessionStorage.removeItem('nkoni_paiement')
     sonderPaiement(id)
-  }, [sonderPaiement])
+  }, [sonderPaiement, setResolutions])
 
   if (loading) {
     return (

@@ -1,7 +1,18 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { useMemo, useRef, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Plus, Wallet, ArrowUpCircle, ArrowDownCircle, Check, X, BadgeCheck, Pencil, Trash2 } from 'lucide-react'
+import {
+  Plus,
+  Wallet,
+  ArrowUpCircle,
+  ArrowDownCircle,
+  Check,
+  X,
+  BadgeCheck,
+  Pencil,
+  Trash2,
+} from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
+import { useRessource } from '@/hooks/useRessource'
 import {
   depensesApi,
   ApiError,
@@ -44,12 +55,7 @@ export function TresoreriePage() {
   const toast = useToast()
 
   const PAGE_SIZE = 25
-  const [solde, setSolde] = useState<SoldeTresorerie | null>(null)
-  const [depenses, setDepenses] = useState<Depense[]>([])
   const [page, setPage] = useState(1)
-  const [total, setTotal] = useState(0)
-  const [loading, setLoading] = useState(true)
-  const [erreur, setErreur] = useState<string | null>(null)
   const [filtreStatut, setFiltreStatut] = useState<StatutDepense | ''>('')
   const [filtreCategorie, setFiltreCategorie] = useState<CategorieDepense | ''>('')
   const [formOuvert, setFormOuvert] = useState(false)
@@ -72,43 +78,34 @@ export function TresoreriePage() {
         depensesApi.solde({}, accessToken),
         depensesApi.list(filtre, { page, pageSize: PAGE_SIZE }, accessToken),
       ])
-      setSolde(s)
-      setDepenses(d.items)
-      setTotal(d.total)
+      setDonnees({ solde: s, depenses: d.items, total: d.total })
     } catch (e) {
       toast.error(t('tresorerie.toast.erreur'), messageErreur(e))
     }
   }
 
-  useEffect(() => {
-    if (!accessToken) return
-    const controller = new AbortController()
-    let actif = true
-    setLoading(true)
-    setErreur(null)
-    void (async () => {
-      try {
-        const [s, d] = await Promise.all([
-          depensesApi.solde({}, accessToken, controller.signal),
-          depensesApi.list(filtre, { page, pageSize: PAGE_SIZE }, accessToken, controller.signal),
-        ])
-        if (!actif) return
-        setSolde(s)
-        setDepenses(d.items)
-        setTotal(d.total)
-      } catch (e) {
-        if (e instanceof DOMException && e.name === 'AbortError') return
-        if (actif) setErreur(messageErreur(e))
-      } finally {
-        if (actif) setLoading(false)
-      }
-    })()
-    return () => {
-      actif = false
-      controller.abort()
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accessToken, filtreStatut, filtreCategorie, page])
+  // Ressource COMPOSITE : le solde et la page de dépenses arrivent ensemble, donc un seul état
+  // de chargement. Le rechargement MANUEL après une action (`recharger`, plus haut) reste
+  // volontairement à part : il rafraîchit SANS repasser par l'état de chargement, pour ne pas
+  // faire clignoter un squelette après chaque geste de l'utilisateur.
+  const {
+    data: donnees,
+    loading,
+    error: erreur,
+    setData: setDonnees,
+  } = useRessource<{ solde: SoldeTresorerie; depenses: Depense[]; total: number }>(
+    async (jeton, signal) => {
+      const [s, d] = await Promise.all([
+        depensesApi.solde({}, jeton, signal),
+        depensesApi.list(filtre, { page, pageSize: PAGE_SIZE }, jeton, signal),
+      ])
+      return { solde: s, depenses: d.items, total: d.total }
+    },
+    [filtreStatut, filtreCategorie, page],
+  )
+  const solde = donnees?.solde ?? null
+  const depenses = useMemo(() => donnees?.depenses ?? [], [donnees])
+  const total = donnees?.total ?? 0
 
   /* --- Actions workflow --- */
   const agir = async (action: () => Promise<unknown>, messageOk: string) => {

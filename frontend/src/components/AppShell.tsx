@@ -33,6 +33,7 @@ import { CommandPalette } from '@/components/CommandPalette'
 import { IndicateurSync } from '@/components/IndicateurSync'
 import { moiApi } from '@/lib/api'
 import { useAuth } from '@/contexts/auth-context'
+import { useRessource } from '@/hooks/useRessource'
 import {
   estMembreSimple,
   peutVoirBareme,
@@ -191,31 +192,25 @@ let identiteMembreCache: { membreId: string; nom: string; prenom: string } | nul
  * compte desktop) pour un rendu identique et un seul fetch par session.
  */
 function useInitiales(): string {
-  const { user, accessToken } = useAuth()
-  const [identite, setIdentite] = useState<{ nom: string; prenom: string } | null>(
-    user?.membreId && identiteMembreCache?.membreId === user.membreId ? identiteMembreCache : null,
-  )
+  const { user } = useAuth()
+  const membreId = user?.membreId
+  // Cache de MODULE : une seule lecture par session, partagée entre le chip mobile et le menu
+  // compte. Un succès en cache court-circuite la requête via `pret` — c'est ce que faisait la
+  // garde `|| identite` de l'effet précédent.
+  const enCache =
+    membreId && identiteMembreCache?.membreId === membreId ? identiteMembreCache : null
 
-  useEffect(() => {
-    const membreId = user?.membreId
-    if (!membreId || !accessToken || identite) return
-    const controller = new AbortController()
-    let actif = true
-    moiApi
-      .situation(accessToken, controller.signal)
-      .then((s) => {
-        if (!actif) return
-        identiteMembreCache = { membreId, nom: s.membre.nom, prenom: s.membre.prenom }
-        setIdentite({ nom: s.membre.nom, prenom: s.membre.prenom })
-      })
-      .catch(() => {
-        /* pas de fiche liée ou erreur → initiales e-mail */
-      })
-    return () => {
-      actif = false
-      controller.abort()
-    }
-  }, [user?.membreId, accessToken, identite])
+  // BEST-EFFORT : pas de fiche liée (compte purement administratif) ou erreur → initiales e-mail.
+  const { data: chargee } = useRessource<{ nom: string; prenom: string }>(
+    async (jeton, signal) => {
+      const s = await moiApi.situation(jeton, signal)
+      if (membreId) identiteMembreCache = { membreId, nom: s.membre.nom, prenom: s.membre.prenom }
+      return { nom: s.membre.nom, prenom: s.membre.prenom }
+    },
+    [membreId],
+    { pret: Boolean(membreId) && !enCache },
+  )
+  const identite = enCache ?? chargee
 
   const initialesMembre = identite
     ? `${identite.prenom?.[0] ?? ''}${identite.nom?.[0] ?? ''}`.trim()

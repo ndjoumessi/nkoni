@@ -19,7 +19,7 @@ import {
 } from '@/lib/roles'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/contexts/auth-context'
-import { useDashboard } from '@/hooks/useDashboard'
+import { useRessource } from '@/hooks/useRessource'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, Overline } from '@/components/ui/Card'
 import { Badge, type BadgeProps } from '@/components/ui/Badge'
@@ -41,6 +41,7 @@ import { GrapheEvolution, type PointEvolution } from '@/components/dashboard/Gra
 import { GuideDemarrage } from '@/components/dashboard/GuideDemarrage'
 import { moisCourantApp } from '@/lib/date-app'
 import { formatMontant, formatNombre } from '@/lib/format'
+import { dashboardApi } from '@/lib/api'
 import type {
   Dashboard,
   DashboardComplet,
@@ -405,7 +406,11 @@ function DashboardSkeleton() {
 export function DashboardPage() {
   const { t } = useTranslation()
   const { user } = useAuth()
-  const { data, loading, error, recharger } = useDashboard()
+  const { data, loading, error, recharger } = useRessource<Dashboard>(
+    (jeton, signal) => dashboardApi.get(jeton, signal),
+    [],
+    { cleErreur: 'dashboard.erreur' },
+  )
   const canManage = peutGererBareme(user?.role)
 
   return (

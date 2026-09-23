@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useMemo, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { AlertTriangle, CheckCircle2, CreditCard, Loader2, Plus, Search, Upload, Users } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
+import { useRessource } from '@/hooks/useRessource'
 import {
   membresApi,
   organisationApi,
@@ -49,16 +50,8 @@ export function MembresPage() {
   const navigate = useNavigate()
   const toast = useToast()
 
-  const [items, setItems] = useState<MembreStatut[] | null>(null)
-  const [total, setTotal] = useState(0)
-  const [resume, setResume] = useState<ResumeStatuts>(RESUME_VIDE)
-  const [branches, setBranches] = useState<{ id: string; nom: string }[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   // Incrémenté par « Réessayer » de l'ErrorState : relance l'effet de chargement.
-  const [reloadKey, setReloadKey] = useState(0)
   // Chef de l'organisation (badge sur sa ligne) — best-effort, chargé indépendamment.
-  const [chef, setChef] = useState<{ id: string | null; surnom: string | null }>({ id: null, surnom: null })
 
   // Filtres initialisés depuis l'URL (dashboard actionnable : ?statut= / ?cotisation= / ?branche=).
   const [searchParams] = useSearchParams()
@@ -98,76 +91,46 @@ export function MembresPage() {
     setPage(1)
   }, [rechercheDebounced, filtreBranche, filtreStatut, filtreCotisation, triCol, triDir])
 
-  // Chargement de la page courante (recherche + filtres + tri côté serveur).
-  useEffect(() => {
-    if (!accessToken) return
-    const controller = new AbortController()
-    let active = true
-    setLoading(true)
-    setError(null)
-    void (async () => {
-      try {
-        const data = await membresApi.listStatutsPagine(
-          {
-            page,
-            pageSize: PAGE_SIZE,
-            recherche: rechercheDebounced || undefined,
-            branche: filtreBranche || undefined,
-            statut: (filtreStatut || undefined) as StatutMembre | undefined,
-            cotisation: (filtreCotisation || undefined) as StatutContribution | 'A_RELANCER' | undefined,
-            tri: triCol,
-            dir: triDir,
-          },
-          accessToken,
-          controller.signal,
-        )
-        if (active) {
-          setItems(data.items)
-          setTotal(data.total)
-          setResume(data.resume)
-          setBranches(data.branches)
-        }
-      } catch (e) {
-        if (e instanceof DOMException && e.name === 'AbortError') return
-        if (active) setError(messageErreur(e))
-      } finally {
-        if (active) setLoading(false)
-      }
-    })()
-    return () => {
-      active = false
-      controller.abort()
-    }
-  }, [
-    accessToken,
-    reloadKey,
-    page,
-    rechercheDebounced,
-    filtreBranche,
-    filtreStatut,
-    filtreCotisation,
-    triCol,
-    triDir,
-  ])
+  // Chargement de la page courante (recherche + filtres + tri côté serveur). UNE seule réponse
+  // porte les quatre morceaux — items, total, résumé, branches : ce n'étaient pas quatre états
+  // mais quatre champs, et les stocker séparément permettait de les désynchroniser.
+  const { data, loading, error, recharger } = useRessource(
+    (jeton, signal) =>
+      membresApi.listStatutsPagine(
+        {
+          page,
+          pageSize: PAGE_SIZE,
+          recherche: rechercheDebounced || undefined,
+          branche: filtreBranche || undefined,
+          statut: (filtreStatut || undefined) as StatutMembre | undefined,
+          cotisation: (filtreCotisation || undefined) as
+            | StatutContribution
+            | 'A_RELANCER'
+            | undefined,
+          tri: triCol,
+          dir: triDir,
+        },
+        jeton,
+        signal,
+      ),
+    [page, rechercheDebounced, filtreBranche, filtreStatut, filtreCotisation, triCol, triDir],
+  )
+  const items = data?.items ?? null
+  const total = data?.total ?? 0
+  const resume = data?.resume ?? RESUME_VIDE
+  const branches = useMemo(() => data?.branches ?? [], [data])
 
-  // Chef de l'organisation : chargé à part (best-effort, jamais bloquant pour la liste).
-  useEffect(() => {
-    if (!accessToken) return
-    const controller = new AbortController()
-    let active = true
-    void (async () => {
-      try {
-        const org = await organisationApi.moi(accessToken, controller.signal)
-        if (active) setChef({ id: org.chefMembreId, surnom: org.chefSurnom })
-      } catch {
-        /* pas d'accès (ex. droits) ou erreur → aucun badge chef, sans conséquence */
-      }
-    })()
-    return () => {
-      active = false
-      controller.abort()
-    }
-  }, [accessToken])
+  // Chef de l'organisation : chargé à part, BEST-EFFORT — jamais bloquant pour la liste. Un échec
+  // (droits insuffisants, réseau) laisse simplement `chef` vide, donc aucun badge.
+  const { data: orgChef } = useRessource(
+    (jeton, signal) => organisationApi.moi(jeton, signal),
+    [],
+  )
+  // Forme conservée : la page lit `chef.id` sans garde, un `null` la casserait.
+  const chef = useMemo(
+    () => ({ id: orgChef?.chefMembreId ?? null, surnom: orgChef?.chefSurnom ?? null }),
+    [orgChef],
+  )
 
   // MEMBRE_SIMPLE : le backend ne renvoie que sa fiche → on redirige vers son détail.
   useEffect(() => {
@@ -388,7 +351,7 @@ export function MembresPage() {
           <ErrorState
             title={t('commun.erreurs.chargementImpossible')}
             description={error}
-            onRetry={() => setReloadKey((k) => k + 1)}
+            onRetry={recharger}
           />
         )}
 

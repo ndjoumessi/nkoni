@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Check, FileText, Pencil } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
+import { useRessource } from '@/hooks/useRessource'
 import { focusPremierChampInvalide } from '@/lib/utils'
 import { soumettreOuEnfiler } from '@/lib/offline-sync'
 import {
@@ -47,7 +48,6 @@ export function VersementFormPage() {
   const toast = useToast()
 
   const presetContrib = searchParams.get('contributionId') ?? ''
-  const [membreNom, setMembreNom] = useState('')
   const [contributions, setContributions] = useState<Contribution[]>([])
   // Fenêtre de contribution du membre (§4.1) : [anneeAdhesion .. min(anneeCourante, anneeFin)].
   // Le sélecteur couvre TOUTE la fenêtre — pas seulement les années déjà « ouvertes » — car le
@@ -61,7 +61,6 @@ export function VersementFormPage() {
   const [mode, setMode] = useState<ModeVersement>('ESPECES')
   const [note, setNote] = useState('')
 
-  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   // Erreur serveur PERSISTANTE, en plus du toast : un toast dure 8 s et, raté, l'information est
   // perdue — inacceptable sur un formulaire qui enregistre de l'argent (audit UI/UX, m6).
@@ -91,40 +90,51 @@ export function VersementFormPage() {
     [accessToken, id],
   )
 
-  useEffect(() => {
-    if (!accessToken || !id) return
-    const controller = new AbortController()
-    const { signal } = controller
-    let active = true
-    setLoading(true)
-    void (async () => {
-      try {
-        const [membre, list] = await Promise.all([
-          membresApi.get(id, accessToken, signal),
-          chargerContributions(signal),
-        ])
-        if (!active) return
-        setMembreNom(`${membre.nom} ${membre.prenom}`)
-        // Borne haute : année courante, ramenée à `anneeFinContribution` si le membre a cessé.
-        const courante = anneeCouranteApp()
-        const fin = Math.min(courante, membre.anneeFinContribution ?? courante)
-        setFenetre({ debut: membre.anneeAdhesion, fin })
-        // Présélection : la contribution passée en paramètre, sinon l'année la plus récente.
-        const preset = presetContrib ? list.find((c) => c.id === presetContrib) : undefined
-        setAnneeChoisie(preset?.annee ?? Math.max(membre.anneeAdhesion, fin))
-        setAnneeVerrouillee(preset !== undefined)
-      } catch (e) {
-        if (e instanceof DOMException && e.name === 'AbortError') return
-        if (active) toast.error(t('versements.toast.chargementImpossible'), e instanceof ApiError ? e.message : undefined)
-      } finally {
-        if (active) setLoading(false)
+  // Ressource COMPOSITE : le membre (nom + fenêtre de contribution) et ses contributions. La
+  // fenêtre est CALCULÉE dans le chargeur — c'est une propriété de la donnée servie, pas un état
+  // que la page entretient. `chargerContributions` reste pour le rafraîchissement APRÈS ouverture
+  // d'une année : il écrit dans l'état local sans repasser par le cycle complet.
+  const { data, loading, error } = useRessource<{
+    membreNom: string
+    fenetre: { debut: number; fin: number }
+    contributions: Contribution[]
+  }>(
+    async (jeton, signal) => {
+      const [membre, list] = await Promise.all([
+        membresApi.get(id ?? '', jeton, signal),
+        contributionsApi.listByMembre(id ?? '', jeton, signal),
+      ])
+      list.sort((a, b) => b.annee - a.annee)
+      // Borne haute : année courante, ramenée à `anneeFinContribution` si le membre a cessé.
+      const courante = anneeCouranteApp()
+      const fin = Math.min(courante, membre.anneeFinContribution ?? courante)
+      return {
+        membreNom: `${membre.nom} ${membre.prenom}`,
+        fenetre: { debut: membre.anneeAdhesion, fin },
+        contributions: list,
       }
-    })()
-    return () => {
-      active = false
-      controller.abort()
-    }
-  }, [accessToken, id, chargerContributions, presetContrib, toast, t])
+    },
+    [id],
+    { pret: Boolean(id) },
+  )
+  const membreNom = data?.membreNom ?? ''
+
+  useEffect(() => {
+    if (error) toast.error(t('versements.toast.chargementImpossible'), error)
+  }, [error, toast, t])
+
+  // AMORÇAGE : la fenêtre et la présélection d'année sont des brouillons que l'utilisateur peut
+  // ensuite changer ; `contributions` alimente l'état local que `chargerContributions` rafraîchit.
+  useEffect(() => {
+    if (!data) return
+    setContributions(data.contributions)
+    setFenetre(data.fenetre)
+    const preset = presetContrib
+      ? data.contributions.find((c) => c.id === presetContrib)
+      : undefined
+    setAnneeChoisie(preset?.annee ?? Math.max(data.fenetre.debut, data.fenetre.fin))
+    setAnneeVerrouillee(preset !== undefined)
+  }, [data, presetContrib])
 
   if (!peutSaisirVersement(user?.role)) {
     return <Navigate to={id ? `/membres/${id}` : '/membres'} replace />

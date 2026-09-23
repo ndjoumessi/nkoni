@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { FileText, Loader2, Download, Send, Mail, Pencil, Trash2, Ban, ChevronDown, ChevronRight } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
+import { useRessource } from '@/hooks/useRessource'
 import {
   versementsApi,
   recusApi,
@@ -62,12 +63,6 @@ export function VersementsList({
   const { t } = useTranslation()
   const { accessToken, user, modeDemo } = useAuth()
   const toast = useToast()
-  const [versements, setVersements] = useState<Versement[]>([])
-  const [recus, setRecus] = useState<Map<string, Recu>>(new Map())
-  /** Reçus dont le versement a été supprimé — affichés en trace, sans aucune action possible. */
-  const [orphelins, setOrphelins] = useState<Recu[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const [generating, setGenerating] = useState<string | null>(null)
   const [annulantRecu, setAnnulantRecu] = useState<string | null>(null)
   const [envoyantRecu, setEnvoyantRecu] = useState<string | null>(null)
@@ -91,55 +86,56 @@ export function VersementsList({
   // doit pas dominer le registre vivant des versements réels.
   const [orphelinsOuverts, setOrphelinsOuverts] = useState(false)
 
-  const charger = useCallback(
-    async (signal?: AbortSignal) => {
-      if (!accessToken) return
-      setLoading(true)
-      setError(null)
-      try {
-        const [vs, rs] = await Promise.all([
-          versementsApi.listByContribution(contributionId, accessToken, signal),
-          recusApi.listByMembre(membreId, accessToken, signal),
-        ])
-        setVersements(vs)
-        // Un versement peut porter PLUSIEURS reçus après une annulation suivie d'une réémission
-        // (chaque émission consomme un numéro). On retient le reçu ACTIF s'il existe, sinon le
-        // dernier annulé — pour afficher l'état courant, pas un document périmé.
-        const parVersement = new Map<string, Recu>()
-        const sansVersement: Recu[] = []
-        for (const r of rs) {
-          // Reçu ORPHELIN : son versement a été supprimé. Il n'a aucune ligne à laquelle
-          // s'accrocher — on le rend à part, en trace lecture seule.
-          //
-          // Filtré sur l'ANNÉE : ce composant est monté une fois par contribution (donc par
-          // année), alors que `listByMembre` renvoie TOUS les reçus du membre. Sans ce filtre,
-          // chaque orphelin apparaîtrait dans TOUS les accordéons annuels.
-          if (r.versementId === null) {
-            if (r.annee === annee) sansVersement.push(r)
-            continue
-          }
-          const courant = parVersement.get(r.versementId)
-          if (!courant || (courant.annuleLe !== null && r.annuleLe === null)) {
-            parVersement.set(r.versementId, r)
-          }
+  // Ressource COMPOSITE : les versements de la contribution et les reçus du membre, croisés ici.
+  // Le CROISEMENT est fait dans le chargeur, pas dans un état : c'est une propriété de la donnée
+  // servie. `recharger` remplace l'ancien `charger()` manuel des actions.
+  const { data, loading, error, recharger, setData } = useRessource<{
+    versements: Versement[]
+    recus: Map<string, Recu>
+    orphelins: Recu[]
+  }>(
+    async (jeton, signal) => {
+      const [vs, rs] = await Promise.all([
+        versementsApi.listByContribution(contributionId, jeton, signal),
+        recusApi.listByMembre(membreId, jeton, signal),
+      ])
+      // Un versement peut porter PLUSIEURS reçus après une annulation suivie d'une réémission
+      // (chaque émission consomme un numéro). On retient le reçu ACTIF s'il existe, sinon le
+      // dernier annulé — pour afficher l'état courant, pas un document périmé.
+      const parVersement = new Map<string, Recu>()
+      const sansVersement: Recu[] = []
+      for (const r of rs) {
+        // Reçu ORPHELIN : son versement a été supprimé. Il n'a aucune ligne à laquelle
+        // s'accrocher — on le rend à part, en trace lecture seule.
+        //
+        // Filtré sur l'ANNÉE : ce composant est monté une fois par contribution (donc par
+        // année), alors que `listByMembre` renvoie TOUS les reçus du membre. Sans ce filtre,
+        // chaque orphelin apparaîtrait dans TOUS les accordéons annuels.
+        if (r.versementId === null) {
+          if (r.annee === annee) sansVersement.push(r)
+          continue
         }
-        setRecus(parVersement)
-        setOrphelins(sansVersement)
-      } catch (e) {
-        if (e instanceof DOMException && e.name === 'AbortError') return
-        setError(e instanceof ApiError ? e.message : t('versements.liste.erreurChargement'))
-      } finally {
-        setLoading(false)
+        const courant = parVersement.get(r.versementId)
+        if (!courant || (courant.annuleLe !== null && r.annuleLe === null)) {
+          parVersement.set(r.versementId, r)
+        }
       }
+      return { versements: vs, recus: parVersement, orphelins: sansVersement }
     },
-    [accessToken, contributionId, membreId, annee, t],
+    [contributionId, membreId, annee],
+    { cleErreur: 'versements.liste.erreurChargement' },
   )
+  const versements = useMemo(() => data?.versements ?? [], [data])
+  const recus = useMemo(() => data?.recus ?? new Map<string, Recu>(), [data])
+  const orphelins = useMemo(() => data?.orphelins ?? [], [data])
 
-  useEffect(() => {
-    const controller = new AbortController()
-    void charger(controller.signal)
-    return () => controller.abort()
-  }, [charger])
+  /**
+   * Mise à jour OPTIMISTE de la seule table des reçus (génération, annulation), les versements et
+   * les orphelins intacts. `new Map(prev)` : la Map est remplacée, jamais mutée — sans quoi React
+   * ne verrait aucun changement de référence et ne re-rendrait pas.
+   */
+  const setRecus = (f: (prev: Map<string, Recu>) => Map<string, Recu>) =>
+    setData((d) => (d ? { ...d, recus: f(d.recus) } : d))
 
   const genererRecu = async (versementId: string) => {
     if (!accessToken) return
@@ -282,7 +278,7 @@ export function VersementsList({
       )
       setEditing(null)
       toast.success(t('versements.toast.versementModifie'))
-      await charger()
+      recharger()
       onChange?.()
     } catch (e) {
       toast.error(
@@ -301,7 +297,7 @@ export function VersementsList({
       await versementsApi.supprimer(confirmDelete.id, accessToken)
       setConfirmDelete(null)
       toast.success(t('versements.toast.versementSupprime'))
-      await charger()
+      recharger()
       onChange?.()
     } catch (e) {
       toast.error(

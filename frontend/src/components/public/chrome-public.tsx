@@ -14,6 +14,13 @@ import { cheminApresConnexion } from '@/lib/roles'
  *   préférence serveur, rétablie au prochain chargement.
  * - **Visiteur** (lien partagé, « je n'arrive pas à me connecter ») : retour à l'accueil, et
  *   sélecteur de langue visible — c'est son seul moyen de changer de langue avant toute connexion.
+ * - **Session PAS ENCORE TRANCHÉE** (`loading`) : retour à l'accueil, mais **aucun sélecteur**.
+ *   `AuthProvider` démarre à `user = null, loading = true` et ne peuple `user` qu'au retour du
+ *   rafraîchissement silencieux : sans ce troisième cas, un utilisateur DÉJÀ connecté recevait le
+ *   chrome du visiteur pendant tout l'aller-retour. Le sélecteur y est le vrai danger — cliqué
+ *   dans cette fenêtre, il écrit en `localStorage` une langue qui contredit la préférence serveur,
+ *   exactement ce que la règle ci-dessus interdit. Le lien de retour, lui, reste offert : c'est
+ *   l'échappatoire de la page, et `/` n'est faux pour personne au point de la retirer.
  *
  * Lecture du contexte par `useContext` et non `useAuth()` : ces pages sont publiques, un contexte
  * absent vaut « visiteur » au lieu de lever. Partagé par l'aide, les pages légales ET la page de
@@ -27,6 +34,10 @@ export function useChromePublic(): { retourVers: string; retourLibelle: string; 
   const auth = useContext(AuthContext)
   if (auth?.user) {
     return { retourVers: cheminApresConnexion(auth.user.role), retourLibelle: t('aideDoc.retourApplication') }
+  }
+  // Hors provider (`auth` absent), il n'y a aucune session à attendre : c'est un visiteur.
+  if (auth?.loading) {
+    return { retourVers: '/', retourLibelle: t('aideDoc.retour') }
   }
   return { retourVers: '/', retourLibelle: t('aideDoc.retour'), actions: <LangueToggle /> }
 }

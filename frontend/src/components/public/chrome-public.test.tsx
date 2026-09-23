@@ -21,9 +21,18 @@ vi.stubGlobal('fetch', () => new Promise(() => {}))
 
 afterEach(cleanup)
 
-/** Contexte minimal : seul `user` est lu par le chrome des pages d'aide. */
+/** Contexte minimal : seuls `user` et `loading` sont lus par le chrome des pages publiques. */
 function contexte(role: string): AuthContextValue {
-  return { user: { id: 'u1', email: 'a@asso.cm', role } as AuthUser } as AuthContextValue
+  return { user: { id: 'u1', email: 'a@asso.cm', role } as AuthUser, loading: false } as AuthContextValue
+}
+
+/**
+ * La FENÊTRE qui a produit le défaut : `AuthProvider` démarre à `user = null, loading = true` et
+ * ne peuple `user` qu'au retour du rafraîchissement silencieux. Un utilisateur DÉJÀ connecté
+ * traverse donc cet état à chaque ouverture de page publique.
+ */
+function contexteEnChargement(): AuthContextValue {
+  return { user: null, loading: true } as AuthContextValue
 }
 
 function rendre(auth?: AuthContextValue) {
@@ -54,6 +63,15 @@ describe('chrome des pages publiques (aide, pages légales)', () => {
     rendre(contexte('MEMBRE_SIMPLE'))
     expect(lienRetour('aideDoc.retourApplication')).toBe('/mon-espace')
   })
+
+  it('session en cours de résolution : AUCUN sélecteur tant qu’on ne sait pas qui lit', () => {
+    // Le sélecteur est le vrai danger de cette fenêtre : cliqué par un utilisateur connecté qui
+    // n'est pas encore reconnu, il écrit en localStorage une langue qui contredit la préférence
+    // enregistrée sur son compte — et qui sera rétablie au prochain chargement.
+    rendre(contexteEnChargement())
+    expect(screen.queryByRole('group', { name: 'commun.langue.selecteur' })).toBeNull()
+    expect(lienRetour('aideDoc.retour')).toBe('/')
+  })
 })
 
 /**
@@ -83,5 +101,13 @@ describe('chrome de la page de statut', () => {
     rendreStatut(contexte('TRESORIERE'))
     expect(screen.queryByRole('group', { name: 'commun.langue.selecteur' })).toBeNull()
     expect(lienRetour('aideDoc.retourApplication')).toBe('/dashboard')
+  })
+
+  it('session en cours de résolution : aucun sélecteur ici non plus', () => {
+    // `/statut` recopie la MISE EN PAGE de l'en-tête sans recopier son comportement : ce cas est
+    // ce qui interdit aux deux coquilles de diverger à nouveau sur cette fenêtre.
+    rendreStatut(contexteEnChargement())
+    expect(screen.queryByRole('group', { name: 'commun.langue.selecteur' })).toBeNull()
+    expect(lienRetour('aideDoc.retour')).toBe('/')
   })
 })

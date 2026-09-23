@@ -121,14 +121,11 @@ export function StatutPage() {
         <div className="mx-auto flex max-w-2xl items-center justify-between gap-3 px-5 py-4">
           <Link to="/" className="flex shrink-0 items-center gap-2">
             <NkoniMark className="h-7 w-7" />
-            {/* Même contrainte que l'en-tête de `PagePublique` : à 360 px, logo + sélecteur de langue
-                + lien de retour ne tiennent pas sur une ligne avec le nom. */}
-            <span
-              className={cn(
-                'font-display text-lg font-semibold tracking-tight text-foreground',
-                chrome.actions && 'hidden sm:inline',
-              )}
-            >
+            {/* Le nom s'efface sous `sm`, TOUJOURS et non selon la présence d'actions : ces
+                en-têtes gagnent ou perdent leur sélecteur quand la session se tranche, et une
+                classe conditionnelle ferait alors sauter la mise en page sous nos yeux. À 360 px,
+                logo + sélecteur + lien de retour ne tiennent de toute façon pas avec le nom. */}
+            <span className="hidden font-display text-lg font-semibold tracking-tight text-foreground sm:inline">
               NKONI
             </span>
           </Link>

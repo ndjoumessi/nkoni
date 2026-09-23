@@ -469,6 +469,11 @@ Chantiers de second rang, à inscrire après les trois précédents :
   « variable Vercel lue au build » (qui, elle, aurait survécu mais imposait un redéploiement pour
   publier). La panne totale reste couverte par la page de maintenance Vercel (§4.3). **Reste** :
   un historique d'incidents.
+- **Contrôle des en-têtes de réponse de la production** — aucun dispositif ne regarde ce que la
+  production RÉPOND réellement. L'incident du 2026-09-23 (un secret publié dans un en-tête, tout en
+  200) n'a été vu que parce qu'une recette échouait pour une autre raison : ni les tests, ni la CI,
+  ni la sonde de disponibilité ne pouvaient l'attraper. Un contrôle qui échoue sur tout en-tête
+  inattendu les détecterait indépendamment de la recette. À inscrire au chantier 1.4.
 - **`ErrorBoundary` React** — une erreur de rendu laisse un écran blanc muet.
 - **Automatiser la sauvegarde quotidienne** — le RPO de 24 h suppose aujourd'hui que le PO lance le
   dump à la main, tous les jours.
@@ -484,7 +489,7 @@ Une ligne par incident P1/P2. C'est ce registre qui alimente la mesure de dispon
 
 | Date | Niveau | Effet utilisateur | Durée | Cause racine | Post-mortem |
 |---|---|---|---|---|---|
-| _(aucun incident enregistré à ce jour)_ | | | | | |
+| 2026-09-23 | P2 | **Aucun** — service nominal de bout en bout ; exposition d'un secret d'infrastructure (`PROXY_SECRET`) dans les en-têtes de réponse de `/api/*` pendant ≈ 7 min | 0 min d'indisponibilité | `next({ headers })` de `@vercel/functions` pose des en-têtes de **réponse**, pas de requête — canal conçu autour d'un secret porteur, livré sans preuve de bout en bout | [2026-09-23-fuite-proxy-secret.md](post-mortems/2026-09-23-fuite-proxy-secret.md) |
 
 ---
 

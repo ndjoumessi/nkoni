@@ -187,6 +187,19 @@ recommandée** :
 Cela demande deux variables d'environnement, donc un geste PO sur Vercel et Railway. **Décision PO
 requise** avant de le faire.
 
+> ⚠️ **Cette option a déjà été tentée, et reverté le 2026-09-23 — lire le post-mortem avant de la
+> reprendre** : [`post-mortems/2026-09-23-fuite-proxy-secret.md`](post-mortems/2026-09-23-fuite-proxy-secret.md).
+> Deux enseignements, qui changent la conception :
+>
+> 1. **`next({ headers })` de `@vercel/functions` pose des en-têtes de RÉPONSE, pas de requête.** La
+>    middleware a donc publié le secret à tout client appelant `/api/*`. La documentation Vercel
+>    illustre les deux usages avec la même signature sans les distinguer. **Prouver la propagation
+>    sur une prévisualisation AVANT d'écrire la moindre ligne de production.**
+> 2. **Ne pas transmettre un secret porteur.** Faire signer l'IP du client (HMAC de `PROXY_SECRET`
+>    sur l'IP) plutôt que d'envoyer le secret : divulguée, une telle signature ne vaut que pour
+>    l'adresse de son porteur, qui serait de toute façon sa clé. Le même bug serait resté
+>    inoffensif.
+
 ## 3. Ce que ces mesures ne couvrent pas
 
 - **L'infrastructure de production** : pas de test de charge contre Railway. Ce serait tester

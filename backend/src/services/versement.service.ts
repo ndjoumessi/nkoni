@@ -1,3 +1,5 @@
+import { ErreurMetier } from '../lib/erreur-metier'
+import type { CleMessage } from '../locales/fr'
 import { Prisma } from '../generated/prisma/client'
 
 /**
@@ -16,18 +18,40 @@ import { Prisma } from '../generated/prisma/client'
 
 /**
  * Écriture refusée : un reçu (preuve de paiement, potentiellement déjà partagé) fait obstacle.
- * Porte le `numero` du reçu en cause pour que la route puisse le nommer — l'erreur reste
- * i18n-agnostique (elle transporte la DONNÉE, la traduction se fait à la frontière HTTP).
- * Le sens diffère selon l'opération, d'où deux messages distincts côté route :
- *   - suppression : bloquée par TOUT reçu (voir `appliquerSuppressionVersement`) ;
- *   - modification : bloquée par un reçu ACTIF seulement (l'annuler débloque).
+ * Porte le `numero` du reçu en cause pour que le message puisse le nommer.
+ *
+ * **Base ABSTRAITE, deux refus concrets** — et c'est la seule erreur du chantier ADR-0001 dont le
+ * message ne se déduisait pas de la classe. La règle diffère réellement selon l'opération :
+ * supprimer est bloqué par TOUT reçu, modifier seulement par un reçu ACTIF — que l'annulation
+ * débloque. Deux messages, donc, et un lecteur à qui l'on doit dire lequel des deux gestes le
+ * sortira de là. Une classe unique aurait forcé la route à garder ce choix, c'est-à-dire à garder
+ * une table de mappage pour une seule erreur.
+ *
+ * La base garde son nom : `instanceof VersementAvecRecuError` continue de reconnaître les deux.
  */
-export class VersementAvecRecuError extends Error {
+export abstract class VersementAvecRecuError extends ErreurMetier {
   readonly numero: string
-  constructor(numero: string) {
-    super(`Versement lié au reçu ${numero} : écriture interdite.`)
-    this.name = 'VersementAvecRecuError'
+  constructor(statutHttp: number, cleMessage: CleMessage, numero: string) {
+    super(statutHttp, cleMessage, `Versement lié au reçu ${numero} : écriture interdite.`)
     this.numero = numero
+  }
+
+  override parametres() {
+    return { numero: this.numero }
+  }
+}
+
+/** Suppression refusée : un reçu a été émis (audit M3, pas de reçu orphelin). */
+export class SuppressionVersementAvecRecuError extends VersementAvecRecuError {
+  constructor(numero: string) {
+    super(409, 'versements.suppressionRecuEmis', numero)
+  }
+}
+
+/** Modification refusée : un reçu ACTIF existe — l'annuler débloque la correction. */
+export class ModificationVersementAvecRecuActifError extends VersementAvecRecuError {
+  constructor(numero: string) {
+    super(409, 'versements.modificationRecuActif', numero)
   }
 }
 
@@ -63,7 +87,7 @@ export interface PatchVersement {
 
 /**
  * Met à jour le versement et reporte le DELTA de montant sur la contribution (même delta sur les deux).
- * REFUSE (VersementAvecRecuError) si un reçu ACTIF a été émis : sans cette garde, on pouvait changer
+ * REFUSE (ModificationVersementAvecRecuActifError) si un reçu ACTIF a été émis : sans cette garde, on pouvait changer
  * le montant d'un versement dont le reçu numéroté était déjà remis au membre — le reçu se serait mis
  * à mentir. Garde SYMÉTRIQUE de celle de la suppression ; annuler le reçu débloque les deux.
  */
@@ -79,7 +103,7 @@ export async function appliquerModificationVersement(
     where: { versementId: id, annuleLe: null },
     select: { id: true, numero: true },
   })
-  if (recuActif) throw new VersementAvecRecuError(recuActif.numero)
+  if (recuActif) throw new ModificationVersementAvecRecuActifError(recuActif.numero)
 
   const data: any = {}
   if (patch.montant !== undefined) data.montant = patch.montant
@@ -106,7 +130,7 @@ export async function appliquerModificationVersement(
 
 /**
  * Supprime le versement et décrémente la contribution du même montant. REFUSE
- * (VersementAvecRecuError) si un reçu a été émis (audit M3 : pas de reçu orphelin). Lève P2025 si
+ * (SuppressionVersementAvecRecuError) si un reçu a été émis (audit M3 : pas de reçu orphelin). Lève P2025 si
  * le versement est introuvable.
  *
  * Garde SYMÉTRIQUE de celle de la modification : seul un reçu **ACTIF** bloque. L'annuler débloque
@@ -145,7 +169,7 @@ export async function appliquerSuppressionVersement(tx: any, id: string): Promis
     where: { versementId: id, annuleLe: null },
     select: { id: true, numero: true },
   })
-  if (recuActif) throw new VersementAvecRecuError(recuActif.numero)
+  if (recuActif) throw new SuppressionVersementAvecRecuError(recuActif.numero)
 
   await tx.versement.delete({ where: { id } })
   await tx.contribution.update({

@@ -1,4 +1,4 @@
-import type { FastifyInstance, FastifyPluginAsync, FastifyReply } from 'fastify'
+import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
 import { authenticate } from '../middlewares/authenticate'
 import { requirePermission } from '../middlewares/permissions'
 import { t, langueDeRequete } from '../lib/i18n'
@@ -13,8 +13,6 @@ import {
   supprimerPoint,
   reordonnerPoints,
   ReunionIntrouvableError,
-  PointIntrouvableError,
-  ReordonnancementInvalideError,
 } from '../services/reunion.service'
 import { genererCompteRenduPdf } from '../services/compte-rendu-pdf.service'
 
@@ -97,26 +95,6 @@ const reorderSchema = {
   },
 } as const
 
-/** Mappe les erreurs métier du service en réponses 4xx ; renvoie true si traité. */
-function reply4xxSiMetier(err: unknown, reply: FastifyReply): boolean {
-  const langue = langueDeRequete(reply.request)
-  if (err instanceof ReunionIntrouvableError) {
-    reply.code(404).send({ error: 'Not Found', message: t(langue, 'reunions.introuvable') })
-    return true
-  }
-  if (err instanceof PointIntrouvableError) {
-    reply.code(404).send({ error: 'Not Found', message: t(langue, 'reunions.pointIntrouvable') })
-    return true
-  }
-  if (err instanceof ReordonnancementInvalideError) {
-    reply
-      .code(400)
-      .send({ error: 'Bad Request', message: t(langue, 'reunions.reordonnancementInvalide') })
-    return true
-  }
-  return false
-}
-
 export const reunionsRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
   const perm = (action: 'create' | 'read' | 'update' | 'delete') =>
     requirePermission('Reunion', action)
@@ -133,12 +111,8 @@ export const reunionsRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
     '/reunions/:id',
     { preHandler: [authenticate, perm('read')] },
     async (req, reply) => {
-      try {
-        return await getReunion(app.prisma, req.params.id)
-      } catch (err) {
-        if (reply4xxSiMetier(err, reply)) return
-        throw err
-      }
+      return await getReunion(app.prisma, req.params.id)
+    
     },
   )
 
@@ -150,12 +124,8 @@ export const reunionsRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
     { preHandler: [authenticate, perm('read')] },
     async (req, reply) => {
       let reunion
-      try {
-        reunion = await getReunion(app.prisma, req.params.id)
-      } catch (err) {
-        if (reply4xxSiMetier(err, reply)) return
-        throw err
-      }
+      reunion = await getReunion(app.prisma, req.params.id)
+    
       const buffer = await genererCompteRenduPdf(
         {
           date: reunion.date,
@@ -202,13 +172,9 @@ export const reunionsRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
     '/reunions/:id',
     { schema: updateReunionSchema, preHandler: [authenticate, perm('update')] },
     async (req, reply) => {
-      try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return await majReunion(app.prisma, req.params.id, req.body as any)
-      } catch (err) {
-        if (reply4xxSiMetier(err, reply)) return
-        throw err
-      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return await majReunion(app.prisma, req.params.id, req.body as any)
+    
     },
   )
 
@@ -217,13 +183,9 @@ export const reunionsRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
     '/reunions/:id',
     { preHandler: [authenticate, perm('delete')] },
     async (req, reply) => {
-      try {
-        await supprimerReunion(app.prisma, req.params.id)
-        return reply.code(204).send()
-      } catch (err) {
-        if (reply4xxSiMetier(err, reply)) return
-        throw err
-      }
+      await supprimerReunion(app.prisma, req.params.id)
+      return reply.code(204).send()
+    
     },
   )
 
@@ -232,14 +194,10 @@ export const reunionsRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
     '/reunions/:id/points',
     { schema: addPointSchema, preHandler: [authenticate, perm('update')] },
     async (req, reply) => {
-      try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const point = await ajouterPoint(app.prisma, req.params.id, req.body as any)
-        return reply.code(201).send(point)
-      } catch (err) {
-        if (reply4xxSiMetier(err, reply)) return
-        throw err
-      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const point = await ajouterPoint(app.prisma, req.params.id, req.body as any)
+      return reply.code(201).send(point)
+    
     },
   )
 
@@ -249,12 +207,8 @@ export const reunionsRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
     '/reunions/:id/points/ordre',
     { schema: reorderSchema, preHandler: [authenticate, perm('update')] },
     async (req, reply) => {
-      try {
-        return await reordonnerPoints(app.prisma, req.params.id, req.body.ordreIds)
-      } catch (err) {
-        if (reply4xxSiMetier(err, reply)) return
-        throw err
-      }
+      return await reordonnerPoints(app.prisma, req.params.id, req.body.ordreIds)
+    
     },
   )
 
@@ -263,13 +217,9 @@ export const reunionsRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
     '/reunions/:id/points/:pointId',
     { schema: updatePointSchema, preHandler: [authenticate, perm('update')] },
     async (req, reply) => {
-      try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return await majPoint(app.prisma, req.params.pointId, req.body as any)
-      } catch (err) {
-        if (reply4xxSiMetier(err, reply)) return
-        throw err
-      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return await majPoint(app.prisma, req.params.pointId, req.body as any)
+    
     },
   )
 
@@ -278,13 +228,9 @@ export const reunionsRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
     '/reunions/:id/points/:pointId',
     { preHandler: [authenticate, perm('update')] },
     async (req, reply) => {
-      try {
-        await supprimerPoint(app.prisma, req.params.pointId)
-        return reply.code(204).send()
-      } catch (err) {
-        if (reply4xxSiMetier(err, reply)) return
-        throw err
-      }
+      await supprimerPoint(app.prisma, req.params.pointId)
+      return reply.code(204).send()
+    
     },
   )
 }

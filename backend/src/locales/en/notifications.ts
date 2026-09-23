@@ -1,5 +1,6 @@
 /** Messages EN des notifications in-app (§4/§5). Rendues dans la langue du DESTINATAIRE. */
 export const messages = {
+  'notifications.introuvable': 'Notification not found.',
   'notifications.versementRecu.titre': 'Payment recorded',
   'notifications.versementRecu.message':
     'Your payment of {montant} for year {annee} has been recorded.',

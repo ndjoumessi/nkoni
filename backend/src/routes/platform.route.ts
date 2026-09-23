@@ -8,17 +8,18 @@ import {
   definirStatutOrganisation,
   definirForfaitOrganisation,
   prolongerForfaitOrganisation,
-  OrganisationIntrouvableError,
-  ProlongationConcurrenteError,
-  ProlongationForfaitGratuitError,
 } from '../services/organisation.service'
-import { FORFAITS, PERIODES_PROLONGATION, type Forfait, type PeriodeProlongation } from '../lib/forfait'
+import {
+  FORFAITS,
+  PERIODES_PROLONGATION,
+  type Forfait,
+  type PeriodeProlongation,
+} from '../lib/forfait'
 import {
   assemblerExportOrganisation,
   collecterUrlsBlobs,
   supprimerDonneesOrganisation,
   purgerBlobs,
-  OrganisationNonSuspendueError,
 } from '../services/organisation-purge.service'
 import {
   journaliserActionPlateforme,
@@ -274,18 +275,14 @@ export const platformRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
         // Timeout large : le défaut Prisma (5 s) est très insuffisant sur un tenant réel et
         // échouerait en P2028 opaque, à mi-parcours d'une purge non rejouable.
         let compteurs: Record<string, number>
-        try {
-          compteurs = await app.prisma.$transaction(
-            (tx) => supprimerDonneesOrganisation(tx, id, utilisateurIds),
-            { timeout: 120_000, maxWait: 15_000 },
-          )
-        } catch (err) {
-          // Le service RELIT la précondition dans la transaction : un `/reactiver` concurrent,
-          // arrivé entre le contrôle ci-dessus et le commit, se rattrape ici — en 409 explicite
-          // et non en 500 (la transaction a été annulée, rien n'a été supprimé).
-          if (err instanceof OrganisationNonSuspendueError) return { statut: 409 as const }
-          throw err
-        }
+        // Le service RELIT la précondition dans la transaction : un `/reactiver` concurrent,
+        // arrivé entre le contrôle ci-dessus et le commit, lève `OrganisationNonSuspendueError`,
+        // que le gestionnaire global rend en 409 — même statut et même clé que la précondition
+        // vérifiée plus haut. La transaction a été annulée : rien n'a été supprimé.
+        compteurs = await app.prisma.$transaction(
+          (tx) => supprimerDonneesOrganisation(tx, id, utilisateurIds),
+          { timeout: 120_000, maxWait: 15_000 },
+        )
 
         // APRÈS le commit : les données sont parties, un échec de blob ne peut plus rien annuler.
         const blobs = await purgerBlobs(app.blob, urls)
@@ -455,48 +452,36 @@ export const platformRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
           message: t(langue, 'platform.prolongationValeursAttenduesManquantes'),
         })
       }
-      try {
-        // `runUnscoped` : flux plateforme sans contexte d'organisation (le journal lit `Utilisateur`,
-        // modèle scopé) — lecture de l'échéance, écriture conditionnelle et trace dans UN seul appel.
-        return await orgContext.runUnscoped(async () => {
-          const options: Parameters<typeof prolongerForfaitOrganisation>[3] = apercu
-            ? { apercu: true }
-            : {
-                apercu: false,
-                echeanceAttendue: req.body.echeanceAttendue ? new Date(req.body.echeanceAttendue) : null,
-                nouvelleEcheanceAttendue: new Date(req.body.nouvelleEcheanceAttendue as string),
-              }
-          const resultat = await prolongerForfaitOrganisation(app.prisma, req.params.id, req.body.mois, options)
-          if (!apercu) {
-            await journaliserBestEffort({
-              acteurId: req.user.sub ?? '',
-              action: 'PROLONGER_FORFAIT',
-              organisationCibleId: resultat.organisation.id,
-              organisationNom: resultat.organisation.nom,
-              donneesAvant: {
-                forfait: resultat.organisation.forfait,
-                forfaitExpireLe: resultat.echeanceActuelle?.toISOString() ?? null,
-              },
-              donneesApres: {
-                forfaitExpireLe: resultat.nouvelleEcheance.toISOString(),
-                mois: req.body.mois,
-              },
-            })
-          }
-          return resultat
-        })
-      } catch (err) {
-        if (err instanceof OrganisationIntrouvableError) {
-          return reply.code(404).send({ error: 'Not Found', message: t(langue, 'platform.organisationIntrouvable') })
+      // `runUnscoped` : flux plateforme sans contexte d'organisation (le journal lit `Utilisateur`,
+      // modèle scopé) — lecture de l'échéance, écriture conditionnelle et trace dans UN seul appel.
+      return await orgContext.runUnscoped(async () => {
+        const options: Parameters<typeof prolongerForfaitOrganisation>[3] = apercu
+          ? { apercu: true }
+          : {
+              apercu: false,
+              echeanceAttendue: req.body.echeanceAttendue ? new Date(req.body.echeanceAttendue) : null,
+              nouvelleEcheanceAttendue: new Date(req.body.nouvelleEcheanceAttendue as string),
+            }
+        const resultat = await prolongerForfaitOrganisation(app.prisma, req.params.id, req.body.mois, options)
+        if (!apercu) {
+          await journaliserBestEffort({
+            acteurId: req.user.sub ?? '',
+            action: 'PROLONGER_FORFAIT',
+            organisationCibleId: resultat.organisation.id,
+            organisationNom: resultat.organisation.nom,
+            donneesAvant: {
+              forfait: resultat.organisation.forfait,
+              forfaitExpireLe: resultat.echeanceActuelle?.toISOString() ?? null,
+            },
+            donneesApres: {
+              forfaitExpireLe: resultat.nouvelleEcheance.toISOString(),
+              mois: req.body.mois,
+            },
+          })
         }
-        if (err instanceof ProlongationForfaitGratuitError) {
-          return reply.code(409).send({ error: 'Conflict', message: t(langue, 'platform.prolongationForfaitGratuit') })
-        }
-        if (err instanceof ProlongationConcurrenteError) {
-          return reply.code(409).send({ error: 'Conflict', message: t(langue, 'platform.prolongationConcurrente') })
-        }
-        throw err
-      }
+        return resultat
+      })
+    
     },
   )
 }

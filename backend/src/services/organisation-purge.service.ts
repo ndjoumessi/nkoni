@@ -1,3 +1,4 @@
+import { ErreurMetier } from '../lib/erreur-metier'
 import { SCOPED_MODELS } from '../lib/tenant-extension'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -116,11 +117,14 @@ export const ORDRE_SUPPRESSION: readonly string[] = [
 export const MODELES_HORS_SCOPE = ['RefreshToken', 'Organisation'] as const
 
 /** Levée quand la purge est demandée sur une organisation encore active. → 409. */
-export class OrganisationNonSuspendueError extends Error {
+export class OrganisationNonSuspendueError extends ErreurMetier {
   readonly organisationId: string
   constructor(organisationId: string) {
-    super(`Organisation ${organisationId} encore active : suspendre avant de supprimer.`)
-    this.name = 'OrganisationNonSuspendueError'
+    super(
+      409,
+      'platform.organisationNonSuspendue',
+      `Organisation ${organisationId} encore active : suspendre avant de supprimer.`,
+    )
     this.organisationId = organisationId
   }
 }

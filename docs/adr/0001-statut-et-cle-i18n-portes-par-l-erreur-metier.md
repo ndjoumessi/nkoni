@@ -36,3 +36,34 @@ statut unique**, le mappage est donc une fonction de la classe et non du couple 
   personne : le client front ne lit que `message`, et aucun test ne l'affirme.
 - **Le compilateur ne ferme pas tout.** Écrire `extends Error` au lieu de `extends ErreurMetier`
   compile encore ; c'est un garde textuel, et non le typage, qui l'interdit.
+
+## Ce que l'exécution a démenti
+
+Le chantier est terminé : **75 classes** portent leur statut et leur clé, **19 modules route** ont
+perdu leur table de mappage, **11 copies** de `reply4xxSiMetier` ont disparu. Deux conséquences
+annoncées ci-dessus se sont révélées fausses à l'exécution, et il vaut mieux les corriger que les
+laisser induire en erreur un lecteur futur.
+
+- **`MembreIntrouvableError` n'a PAS été scindée.** La décision reposait sur une lecture par NOM.
+  Elle est en réalité **quatre classes homonymes distinctes** — `vote.service`, `utilisateur.service`,
+  `affectation.service`, `dashboard.service` — dont les statuts divergents (404 ici, 400 chez
+  `utilisateur`) étaient déjà portés par des types différents. Aucune scission n'était nécessaire,
+  et le même piège a failli jouer sur `FonctionIntrouvableError`, `ReunionIntrouvableError`,
+  `PointIntrouvableError` et `EmailDejaUtiliseError`. **Leçon : comparer des erreurs par leur nom
+  compte les homonymes comme un seul type.** L'identité se lit à l'import.
+
+- **Le champ `error` du corps de réponse n'a PAS disparu.** Le gestionnaire global le dérive du
+  statut (`STATUS_CODES[statutHttp]`). Le supprimer aurait été un changement de contrat gratuit ;
+  le dériver coûte une ligne et ne casse aucun client.
+
+**La vraie divergence était ailleurs, et une seule.** `VersementAvecRecuError` portait une classe
+pour deux refus : supprimer est bloqué par TOUT reçu, modifier seulement par un reçu ACTIF — que
+l'annulation débloque. Elle est devenue une base abstraite et deux sous-classes concrètes ; elle
+garde son nom, donc `instanceof` continue de reconnaître les deux et aucun test n'a été retouché.
+
+**Le filet se mesure AVANT, pas après.** Neutraliser les mappages restants et compter les tests qui
+tombent a chiffré le filet route par route — et montré que quatre modules (`amendes`, `cagnottes`,
+`dashboard`, et trois des quatre refus de `recus`) n'en avaient aucun. Ces filets ont été écrits
+contre le code NON migré, puis vérifiés par sabotage, avant que la migration ne commence. Un de ces
+tests s'est révélé **vacant** au passage : un « montant négatif → 400 » qu'ajv rejetait avant même
+d'atteindre le service. Il a été réétiqueté pour dire ce qu'il prouve vraiment.

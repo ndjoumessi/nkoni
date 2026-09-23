@@ -1,3 +1,4 @@
+import { ErreurMetier } from '../lib/erreur-metier'
 import { Prisma } from '../generated/prisma/client'
 import type { CreationScopee } from '../lib/tenant-extension'
 
@@ -15,19 +16,17 @@ import type { CreationScopee } from '../lib/tenant-extension'
 /* Erreurs métier (mappées en 4xx par la route)                               */
 /* -------------------------------------------------------------------------- */
 
-/** Réunion introuvable. → 404 */
-export class ReunionIntrouvableError extends Error {
+/** Réunion introuvable. */
+export class ReunionIntrouvableError extends ErreurMetier {
   constructor() {
-    super('Réunion introuvable.')
-    this.name = 'ReunionIntrouvableError'
+    super(404, 'reunions.introuvable', 'Réunion introuvable.')
   }
 }
 
-/** Point d'ordre du jour introuvable. → 404 */
-export class PointIntrouvableError extends Error {
+/** Point d'ordre du jour introuvable. */
+export class PointIntrouvableError extends ErreurMetier {
   constructor() {
-    super("Point d'ordre du jour introuvable.")
-    this.name = 'PointIntrouvableError'
+    super(404, 'reunions.pointIntrouvable', "Point d'ordre du jour introuvable.")
   }
 }
 
@@ -35,10 +34,13 @@ export class PointIntrouvableError extends Error {
  * Réordonnancement invalide : la liste d'ids fournie n'est pas exactement l'ensemble des
  * points de la réunion (id étranger, doublon ou point manquant). → 400
  */
-export class ReordonnancementInvalideError extends Error {
+export class ReordonnancementInvalideError extends ErreurMetier {
   constructor() {
-    super("La liste de réordonnancement doit contenir exactement les points de la réunion.")
-    this.name = 'ReordonnancementInvalideError'
+    super(
+      400,
+      'reunions.reordonnancementInvalide',
+      "La liste de réordonnancement doit contenir exactement les points de la réunion.",
+    )
   }
 }
 

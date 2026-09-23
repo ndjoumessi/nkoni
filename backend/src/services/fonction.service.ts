@@ -1,3 +1,4 @@
+import { ErreurMetier } from '../lib/erreur-metier'
 import { Prisma } from '../generated/prisma/client'
 import type { CreationScopee } from '../lib/tenant-extension'
 
@@ -13,19 +14,17 @@ import type { CreationScopee } from '../lib/tenant-extension'
 /* Erreurs métier (mappées en 4xx par la route)                               */
 /* -------------------------------------------------------------------------- */
 
-/** Fonction introuvable. → 404 */
-export class FonctionIntrouvableError extends Error {
+/** Fonction introuvable. */
+export class FonctionIntrouvableError extends ErreurMetier {
   constructor() {
-    super('Fonction introuvable.')
-    this.name = 'FonctionIntrouvableError'
+    super(404, 'fonctions.introuvable', 'Fonction introuvable.')
   }
 }
 
-/** Nom de fonction déjà utilisé (contrainte d'unicité). → 409 */
-export class FonctionNomDuplicateError extends Error {
+/** Nom de fonction déjà utilisé (contrainte d'unicité). */
+export class FonctionNomDuplicateError extends ErreurMetier {
   constructor() {
-    super('Une fonction porte déjà ce nom.')
-    this.name = 'FonctionNomDuplicateError'
+    super(409, 'fonctions.nomDuplique', 'Une fonction porte déjà ce nom.')
   }
 }
 

@@ -1,3 +1,4 @@
+import { ErreurMetier } from '../lib/erreur-metier'
 import { Prisma } from '../generated/prisma/client'
 import type { CreationScopee } from '../lib/tenant-extension'
 import { PLAFOND_OPTIONS_MEMBRES } from './membreStatut.service'
@@ -14,19 +15,17 @@ import { PLAFOND_OPTIONS_MEMBRES } from './membreStatut.service'
 /* Erreurs métier (mappées en 4xx par la route)                               */
 /* -------------------------------------------------------------------------- */
 
-/** Commémoration introuvable. → 404 */
-export class CommemorationIntrouvableError extends Error {
+/** Commémoration introuvable. */
+export class CommemorationIntrouvableError extends ErreurMetier {
   constructor() {
-    super('Commémoration introuvable.')
-    this.name = 'CommemorationIntrouvableError'
+    super(404, 'commemorations.introuvable', 'Commémoration introuvable.')
   }
 }
 
-/** Un id de membre concerné ne référence aucun membre. → 400 */
-export class MembreConcerneIntrouvableError extends Error {
+/** Un id de membre concerné ne référence aucun membre. */
+export class MembreConcerneIntrouvableError extends ErreurMetier {
   constructor() {
-    super('Un membre concerné est introuvable.')
-    this.name = 'MembreConcerneIntrouvableError'
+    super(400, 'commemorations.membreConcerneIntrouvable', 'Un membre concerné est introuvable.')
   }
 }
 

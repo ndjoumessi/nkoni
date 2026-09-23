@@ -15,6 +15,7 @@ import {
   type StatutMembreValue,
 } from '../services/membreStatut.service'
 import { resoudrePagination, PAGINATION_PROPS } from '../lib/pagination'
+import { QuotaMembresDepasseError } from '../services/capacites-organisation.service'
 import {
   analyserImport,
   executerImport,
@@ -213,16 +214,6 @@ function finContributionAuto(body: {
     return anneeCourante()
   }
   return undefined
-}
-
-/** Quota du forfait dépassé (levée DANS la transaction de création → mappée en 403 par la route). */
-class QuotaMembresDepasseError extends Error {
-  readonly plafond: number
-  constructor(plafond: number) {
-    super(`Plafond de membres du forfait atteint (${plafond}).`)
-    this.name = 'QuotaMembresDepasseError'
-    this.plafond = plafond
-  }
 }
 
 export const membresRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
@@ -434,12 +425,6 @@ export const membresRoutes: FastifyPluginAsync = async (app: FastifyInstance) =>
         })
         return reply.code(201).send(membre)
       } catch (err) {
-        if (err instanceof QuotaMembresDepasseError) {
-          return reply.code(403).send({
-            error: 'Forbidden',
-            message: t(langueDeRequete(req), 'membres.plafondPlanGratuit', { plafond: err.plafond }),
-          })
-        }
         // Course concurrente sur la MÊME clé (2 rejeus simultanés) → renvoyer l'existant. On
         // vérifie que le P2002 vient bien de l'unique (organisationId, idempotenceKey) : un
         // P2002 sur une AUTRE contrainte doit être relevé, pas avalé (sinon on re-fetch la
@@ -587,12 +572,6 @@ export const membresRoutes: FastifyPluginAsync = async (app: FastifyInstance) =>
           return tx.membre.update({ where: { id: req.params.id }, data })
         })
       } catch (err) {
-        if (err instanceof QuotaMembresDepasseError) {
-          return reply.code(403).send({
-            error: 'Forbidden',
-            message: t(langueDeRequete(req), 'membres.plafondPlanGratuit', { plafond: err.plafond }),
-          })
-        }
         if (
           err instanceof Prisma.PrismaClientKnownRequestError &&
           err.code === 'P2025'

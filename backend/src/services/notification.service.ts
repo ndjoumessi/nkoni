@@ -11,6 +11,7 @@
  * le scheduler ne parcourt que les membres à compte lié).
  */
 
+import { ErreurMetier } from '../lib/erreur-metier'
 import { t, formatMontant, type Langue, type Devise } from '../lib/i18n'
 import {
   notifierParPush,
@@ -50,11 +51,10 @@ export const TYPES_NOTIFICATION: TypeNotificationDesactivable[] = [
 export type PreferencesNotification = Record<TypeNotificationDesactivable, boolean>
 
 /** Levée quand la notification cible n'existe pas OU n'appartient pas au demandeur. */
-export class NotificationIntrouvableError extends Error {
+export class NotificationIntrouvableError extends ErreurMetier {
   readonly id: string
   constructor(id: string) {
-    super(`Notification ${id} introuvable.`)
-    this.name = 'NotificationIntrouvableError'
+    super(404, 'notifications.introuvable', `Notification ${id} introuvable.`)
     this.id = id
   }
 }

@@ -9,7 +9,6 @@ import {
   changerMotDePasse,
   definirLangue,
   langueEffective,
-  AncienMotDePasseIncorrectError,
 } from '../services/auth.service'
 import { chargerAccesOrganisation } from '../services/organisation.service'
 import { t, langueDeRequete } from '../lib/i18n'
@@ -320,27 +319,19 @@ export const authRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
           .send({ error: 'Unauthorized', message: t(langueDeRequete(req), 'commun.tokenInvalide') })
       }
       const { ancienMotDePasse, nouveauMotDePasse } = req.body
-      try {
-        // `runUnscoped` : opère sur le PROPRE compte (sub du JWT). Nécessaire pour un
-        // SUPER_ADMIN (sans contexte org, sinon fail-close sur Utilisateur scopé) ; sûr pour
-        // tous car keyé sur l'utilisateur authentifié.
-        await orgContext.runUnscoped(async () =>
-          changerMotDePasse(app.prisma, sub, ancienMotDePasse, nouveauMotDePasse),
-        )
-        // L'époque vient d'être incrémentée → l'ANCIEN refresh (celui de ce périphérique) est
-        // désormais périmé. On réémet une session pour le compte courant afin qu'il reste connecté
-        // (nouveau cookie refresh à la nouvelle époque) ; les AUTRES appareils restent invalidés.
-        const user = await orgContext.runUnscoped(async () => findUserById(app.prisma, sub))
-        if (user) await emettreSession(reply, user, false, { prisma: app.prisma })
-        return reply.code(204).send()
-      } catch (err) {
-        if (err instanceof AncienMotDePasseIncorrectError) {
-          return reply
-            .code(401)
-            .send({ error: 'Unauthorized', message: t(langueDeRequete(req), 'auth.ancienMotDePasseIncorrect') })
-        }
-        throw err
-      }
+      // `runUnscoped` : opère sur le PROPRE compte (sub du JWT). Nécessaire pour un
+      // SUPER_ADMIN (sans contexte org, sinon fail-close sur Utilisateur scopé) ; sûr pour
+      // tous car keyé sur l'utilisateur authentifié.
+      await orgContext.runUnscoped(async () =>
+        changerMotDePasse(app.prisma, sub, ancienMotDePasse, nouveauMotDePasse),
+      )
+      // L'époque vient d'être incrémentée → l'ANCIEN refresh (celui de ce périphérique) est
+      // désormais périmé. On réémet une session pour le compte courant afin qu'il reste connecté
+      // (nouveau cookie refresh à la nouvelle époque) ; les AUTRES appareils restent invalidés.
+      const user = await orgContext.runUnscoped(async () => findUserById(app.prisma, sub))
+      if (user) await emettreSession(reply, user, false, { prisma: app.prisma })
+      return reply.code(204).send()
+    
     },
   )
 }

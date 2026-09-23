@@ -1,8 +1,6 @@
 import type {
   FastifyInstance,
   FastifyPluginAsync,
-  FastifyReply,
-  FastifyRequest,
   preHandlerHookHandler,
 } from 'fastify'
 import { authenticate } from '../middlewares/authenticate'
@@ -11,10 +9,6 @@ import {
   creerUtilisateur,
   majUtilisateur,
   reinitialiserMotDePasse,
-  EmailDejaUtiliseError,
-  MembreIntrouvableError,
-  MembreDejaLieError,
-  UtilisateurIntrouvableError,
 } from '../services/utilisateur.service'
 import type { Role } from '../middlewares/permissions'
 import { t, langueDeRequete } from '../lib/i18n'
@@ -101,36 +95,6 @@ const requireAdmin: preHandlerHookHandler = async (req, reply) => {
   }
 }
 
-/**
- * Mappe les erreurs métier du service en réponses 4xx explicites ; relance le reste.
- * Messages traduits (§4) par TYPE d'erreur dans la langue du demandeur — le service reste
- * i18n-agnostique (il porte les données, ex. `email`/`membreId`, pas la langue).
- */
-function reply4xxSiMetier(err: unknown, reply: FastifyReply, req: FastifyRequest): boolean {
-  const langue = langueDeRequete(req)
-  if (err instanceof EmailDejaUtiliseError) {
-    reply
-      .code(409)
-      .send({ error: 'Conflict', message: t(langue, 'utilisateurs.emailDejaUtilise', { email: err.email }) })
-    return true
-  }
-  if (err instanceof MembreDejaLieError) {
-    reply.code(409).send({ error: 'Conflict', message: t(langue, 'utilisateurs.membreDejaLie') })
-    return true
-  }
-  if (err instanceof MembreIntrouvableError) {
-    reply
-      .code(400)
-      .send({ error: 'Bad Request', message: t(langue, 'utilisateurs.membreIntrouvable', { membreId: err.membreId }) })
-    return true
-  }
-  if (err instanceof UtilisateurIntrouvableError) {
-    reply.code(404).send({ error: 'Not Found', message: t(langue, 'utilisateurs.introuvable') })
-    return true
-  }
-  return false
-}
-
 export const utilisateursRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
   // GET /utilisateurs — ADMIN.
   app.get(
@@ -144,19 +108,15 @@ export const utilisateursRoutes: FastifyPluginAsync = async (app: FastifyInstanc
     '/utilisateurs',
     { schema: createSchema, preHandler: [authenticate, requireAdmin] },
     async (req, reply) => {
-      try {
-        const { email, password, role, membreId } = req.body
-        const cree = await creerUtilisateur(app.prisma, {
-          email,
-          password,
-          role,
-          ...(membreId !== undefined ? { membreId } : {}),
-        })
-        return reply.code(201).send(cree)
-      } catch (err) {
-        if (reply4xxSiMetier(err, reply, req)) return
-        throw err
-      }
+      const { email, password, role, membreId } = req.body
+      const cree = await creerUtilisateur(app.prisma, {
+        email,
+        password,
+        role,
+        ...(membreId !== undefined ? { membreId } : {}),
+      })
+      return reply.code(201).send(cree)
+    
     },
   )
 
@@ -176,15 +136,11 @@ export const utilisateursRoutes: FastifyPluginAsync = async (app: FastifyInstanc
         })
       }
 
-      try {
-        return await majUtilisateur(app.prisma, req.params.id, {
-          ...(role !== undefined ? { role } : {}),
-          ...(actif !== undefined ? { actif } : {}),
-        })
-      } catch (err) {
-        if (reply4xxSiMetier(err, reply, req)) return
-        throw err
-      }
+      return await majUtilisateur(app.prisma, req.params.id, {
+        ...(role !== undefined ? { role } : {}),
+        ...(actif !== undefined ? { actif } : {}),
+      })
+    
     },
   )
 
@@ -195,13 +151,9 @@ export const utilisateursRoutes: FastifyPluginAsync = async (app: FastifyInstanc
     '/utilisateurs/:id/mot-de-passe',
     { schema: resetPasswordSchema, preHandler: [authenticate, requireAdmin] },
     async (req, reply) => {
-      try {
-        await reinitialiserMotDePasse(app.prisma, req.params.id, req.body.nouveauMotDePasse)
-        return reply.code(204).send()
-      } catch (err) {
-        if (reply4xxSiMetier(err, reply, req)) return
-        throw err
-      }
+      await reinitialiserMotDePasse(app.prisma, req.params.id, req.body.nouveauMotDePasse)
+      return reply.code(204).send()
+    
     },
   )
 }

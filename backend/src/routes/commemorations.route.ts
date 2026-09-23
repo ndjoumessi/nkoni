@@ -1,7 +1,7 @@
-import type { FastifyInstance, FastifyPluginAsync, FastifyReply } from 'fastify'
+import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
 import { authenticate } from '../middlewares/authenticate'
 import { requirePermission } from '../middlewares/permissions'
-import { t, langueDeRequete } from '../lib/i18n'
+import { t } from '../lib/i18n'
 import {
   listerCommemorations,
   listerMembresSelectionnables,
@@ -9,8 +9,6 @@ import {
   creerCommemoration,
   majCommemoration,
   supprimerCommemoration,
-  CommemorationIntrouvableError,
-  MembreConcerneIntrouvableError,
 } from '../services/commemoration.service'
 
 /**
@@ -66,22 +64,6 @@ const updateSchema = {
   },
 } as const
 
-/** Mappe les erreurs métier du service en réponses 4xx ; renvoie true si traité. */
-function reply4xxSiMetier(err: unknown, reply: FastifyReply): boolean {
-  const langue = langueDeRequete(reply.request)
-  if (err instanceof CommemorationIntrouvableError) {
-    reply.code(404).send({ error: 'Not Found', message: t(langue, 'commemorations.introuvable') })
-    return true
-  }
-  if (err instanceof MembreConcerneIntrouvableError) {
-    reply
-      .code(400)
-      .send({ error: 'Bad Request', message: t(langue, 'commemorations.membreConcerneIntrouvable') })
-    return true
-  }
-  return false
-}
-
 export const commemorationsRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
   const perm = (action: 'create' | 'read' | 'update' | 'delete') =>
     requirePermission('Commemoration', action)
@@ -106,12 +88,8 @@ export const commemorationsRoutes: FastifyPluginAsync = async (app: FastifyInsta
     '/commemorations/:id',
     { preHandler: [authenticate, perm('read')] },
     async (req, reply) => {
-      try {
-        return await getCommemoration(app.prisma, req.params.id)
-      } catch (err) {
-        if (reply4xxSiMetier(err, reply)) return
-        throw err
-      }
+      return await getCommemoration(app.prisma, req.params.id)
+    
     },
   )
 
@@ -120,14 +98,10 @@ export const commemorationsRoutes: FastifyPluginAsync = async (app: FastifyInsta
     '/commemorations',
     { schema: createSchema, preHandler: [authenticate, perm('create')] },
     async (req, reply) => {
-      try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const cree = await creerCommemoration(app.prisma, req.body as any)
-        return reply.code(201).send(cree)
-      } catch (err) {
-        if (reply4xxSiMetier(err, reply)) return
-        throw err
-      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const cree = await creerCommemoration(app.prisma, req.body as any)
+      return reply.code(201).send(cree)
+    
     },
   )
 
@@ -136,13 +110,9 @@ export const commemorationsRoutes: FastifyPluginAsync = async (app: FastifyInsta
     '/commemorations/:id',
     { schema: updateSchema, preHandler: [authenticate, perm('update')] },
     async (req, reply) => {
-      try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return await majCommemoration(app.prisma, req.params.id, req.body as any)
-      } catch (err) {
-        if (reply4xxSiMetier(err, reply)) return
-        throw err
-      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return await majCommemoration(app.prisma, req.params.id, req.body as any)
+    
     },
   )
 
@@ -151,13 +121,9 @@ export const commemorationsRoutes: FastifyPluginAsync = async (app: FastifyInsta
     '/commemorations/:id',
     { preHandler: [authenticate, perm('delete')] },
     async (req, reply) => {
-      try {
-        await supprimerCommemoration(app.prisma, req.params.id)
-        return reply.code(204).send()
-      } catch (err) {
-        if (reply4xxSiMetier(err, reply)) return
-        throw err
-      }
+      await supprimerCommemoration(app.prisma, req.params.id)
+      return reply.code(204).send()
+    
     },
   )
 }

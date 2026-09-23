@@ -1,16 +1,12 @@
-import type { FastifyInstance, FastifyPluginAsync, FastifyReply } from 'fastify'
+import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
 import { authenticate } from '../middlewares/authenticate'
 import { requirePermission } from '../middlewares/permissions'
-import { t, langueDeRequete } from '../lib/i18n'
+import { t } from '../lib/i18n'
 import {
   listerResolutions,
   creerResolution,
   majResolution,
   supprimerResolution,
-  ResolutionIntrouvableError,
-  ReunionIntrouvableError,
-  PointIntrouvableError,
-  PointHorsReunionError,
 } from '../services/resolution.service'
 
 /**
@@ -56,34 +52,6 @@ const updateResolutionSchema = {
   },
 } as const
 
-/** Mappe les erreurs métier du service en réponses 4xx ; renvoie true si traité. */
-function reply4xxSiMetier(err: unknown, reply: FastifyReply): boolean {
-  const langue = langueDeRequete(reply.request)
-  if (err instanceof ResolutionIntrouvableError) {
-    reply.code(404).send({ error: 'Not Found', message: t(langue, 'resolutions.introuvable') })
-    return true
-  }
-  if (err instanceof ReunionIntrouvableError) {
-    reply
-      .code(404)
-      .send({ error: 'Not Found', message: t(langue, 'resolutions.reunionIntrouvable') })
-    return true
-  }
-  if (err instanceof PointIntrouvableError) {
-    reply
-      .code(404)
-      .send({ error: 'Not Found', message: t(langue, 'resolutions.pointIntrouvable') })
-    return true
-  }
-  if (err instanceof PointHorsReunionError) {
-    reply
-      .code(400)
-      .send({ error: 'Bad Request', message: t(langue, 'resolutions.pointHorsReunion') })
-    return true
-  }
-  return false
-}
-
 export const resolutionsRoutes: FastifyPluginAsync = async (app: FastifyInstance) => {
   const perm = (action: 'create' | 'read' | 'update' | 'delete') =>
     requirePermission('Resolution', action)
@@ -100,14 +68,10 @@ export const resolutionsRoutes: FastifyPluginAsync = async (app: FastifyInstance
     '/reunions/:reunionId/resolutions',
     { schema: createResolutionSchema, preHandler: [authenticate, perm('create')] },
     async (req, reply) => {
-      try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const cree = await creerResolution(app.prisma, req.params.reunionId, req.body as any)
-        return reply.code(201).send(cree)
-      } catch (err) {
-        if (reply4xxSiMetier(err, reply)) return
-        throw err
-      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const cree = await creerResolution(app.prisma, req.params.reunionId, req.body as any)
+      return reply.code(201).send(cree)
+    
     },
   )
 
@@ -116,13 +80,9 @@ export const resolutionsRoutes: FastifyPluginAsync = async (app: FastifyInstance
     '/resolutions/:id',
     { schema: updateResolutionSchema, preHandler: [authenticate, perm('update')] },
     async (req, reply) => {
-      try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return await majResolution(app.prisma, req.params.id, req.body as any)
-      } catch (err) {
-        if (reply4xxSiMetier(err, reply)) return
-        throw err
-      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return await majResolution(app.prisma, req.params.id, req.body as any)
+    
     },
   )
 
@@ -131,13 +91,9 @@ export const resolutionsRoutes: FastifyPluginAsync = async (app: FastifyInstance
     '/resolutions/:id',
     { preHandler: [authenticate, perm('delete')] },
     async (req, reply) => {
-      try {
-        await supprimerResolution(app.prisma, req.params.id)
-        return reply.code(204).send()
-      } catch (err) {
-        if (reply4xxSiMetier(err, reply)) return
-        throw err
-      }
+      await supprimerResolution(app.prisma, req.params.id)
+      return reply.code(204).send()
+    
     },
   )
 }

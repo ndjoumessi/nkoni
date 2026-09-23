@@ -1,4 +1,5 @@
 import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
+import { membreDuCompte } from '../lib/portee-lecteur'
 import { authenticate } from '../middlewares/authenticate'
 import { requireRoles, ROLES_BUREAU } from '../middlewares/permissions'
 import { orgContext } from '../lib/org-context'
@@ -209,7 +210,7 @@ export const cartesRoutes: FastifyPluginAsync = async (app: FastifyInstance) => 
   // liée → 404 (aucune fuite d'existence).
   app.get('/moi/carte', { preHandler: [authenticate] }, async (req, reply) => {
     const membre = await app.prisma.membre.findFirst({
-      where: { compteUtilisateurId: req.user.sub ?? '' },
+      where: membreDuCompte(req.user.sub),
       select: { id: true },
     })
     if (!membre) return reply.code(404).send({ error: 'Not Found' })
@@ -237,7 +238,7 @@ export const cartesRoutes: FastifyPluginAsync = async (app: FastifyInstance) => 
   // l'export officiel imprimable. Aucun montant. Résolu depuis le compte, 404 sans fiche liée.
   app.get('/moi/carte-apercu', { preHandler: [authenticate] }, async (req, reply) => {
     const membre = await app.prisma.membre.findFirst({
-      where: { compteUtilisateurId: req.user.sub ?? '' },
+      where: membreDuCompte(req.user.sub),
       select: { id: true, photoBlobUrl: true },
     })
     if (!membre) return reply.code(404).send({ error: 'Not Found' })

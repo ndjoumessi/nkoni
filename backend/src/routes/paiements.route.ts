@@ -1,4 +1,5 @@
 import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
+import { membreDuCompte } from '../lib/portee-lecteur'
 import { authenticate } from '../middlewares/authenticate'
 import { orgContext } from '../lib/org-context'
 import { env } from '../lib/env'
@@ -30,7 +31,7 @@ export const paiementsRoutes: FastifyPluginAsync = async (app: FastifyInstance) 
   /** Fiche du compte connecté (scopée). */
   const ficheDe = async (sub: string | undefined) => {
     if (!sub) return null
-    return app.prisma.membre.findFirst({ where: { compteUtilisateurId: sub }, select: { id: true } })
+    return app.prisma.membre.findFirst({ where: membreDuCompte(sub), select: { id: true } })
   }
 
   // POST /moi/paiements — le membre règle une de SES contributions.

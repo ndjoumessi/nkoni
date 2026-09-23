@@ -1,4 +1,5 @@
 import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
+import { exigerPortee } from '../lib/portee-lecteur'
 import { authenticate } from '../middlewares/authenticate'
 import { requirePermission } from '../middlewares/permissions'
 import { t, langueDeRequete } from '../lib/i18n'
@@ -68,9 +69,7 @@ export const membrePhotoRoutes: FastifyPluginAsync = async (app: FastifyInstance
         select: { photoBlobUrl: true, photoMime: true, compteUtilisateurId: true },
       })
       if (!membre) return reply.code(404).send({ error: 'Not Found', message: t(langueDeRequete(req), 'photoMembre.introuvable') })
-      if (req.user.role === 'MEMBRE_SIMPLE' && membre.compteUtilisateurId !== req.user.sub) {
-        return reply.code(404).send({ error: 'Not Found', message: t(langueDeRequete(req), 'photoMembre.introuvable') })
-      }
+      exigerPortee(req.user, membre.compteUtilisateurId, 'photoMembre.introuvable')
       if (!membre.photoBlobUrl) {
         return reply.code(404).send({ error: 'Not Found', message: t(langueDeRequete(req), 'photoMembre.aucunePhoto') })
       }

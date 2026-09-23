@@ -135,13 +135,14 @@ describe('Routes Contributions (§5 points 4-5)', () => {
     expect(res.statusCode).toBe(200)
   })
 
-  it('MEMBRE_SIMPLE ne peut PAS consulter le statut d’un autre (403)', async () => {
+  it('MEMBRE_SIMPLE ne peut PAS consulter le statut d’un autre — 404, pas de fuite d’existence', async () => {
+    // Anciennement 403 : cf. `lib/portee-lecteur.ts`, le refus est désormais uniforme.
     const res = await app.inject({
       method: 'GET',
       url: '/membres/m2/statut',
       headers: auth('MEMBRE_SIMPLE', 'u-simple'),
     })
-    expect(res.statusCode).toBe(403)
+    expect(res.statusCode).toBe(404)
   })
 
   it('GET /contributions : MEMBRE_SIMPLE ne voit que les siennes', async () => {

@@ -6,5 +6,4 @@ export const messages = {
   'contributions.membreNonEligible':
     "Ce membre n'est pas éligible à la contribution de l'année {annee} (hors de sa période d'adhésion).",
   'contributions.membreIntrouvable': 'Membre introuvable.',
-  'contributions.accesStatutLimite': 'Accès limité à votre propre statut.',
 } as const

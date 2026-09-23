@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyPluginAsync, FastifyReply } from 'fastify'
 import { Prisma } from '../generated/prisma/client'
 import { estConflitIdempotence } from '../lib/idempotence'
+import { exigerPortee, porteeMembre, membreDuCompte } from '../lib/portee-lecteur'
 import type { CreationScopee } from '../lib/tenant-extension'
 import { authenticate } from '../middlewares/authenticate'
 import { requirePermission } from '../middlewares/permissions'
@@ -227,7 +228,7 @@ export const membresRoutes: FastifyPluginAsync = async (app: FastifyInstance) =>
     async (req) => {
       if (req.user.role === 'MEMBRE_SIMPLE') {
         return app.prisma.membre.findMany({
-          where: { compteUtilisateurId: req.user.sub ?? '' },
+          where: membreDuCompte(req.user.sub),
           orderBy: [{ nom: 'asc' }, { prenom: 'asc' }],
         })
       }
@@ -244,10 +245,7 @@ export const membresRoutes: FastifyPluginAsync = async (app: FastifyInstance) =>
     '/membres/statuts',
     { preHandler: [authenticate, perm('read')] },
     async (req) => {
-      const where =
-        req.user.role === 'MEMBRE_SIMPLE'
-          ? { compteUtilisateurId: req.user.sub ?? '' }
-          : undefined
+      const where = porteeMembre(req.user)
       // Réponse BORNÉE (audit m4) : { items, total, tronque }. `tronque` = plus de membres que le
       // plafond → l'analyse du dashboard le signale. Aucune org réelle ne l'atteint aujourd'hui.
       return calculerStatutsMembres(app.prisma, anneeCourante(), where, PLAFOND_STATUTS_MEMBRES)
@@ -262,10 +260,7 @@ export const membresRoutes: FastifyPluginAsync = async (app: FastifyInstance) =>
     '/membres/statuts/analyse',
     { preHandler: [authenticate, perm('read')] },
     async (req) => {
-      const where =
-        req.user.role === 'MEMBRE_SIMPLE'
-          ? { compteUtilisateurId: req.user.sub ?? '' }
-          : undefined
+      const where = porteeMembre(req.user)
       return calculerAnalyseMembres(app.prisma, anneeCourante(), where)
     },
   )
@@ -306,10 +301,7 @@ export const membresRoutes: FastifyPluginAsync = async (app: FastifyInstance) =>
       },
     },
     async (req) => {
-      const where =
-        req.user.role === 'MEMBRE_SIMPLE'
-          ? { compteUtilisateurId: req.user.sub ?? '' }
-          : undefined
+      const where = porteeMembre(req.user)
       const { page, pageSize } = resoudrePagination(req.query)
       return calculerStatutsMembresPage(app.prisma, anneeCourante(), {
         where,
@@ -332,10 +324,7 @@ export const membresRoutes: FastifyPluginAsync = async (app: FastifyInstance) =>
     '/membres/options',
     { preHandler: [authenticate, perm('read')] },
     async (req) => {
-      const where =
-        req.user.role === 'MEMBRE_SIMPLE'
-          ? { compteUtilisateurId: req.user.sub ?? '' }
-          : undefined
+      const where = porteeMembre(req.user)
       return listerOptionsMembres(app.prisma, where)
     },
   )
@@ -353,15 +342,9 @@ export const membresRoutes: FastifyPluginAsync = async (app: FastifyInstance) =>
           .code(404)
           .send({ error: 'Not Found', message: t(langueDeRequete(req), 'membres.introuvable') })
       }
-      if (
-        req.user.role === 'MEMBRE_SIMPLE' &&
-        membre.compteUtilisateurId !== req.user.sub
-      ) {
-        return reply.code(403).send({
-          error: 'Forbidden',
-          message: t(langueDeRequete(req), 'membres.accesLimiteFiche'),
-        })
-      }
+      // 404 et non 403 : distinguer « existe mais pas à toi » d'« introuvable » permettait
+      // d'énumérer les identifiants des autres membres (cf. `lib/portee-lecteur.ts`).
+      exigerPortee(req.user, membre.compteUtilisateurId, 'membres.introuvable')
       return membre
     },
   )

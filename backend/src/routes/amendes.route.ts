@@ -1,4 +1,5 @@
 import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
+import { porteeViaMembre } from '../lib/portee-lecteur'
 import { Prisma } from '../generated/prisma/client'
 import type { CreationScopee } from '../lib/tenant-extension'
 import { authenticate } from '../middlewares/authenticate'
@@ -105,9 +106,7 @@ export const amendesRoutes: FastifyPluginAsync = async (app: FastifyInstance) =>
     async (req) => {
       const whereBase: Prisma.AmendeWhereInput = {}
       if (req.query.membreId) whereBase.membreId = req.query.membreId
-      if (req.user.role === 'MEMBRE_SIMPLE') {
-        whereBase.membre = { compteUtilisateurId: req.user.sub ?? '' }
-      }
+      Object.assign(whereBase, porteeViaMembre(req.user) ?? {})
       const where: Prisma.AmendeWhereInput = { ...whereBase }
       if (req.query.statut) where.statut = req.query.statut
 

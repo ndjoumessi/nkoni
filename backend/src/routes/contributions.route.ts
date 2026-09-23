@@ -1,4 +1,5 @@
 import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
+import { exigerPortee, porteeViaMembre } from '../lib/portee-lecteur'
 import { Prisma } from '../generated/prisma/client'
 import { t, langueDeRequete } from '../lib/i18n'
 import { authenticate } from '../middlewares/authenticate'
@@ -94,10 +95,8 @@ export const contributionsRoutes: FastifyPluginAsync = async (
       const where: Prisma.ContributionWhereInput = {}
       if (req.query.membreId !== undefined) where.membreId = req.query.membreId
       if (req.query.annee !== undefined) where.annee = req.query.annee
-      if (req.user.role === 'MEMBRE_SIMPLE') {
-        // Restreint aux contributions dont le membre est rattaché à ce compte.
-        where.membre = { compteUtilisateurId: req.user.sub ?? '' }
-      }
+      // Restreint aux contributions dont le membre est rattaché à ce compte (lecteur borné).
+      Object.assign(where, porteeViaMembre(req.user) ?? {})
       return app.prisma.contribution.findMany({
         where,
         orderBy: { annee: 'asc' },
@@ -125,15 +124,7 @@ export const contributionsRoutes: FastifyPluginAsync = async (
           message: t(langueDeRequete(req), 'contributions.membreIntrouvable'),
         })
       }
-      if (
-        req.user.role === 'MEMBRE_SIMPLE' &&
-        membre.compteUtilisateurId !== req.user.sub
-      ) {
-        return reply.code(403).send({
-          error: 'Forbidden',
-          message: t(langueDeRequete(req), 'contributions.accesStatutLimite'),
-        })
-      }
+      exigerPortee(req.user, membre.compteUtilisateurId, 'membres.introuvable')
 
       const [baremes, contributions] = await Promise.all([
         app.prisma.baremeAnnuel.findMany({ select: { annee: true, montantAttendu: true } }),

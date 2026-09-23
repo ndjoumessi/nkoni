@@ -1,4 +1,5 @@
 import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
+import { porteeViaMembre } from '../lib/portee-lecteur'
 import { Prisma } from '../generated/prisma/client'
 import { t, langueDeRequete } from '../lib/i18n'
 import { estConflitIdempotence } from '../lib/idempotence'
@@ -198,12 +199,9 @@ export const versementsRoutes: FastifyPluginAsync = async (
       if (req.query.contributionId !== undefined) {
         where.contributionId = req.query.contributionId
       }
-      if (req.user.role === 'MEMBRE_SIMPLE') {
-        // Versements dont la contribution appartient à un membre rattaché à ce compte.
-        where.contribution = {
-          membre: { compteUtilisateurId: req.user.sub ?? '' },
-        }
-      }
+      // Versements dont la contribution appartient à un membre rattaché à ce compte.
+      const portee = porteeViaMembre(req.user)
+      if (portee) where.contribution = portee
       return app.prisma.versement.findMany({
         where,
         orderBy: { dateVersement: 'desc' },

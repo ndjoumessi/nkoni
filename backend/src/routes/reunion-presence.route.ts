@@ -1,4 +1,5 @@
 import type { FastifyInstance, FastifyPluginAsync } from 'fastify'
+import { membreDuCompte } from '../lib/portee-lecteur'
 import { authenticate } from '../middlewares/authenticate'
 import { requirePermission } from '../middlewares/permissions'
 import { t, langueDeRequete } from '../lib/i18n'
@@ -44,7 +45,7 @@ export const reunionPresenceRoutes: FastifyPluginAsync = async (app: FastifyInst
     { preHandler: [authenticate], schema: { body: rsvpSchema } },
     async (req, reply) => {
       const membre = await app.prisma.membre.findFirst({
-        where: { compteUtilisateurId: req.user.sub as string },
+        where: membreDuCompte(req.user.sub),
         select: { id: true },
       })
       if (!membre) {

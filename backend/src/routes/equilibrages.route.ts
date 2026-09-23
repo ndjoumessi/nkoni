@@ -6,9 +6,6 @@ import {
   simulerEquilibrage,
   appliquerEquilibrage,
   listerEquilibrages,
-  EquilibragePlageInvalideError,
-  EquilibrageAnneeManquanteError,
-  EquilibrageSommeInvalideError,
 } from '../services/equilibrage.service'
 
 /**
@@ -73,54 +70,6 @@ const listQuerySchema = {
   },
 } as const
 
-/**
- * Mappe les erreurs métier de l'équilibrage en 400 explicite (message i18n dans la langue
- * du destinataire, §4) ; relance le reste. Le service reste i18n-agnostique : on mappe par
- * TYPE d'erreur et on ré-interpole ici via `t()`.
- */
-function reply400SiMetier(
-  err: unknown,
-  req: import('fastify').FastifyRequest,
-  reply: import('fastify').FastifyReply,
-): boolean {
-  const langue = langueDeRequete(req)
-  if (err instanceof EquilibragePlageInvalideError) {
-    reply.code(400).send({
-      error: 'Bad Request',
-      message: t(langue, 'equilibrages.plageInvalide', {
-        anneeDebut: err.anneeDebut,
-        anneeFin: err.anneeFin,
-      }),
-    })
-    return true
-  }
-  if (err instanceof EquilibrageAnneeManquanteError) {
-    reply.code(400).send({
-      error: 'Bad Request',
-      message: t(langue, 'equilibrages.anneeManquante', { annee: err.annee }),
-    })
-    return true
-  }
-  if (err instanceof EquilibrageSommeInvalideError) {
-    // Deux variantes : nombre de montants ≠ nombre d'années (contexte présent) vs somme ≠ total.
-    const message =
-      err.nombreAnnees !== undefined
-        ? t(langue, 'equilibrages.nombreMontantsInvalide', {
-            nombreAnnees: err.nombreAnnees,
-            anneeDebut: err.anneeDebut!,
-            anneeFin: err.anneeFin!,
-            nombreFournis: err.nombreFournis!,
-          })
-        : t(langue, 'equilibrages.sommeInvalide', {
-            sommeAjustee: err.sommeAjustee,
-            totalPeriode: err.totalPeriode,
-          })
-    reply.code(400).send({ error: 'Bad Request', message })
-    return true
-  }
-  return false
-}
-
 export const equilibragesRoutes: FastifyPluginAsync = async (
   app: FastifyInstance,
 ) => {
@@ -132,12 +81,7 @@ export const equilibragesRoutes: FastifyPluginAsync = async (
       preHandler: [authenticate, requirePermission('Equilibrage', 'create')],
     },
     async (req, reply) => {
-      try {
-        return await simulerEquilibrage(app.prisma, req.body)
-      } catch (err) {
-        if (reply400SiMetier(err, req, reply)) return
-        throw err
-      }
+      return await simulerEquilibrage(app.prisma, req.body)
     },
   )
 
@@ -150,20 +94,15 @@ export const equilibragesRoutes: FastifyPluginAsync = async (
     },
     async (req, reply) => {
       const { membreId, anneeDebut, anneeFin, montantsAjustes } = req.body
-      try {
-        // `exactOptionalPropertyTypes` : n'ajoute la clé que si réellement fournie.
-        const result = await appliquerEquilibrage(app.prisma, {
-          membreId,
-          anneeDebut,
-          anneeFin,
-          auteurId: req.user.sub ?? '',
-          ...(montantsAjustes !== undefined ? { montantsAjustes } : {}),
-        })
-        return reply.code(201).send(result)
-      } catch (err) {
-        if (reply400SiMetier(err, req, reply)) return
-        throw err
-      }
+      // `exactOptionalPropertyTypes` : n'ajoute la clé que si réellement fournie.
+      const result = await appliquerEquilibrage(app.prisma, {
+        membreId,
+        anneeDebut,
+        anneeFin,
+        auteurId: req.user.sub ?? '',
+        ...(montantsAjustes !== undefined ? { montantsAjustes } : {}),
+      })
+      return reply.code(201).send(result)
     },
   )
 

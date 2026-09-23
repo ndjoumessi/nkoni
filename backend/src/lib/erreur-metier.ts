@@ -21,8 +21,14 @@ import type { CleMessage } from '../locales/fr'
  * les forcer dans un moule HTTP leur donnerait un statut qui ne veut rien dire.
  */
 export abstract class ErreurMetier extends Error {
-  /** Statut HTTP du refus. Toujours 4xx : un 5xx n'est pas un refus mais une panne. */
-  readonly statut: number
+  /**
+   * Statut HTTP du refus. Toujours 4xx : un 5xx n'est pas un refus mais une panne.
+   *
+   * Nommé `statutHttp` et non `statut` : « statut » est un mot du DOMAINE ici (StatutDepense,
+   * StatutResolution, statutCotisation…), et une sous-classe qui porte le sien entrerait en
+   * collision avec celui de la base — le compilateur l'a montré sur `DepenseNonEditableError`.
+   */
+  readonly statutHttp: number
   /** Clé du message rendu à l'utilisateur. Typée : une clé inexistante ne compile pas. */
   readonly cleMessage: CleMessage
 
@@ -30,11 +36,11 @@ export abstract class ErreurMetier extends Error {
    * @param messageDev message technique, pour les logs et le débogage. **Jamais renvoyé au
    * client** — c'est `cleMessage` qui sert à ça, traduit dans la langue du lecteur.
    */
-  constructor(statut: number, cleMessage: CleMessage, messageDev: string) {
+  constructor(statutHttp: number, cleMessage: CleMessage, messageDev: string) {
     super(messageDev)
     // `new.target` : le nom de la sous-classe réellement construite, sans avoir à le recopier.
     this.name = new.target.name
-    this.statut = statut
+    this.statutHttp = statutHttp
     this.cleMessage = cleMessage
   }
 

@@ -5,6 +5,7 @@
  * défaut passe par le fuseau applicatif (`lib/date-app.ts`), jamais par le fuseau du process.
  */
 
+import { ErreurMetier } from '../lib/erreur-metier'
 import { anneeCouranteApp } from '../lib/date-app'
 
 /** Surface minimale de Prisma utilisée par ouvrirAnnee (mockable). */
@@ -26,12 +27,15 @@ export interface OuvrirAnneePrisma {
 }
 
 /** Levée quand aucun BaremeAnnuel n'existe pour l'année demandée. */
-export class BaremeIntrouvableError extends Error {
+export class BaremeIntrouvableError extends ErreurMetier {
   readonly annee: number
   constructor(annee: number) {
-    super(`Aucun barème n'est configuré pour l'année ${annee}.`)
-    this.name = 'BaremeIntrouvableError'
+    super(400, 'contributions.baremeIntrouvable', `Aucun barème n'est configuré pour l'année ${annee}.`)
     this.annee = annee
+  }
+
+  override parametres(): Record<string, number> {
+    return { annee: this.annee }
   }
 }
 
@@ -42,22 +46,28 @@ export class BaremeIntrouvableError extends Error {
  * reçu serait alors invisible dans les totaux du membre. Configurer le BARÈME d'une année future
  * reste permis ; c'est son OUVERTURE qui attend l'échéance.
  */
-export class AnneeFutureError extends Error {
+export class AnneeFutureError extends ErreurMetier {
   readonly annee: number
   constructor(annee: number) {
-    super(`L'année ${annee} n'est pas encore ouverte à la contribution.`)
-    this.name = 'AnneeFutureError'
+    super(400, 'contributions.anneeFuture', `L'année ${annee} n'est pas encore ouverte à la contribution.`)
     this.annee = annee
+  }
+
+  override parametres(): Record<string, number> {
+    return { annee: this.annee }
   }
 }
 
 /** Levée quand l'année est hors de la fenêtre d'adhésion du membre (statut NON pris en compte). */
-export class MembreNonEligibleError extends Error {
+export class MembreNonEligibleError extends ErreurMetier {
   readonly annee: number
   constructor(annee: number) {
-    super(`Le membre n'est pas éligible à la contribution de l'année ${annee}.`)
-    this.name = 'MembreNonEligibleError'
+    super(400, 'contributions.membreNonEligible', `Le membre n'est pas éligible à la contribution de l'année ${annee}.`)
     this.annee = annee
+  }
+
+  override parametres(): Record<string, number> {
+    return { annee: this.annee }
   }
 }
 

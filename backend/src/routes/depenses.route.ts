@@ -11,7 +11,6 @@ import {
   validerTransition,
   estEditable,
   DepenseIntrouvableError,
-  TransitionDepenseInvalideError,
   DepenseNonEditableError,
   type StatutDepense,
 } from '../services/tresorerie.service'
@@ -98,23 +97,6 @@ interface CreateBody {
 type UpdateBody = Partial<CreateBody>
 
 /** Mappe une erreur métier typée → réponse HTTP traduite. Retourne true si gérée. */
-function reply4xx(err: unknown, reply: FastifyReply): boolean {
-  const langue = langueDeRequete(reply.request)
-  if (err instanceof DepenseIntrouvableError) {
-    reply.code(404).send({ error: 'Not Found', message: t(langue, 'tresorerie.introuvable') })
-    return true
-  }
-  if (err instanceof TransitionDepenseInvalideError) {
-    reply.code(409).send({ error: 'Conflict', message: t(langue, 'tresorerie.transitionInvalide') })
-    return true
-  }
-  if (err instanceof DepenseNonEditableError) {
-    reply.code(409).send({ error: 'Conflict', message: t(langue, 'tresorerie.nonEditable') })
-    return true
-  }
-  return false
-}
-
 function parseDateFiltre(v: string | undefined): Date | undefined {
   if (!v) return undefined
   const d = new Date(v)
@@ -199,12 +181,7 @@ export const depensesRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
     '/depenses/:id',
     { preHandler: [authenticate, perm('read')] },
     async (req, reply) => {
-      try {
-        return await chargerDepense(req.params.id)
-      } catch (err) {
-        if (reply4xx(err, reply)) return
-        throw err
-      }
+      return await chargerDepense(req.params.id)
     },
   )
 
@@ -233,27 +210,22 @@ export const depensesRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
     '/depenses/:id',
     { schema: updateSchema, preHandler: [authenticate, perm('update')] },
     async (req, reply) => {
-      try {
-        const actuelle = await chargerDepense(req.params.id)
-        if (!estEditable(actuelle.statut)) throw new DepenseNonEditableError(actuelle.statut)
+      const actuelle = await chargerDepense(req.params.id)
+      if (!estEditable(actuelle.statut)) throw new DepenseNonEditableError(actuelle.statut)
 
-        const b = req.body
-        if (b.statut !== undefined && b.statut !== actuelle.statut) {
-          validerTransition(actuelle.statut, b.statut) // seule EN_ATTENTE atteignable ici
-        }
-        const data: Prisma.DepenseUncheckedUpdateInput = {}
-        if (b.montant !== undefined) data.montant = b.montant
-        if (b.date !== undefined) data.date = new Date(b.date)
-        if (b.description !== undefined) data.description = b.description
-        if (b.categorie !== undefined) data.categorie = b.categorie
-        if (b.beneficiaireMembreId !== undefined) data.beneficiaireMembreId = b.beneficiaireMembreId
-        if (b.statut !== undefined) data.statut = b.statut
-
-        return await app.prisma.depense.update({ where: { id: req.params.id }, data })
-      } catch (err) {
-        if (reply4xx(err, reply)) return
-        throw err
+      const b = req.body
+      if (b.statut !== undefined && b.statut !== actuelle.statut) {
+        validerTransition(actuelle.statut, b.statut) // seule EN_ATTENTE atteignable ici
       }
+      const data: Prisma.DepenseUncheckedUpdateInput = {}
+      if (b.montant !== undefined) data.montant = b.montant
+      if (b.date !== undefined) data.date = new Date(b.date)
+      if (b.description !== undefined) data.description = b.description
+      if (b.categorie !== undefined) data.categorie = b.categorie
+      if (b.beneficiaireMembreId !== undefined) data.beneficiaireMembreId = b.beneficiaireMembreId
+      if (b.statut !== undefined) data.statut = b.statut
+
+      return await app.prisma.depense.update({ where: { id: req.params.id }, data })
     },
   )
 
@@ -262,15 +234,10 @@ export const depensesRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
     '/depenses/:id',
     { preHandler: [authenticate, perm('delete')] },
     async (req, reply) => {
-      try {
-        const d = await chargerDepense(req.params.id)
-        if (!estEditable(d.statut)) throw new DepenseNonEditableError(d.statut)
-        await app.prisma.depense.delete({ where: { id: req.params.id } })
-        return reply.code(204).send()
-      } catch (err) {
-        if (reply4xx(err, reply)) return
-        throw err
-      }
+      const d = await chargerDepense(req.params.id)
+      if (!estEditable(d.statut)) throw new DepenseNonEditableError(d.statut)
+      await app.prisma.depense.delete({ where: { id: req.params.id } })
+      return reply.code(204).send()
     },
   )
 
@@ -280,17 +247,12 @@ export const depensesRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
     { preHandler: [authenticate, perm('read')] },
     async (req, reply) => {
       if (refuserSiRoleAbsent(req, reply, ROLES_APPROBATION)) return
-      try {
-        const d = await chargerDepense(req.params.id)
-        validerTransition(d.statut, 'APPROUVEE')
-        return await app.prisma.depense.update({
-          where: { id: req.params.id },
-          data: { statut: 'APPROUVEE', approuveParId: req.user.sub ?? '', motifRejet: null },
-        })
-      } catch (err) {
-        if (reply4xx(err, reply)) return
-        throw err
-      }
+      const d = await chargerDepense(req.params.id)
+      validerTransition(d.statut, 'APPROUVEE')
+      return await app.prisma.depense.update({
+        where: { id: req.params.id },
+        data: { statut: 'APPROUVEE', approuveParId: req.user.sub ?? '', motifRejet: null },
+      })
     },
   )
 
@@ -300,17 +262,12 @@ export const depensesRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
     { schema: rejeterSchema, preHandler: [authenticate, perm('read')] },
     async (req, reply) => {
       if (refuserSiRoleAbsent(req, reply, ROLES_APPROBATION)) return
-      try {
-        const d = await chargerDepense(req.params.id)
-        validerTransition(d.statut, 'REJETEE')
-        return await app.prisma.depense.update({
-          where: { id: req.params.id },
-          data: { statut: 'REJETEE', approuveParId: req.user.sub ?? '', motifRejet: req.body.motifRejet },
-        })
-      } catch (err) {
-        if (reply4xx(err, reply)) return
-        throw err
-      }
+      const d = await chargerDepense(req.params.id)
+      validerTransition(d.statut, 'REJETEE')
+      return await app.prisma.depense.update({
+        where: { id: req.params.id },
+        data: { statut: 'REJETEE', approuveParId: req.user.sub ?? '', motifRejet: req.body.motifRejet },
+      })
     },
   )
 
@@ -320,14 +277,9 @@ export const depensesRoutes: FastifyPluginAsync = async (app: FastifyInstance) =
     { preHandler: [authenticate, perm('read')] },
     async (req, reply) => {
       if (refuserSiRoleAbsent(req, reply, ROLES_PAIEMENT)) return
-      try {
-        const d = await chargerDepense(req.params.id)
-        validerTransition(d.statut, 'PAYEE')
-        return await app.prisma.depense.update({ where: { id: req.params.id }, data: { statut: 'PAYEE' } })
-      } catch (err) {
-        if (reply4xx(err, reply)) return
-        throw err
-      }
+      const d = await chargerDepense(req.params.id)
+      validerTransition(d.statut, 'PAYEE')
+      return await app.prisma.depense.update({ where: { id: req.params.id }, data: { statut: 'PAYEE' } })
     },
   )
 }

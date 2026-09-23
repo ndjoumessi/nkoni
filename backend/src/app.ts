@@ -115,8 +115,8 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
     // jamais au client.
     if (error instanceof ErreurMetier) {
       const langue = langueDeRequete(req)
-      reply.code(error.statut).send({
-        error: STATUS_CODES[error.statut] ?? 'Error',
+      reply.code(error.statutHttp).send({
+        error: STATUS_CODES[error.statutHttp] ?? 'Error',
         message: t(langue, error.cleMessage, error.parametres(langue)),
       })
       return

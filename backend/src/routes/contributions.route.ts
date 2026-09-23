@@ -6,9 +6,6 @@ import { requirePermission } from '../middlewares/permissions'
 import {
   ouvrirAnnee,
   ouvrirAnneeMembre,
-  BaremeIntrouvableError,
-  MembreNonEligibleError,
-  AnneeFutureError,
 } from '../services/contribution.service'
 import { calculerStatutContribution } from '../services/statutContribution'
 import { anneeCouranteApp } from '../lib/date-app'
@@ -63,26 +60,8 @@ export const contributionsRoutes: FastifyPluginAsync = async (
       preHandler: [authenticate, requirePermission('Contribution', 'create')],
     },
     async (req, reply) => {
-      try {
-        const result = await ouvrirAnnee(app.prisma, req.body.annee)
-        return reply.code(201).send(result)
-      } catch (err) {
-        if (err instanceof AnneeFutureError) {
-          return reply.code(400).send({
-            error: 'Bad Request',
-            message: t(langueDeRequete(req), 'contributions.anneeFuture', { annee: err.annee }),
-          })
-        }
-        if (err instanceof BaremeIntrouvableError) {
-          return reply.code(400).send({
-            error: 'Bad Request',
-            message: t(langueDeRequete(req), 'contributions.baremeIntrouvable', {
-              annee: err.annee,
-            }),
-          })
-        }
-        throw err
-      }
+      const result = await ouvrirAnnee(app.prisma, req.body.annee)
+      return reply.code(201).send(result)
     },
   )
 
@@ -96,37 +75,11 @@ export const contributionsRoutes: FastifyPluginAsync = async (
       preHandler: [authenticate, requirePermission('Contribution', 'create')],
     },
     async (req, reply) => {
-      try {
-        const contribution = await ouvrirAnneeMembre(app.prisma, req.body.membreId, req.body.annee)
-        if (!contribution) {
-          return reply.code(404).send({ error: 'Not Found' })
-        }
-        return reply.code(201).send(contribution)
-      } catch (err) {
-        if (err instanceof AnneeFutureError) {
-          return reply.code(400).send({
-            error: 'Bad Request',
-            message: t(langueDeRequete(req), 'contributions.anneeFuture', { annee: err.annee }),
-          })
-        }
-        if (err instanceof BaremeIntrouvableError) {
-          return reply.code(400).send({
-            error: 'Bad Request',
-            message: t(langueDeRequete(req), 'contributions.baremeIntrouvable', {
-              annee: err.annee,
-            }),
-          })
-        }
-        if (err instanceof MembreNonEligibleError) {
-          return reply.code(400).send({
-            error: 'Bad Request',
-            message: t(langueDeRequete(req), 'contributions.membreNonEligible', {
-              annee: err.annee,
-            }),
-          })
-        }
-        throw err
+      const contribution = await ouvrirAnneeMembre(app.prisma, req.body.membreId, req.body.annee)
+      if (!contribution) {
+        return reply.code(404).send({ error: 'Not Found' })
       }
+      return reply.code(201).send(contribution)
     },
   )
 

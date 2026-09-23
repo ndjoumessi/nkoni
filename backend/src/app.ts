@@ -186,15 +186,13 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   // rafale). Plafond global généreux ; les routes sensibles (login, inscription) le resserrent
   // via `config.rateLimit` dans leur définition. La CLÉ n'est pas l'IP seule : derrière le proxy
   // Vercel, Railway réécrit `X-Forwarded-For` et toutes les requêtes portent l'IP de sortie de
-  // Vercel — une requête authentifiée est donc imputée à son COMPTE, et le trafic ANONYME à l'IP
-  // réelle du client quand la Routing Middleware Vercel l'annonce sous `PROXY_SECRET`
-  // (cf. `lib/rate-limit.ts`).
+  // Vercel — une requête authentifiée est donc imputée à son COMPTE (cf. `lib/rate-limit.ts`).
   // `app.jwt` n'existe qu'après `registerJwt`, plus bas : la clé est calculée à la requête.
   if (!process.env['VITEST'] && process.env['NODE_ENV'] !== 'test') {
     await app.register(rateLimit, {
       max: 300,
       timeWindow: '1 minute',
-      keyGenerator: (req) => cleRateLimit(req, (jeton) => app.jwt.verify(jeton), env.PROXY_SECRET),
+      keyGenerator: (req) => cleRateLimit(req, (jeton) => app.jwt.verify(jeton)),
     })
   }
 

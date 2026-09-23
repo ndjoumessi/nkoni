@@ -7,11 +7,6 @@ import { chargerCapacitesOrganisation } from '../services/capacites-organisation
 import {
   demarrerPaiement,
   confirmerPaiement,
-  ConfigPaiementIndisponibleError,
-  MontantInvalideError,
-  MontantSuperieurAuResteError,
-  ContributionIntrouvableError,
-  TelephonePayeurRequisError,
 } from '../services/paiement.service'
 
 /**
@@ -70,37 +65,18 @@ export const paiementsRoutes: FastifyPluginAsync = async (app: FastifyInstance) 
       if (!(await paiementInclus(organisationId))) {
         return reply.code(403).send({ error: 'Forbidden', message: t(langueDeRequete(req), 'paiement.nonConfigure') })
       }
-      try {
-        const r = await demarrerPaiement(
-          { prisma: app.prisma, psp: app.psp },
-          {
-            organisationId,
-            membreId: membre.id,
-            contributionId: req.body.contributionId,
-            montant: req.body.montant,
-            description: 'Cotisation',
-            redirectUrl: `${env.PUBLIC_BASE_URL}/mon-espace`,
-          },
-        )
-        return reply.code(201).send(r)
-      } catch (err) {
-        if (err instanceof MontantInvalideError) {
-          return reply.code(400).send({ error: 'Bad Request', message: t(langueDeRequete(req), 'paiement.montantInvalide') })
-        }
-        if (err instanceof MontantSuperieurAuResteError) {
-          return reply.code(400).send({ error: 'Bad Request', message: t(langueDeRequete(req), 'paiement.montantSuperieurReste') })
-        }
-        if (err instanceof ConfigPaiementIndisponibleError) {
-          return reply.code(409).send({ error: 'Conflict', message: t(langueDeRequete(req), 'paiement.nonConfigure') })
-        }
-        if (err instanceof ContributionIntrouvableError) {
-          return reply.code(404).send({ error: 'Not Found', message: t(langueDeRequete(req), 'paiement.contributionIntrouvable') })
-        }
-        if (err instanceof TelephonePayeurRequisError) {
-          return reply.code(400).send({ error: 'Bad Request', message: t(langueDeRequete(req), 'paiement.telephoneRequis') })
-        }
-        throw err
-      }
+      const r = await demarrerPaiement(
+        { prisma: app.prisma, psp: app.psp },
+        {
+          organisationId,
+          membreId: membre.id,
+          contributionId: req.body.contributionId,
+          montant: req.body.montant,
+          description: 'Cotisation',
+          redirectUrl: `${env.PUBLIC_BASE_URL}/mon-espace`,
+        },
+      )
+      return reply.code(201).send(r)
     },
   )
 

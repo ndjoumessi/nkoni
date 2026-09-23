@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, Navigate } from 'react-router-dom'
 import { CalendarRange, CheckCircle2, Flame, MapPin, Plus, Users } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
-import { commemorationsApi, messageErreur, type Commemoration } from '@/lib/api'
+import { useRessource } from '@/hooks/useRessource'
+import { commemorationsApi, type Commemoration } from '@/lib/api'
 import { peutVoirCommemorations, peutGererCommemorations } from '@/lib/roles'
 import { formatDate, staggerDelay } from '@/lib/utils'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -13,44 +13,19 @@ import { ButtonLink } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ErrorState } from '@/components/ui/ErrorState'
 import { RowsSkeleton } from '@/components/ui/Skeleton'
-import {
-  StatutCommemorationBadge,
-  TypeCommemorationBadge,
-} from '@/components/commemorations/CommemorationBadges'
+import { StatutCommemorationBadge, TypeCommemorationBadge } from '@/components/commemorations/CommemorationBadges'
 
 /** Liste des commémorations / cérémonies (V2) — triée par date décroissante. */
 export function CommemorationsPage() {
   const { t } = useTranslation()
-  const { user, accessToken } = useAuth()
-
-  const [items, setItems] = useState<Commemoration[] | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { user } = useAuth()
 
   const gestion = peutGererCommemorations(user?.role)
 
-  useEffect(() => {
-    if (!accessToken) return
-    const controller = new AbortController()
-    let active = true
-    setLoading(true)
-    setError(null)
-    void (async () => {
-      try {
-        const data = await commemorationsApi.list(accessToken, controller.signal)
-        if (active) setItems(data)
-      } catch (e) {
-        if (e instanceof DOMException && e.name === 'AbortError') return
-        if (active) setError(messageErreur(e))
-      } finally {
-        if (active) setLoading(false)
-      }
-    })()
-    return () => {
-      active = false
-      controller.abort()
-    }
-  }, [accessToken])
+  const { data: items, loading, error } = useRessource<Commemoration[]>(
+    (jeton, signal) => commemorationsApi.list(jeton, signal),
+    [],
+  )
 
   if (!peutVoirCommemorations(user?.role)) {
     return <Navigate to="/dashboard" replace />

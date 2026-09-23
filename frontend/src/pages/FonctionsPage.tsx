@@ -1,14 +1,10 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useState, type FormEvent } from 'react'
+import { useRessource } from '@/hooks/useRessource'
 import { useTranslation } from 'react-i18next'
 import { Link, Navigate } from 'react-router-dom'
 import { History, Landmark, Plus, UserCheck, UserX } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
-import {
-  fonctionsApi,
-  ApiError,
-  messageErreur,
-  type FonctionListItem,
-} from '@/lib/api'
+import { fonctionsApi, ApiError, type FonctionListItem } from '@/lib/api'
 import { peutVoirFonctions, peutGererFonctions } from '@/lib/roles'
 import { staggerDelay } from '@/lib/utils'
 import { useToast } from '@/components/ui/Toast'
@@ -34,10 +30,6 @@ export function FonctionsPage() {
   const { user, accessToken } = useAuth()
   const toast = useToast()
 
-  const [fonctions, setFonctions] = useState<FonctionListItem[] | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
   // Modal de création.
   const [creerOuvert, setCreerOuvert] = useState(false)
   const [nom, setNom] = useState('')
@@ -46,28 +38,10 @@ export function FonctionsPage() {
 
   const gestion = peutGererFonctions(user?.role)
 
-  useEffect(() => {
-    if (!accessToken) return
-    const controller = new AbortController()
-    let active = true
-    setLoading(true)
-    setError(null)
-    void (async () => {
-      try {
-        const data = await fonctionsApi.list(accessToken, controller.signal)
-        if (active) setFonctions(data)
-      } catch (e) {
-        if (e instanceof DOMException && e.name === 'AbortError') return
-        if (active) setError(messageErreur(e))
-      } finally {
-        if (active) setLoading(false)
-      }
-    })()
-    return () => {
-      active = false
-      controller.abort()
-    }
-  }, [accessToken])
+  const { data: fonctions, loading, error, setData: setFonctions } = useRessource<FonctionListItem[]>(
+    (jeton, signal) => fonctionsApi.list(jeton, signal),
+    [],
+  )
 
   if (!peutVoirFonctions(user?.role)) {
     return <Navigate to="/dashboard" replace />

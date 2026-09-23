@@ -1,8 +1,9 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, Navigate } from 'react-router-dom'
 import { CircleDollarSign, Plus, RefreshCw } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
+import { useRessource } from '@/hooks/useRessource'
 import { tontinesApi, messageErreur, type Tontine, type ModeRotation } from '@/lib/api'
 import { peutVoirTontines, peutGererTontines } from '@/lib/roles'
 import { cleI18n } from '@/lib/i18n'
@@ -29,10 +30,6 @@ export function TontinesPage() {
 
   const gestion = peutGererTontines(user?.role)
 
-  const [items, setItems] = useState<Tontine[] | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
   // Création.
   const [modalOuverte, setModalOuverte] = useState(false)
   const [nom, setNom] = useState('')
@@ -42,28 +39,10 @@ export function TontinesPage() {
   const [errNom, setErrNom] = useState<string | undefined>(undefined)
   const [errMontant, setErrMontant] = useState<string | undefined>(undefined)
 
-  useEffect(() => {
-    if (!accessToken) return
-    const controller = new AbortController()
-    let actif = true
-    setLoading(true)
-    setError(null)
-    void (async () => {
-      try {
-        const data = await tontinesApi.list(accessToken, controller.signal)
-        if (actif) setItems(data)
-      } catch (e) {
-        if (e instanceof DOMException && e.name === 'AbortError') return
-        if (actif) setError(messageErreur(e))
-      } finally {
-        if (actif) setLoading(false)
-      }
-    })()
-    return () => {
-      actif = false
-      controller.abort()
-    }
-  }, [accessToken])
+  const { data: items, loading, error, setData: setItems } = useRessource<Tontine[]>(
+    (jeton, signal) => tontinesApi.list(jeton, signal),
+    [],
+  )
 
   if (!peutVoirTontines(user?.role)) return <Navigate to="/dashboard" replace />
 

@@ -18,6 +18,37 @@
   - Échelle z : contenu/nav `z-40` · popover portail & `Modal` `z-50` · `Toast`/`CommandPalette` `z-[100]`. **Ne PAS** rustiner un recouvrement au cas par cas avec des `z-index` sur les cartes. Tests composant sous **jsdom** (`*.test.tsx`, docblock `// @vitest-environment jsdom`) ; `partage-popover.test.ts` prouve au niveau source que les deux composants importent bien les primitives (pas de copier-coller).
   - **Un changement de mise en page peut invalider une hypothèse TACITE du code existant, que `tsc`/`oxlint` ne voient pas** (c'est du layout, pas du type). Défauts vécus, tous révélés par une refonte visuelle et jamais par la CI : un espaceur « fantôme » calant un bouton et supposant des libellés d'UNE ligne (cassé quand une carte passe à demi-largeur → libellé sur 2 lignes → input désaligné), une taille d'image fixe (QR rogné), un `aria-controls`/`aria-label` supposant un rôle ou un motif porteur (onglets, `role="img"`), un état pilotant une VISIBILITÉ qui bascule au mauvais moment (confirmation du formulaire paiement repliée par `setConfig`). Règle : après toute refonte visuelle, **vérifier le rendu aux largeurs RÉELLES** (mobile 360 px ET la largeur effective du conteneur, ex. une carte en 2 colonnes = demi-largeur), pas seulement la compilation ; et **préférer supprimer l'hypothèse** (empiler les champs) plutôt que la compenser (ajuster la hauteur du fantôme, forcer `whitespace-nowrap`), qui recrée le piège au changement de largeur suivant.
 
+## Cycle de chargement d'une page — `hooks/useRessource.ts`
+
+Le couple `AbortController` + drapeau `actif` + `setLoading`/`setError` + garde `AbortError` était
+recopié dans **32 des 44 pages**, pour 36 cycles au total. `useRessource(charger, deps, cleErreur)`
+le porte désormais, et c'est le seul endroit où il est testé (`useRessource.test.tsx`, 7 cas :
+annulation au démontage, garde `AbortError`, repli du message, relance sur dépendance déclarée,
+non-relance sur simple rendu).
+
+**Deux pièges, deux `ref`.** `charger` et `t` ont une identité neuve à chaque rendu. Les mettre
+dans les dépendances de l'effet relance le chargement en boucle — défaut trouvé par le test du
+module (8 628 appels), pas en production. Ils passent donc par des `ref` toujours à jour, et
+l'effet ne repart que sur les `deps` DÉCLARÉES par l'appelant. Corollaire heureux pour `t` :
+changer de langue ne recharge plus les données de la page.
+
+**Le message de repli est TRADUIT** (`commun.erreurGenerique` par défaut). Les pages passaient par
+`lib/api::messageErreur`, qui rend des chaînes **françaises en dur** (« Impossible de contacter le
+serveur… ») dans 93 appels : un lecteur anglophone hors réseau lisait du français. Migrer une page
+vers ce module ferme ce trou au passage.
+
+**Ce qui n'est pas migré, et pourquoi.** Sept pages sont passées au module — celles dont le cycle
+charge UNE ressource et pose UN état, où la substitution est équivalente par construction. Les
+dix-neuf cycles restants sont COMPOSITES : ils font un `Promise.all` et répartissent le résultat
+sur plusieurs états (`MembreDetailPage` en pose sept, `MonEspacePage` quinze). Les migrer demande
+de remodeler l'état de chaque page, sur des pages qui n'ont aucun test de rendu — c'est un chantier
+distinct, pas la fin de celui-ci.
+
+**⚠️ La garde `AbortError` absente de 14 cycles n'est PAS un défaut**, contrairement à ce qu'on
+pourrait croire en la comptant : le drapeau `actif` est mis à `false` AVANT `controller.abort()`
+dans la fonction de nettoyage, donc aucune écriture d'état ne passe. La garde est une ceinture en
+plus des bretelles. Vérifié avant de l'annoncer comme un bug.
+
 ## Aide contextuelle — `ui/AideNotion` (spec 2026-09-17)
 
 - **Primitive unique** : `<AideNotion notion="…" />` rend un « ? » (bouton 24 px sans `.tap-target`, nom accessible

@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, Navigate } from 'react-router-dom'
 import { AlertTriangle, CalendarRange, Lock, Plus, ShieldAlert, ShieldCheck, Users } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
-import { conflitsApi, messageErreur, type Conflit } from '@/lib/api'
+import { useRessource } from '@/hooks/useRessource'
+import { conflitsApi, type Conflit } from '@/lib/api'
 import { peutVoirConflits, peutDeclarerConflit } from '@/lib/roles'
 import { formatDate, staggerDelay } from '@/lib/utils'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -18,36 +18,14 @@ import { NiveauBadge, StatutConflitBadge } from '@/components/conflits/ConflitBa
 /** Liste des conflits VISIBLES par l'utilisateur (filtrage appliqué côté serveur). */
 export function ConflitsPage() {
   const { t } = useTranslation()
-  const { user, accessToken } = useAuth()
-
-  const [conflits, setConflits] = useState<Conflit[] | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { user } = useAuth()
 
   const declarer = peutDeclarerConflit(user?.role)
 
-  useEffect(() => {
-    if (!accessToken) return
-    const controller = new AbortController()
-    let active = true
-    setLoading(true)
-    setError(null)
-    void (async () => {
-      try {
-        const data = await conflitsApi.list(accessToken, controller.signal)
-        if (active) setConflits(data)
-      } catch (e) {
-        if (e instanceof DOMException && e.name === 'AbortError') return
-        if (active) setError(messageErreur(e))
-      } finally {
-        if (active) setLoading(false)
-      }
-    })()
-    return () => {
-      active = false
-      controller.abort()
-    }
-  }, [accessToken])
+  const { data: conflits, loading, error } = useRessource<Conflit[]>(
+    (jeton, signal) => conflitsApi.list(jeton, signal),
+    [],
+  )
 
   if (!peutVoirConflits(user?.role)) {
     return <Navigate to="/dashboard" replace />

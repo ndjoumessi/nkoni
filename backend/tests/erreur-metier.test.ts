@@ -20,7 +20,7 @@ import {
 describe('ErreurMetier — le contrat que lit le gestionnaire global', () => {
   it('porte son statut et sa clé, et se nomme d’après la sous-classe construite', () => {
     const err = new DocumentIntrouvableError()
-    expect(err.statut).toBe(404)
+    expect(err.statutHttp).toBe(404)
     expect(err.cleMessage).toBe('documents.introuvable')
     // `new.target` : plus besoin de recopier `this.name = '…'` dans chaque classe.
     expect(err.name).toBe('DocumentIntrouvableError')
@@ -34,10 +34,10 @@ describe('ErreurMetier — le contrat que lit le gestionnaire global', () => {
       new AccesDocumentRefuseError(),
       new QuotaStockageDepasseError(1, 2),
     ]) {
-      expect(err.statut).toBeGreaterThanOrEqual(400)
-      expect(err.statut).toBeLessThan(500)
+      expect(err.statutHttp).toBeGreaterThanOrEqual(400)
+      expect(err.statutHttp).toBeLessThan(500)
       // Le gestionnaire dérive le champ `error` du statut : il doit exister pour chacun.
-      expect(STATUS_CODES[err.statut]).toBeTruthy()
+      expect(STATUS_CODES[err.statutHttp]).toBeTruthy()
     }
   })
 

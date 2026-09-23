@@ -23,33 +23,41 @@
  * Découplé de Fastify, Prisma injecté (mockable en test).
  */
 
+import { ErreurMetier } from '../lib/erreur-metier'
+
 /* -------------------------------------------------------------------------- */
 /* Erreurs métier (toutes mappées en 400 par la route)                        */
 /* -------------------------------------------------------------------------- */
 
 /** Plage invalide : anneeDebut > anneeFin (ou nombre d'années < 1). */
-export class EquilibragePlageInvalideError extends Error {
+export class EquilibragePlageInvalideError extends ErreurMetier {
   readonly anneeDebut: number
   readonly anneeFin: number
   constructor(anneeDebut: number, anneeFin: number) {
     super(
-      `Plage d'années invalide : anneeDebut (${anneeDebut}) doit être <= anneeFin (${anneeFin}).`,
+      400, 'equilibrages.plageInvalide', `Plage d'années invalide : anneeDebut (${anneeDebut}) doit être <= anneeFin (${anneeFin}).`,
     )
-    this.name = 'EquilibragePlageInvalideError'
     this.anneeDebut = anneeDebut
     this.anneeFin = anneeFin
+  }
+
+  override parametres(): Record<string, number> {
+    return { anneeDebut: this.anneeDebut, anneeFin: this.anneeFin }
   }
 }
 
 /** Une année de la plage n'a aucune Contribution : impossible d'équilibrer. */
-export class EquilibrageAnneeManquanteError extends Error {
+export class EquilibrageAnneeManquanteError extends ErreurMetier {
   readonly annee: number
   constructor(annee: number) {
     super(
-      `Aucune contribution pour l'année ${annee} : ouvrez l'année avant d'équilibrer la plage.`,
+      400, 'equilibrages.anneeManquante', `Aucune contribution pour l'année ${annee} : ouvrez l'année avant d'équilibrer la plage.`,
     )
-    this.name = 'EquilibrageAnneeManquanteError'
     this.annee = annee
+  }
+
+  override parametres(): Record<string, number> {
+    return { annee: this.annee }
   }
 }
 
@@ -57,14 +65,14 @@ export class EquilibrageAnneeManquanteError extends Error {
  * Contrainte bloquante violée : la somme des montants ajustés ne correspond pas à
  * `totalPeriode`, ou le nombre de montants fournis ne couvre pas la plage.
  */
-export class EquilibrageSommeInvalideError extends Error {
+export class EquilibrageSommeInvalideError extends ErreurMetier {
   readonly sommeAjustee: number
   readonly totalPeriode: number
   /**
-   * Contexte de la variante « nombre de montants ≠ nombre d'années » (i18n §4) : permet à
-   * la route de ré-interpoler le message dans la langue du destinataire. `undefined` pour la
-   * variante « somme ≠ total » (le message par défaut suffit, reconstruit depuis sommeAjustee/
-   * totalPeriode). Le `super()` reste i18n-agnostique (français), inchangé.
+   * Contexte de la variante « nombre de montants ≠ nombre d'années » (i18n §4). Sa PRÉSENCE
+   * choisit la clé du message, dans le constructeur ci-dessous ; `undefined` sélectionne la
+   * variante « somme ≠ total ». Le message passé à `super()` reste technique et français : il
+   * va aux logs, jamais au client.
    */
   readonly nombreAnnees?: number
   readonly anneeDebut?: number
@@ -81,11 +89,14 @@ export class EquilibrageSommeInvalideError extends Error {
       nombreFournis: number
     },
   ) {
+    // DEUX variantes, et le choix se fait ICI : la donnée qui décide (`contexte`) est sous la main
+    // du constructeur. La route n'a plus à reconstruire ce ternaire pour deviner quel message dire.
     super(
+      400,
+      contexte ? 'equilibrages.nombreMontantsInvalide' : 'equilibrages.sommeInvalide',
       detail ??
         `La somme des montants ajustés (${sommeAjustee}) doit être égale au total de la période (${totalPeriode}).`,
     )
-    this.name = 'EquilibrageSommeInvalideError'
     this.sommeAjustee = sommeAjustee
     this.totalPeriode = totalPeriode
     if (contexte) {
@@ -94,6 +105,17 @@ export class EquilibrageSommeInvalideError extends Error {
       this.anneeFin = contexte.anneeFin
       this.nombreFournis = contexte.nombreFournis
     }
+  }
+
+  override parametres(): Record<string, number> {
+    return this.nombreAnnees !== undefined
+      ? {
+          nombreAnnees: this.nombreAnnees,
+          anneeDebut: this.anneeDebut!,
+          anneeFin: this.anneeFin!,
+          nombreFournis: this.nombreFournis!,
+        }
+      : { sommeAjustee: this.sommeAjustee, totalPeriode: this.totalPeriode }
   }
 }
 

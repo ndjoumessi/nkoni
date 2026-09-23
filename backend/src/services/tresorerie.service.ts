@@ -7,6 +7,8 @@
  *    l'extension d'isolation (le service reçoit le client déjà scopé).
  */
 
+import { ErreurMetier } from '../lib/erreur-metier'
+
 export type StatutDepense = 'BROUILLON' | 'EN_ATTENTE' | 'APPROUVEE' | 'REJETEE' | 'PAYEE'
 
 /** Transitions autorisées du workflow (source de vérité unique). */
@@ -23,25 +25,22 @@ const EDITABLES: readonly StatutDepense[] = ['BROUILLON', 'EN_ATTENTE']
 /** Statuts comptant comme une SORTIE de caisse (engagement validé). */
 export const STATUTS_SORTIE: readonly StatutDepense[] = ['APPROUVEE', 'PAYEE']
 
-export class DepenseIntrouvableError extends Error {
+export class DepenseIntrouvableError extends ErreurMetier {
   constructor() {
-    super('Dépense introuvable.')
-    this.name = 'DepenseIntrouvableError'
+    super(404, 'tresorerie.introuvable', 'Dépense introuvable.')
   }
 }
-export class TransitionDepenseInvalideError extends Error {
+export class TransitionDepenseInvalideError extends ErreurMetier {
   constructor(
     public actuel: StatutDepense,
     public cible: StatutDepense,
   ) {
-    super(`Transition invalide : ${actuel} → ${cible}.`)
-    this.name = 'TransitionDepenseInvalideError'
+    super(409, 'tresorerie.transitionInvalide', `Transition invalide : ${actuel} → ${cible}.`)
   }
 }
-export class DepenseNonEditableError extends Error {
+export class DepenseNonEditableError extends ErreurMetier {
   constructor(public statut: StatutDepense) {
-    super(`Dépense non modifiable au statut ${statut}.`)
-    this.name = 'DepenseNonEditableError'
+    super(409, 'tresorerie.nonEditable', `Dépense non modifiable au statut ${statut}.`)
   }
 }
 

@@ -260,7 +260,12 @@ export function CommandPalette() {
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
         onClick={() => setOpen(false)}
       />
-      <div ref={panneauRef} className="nk-toast-in relative w-full max-w-xl overflow-hidden rounded-2xl border border-hairline-strong bg-surface shadow-2xl">
+      {/* AUCUNE animation d'ouverture, et c'est délibéré. ⌘K est une action CLAVIER, déclenchée
+          des dizaines de fois par jour par quelqu'un qui sait déjà ce qu'il vient chercher et a
+          la main sur les touches : 240 ms se placent alors exactement entre son intention et sa
+          frappe suivante. Raycast n'anime pas non plus l'ouverture de sa palette. La règle vaut
+          pour toute action au clavier, pas seulement celle-ci. */}
+      <div ref={panneauRef} className="relative w-full max-w-xl overflow-hidden rounded-2xl border border-hairline-strong bg-surface shadow-2xl">
         <div className="flex items-center gap-3 border-b border-hairline px-4">
           <Search className="h-4 w-4 shrink-0 text-faint" aria-hidden="true" />
           <input

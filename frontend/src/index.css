@@ -23,6 +23,24 @@
     --font-display: var(--font-sans);
     --font-heading: var(--font-display);
 
+    /* --- Mouvement ---------------------------------------------------------
+       Le design system centralisait les COULEURS en jetons et laissait le mouvement en courbes
+       recopiées à la main. Même règle, même raison : une animation qui n'a pas le même ressenti
+       que sa voisine se remarque, sans qu'on sache dire pourquoi.
+
+       Les courbes natives (`ease`, `ease-out`) sont trop molles : elles manquent du départ franc
+       qui fait lire une animation comme intentionnelle. Ces deux-ci sont des variantes fortes.
+
+       QUAND UTILISER QUOI :
+         --ease-sortie  → tout ce qui ENTRE ou SORT (popover, modale, toast, révélation). Démarre
+                          vite : l'utilisateur voit le mouvement à l'instant où il regarde.
+         --ease-trajet  → ce qui se DÉPLACE ou se transforme en restant à l'écran (barre de
+                          progression, indicateur de nav qui glisse d'un onglet à l'autre).
+       Ne JAMAIS utiliser `ease-in` sur de l'interface : il retarde le premier mouvement, c'est-à-
+       dire exactement le moment que l'œil surveille — à durée égale, il paraît plus lent. */
+    --ease-sortie: cubic-bezier(0.22, 1, 0.36, 1);
+    --ease-trajet: cubic-bezier(0.77, 0, 0.175, 1);
+
     /* Échelle micro-typo (labels/overlines) — UN SEUL cran, posé au PLANCHER de lisibilité de
        12 px. Remplace les tailles arbitraires text-[0.6–0.72rem] éparpillées (M11).
        ⚠️ `--text-3xs` (0.68rem = 10.9 px) a été SUPPRIMÉ, pas relevé : le commentaire annonçait un
@@ -252,21 +270,31 @@
     mask-image: radial-gradient(900px 620px at 30% 8%, #000, transparent 78%);
 }
 
-/* Révélation d'entrée en cascade (nk-reveal + nk-d1..6) */
+/* Révélation d'entrée en cascade (nk-reveal + nk-d1..6)
+
+   C'est la SEULE animation que tout le monde voit, à chaque navigation — 129 emplois dans
+   l'application. Elle était à 600 ms avec une cascade allant jusqu'à 390 ms : la dernière carte
+   d'un tableau de bord se posait 990 ms après le clic, alors que le budget d'une animation
+   d'interface est de 300 ms. La courbe était bonne, la durée non.
+
+   280 ms avec une cascade à 30 ms garde l'effet parfaitement lisible et fait paraître
+   l'application deux fois plus rapide sans qu'une seule requête aille plus vite. La distance
+   parcourue suit la durée (16 → 10 px) : sur un temps court, un long trajet donne une impression
+   de glissement, pas d'apparition. */
 @keyframes nkReveal {
-    from { opacity: 0; transform: translateY(16px); }
+    from { opacity: 0; transform: translateY(10px); }
     to   { opacity: 1; transform: translateY(0); }
 }
 .nk-reveal {
     opacity: 0;
-    animation: nkReveal 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    animation: nkReveal 0.28s var(--ease-sortie) forwards;
 }
-.nk-d1 { animation-delay: 0.04s; }
-.nk-d2 { animation-delay: 0.11s; }
-.nk-d3 { animation-delay: 0.18s; }
-.nk-d4 { animation-delay: 0.25s; }
-.nk-d5 { animation-delay: 0.32s; }
-.nk-d6 { animation-delay: 0.39s; }
+.nk-d1 { animation-delay: 0.03s; }
+.nk-d2 { animation-delay: 0.06s; }
+.nk-d3 { animation-delay: 0.09s; }
+.nk-d4 { animation-delay: 0.12s; }
+.nk-d5 { animation-delay: 0.15s; }
+.nk-d6 { animation-delay: 0.18s; }
 
 /* Marquee (hero) */
 @keyframes nkMarquee {
@@ -292,12 +320,53 @@
     animation: nkShimmer 1.6s ease-in-out infinite;
 }
 
-/* Entrée des toasts */
+/* Entrée des toasts — ils arrivent PAR LE HAUT et repartent par le haut (cf. `.nk-toast-out`) :
+   une même direction à l'aller et au retour, faute de quoi un balayage pour fermer paraîtrait
+   contrarier le mouvement d'arrivée. */
 @keyframes nkToastIn {
     from { opacity: 0; transform: translateY(-8px) scale(0.98); }
     to   { opacity: 1; transform: translateY(0) scale(1); }
 }
-.nk-toast-in { animation: nkToastIn 0.24s cubic-bezier(0.22, 1, 0.36, 1); }
+.nk-toast-in { animation: nkToastIn 0.24s var(--ease-sortie); }
+
+/* Sortie des toasts — PLUS RAPIDE que l'entrée. Une entrée animée suivie d'une disparition sèche
+   est l'asymétrie qu'on remarque sans savoir la nommer ; à l'inverse, une sortie aussi longue que
+   l'entrée fait attendre alors que l'utilisateur en a déjà fini. */
+@keyframes nkToastOut {
+    from { opacity: 1; transform: translateY(0) scale(1); }
+    to   { opacity: 0; transform: translateY(-8px) scale(0.98); }
+}
+.nk-toast-out { animation: nkToastOut 0.16s var(--ease-sortie) forwards; }
+
+/* Entrée des POPOVERS (sélecteur de date, grille d'années, sélecteur de membre, aide contextuelle).
+   Ils n'avaient AUCUNE transition : un élément qui apparaît d'un coup se lit comme un défaut
+   d'affichage, pas comme une ouverture.
+
+   L'échelle part de 0,96 et jamais de 0 : rien, dans le monde réel, ne surgit du néant — même un
+   ballon dégonflé a une forme. Et l'ORIGINE est posée par `usePopoverFlottant` sur le déclencheur,
+   pas au centre : la bulle doit grandir depuis le bouton qu'on vient de cliquer, c'est ce qui la
+   relie visuellement à lui. */
+@keyframes nkPopoverIn {
+    from { opacity: 0; transform: scale(0.96); }
+    to   { opacity: 1; transform: scale(1); }
+}
+.nk-popover-in { animation: nkPopoverIn 0.15s var(--ease-sortie); }
+
+/* Entrée des MODALES. Elles réutilisaient `nk-toast-in`, c'est-à-dire une descente de 8 px : une
+   modale n'est ancrée à rien et ne vient donc de nulle part en particulier — elle grandit sur
+   place, depuis son centre. Le voile suit le même mouvement, sans quoi les deux moitiés du même
+   geste ne sont pas d'accord. */
+@keyframes nkModaleIn {
+    from { opacity: 0; transform: scale(0.97); }
+    to   { opacity: 1; transform: scale(1); }
+}
+.nk-modale-in { animation: nkModaleIn 0.2s var(--ease-sortie); }
+
+@keyframes nkVoileIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+.nk-voile-in { animation: nkVoileIn 0.2s var(--ease-sortie); }
 
 @media (prefers-reduced-motion: reduce) {
     /* Neutralise les transitions ET les animations résiduelles (knob du Toggle, chevron

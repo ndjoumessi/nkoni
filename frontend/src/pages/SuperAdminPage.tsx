@@ -179,7 +179,7 @@ function QuotaMembres({
         className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-surface-2"
       >
         <div
-          className={cn('h-full rounded-full transition-all duration-500', barre)}
+          className={cn('h-full rounded-full transition-[width,background-color] duration-500 ease-trajet', barre)}
           style={{ width: `${Math.max(4, pct)}%` }}
         />
       </div>
@@ -912,7 +912,7 @@ export function SuperAdminPage() {
                 kpis.parForfait[f] > 0 ? (
                   <div
                     key={f}
-                    className={cn('h-full transition-all', TEINTE_FORFAIT[f].barre)}
+                    className={cn('h-full transition-[width,background-color] duration-500 ease-trajet', TEINTE_FORFAIT[f].barre)}
                     style={{ width: `${(kpis.parForfait[f] / kpis.total) * 100}%` }}
                     title={`${t(cleForfait(f))} · ${kpis.parForfait[f]}`}
                   />

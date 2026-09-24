@@ -37,7 +37,7 @@ function BarreProgression({ pct }: { pct: number }) {
       className="mt-3 h-2 w-full overflow-hidden rounded-full bg-surface-2"
     >
       <div
-        className="h-full rounded-full bg-gradient-to-r from-jade to-brass transition-all"
+        className="h-full rounded-full bg-gradient-to-r from-jade to-brass transition-[width] duration-500 ease-trajet"
         style={{ width: `${valeur}%` }}
       />
     </div>

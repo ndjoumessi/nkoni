@@ -225,7 +225,7 @@ export function ParametresPage() {
                   aria-label={t('parametres.membres.titre')}
                 >
                   <div
-                    className={cn('h-full rounded-full transition-all', couleurJauge(pct))}
+                    className={cn('h-full rounded-full transition-[width,background-color] duration-500 ease-trajet', couleurJauge(pct))}
                     style={{ width: `${pct}%` }}
                   />
                 </div>
@@ -256,7 +256,7 @@ export function ParametresPage() {
                   aria-label={t('parametres.stockage.titre')}
                 >
                   <div
-                    className={cn('h-full rounded-full transition-all', couleurJauge(pctStockage))}
+                    className={cn('h-full rounded-full transition-[width,background-color] duration-500 ease-trajet', couleurJauge(pctStockage))}
                     style={{ width: `${pctStockage}%` }}
                   />
                 </div>

@@ -133,7 +133,7 @@ export function AnalyseMembres() {
                   className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-surface-2"
                 >
                   <div
-                    className={cn('h-full rounded-full transition-all', barColor(b.taux))}
+                    className={cn('h-full rounded-full transition-[width,background-color] duration-500 ease-trajet', barColor(b.taux))}
                     style={{ width: `${b.taux}%` }}
                   />
                 </div>

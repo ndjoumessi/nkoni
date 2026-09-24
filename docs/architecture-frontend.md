@@ -18,6 +18,58 @@
   - Échelle z : contenu/nav `z-40` · popover portail & `Modal` `z-50` · `Toast`/`CommandPalette` `z-[100]`. **Ne PAS** rustiner un recouvrement au cas par cas avec des `z-index` sur les cartes. Tests composant sous **jsdom** (`*.test.tsx`, docblock `// @vitest-environment jsdom`) ; `partage-popover.test.ts` prouve au niveau source que les deux composants importent bien les primitives (pas de copier-coller).
   - **Un changement de mise en page peut invalider une hypothèse TACITE du code existant, que `tsc`/`oxlint` ne voient pas** (c'est du layout, pas du type). Défauts vécus, tous révélés par une refonte visuelle et jamais par la CI : un espaceur « fantôme » calant un bouton et supposant des libellés d'UNE ligne (cassé quand une carte passe à demi-largeur → libellé sur 2 lignes → input désaligné), une taille d'image fixe (QR rogné), un `aria-controls`/`aria-label` supposant un rôle ou un motif porteur (onglets, `role="img"`), un état pilotant une VISIBILITÉ qui bascule au mauvais moment (confirmation du formulaire paiement repliée par `setConfig`). Règle : après toute refonte visuelle, **vérifier le rendu aux largeurs RÉELLES** (mobile 360 px ET la largeur effective du conteneur, ex. une carte en 2 colonnes = demi-largeur), pas seulement la compilation ; et **préférer supprimer l'hypothèse** (empiler les champs) plutôt que la compenser (ajuster la hauteur du fantôme, forcer `whitespace-nowrap`), qui recrée le piège au changement de largeur suivant.
 
+## Mouvement — jetons et règles (`src/index.css`)
+
+Le design system centralisait les COULEURS en jetons et laissait le mouvement en courbes recopiées
+à la main. Deux jetons, même règle, même raison — une animation qui n'a pas le ressenti de sa
+voisine se remarque sans qu'on sache dire pourquoi :
+
+| jeton | courbe | quand |
+|---|---|---|
+| `--ease-sortie` | `cubic-bezier(0.22, 1, 0.36, 1)` | tout ce qui **entre ou sort** — popover, modale, toast, révélation |
+| `--ease-trajet` | `cubic-bezier(0.77, 0, 0.175, 1)` | ce qui **se déplace en restant à l'écran** — jauges de progression |
+
+**Ne JAMAIS utiliser `ease-in` sur de l'interface.** Il retarde le premier mouvement, c'est-à-dire
+exactement l'instant que l'œil surveille : à durée égale, il paraît plus lent. Les courbes natives
+(`ease`, `ease-out`) sont par ailleurs trop molles — il leur manque le départ franc qui fait lire
+une animation comme intentionnelle. Les deux ci-dessus en sont les variantes fortes.
+
+**Budget : 300 ms.** Presse-papier des durées retenues — pression d'un bouton 150 ms, popover
+150 ms, modale 200 ms, révélation de page 280 ms, jauge 500 ms (c'est une donnée qui se lit, pas
+une transition d'écran). Une **sortie est toujours plus courte que son entrée** (toast : 240 ms à
+l'aller, 160 au retour) : à ce moment-là l'utilisateur en a fini, le faire attendre est une
+politesse mal placée.
+
+**`nk-reveal` est l'animation la plus vue de l'application** — 129 emplois, rejouée à chaque
+navigation. Elle était à 600 ms avec une cascade jusqu'à 390 ms : la dernière carte d'un tableau de
+bord se posait 990 ms après le clic. À 280 ms avec une cascade à 30 ms (et `staggerDelay` à 25 ms
+plafonné à 8), elle se pose à 430 ms — l'application paraît deux fois plus rapide sans qu'une seule
+requête aille plus vite. **C'est le levier de performance PERÇUE le moins cher du projet : ne pas
+le redépenser en rallongeant cette animation.**
+
+**Les popovers grandissent depuis leur DÉCLENCHEUR**, jamais depuis leur centre :
+`usePopoverFlottant` calcule `transform-origin` en même temps que la position, et bascule en
+`bottom` quand la bulle s'ouvre au-dessus. Le bornage horizontal n'est pas de la prudence — une
+bulle décalée pour tenir dans la fenêtre peut ne plus contenir son déclencheur, et l'origine
+sortirait de l'élément (fonction pure `origineDepuisDeclencheur`, testée). **Exception : la
+modale**, qui n'est ancrée à rien et grandit donc depuis son centre.
+
+**Ne jamais animer une action au CLAVIER.** La palette ⌘K portait l'animation d'un toast : 240 ms
+placées entre l'intention de quelqu'un qui sait déjà ce qu'il cherche et sa frappe suivante. Elle
+s'ouvre désormais sans transition. La règle vaut pour tout raccourci, pas seulement celui-là.
+
+**Ne pas écrire `transition-all`.** Il met en transition des propriétés qui ne changent pas, et
+réserve des surprises le jour où l'une d'elles se met à changer. Nommer ce qui bouge :
+`transition-[width]` pour une jauge, `transition-colors` pour un élément de navigation,
+`transition-opacity` pour un indicateur. Le `transition` de Tailwind (sans `-all`) est une liste
+CURÉE et convient aux composants dont plusieurs propriétés changent vraiment (bouton, carte).
+
+**Ne jamais partir de `scale(0)`.** Rien, dans le monde réel, ne surgit du néant — même un ballon
+dégonflé a une forme. Les entrées partent de 0,96–0,97.
+
+`prefers-reduced-motion` est traité GLOBALEMENT (`*` → durées à 0,01 ms), avec une exception
+délibérée pour `animate-spin` : un indicateur de chargement porte une information.
+
 ## Cycle de chargement d'une page — `hooks/useRessource.ts`
 
 Le couple `AbortController` + drapeau `actif` + `setLoading`/`setError` + garde `AbortError` était

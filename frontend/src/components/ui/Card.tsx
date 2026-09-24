@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils'
  * glow, plus sobre). `raised` = surface plus élevée + bordure marquée ; `feature` = liseré menthe
  * (accent) sans halo ; `interactive` réagit au survol.
  */
-const cardVariants = cva('rounded-2xl border transition-all duration-150 ease-out', {
+const cardVariants = cva('rounded-2xl border transition duration-150 ease-out', {
   variants: {
     variant: {
       base: 'border-hairline bg-surface',

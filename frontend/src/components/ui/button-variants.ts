@@ -24,7 +24,7 @@ export const buttonVariants = cva(
   // `-webkit-tap-highlight-color: transparent` (index.css) supprime le halo natif d'Android —
   // sans état `active:`, un appui ne produisait donc AUCUN retour visuel. Neutralisé de fait sous
   // `prefers-reduced-motion` (les durées y sont ramenées à 0.01ms).
-  'group relative inline-flex select-none items-center justify-center gap-2 whitespace-nowrap rounded-full font-semibold transition-all duration-150 ease-out active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass/60 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas disabled:pointer-events-none disabled:opacity-55',
+  'group relative inline-flex select-none items-center justify-center gap-2 whitespace-nowrap rounded-full font-semibold transition duration-150 ease-out active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass/60 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas disabled:pointer-events-none disabled:opacity-55',
   {
     variants: {
       variant: {

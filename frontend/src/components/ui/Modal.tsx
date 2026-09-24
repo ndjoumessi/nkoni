@@ -112,7 +112,7 @@ export function Modal({
         type="button"
         aria-label={t('ui.modal.fermer')}
         onClick={onClose}
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        className="nk-voile-in absolute inset-0 bg-black/60 backdrop-blur-sm"
       />
       {/* HAUTEUR BORNÉE + CORPS DÉFILANT — obligatoire, pas cosmétique. Le panneau était centré
           SANS `max-h` ni `overflow`, alors que `document.body` est verrouillé (`overflow:hidden`,
@@ -126,7 +126,10 @@ export function Modal({
         ref={panneauRef}
         tabIndex={-1}
         className={cn(
-          'nk-toast-in relative flex max-h-[85dvh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-hairline bg-canvas shadow-xl',
+          // `nk-modale-in` et NON `nk-toast-in` : une modale n'est ancrée à rien, elle ne doit
+          // pas glisser du haut comme une notification qui arriverait d'ailleurs. Elle grandit sur
+          // place depuis son centre, et le voile fond en même temps qu'elle (`nk-voile-in`).
+          'nk-modale-in relative flex max-h-[85dvh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-hairline bg-canvas shadow-xl',
           className,
         )}
       >

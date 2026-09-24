@@ -25,6 +25,8 @@ interface ToastItem {
   tone: Tone
   title: string
   description?: string
+  /** Vrai pendant l'animation de SORTIE : la ligne reste montée le temps de disparaître. */
+  sortant?: boolean
 }
 
 interface ToastApi {
@@ -34,6 +36,9 @@ interface ToastApi {
 }
 
 const ToastContext = createContext<ToastApi | null>(null)
+
+/** Doit valoir la durée de `.nk-toast-out` (index.css) : au-delà, la ligne resterait figée. */
+const DUREE_SORTIE_MS = 160
 
 const CONFIG: Record<Tone, { icon: typeof Info; accent: string; ring: string }> = {
   success: { icon: CheckCircle2, accent: 'text-jade', ring: 'ring-jade/25' },
@@ -49,13 +54,26 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   // WCAG 2.2.1). Par toast : handle du timeout + temps restant recalculé à chaque pause.
   const minuteurs = useRef(new Map<number, { timeout: number; expire: number; restant: number }>())
 
+  /**
+   * Retire un toast en DEUX temps : on le marque `sortant` (ce qui déclenche `nk-toast-out`), puis
+   * on le démonte à la fin de l'animation.
+   *
+   * Sans ce délai, un toast animé à l'arrivée disparaissait d'un coup — l'asymétrie qu'on remarque
+   * sans savoir la nommer. La sortie est plus COURTE que l'entrée (160 contre 240 ms) : à ce
+   * moment-là l'utilisateur en a déjà fini avec le message, le faire attendre serait une politesse
+   * mal placée.
+   */
   const remove = useCallback((id: number) => {
     const m = minuteurs.current.get(id)
     if (m) {
       window.clearTimeout(m.timeout)
       minuteurs.current.delete(id)
     }
-    setItems((prev) => prev.filter((item) => item.id !== id))
+    setItems((prev) => prev.map((item) => (item.id === id ? { ...item, sortant: true } : item)))
+    window.setTimeout(
+      () => setItems((prev) => prev.filter((item) => item.id !== id)),
+      DUREE_SORTIE_MS,
+    )
   }, [])
 
   const pauser = useCallback((id: number) => {
@@ -116,7 +134,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               onFocus={() => pauser(item.id)}
               onBlur={() => reprendre(item.id)}
               className={cn(
-                'nk-toast-in pointer-events-auto flex items-start gap-3 rounded-2xl border border-hairline-strong bg-surface-2/95 p-3.5 shadow-[0_24px_60px_-24px_oklch(0_0_0/80%)] ring-1 ring-inset backdrop-blur-xl',
+                'pointer-events-auto flex items-start gap-3 rounded-2xl border border-hairline-strong bg-surface-2/95 p-3.5 shadow-[0_24px_60px_-24px_oklch(0_0_0/80%)] ring-1 ring-inset backdrop-blur-xl',
+                item.sortant ? 'nk-toast-out' : 'nk-toast-in',
                 ring,
               )}
             >

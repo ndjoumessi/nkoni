@@ -697,7 +697,7 @@ export function MonEspacePage() {
             aria-label={t('monEspace.situation.progression')}
           >
             <div
-              className={cn('h-full rounded-full transition-all', reste === 0 ? 'bg-jade' : 'bg-brass')}
+              className={cn('h-full rounded-full transition-[width,background-color] duration-500 ease-trajet', reste === 0 ? 'bg-jade' : 'bg-brass')}
               style={{ width: `${pct}%` }}
             />
           </div>

@@ -16,6 +16,35 @@ import { createPortal } from 'react-dom'
  * Le comportement (mesures, marges, bascule) est identique à l'implémentation d'origine des deux
  * composants ; seules les dimensions de repli avant première mesure sont paramétrables.
  */
+/**
+ * ORIGINE DE TRANSFORMATION d'un popover — la bulle doit grandir DEPUIS son déclencheur, et non
+ * depuis son centre. C'est ce qui la relie visuellement au bouton qu'on vient de cliquer ; pris
+ * isolément personne ne le remarque, mais c'est l'accumulation de ces riens qui fait qu'une
+ * interface paraît juste.
+ *
+ * Fonction PURE et exportée pour être testable : les deux bornes ci-dessous ne se devinent pas.
+ *
+ * @param centreDeclencheur abscisse du centre du déclencheur, en coordonnées de fenêtre
+ * @param gauchePopover     abscisse du bord gauche de la bulle (déjà bornée au viewport)
+ * @param largeurPopover    largeur de la bulle
+ * @param versLeHaut        la bulle a basculé AU-DESSUS du déclencheur faute de place en dessous
+ */
+export function origineDepuisDeclencheur(
+  centreDeclencheur: number,
+  gauchePopover: number,
+  largeurPopover: number,
+  versLeHaut: boolean,
+): string {
+  // Horizontalement : le centre du déclencheur ramené DANS la bulle. Le bornage n'est pas de la
+  // prudence — la bulle a pu être décalée pour tenir dans la fenêtre, et un déclencheur près d'un
+  // bord tombe alors hors d'elle ; sans ce clamp, l'origine sortirait de l'élément et la bulle
+  // grandirait depuis un point situé à côté d'elle.
+  const x = Math.min(Math.max(centreDeclencheur - gauchePopover, 0), largeurPopover)
+  // Verticalement : le bord par lequel la bulle TOUCHE le déclencheur. Inversé quand elle a
+  // basculé au-dessus, sinon elle grandirait en s'éloignant de lui.
+  return `${Math.round(x)}px ${versLeHaut ? 'bottom' : 'top'}`
+}
+
 export function usePopoverFlottant({
   open,
   onFermer,
@@ -34,7 +63,9 @@ export function usePopoverFlottant({
   const containerRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const popoverRef = useRef<HTMLDivElement>(null)
-  const [coords, setCoords] = useState<{ top: number; left: number } | null>(null)
+  const [coords, setCoords] = useState<{ top: number; left: number; origine: string } | null>(
+    null,
+  )
 
   // Ancre le popover sous le déclencheur (ou au-dessus s'il n'y a pas la place), borné au viewport.
   const positionner = useCallback(() => {
@@ -48,11 +79,18 @@ export function usePopoverFlottant({
     const vh = document.documentElement.clientHeight
 
     let top = r.bottom + gap
+    let versLeHaut = false
     if (r.bottom + gap + hauteur > vh && r.top > vh - r.bottom) {
       top = Math.max(gap, r.top - gap - hauteur)
+      versLeHaut = true
     }
     const left = Math.max(gap, Math.min(r.left, vw - largeur - gap))
-    setCoords({ top, left })
+
+    setCoords({
+      top,
+      left,
+      origine: origineDepuisDeclencheur(r.left + r.width / 2, left, largeur, versLeHaut),
+    })
   }, [largeurDefaut, hauteurDefaut])
 
   // (Re)positionne à l'ouverture, au changement de vue (`repositionSur` : la hauteur peut varier),
@@ -115,8 +153,11 @@ export function usePopoverFlottant({
           left: coords?.left ?? 0,
           // Masqué tant que la position n'est pas calculée (évite un flash en haut à gauche).
           visibility: coords ? 'visible' : 'hidden',
+          transformOrigin: coords?.origine,
         }}
-        className={className}
+        // L'animation n'est posée QU'UNE FOIS la position connue : appliquée pendant la phase
+        // masquée, elle se jouerait dans le vide et la bulle apparaîtrait déjà stabilisée.
+        className={coords ? `${className} nk-popover-in` : className}
       >
         {enfants}
       </div>,

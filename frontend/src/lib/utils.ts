@@ -51,10 +51,14 @@ export function formatDateHeure(iso: string | null | undefined): string {
 }
 
 /**
- * Délai d'entrée décalé pour une liste (guideline §7 `stagger-sequence` : 30–50ms/item).
- * À combiner avec la classe `nk-reveal`. Plafonné pour éviter d'attendre sur les longues listes.
+ * Délai d'entrée décalé pour une liste. À combiner avec la classe `nk-reveal`.
+ *
+ * Le pas et le plafond suivent le resserrement de `nk-reveal` : à 0,04 s plafonné à 12 items, la
+ * 13ᵉ ligne d'une liste démarrait 480 ms après la première et se posait à 1,08 s. Le décalage est
+ * DÉCORATIF — il ne doit jamais faire attendre. 25 ms plafonnés à 8 gardent la cascade lisible en
+ * 200 ms au pire.
  */
-export function staggerDelay(index: number, step = 0.04, cap = 12): { animationDelay: string } {
+export function staggerDelay(index: number, step = 0.025, cap = 8): { animationDelay: string } {
   return { animationDelay: `${Math.min(index, cap) * step}s` }
 }
 

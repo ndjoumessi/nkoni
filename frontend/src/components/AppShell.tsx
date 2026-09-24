@@ -151,7 +151,8 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
                 onClick={onNavigate}
                 className={({ isActive }) =>
                   cn(
-                    'group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150',
+                    // Seuls le fond et la couleur du texte changent d'un état à l'autre.
+                    'group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors duration-150',
                     isActive
                       ? 'bg-surface-2 text-foreground'
                       : 'text-muted-foreground hover:bg-surface/70 hover:text-foreground',
@@ -162,7 +163,8 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
                   <>
                     <span
                       className={cn(
-                        'absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-full bg-brass transition-all duration-150',
+                        // Seule l'opacité change ; la translation est statique (centrage vertical).
+                        'absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-full bg-brass transition-opacity duration-150',
                         isActive ? 'opacity-100' : 'opacity-0',
                       )}
                     />

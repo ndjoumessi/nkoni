@@ -203,22 +203,20 @@ export function CommemorationDetailPage() {
         canManage={peutGererDocument(user?.role, 'COMMEMORATION')}
       />
 
-      {deleteOuvert && (
-        <Modal open onClose={() => setDeleteOuvert(false)} title={t('commemorations.detail.supprimerTitre')}>
-          <p className="text-sm leading-relaxed text-muted-foreground">
-            <span className="font-medium text-foreground">{item.titre}</span>
-            {t('commemorations.detail.supprimerConfirmationSuffixe')}
-          </p>
-          <div className="mt-5 flex justify-end gap-2">
-            <Button type="button" variant="ghost" onClick={() => setDeleteOuvert(false)}>
-              {t('commemorations.detail.annuler')}
-            </Button>
-            <Button type="button" variant="danger" icon={Trash2} loading={deleting} onClick={supprimer}>
-              {t('commemorations.detail.supprimerDefinitivement')}
-            </Button>
-          </div>
-        </Modal>
-      )}
+      <Modal open={deleteOuvert} onClose={() => setDeleteOuvert(false)} title={t('commemorations.detail.supprimerTitre')}>
+        <p className="text-sm leading-relaxed text-muted-foreground">
+          <span className="font-medium text-foreground">{item.titre}</span>
+          {t('commemorations.detail.supprimerConfirmationSuffixe')}
+        </p>
+        <div className="mt-5 flex justify-end gap-2">
+          <Button type="button" variant="ghost" onClick={() => setDeleteOuvert(false)}>
+            {t('commemorations.detail.annuler')}
+          </Button>
+          <Button type="button" variant="danger" icon={Trash2} loading={deleting} onClick={supprimer}>
+            {t('commemorations.detail.supprimerDefinitivement')}
+          </Button>
+        </div>
+      </Modal>
     </>
   )
 }

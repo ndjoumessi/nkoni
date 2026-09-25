@@ -61,6 +61,32 @@ export function TresoreriePage() {
   const [formOuvert, setFormOuvert] = useState(false)
   const [editDepense, setEditDepense] = useState<Depense | null>(null)
   const [rejet, setRejet] = useState<Depense | null>(null)
+  /**
+   * Compteur d'OUVERTURES, utilisé comme `key` des deux formulaires en modale.
+   *
+   * Les deux modales restent désormais MONTÉES en permanence — c'est la condition de leur
+   * animation de sortie (`Modal` ne peut pas retarder un démontage décidé par son appelant).
+   * Mais leurs formulaires portent l'état d'UNE saisie : sans remontage, un montant tapé puis
+   * abandonné reparaîtrait à l'ouverture suivante, prêt à être soumis par erreur. Faire changer
+   * la `key` à chaque ouverture les réinitialise — le moyen React de remettre un sous-arbre à
+   * neuf, sans effet de synchronisation d'état.
+   */
+  const [ouverture, setOuverture] = useState(0)
+
+  /** Ouvre le formulaire de dépense — création si `depense` est absent, édition sinon. */
+  const ouvrirForm = (depense?: Depense) => {
+    setEditDepense(depense ?? null)
+    setFormOuvert(true)
+    setOuverture((n) => n + 1)
+  }
+  const fermerForm = () => {
+    setFormOuvert(false)
+    setEditDepense(null)
+  }
+  const ouvrirRejet = (depense: Depense) => {
+    setRejet(depense)
+    setOuverture((n) => n + 1)
+  }
 
   const gestion = peutGererDepense(user?.role)
   const approbation = peutApprouverDepense(user?.role)
@@ -154,7 +180,7 @@ export function TresoreriePage() {
               icon={Pencil}
               aria-label={t('tresorerie.actions.modifier')}
               title={t('tresorerie.actions.modifier')}
-              onClick={() => setEditDepense(d)}
+              onClick={() => ouvrirForm(d)}
             />
           )}
           {approbation && d.statut === 'EN_ATTENTE' && (
@@ -162,7 +188,7 @@ export function TresoreriePage() {
               <Button variant="ghost" size="sm" icon={Check} onClick={() => agir(() => depensesApi.approuver(d.id, accessToken!), t('tresorerie.toast.approuvee'))}>
                 {t('tresorerie.actions.approuver')}
               </Button>
-              <Button variant="ghost" size="sm" icon={X} onClick={() => setRejet(d)}>
+              <Button variant="ghost" size="sm" icon={X} onClick={() => ouvrirRejet(d)}>
                 {t('tresorerie.actions.rejeter')}
               </Button>
             </>
@@ -194,7 +220,7 @@ export function TresoreriePage() {
       <PageHeader
         title={t('tresorerie.titre')}
         description={t('tresorerie.sousTitre')}
-        actions={gestion && <Button icon={Plus} onClick={() => setFormOuvert(true)}>{t('tresorerie.actions.nouvelle')}</Button>}
+        actions={gestion && <Button icon={Plus} onClick={() => ouvrirForm()}>{t('tresorerie.actions.nouvelle')}</Button>}
       />
 
       {!loading && erreur && (
@@ -265,21 +291,24 @@ export function TresoreriePage() {
         {!loading && <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPageChange={setPage} />}
       </Card>
 
-      {(formOuvert || editDepense) && (
+      <Modal
+        open={formOuvert}
+        onClose={fermerForm}
+        title={editDepense ? t('tresorerie.form.titreEdition') : t('tresorerie.form.titre')}
+      >
         <FormDepense
+          key={ouverture}
           depense={editDepense ?? undefined}
-          onClose={() => {
-            setFormOuvert(false)
-            setEditDepense(null)
-          }}
+          onClose={fermerForm}
           onSauvegarde={async () => {
-            setFormOuvert(false)
-            setEditDepense(null)
+            fermerForm()
             await recharger()
           }}
         />
-      )}
-      {rejet && <ModalRejet onClose={() => setRejet(null)} onConfirmer={confirmerRejet} />}
+      </Modal>
+      <Modal open={rejet !== null} onClose={() => setRejet(null)} title={t('tresorerie.form.motifRejet')}>
+        <FormRejet key={ouverture} onClose={() => setRejet(null)} onConfirmer={confirmerRejet} />
+      </Modal>
     </div>
   )
 }
@@ -290,6 +319,10 @@ export function TresoreriePage() {
  * Formulaire de dépense — CRÉATION ou ÉDITION selon `depense`.
  * En édition, on met à jour les champs SANS toucher au statut (le back n'autorise l'édition
  * que sur BROUILLON/EN_ATTENTE ; les transitions de statut passent par les actions de ligne).
+ *
+ * N'embarque PAS sa modale : la page porte la coquille (`<Modal>` + titre) et monte ce corps
+ * avec une `key` d'ouverture. Ainsi la modale survit à la fermeture le temps de son animation
+ * de sortie, tandis que la saisie, elle, repart de zéro à chaque ouverture (cf. `ouverture`).
  */
 function FormDepense({
   depense,
@@ -354,55 +387,52 @@ function FormDepense({
   }
 
   return (
-    <Modal open onClose={onClose} title={edition ? t('tresorerie.form.titreEdition') : t('tresorerie.form.titre')}>
-      <form ref={formRef} className="space-y-3" onSubmit={(e: FormEvent) => { e.preventDefault(); void enregistrer(edition ? undefined : 'EN_ATTENTE') }}>
-        <Field label={t('tresorerie.form.montant')} required error={erreurs.montant}>
-          <Input type="number" min={1} value={montant} onChange={(e) => { setMontant(e.target.value); effacerErreur('montant') }} />
-        </Field>
-        <Field label={t('tresorerie.form.date')} required error={erreurs.date}>
-          <DatePicker value={date} onChange={(v) => { setDate(v); effacerErreur('date') }} />
-        </Field>
-        <Field label={t('tresorerie.form.description')} required error={erreurs.description}>
-          <Input value={description} onChange={(e) => { setDescription(e.target.value); effacerErreur('description') }} maxLength={1000} />
-        </Field>
-        <Field label={t('tresorerie.form.categorie')}>
-          <Select value={categorie} onChange={(e) => setCategorie(e.target.value as CategorieDepense)}>
-            {CATEGORIES.map((c) => <option key={c} value={c}>{t(`tresorerie.categories.${c}`)}</option>)}
-          </Select>
-        </Field>
-        <div className="flex flex-wrap justify-end gap-2 pt-2">
-          <Button type="button" variant="ghost" onClick={onClose}>{t('tresorerie.form.annuler')}</Button>
-          {edition ? (
-            <Button type="submit" loading={enCours}>{t('tresorerie.form.enregistrer')}</Button>
-          ) : (
-            <>
-              <Button type="button" variant="outline" loading={enCours} onClick={() => void enregistrer('BROUILLON')}>
-                {t('tresorerie.form.enregistrerBrouillon')}
-              </Button>
-              <Button type="submit" loading={enCours}>{t('tresorerie.form.soumettre')}</Button>
-            </>
-          )}
-        </div>
-      </form>
-    </Modal>
+    <form ref={formRef} className="space-y-3" onSubmit={(e: FormEvent) => { e.preventDefault(); void enregistrer(edition ? undefined : 'EN_ATTENTE') }}>
+      <Field label={t('tresorerie.form.montant')} required error={erreurs.montant}>
+        <Input type="number" min={1} value={montant} onChange={(e) => { setMontant(e.target.value); effacerErreur('montant') }} />
+      </Field>
+      <Field label={t('tresorerie.form.date')} required error={erreurs.date}>
+        <DatePicker value={date} onChange={(v) => { setDate(v); effacerErreur('date') }} />
+      </Field>
+      <Field label={t('tresorerie.form.description')} required error={erreurs.description}>
+        <Input value={description} onChange={(e) => { setDescription(e.target.value); effacerErreur('description') }} maxLength={1000} />
+      </Field>
+      <Field label={t('tresorerie.form.categorie')}>
+        <Select value={categorie} onChange={(e) => setCategorie(e.target.value as CategorieDepense)}>
+          {CATEGORIES.map((c) => <option key={c} value={c}>{t(`tresorerie.categories.${c}`)}</option>)}
+        </Select>
+      </Field>
+      <div className="flex flex-wrap justify-end gap-2 pt-2">
+        <Button type="button" variant="ghost" onClick={onClose}>{t('tresorerie.form.annuler')}</Button>
+        {edition ? (
+          <Button type="submit" loading={enCours}>{t('tresorerie.form.enregistrer')}</Button>
+        ) : (
+          <>
+            <Button type="button" variant="outline" loading={enCours} onClick={() => void enregistrer('BROUILLON')}>
+              {t('tresorerie.form.enregistrerBrouillon')}
+            </Button>
+            <Button type="submit" loading={enCours}>{t('tresorerie.form.soumettre')}</Button>
+          </>
+        )}
+      </div>
+    </form>
   )
 }
 
-function ModalRejet({ onClose, onConfirmer }: { onClose: () => void; onConfirmer: (motif: string) => void }) {
+/** Corps de la modale de rejet — même partage que `FormDepense` : la coquille est portée par la page. */
+function FormRejet({ onClose, onConfirmer }: { onClose: () => void; onConfirmer: (motif: string) => void }) {
   const { t } = useTranslation()
   const [motif, setMotif] = useState('')
   return (
-    <Modal open onClose={onClose} title={t('tresorerie.form.motifRejet')}>
-      <form className="space-y-3" onSubmit={(e: FormEvent) => { e.preventDefault(); if (motif.trim()) onConfirmer(motif.trim()) }}>
-        <Field label={t('tresorerie.form.motifRejet')} required>
-          <Input value={motif} onChange={(e) => setMotif(e.target.value)} placeholder={t('tresorerie.form.motifRejetPlaceholder')} maxLength={1000} />
-        </Field>
-        <div className="flex justify-end gap-2 pt-2">
-          <Button type="button" variant="ghost" onClick={onClose}>{t('tresorerie.form.annuler')}</Button>
-          <Button type="submit" variant="danger" disabled={motif.trim() === ''}>{t('tresorerie.form.confirmerRejet')}</Button>
-        </div>
-      </form>
-    </Modal>
+    <form className="space-y-3" onSubmit={(e: FormEvent) => { e.preventDefault(); if (motif.trim()) onConfirmer(motif.trim()) }}>
+      <Field label={t('tresorerie.form.motifRejet')} required>
+        <Input value={motif} onChange={(e) => setMotif(e.target.value)} placeholder={t('tresorerie.form.motifRejetPlaceholder')} maxLength={1000} />
+      </Field>
+      <div className="flex justify-end gap-2 pt-2">
+        <Button type="button" variant="ghost" onClick={onClose}>{t('tresorerie.form.annuler')}</Button>
+        <Button type="submit" variant="danger" disabled={motif.trim() === ''}>{t('tresorerie.form.confirmerRejet')}</Button>
+      </div>
+    </form>
   )
 }
 

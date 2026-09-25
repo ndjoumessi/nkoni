@@ -37,8 +37,50 @@ une animation comme intentionnelle. Les deux ci-dessus en sont les variantes for
 **Budget : 300 ms.** Presse-papier des durées retenues — pression d'un bouton 150 ms, popover
 150 ms, modale 200 ms, révélation de page 280 ms, jauge 500 ms (c'est une donnée qui se lit, pas
 une transition d'écran). Une **sortie est toujours plus courte que son entrée** (toast : 240 ms à
-l'aller, 160 au retour) : à ce moment-là l'utilisateur en a fini, le faire attendre est une
+l'aller, 160 au retour ; modale : 200 et 140) : à ce moment-là l'utilisateur en a fini, le faire attendre est une
 politesse mal placée.
+
+### La SORTIE de la modale, et les trois choses qu'elle a obligé à traiter
+
+Pendant longtemps la modale entrait en 200 ms et disparaissait d'un coup. L'asymétrie se remarque
+sans qu'on sache la nommer : le geste n'a pas de fin, il est interrompu. `nk-modale-out` /
+`nk-voile-out` (140 ms, même courbe, échelle qui revient à 0,97) referment ce geste.
+
+Le vrai coût n'est pas l'animation, c'est ce qu'elle implique : **la modale doit survivre à sa
+fermeture**. `Modal` la garde montée 140 ms de plus (`DUREE_SORTIE_MS`), ce qui crée trois
+problèmes qu'une animation « posée vite » laisserait derrière elle :
+
+1. **Le contenu se vide sous les yeux.** 27 des 32 appels pilotent la modale par la donnée qu'elle
+   affiche (`open={cible !== null}`) et remettent cette donnée à zéro dans `onClose`. Pendant la
+   sortie, le panneau afficherait donc un nom qui s'efface, un montant devenu « — » — quand il ne
+   planterait pas sur un `cible.montant` devenu nul. `Modal` **fige** donc la dernière image
+   commitée (contenu **et titre**, qui se dérive souvent du même état) et la rejoue. Le gel est
+   mémorisé dans un effet, PAS pendant le rendu : au rendu de fermeture, `children` porte déjà le
+   contenu vidé.
+2. **Ce qui part doit être inerte.** Plus d'Échap ni de piège de focus, `aria-hidden` (un lecteur
+   d'écran n'annonce pas un dialogue en train de disparaître), `pointer-events-none` et boutons
+   `disabled` — sans quoi un clic pressé pendant la sortie atteindrait un bouton FIGÉ, donc une
+   action qui n'est plus celle affichée. En revanche le **focus revient au déclencheur dès la
+   fermeture**, sans attendre l'animation : une décoration ne doit jamais faire patienter le
+   clavier.
+3. **Le verrou de défilement se relâche au DÉMONTAGE**, pas au début de la sortie — sinon la page
+   bougerait derrière un panneau encore visible.
+
+Corollaire d'écriture, et **la seule chose à retenir côté appelant** : `<Modal>` doit rester monté
+et recevoir `open={condition}`. La forme `{condition && <Modal open …>}` lui retire toute
+possibilité d'animer, puisque c'est l'appelant qui décide du démontage. Les cinq sites qui
+l'utilisaient ont été convertis ; deux d'entre eux (`TresoreriePage`) portaient l'état d'une saisie
+dans le composant qui enveloppait la modale — la coquille a été remontée dans la page et le corps
+du formulaire reçoit une **`key` d'ouverture** qui le réinitialise. C'est le moyen React de remettre
+un sous-arbre à neuf, sans effet de synchronisation d'état, et sans quoi un montant tapé puis
+abandonné reparaîtrait à l'ouverture suivante, prêt à être soumis par erreur.
+
+**Mesure, et ce qu'elle apprend sur la courbe.** `--ease-sortie` est un ease-out FORT : à 78 ms sur
+les 140, l'opacité est déjà à 0,02 et l'échelle à 0,9705. La sortie nominale de 140 ms est donc
+perçue autour de 80, le reste étant une queue invisible. Ce n'est pas un défaut — une fermeture doit
+être prompte, et `nk-toast-out` a exactement la même caractéristique — mais il faut le savoir avant
+de « raccourcir » ces durées : à 100 ms nominales, la sortie ne se lirait plus comme un mouvement,
+seulement comme une coupe.
 
 **`nk-reveal` est l'animation la plus vue de l'application** — 129 emplois, rejouée à chaque
 navigation. Elle était à 600 ms avec une cascade jusqu'à 390 ms : la dernière carte d'un tableau de

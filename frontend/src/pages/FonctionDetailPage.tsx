@@ -411,27 +411,25 @@ export function FonctionDetailPage() {
         </Card>
       )}
 
-      {deleteOuvert && (
-        <Modal open onClose={() => setDeleteOuvert(false)} title={t('fonctions.suppression.titre')}>
-          <p className="text-sm leading-relaxed text-muted-foreground">
-            {t('fonctions.suppression.avant')}
-            <span className="font-medium text-foreground">{fonction.nom}</span>
-            {t('fonctions.suppression.entre')}
-            <span className="font-medium text-foreground">
-              {t('fonctions.suppression.emphaseHistorique')}
-            </span>
-            {t('fonctions.suppression.apres')}
-          </p>
-          <div className="mt-5 flex justify-end gap-2">
-            <Button type="button" variant="ghost" onClick={() => setDeleteOuvert(false)}>
-              {t('fonctions.actions.annuler')}
-            </Button>
-            <Button type="button" variant="danger" icon={Trash2} loading={deleting} onClick={supprimer}>
-              {t('fonctions.suppression.confirmer')}
-            </Button>
-          </div>
-        </Modal>
-      )}
+      <Modal open={deleteOuvert} onClose={() => setDeleteOuvert(false)} title={t('fonctions.suppression.titre')}>
+        <p className="text-sm leading-relaxed text-muted-foreground">
+          {t('fonctions.suppression.avant')}
+          <span className="font-medium text-foreground">{fonction.nom}</span>
+          {t('fonctions.suppression.entre')}
+          <span className="font-medium text-foreground">
+            {t('fonctions.suppression.emphaseHistorique')}
+          </span>
+          {t('fonctions.suppression.apres')}
+        </p>
+        <div className="mt-5 flex justify-end gap-2">
+          <Button type="button" variant="ghost" onClick={() => setDeleteOuvert(false)}>
+            {t('fonctions.actions.annuler')}
+          </Button>
+          <Button type="button" variant="danger" icon={Trash2} loading={deleting} onClick={supprimer}>
+            {t('fonctions.suppression.confirmer')}
+          </Button>
+        </div>
+      </Modal>
     </>
   )
 }

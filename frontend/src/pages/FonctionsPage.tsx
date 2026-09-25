@@ -201,37 +201,35 @@ export function FonctionsPage() {
         )}
       </div>
 
-      {creerOuvert && (
-        <Modal open onClose={fermerModal} title={t('fonctions.creer.titre')}>
-          <form onSubmit={creerFonction} className="space-y-4">
-            <Field label={t('fonctions.creer.nomLabel')} required>
-              <Input
-                autoFocus
-                value={nom}
-                onChange={(e) => setNom(e.target.value)}
-                placeholder={t('fonctions.creer.nomPlaceholder')}
-                maxLength={200}
-              />
-            </Field>
-            <Field label={t('fonctions.creer.descriptionLabel')} hint={t('fonctions.champ.optionnel')}>
-              <Textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder={t('fonctions.creer.descriptionPlaceholder')}
-                rows={3}
-              />
-            </Field>
-            <div className="flex justify-end gap-2 pt-1">
-              <Button type="button" variant="ghost" onClick={fermerModal}>
-                {t('fonctions.actions.annuler')}
-              </Button>
-              <Button type="submit" icon={Plus} loading={creating} disabled={nom.trim().length === 0}>
-                {t('fonctions.creer.soumettre')}
-              </Button>
-            </div>
-          </form>
-        </Modal>
-      )}
+      <Modal open={creerOuvert} onClose={fermerModal} title={t('fonctions.creer.titre')}>
+        <form onSubmit={creerFonction} className="space-y-4">
+          <Field label={t('fonctions.creer.nomLabel')} required>
+            <Input
+              autoFocus
+              value={nom}
+              onChange={(e) => setNom(e.target.value)}
+              placeholder={t('fonctions.creer.nomPlaceholder')}
+              maxLength={200}
+            />
+          </Field>
+          <Field label={t('fonctions.creer.descriptionLabel')} hint={t('fonctions.champ.optionnel')}>
+            <Textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder={t('fonctions.creer.descriptionPlaceholder')}
+              rows={3}
+            />
+          </Field>
+          <div className="flex justify-end gap-2 pt-1">
+            <Button type="button" variant="ghost" onClick={fermerModal}>
+              {t('fonctions.actions.annuler')}
+            </Button>
+            <Button type="submit" icon={Plus} loading={creating} disabled={nom.trim().length === 0}>
+              {t('fonctions.creer.soumettre')}
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </>
   )
 }

@@ -1,8 +1,8 @@
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { X } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { cn, prefersReducedMotion } from '@/lib/utils'
 
 /**
  * Sélecteur des éléments focusables au clavier À L'INTÉRIEUR du panneau — utilisé par le
@@ -10,6 +10,10 @@ import { cn } from '@/lib/utils'
  */
 const FOCUSABLES =
   'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+
+/** Doit valoir la durée de `.nk-modale-out` / `.nk-voile-out` (index.css) : au-delà, le panneau
+ *  resterait monté, invisible et immobile, en retenant le verrou de défilement du body. */
+const DUREE_SORTIE_MS = 140
 
 /**
  * Modale légère centrée — direction « Laiton & Jade » : overlay flouté + Card.
@@ -20,7 +24,17 @@ const FOCUSABLES =
  *   focus est déplacé sur le panneau (rendu focusable via `tabIndex={-1}`) ;
  * - PENDANT : Tab / Shift+Tab bouclent à l'intérieur du panneau (dernier → premier et
  *   inversement) ; Échap et le clic backdrop restent inchangés ;
- * - à la FERMETURE : le focus est restauré sur le déclencheur mémorisé s'il existe encore.
+ * - à la FERMETURE : le focus est restauré sur le déclencheur mémorisé s'il existe encore —
+ *   IMMÉDIATEMENT, sans attendre la fin de l'animation de sortie (cf. ci-dessous). Un
+ *   utilisateur au clavier ne doit jamais patienter derrière une décoration.
+ *
+ * SORTIE ANIMÉE — le panneau reste monté `DUREE_SORTIE_MS` après le passage de `open` à faux,
+ * le temps de jouer `nk-modale-out` / `nk-voile-out`. Trois conséquences, toutes traitées ici :
+ *  1. le CONTENU est FIGÉ pendant la sortie (cf. `contenuFige`) ;
+ *  2. la modale devient INERTE — `aria-hidden`, `pointer-events-none`, plus aucun raccourci
+ *     clavier : ce qui part ne doit plus ni répondre, ni être annoncé, ni être cliquable ;
+ *  3. le verrou de défilement du body ne se relâche qu'au DÉMONTAGE, sinon la page bougerait
+ *     derrière un panneau encore visible.
  */
 export function Modal({
   open,
@@ -39,9 +53,46 @@ export function Modal({
   const panneauRef = useRef<HTMLDivElement>(null)
   const declencheurRef = useRef<HTMLElement | null>(null)
 
+  // Phase de sortie : vrai entre la fermeture demandée et le démontage effectif.
+  const [sortant, setSortant] = useState(false)
+  const [ouvertPrecedent, setOuvertPrecedent] = useState(open)
+
+  /**
+   * DERNIER CONTENU AFFICHÉ, conservé pour la durée de la sortie.
+   *
+   * Sans lui, l'animation de sortie trahirait ce qu'elle est censée adoucir. Presque tous les
+   * appelants pilotent la modale par la donnée qu'elle affiche (`open={cible !== null}`) et
+   * remettent cette donnée à zéro dans `onClose` : pendant les 140 ms de sortie, le panneau
+   * afficherait donc un contenu VIDÉ — un nom qui s'efface, un montant qui devient « — » —,
+   * quand il ne planterait pas sur un `cible.montant` devenu nul. On rejoue donc la dernière
+   * image connue plutôt que l'état courant.
+   *
+   * Le TITRE est figé avec le contenu, et pour la même raison : il se dérive souvent du même
+   * état (« Modifier une dépense » / « Nouvelle dépense »), et basculerait donc à la fermeture.
+   *
+   * Mémorisé dans un effet et non pendant le rendu : au rendu de fermeture, `children` porte
+   * DÉJÀ le contenu vidé. Seul ce qui a été commité juste avant fait foi.
+   */
+  const figeRef = useRef<{ titre: string; enfants: ReactNode }>({ titre: title, enfants: null })
+
+  // Ajustement d'état pendant le rendu (motif React « état dérivé d'un changement de prop ») :
+  // le rendu en cours est abandonné et relancé avant tout affichage. Le faire dans un effet
+  // laisserait passer une image où la modale a déjà disparu — soit précisément le saut qu'on
+  // cherche à supprimer.
+  if (open !== ouvertPrecedent) {
+    setOuvertPrecedent(open)
+    // Réouverture pendant une sortie : on annule la sortie et l'entrée reprend la main.
+    setSortant(!open)
+  }
+
+  useEffect(() => {
+    if (open) figeRef.current = { titre: title, enfants: children }
+  })
+
   // Focus : entrée dans la modale à l'ouverture, restauration au déclencheur à la fermeture.
   // Dépendance [open] UNIQUEMENT : un `onClose` recréé à chaque render ne doit pas re-mémoriser
-  // un activeElement devenu interne à la modale.
+  // un activeElement devenu interne à la modale. Le nettoyage s'exécute quand `open` retombe,
+  // donc AU DÉBUT de la sortie : le focus revient sans attendre l'animation.
   useEffect(() => {
     if (!open) return
     declencheurRef.current =
@@ -53,6 +104,8 @@ export function Modal({
     }
   }, [open])
 
+  // Raccourcis clavier — actifs seulement tant que la modale est OUVERTE. Pendant la sortie,
+  // Échap et Tab ne doivent plus rien déclencher : la modale n'est plus une cible, elle part.
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {
@@ -87,15 +140,39 @@ export function Modal({
       }
     }
     window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [open, onClose])
+
+  const monte = open || sortant
+
+  // Verrou de défilement tenu sur TOUTE la durée d'affichage, sortie comprise.
+  useEffect(() => {
+    if (!monte) return
     const prevOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     return () => {
-      window.removeEventListener('keydown', onKey)
       document.body.style.overflow = prevOverflow
     }
-  }, [open, onClose])
+  }, [monte])
 
-  if (!open) return null
+  // Fin de la sortie → démontage. Sous `prefers-reduced-motion`, l'animation est neutralisée par
+  // la feuille de style : attendre 140 ms ne ferait que retenir le verrou de défilement devant un
+  // panneau déjà invisible, on démonte donc au tour de boucle suivant.
+  useEffect(() => {
+    if (!sortant) return
+    const handle = window.setTimeout(
+      () => setSortant(false),
+      prefersReducedMotion() ? 0 : DUREE_SORTIE_MS,
+    )
+    return () => window.clearTimeout(handle)
+  }, [sortant])
+
+  if (!monte) return null
+
+  // Pendant la sortie, on rejoue la dernière image connue (cf. `figeRef`) ; à l'ouverture, l'état
+  // courant fait foi.
+  const titreAffiche = open ? title : figeRef.current.titre
+  const enfantsAffiches = open ? children : figeRef.current.enfants
 
   // Rendu en PORTAIL dans <body> : un ancêtre animé `nk-reveal` laisse un `transform` résiduel
   // qui deviendrait le containing block des `position: fixed` → la modale se positionnerait par
@@ -103,16 +180,28 @@ export function Modal({
   // l'immunise structurellement.
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-label={title}
+      className={cn(
+        'fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4',
+        // Ce qui part n'est plus cliquable : sans cela, un clic pressé pendant la sortie
+        // atteindrait un bouton FIGÉ, donc une action qui n'est plus celle affichée.
+        sortant && 'pointer-events-none',
+      )}
+      // Pendant la sortie, la modale sort aussi de l'arbre d'accessibilité : un lecteur d'écran
+      // ne doit pas annoncer un dialogue en train de disparaître. Le focus en est déjà sorti
+      // (restauré sur le déclencheur), `aria-hidden` ne peut donc pas piéger le curseur.
+      {...(sortant
+        ? { 'aria-hidden': true }
+        : { role: 'dialog', 'aria-modal': true, 'aria-label': titreAffiche })}
     >
       <button
         type="button"
         aria-label={t('ui.modal.fermer')}
         onClick={onClose}
-        className="nk-voile-in absolute inset-0 bg-black/60 backdrop-blur-sm"
+        disabled={sortant}
+        className={cn(
+          'absolute inset-0 bg-black/60 backdrop-blur-sm',
+          sortant ? 'nk-voile-out' : 'nk-voile-in',
+        )}
       />
       {/* HAUTEUR BORNÉE + CORPS DÉFILANT — obligatoire, pas cosmétique. Le panneau était centré
           SANS `max-h` ni `overflow`, alors que `document.body` est verrouillé (`overflow:hidden`,
@@ -129,7 +218,9 @@ export function Modal({
           // `nk-modale-in` et NON `nk-toast-in` : une modale n'est ancrée à rien, elle ne doit
           // pas glisser du haut comme une notification qui arriverait d'ailleurs. Elle grandit sur
           // place depuis son centre, et le voile fond en même temps qu'elle (`nk-voile-in`).
-          'nk-modale-in relative flex max-h-[85dvh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-hairline bg-canvas shadow-xl',
+          // La sortie est le miroir du même geste, en plus court.
+          sortant ? 'nk-modale-out' : 'nk-modale-in',
+          'relative flex max-h-[85dvh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-hairline bg-canvas shadow-xl',
           className,
         )}
       >
@@ -137,10 +228,11 @@ export function Modal({
             360 px consommaient 13 % de la largeur utile, ce qui écrasait les contenus larges
             (recadrage photo, formulaires à deux colonnes). Inchangé à partir de `sm:`. */}
         <div className="flex shrink-0 items-center justify-between gap-4 px-4 pb-4 pt-5 sm:px-6 sm:pt-6">
-          <h2 className="font-display text-lg font-semibold text-foreground">{title}</h2>
+          <h2 className="font-display text-lg font-semibold text-foreground">{titreAffiche}</h2>
           <button
             type="button"
             onClick={onClose}
+            disabled={sortant}
             aria-label={t('ui.modal.fermer')}
             className="tap-target flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground"
           >
@@ -148,7 +240,7 @@ export function Modal({
           </button>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-5 sm:px-6 sm:pb-6">
-          {children}
+          {enfantsAffiches}
         </div>
       </div>
     </div>,

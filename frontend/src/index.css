@@ -368,6 +368,30 @@
 }
 .nk-voile-in { animation: nkVoileIn 0.2s var(--ease-sortie); }
 
+/* Sortie des MODALES — le pendant exact de `nkModaleIn`, et la raison d'être de la phase de
+   sortie que `Modal.tsx` orchestre. Une modale qui grandit à l'ouverture puis disparaît d'un
+   coup laisse la même impression de rupture qu'un toast non animé : le geste n'a pas de fin,
+   il est interrompu.
+
+   140 ms contre 200 à l'entrée. L'asymétrie est VOULUE et va toujours dans ce sens : en
+   ouvrant, l'utilisateur attend de voir ; en fermant, il en a déjà fini — une sortie aussi
+   longue que l'entrée n'est plus de la fluidité, c'est un délai.
+
+   L'échelle REVIENT à 0,97 et ne descend jamais à 0 : une modale ne s'évapore pas, elle
+   recule. `forwards` retient la dernière image (opacité 0) jusqu'au démontage, sinon le
+   panneau réapparaîtrait en pleine opacité pendant les quelques millisecondes restantes. */
+@keyframes nkModaleOut {
+    from { opacity: 1; transform: scale(1); }
+    to   { opacity: 0; transform: scale(0.97); }
+}
+.nk-modale-out { animation: nkModaleOut 0.14s var(--ease-sortie) forwards; }
+
+@keyframes nkVoileOut {
+    from { opacity: 1; }
+    to   { opacity: 0; }
+}
+.nk-voile-out { animation: nkVoileOut 0.14s var(--ease-sortie) forwards; }
+
 @media (prefers-reduced-motion: reduce) {
     /* Neutralise les transitions ET les animations résiduelles (knob du Toggle, chevron
        DataTable, `animate-ping`, `animate-pulse` des squelettes…) — pas seulement les 4 classes

@@ -380,10 +380,18 @@
    `--ease-sortie` (cf. ce jeton pour la mesure qui l'a rendu nécessaire). L'ORIGINE est
    conservée par `usePopoverFlottant` : la bulle rétrécit VERS son déclencheur, elle ne s'efface
    pas sur place — elle repart par où elle est venue. `forwards` retient la dernière image,
-   sinon la bulle réapparaîtrait en pleine opacité le temps du démontage. */
+   sinon la bulle réapparaîtrait en pleine opacité le temps du démontage.
+
+   L'échelle descend à 0,94 quand l'entrée part de 0,96 — asymétrie DÉLIBÉRÉE. Mesuré sur le
+   calendrier réel (304 px de large) : à 0,96 les bords ne bougeaient que de 6 px, invisibles.
+   C'est l'opacité qui portait tout le geste, et l'échelle n'y servait plus à rien. À 0,94 le
+   déplacement passe à 9 px — toujours imperceptible en soi, mais assez pour qu'on sente que la
+   bulle part VERS son déclencheur au lieu de s'évaporer sur place. C'est le bon levier : pas
+   allonger la durée (qui ferait attendre), mais creuser le recul. Plancher à ne pas franchir :
+   0,90, verrouillé par `lib/mouvement-parite.test.ts`. */
 @keyframes nkPopoverOut {
     from { opacity: 1; transform: scale(1); }
-    to   { opacity: 0; transform: scale(0.96); }
+    to   { opacity: 0; transform: scale(0.94); }
 }
 .nk-popover-out { animation: nkPopoverOut 0.11s var(--ease-sortie) forwards; }
 

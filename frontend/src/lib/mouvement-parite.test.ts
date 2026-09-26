@@ -11,6 +11,9 @@ import { readFileSync } from 'node:fs'
  *     première image sur 140 ms) — parfait à l'ouverture, où l'œil guette le départ, illisible
  *     à la fermeture, où elle réduit une sortie de 140 ms à ~90 ms vus ;
  *  2. une sortie est toujours PLUS COURTE que son entrée — l'utilisateur en a déjà fini ;
+ *  3bis. aucune échelle d'animation ne descend sous 0,90 — « rien, dans le monde réel, ne surgit
+ *     du néant ». La règle était écrite en prose depuis l'origine et n'avait aucun garde : un
+ *     `scale(0)` compilait, se déployait et ne se voyait qu'à l'œil.
  *  3. les deux courbes restent des ease-OUT, c'est-à-dire démarrent sans délai (`y1 > 0`).
  *     Remplacer l'une par une courbe à départ mou — la « standard » de Material,
  *     `cubic-bezier(0.4, 0, 0.2, 1)`, en est une — retarderait le premier mouvement, soit
@@ -77,6 +80,15 @@ describe('Mouvement — parité des jetons de courbe', () => {
     }
     // Anti-vacuité : si les noms divergeaient, aucune paire ne serait comparée.
     expect(paires).toBeGreaterThanOrEqual(3)
+  })
+
+  it('aucune échelle ne descend sous 0,90 — jamais de surgissement du néant', () => {
+    const echelles = [...CSS.matchAll(/scale\(([\d.]+)\)/g)].map((m) => Number(m[1]))
+    // Anti-vacuité : les keyframes en contiennent une douzaine ; 0 signifierait un regex mort.
+    expect(echelles.length).toBeGreaterThanOrEqual(8)
+    for (const e of echelles) {
+      expect(e, `échelle ${e} : trop basse, la règle fixe le plancher à 0,90`).toBeGreaterThanOrEqual(0.9)
+    }
   })
 
   it('les deux courbes restent des ease-OUT (départ franc, jamais retardé)', () => {

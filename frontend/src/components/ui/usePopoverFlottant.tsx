@@ -19,9 +19,8 @@ import { cn, prefersReducedMotion } from '@/lib/utils'
  * rien à afficher. Un appelant qui écrirait `{open && rendreFlottant(…)}` lui retirerait toute
  * possibilité d'animer une sortie, puisqu'il déciderait du démontage (même contrainte que `Modal`).
  *
- * Pendant la sortie, la bulle est INERTE — `aria-hidden`, `pointer-events-none` — et ses `coords`
- * sont GELÉES : elle rétrécit vers son déclencheur au lieu de suivre un scroll qu'elle ne
- * commente plus.
+ * Pendant la sortie, la bulle est INERTE — attribut `inert` — et ses `coords` sont GELÉES : elle
+ * rétrécit vers son déclencheur au lieu de suivre un scroll qu'elle ne commente plus.
  *
  * Le comportement (mesures, marges, bascule) est identique à l'implémentation d'origine des deux
  * composants ; seules les dimensions de repli avant première mesure sont paramétrables.
@@ -184,12 +183,16 @@ export function usePopoverFlottant({
       <div
         ref={popoverRef}
         onKeyDown={onKeyDownPopover}
-        // Ce qui part sort aussi de l'arbre d'accessibilité et cesse de recevoir les clics : un
-        // lecteur d'écran n'annonce pas une bulle qui s'en va, et un clic pressé pendant la sortie
-        // ne doit pas atteindre une option qu'on est en train de quitter. Le focus est déjà
-        // revenu au déclencheur (les appelants le rendent dans leur `fermerEt…`).
+        // Ce qui part devient INERTE : `inert` retire le sous-arbre de l'ordre de tabulation,
+        // bloque les évènements de pointeur et le masque aux technologies d'assistance.
+        //
+        // Les trois à la fois, et c'est nécessaire : `aria-hidden` + `pointer-events-none` seuls
+        // laissaient, mesuré en production sur le calendrier, 46 boutons de jour encore
+        // focusables dans un conteneur annoncé absent — la souris bloquée, le clavier non, soit
+        // la règle `aria-hidden-focus` violée. `aria-hidden` reste à côté en ceinture et
+        // bretelles, et ne viole plus rien puisque plus rien n'y est focusable.
         {...(sortant
-          ? { 'aria-hidden': true }
+          ? { inert: true, 'aria-hidden': true }
           : { role: 'dialog', 'aria-modal': 'false' as const, 'aria-label': ariaLabel })}
         style={{
           position: 'fixed',

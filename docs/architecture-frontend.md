@@ -26,15 +26,9 @@ voisine se remarque sans qu'on sache dire pourquoi :
 
 | jeton | courbe | quand |
 |---|---|---|
-| `--ease-sortie` | `cubic-bezier(0.22, 1, 0.36, 1)` | tout ce qui **entre** — popover, modale, toast, révélation de page |
+| `--ease-entree` | `cubic-bezier(0.22, 1, 0.36, 1)` | tout ce qui **entre** — popover, modale, toast, révélation de page |
 | `--ease-trajet` | `cubic-bezier(0.77, 0, 0.175, 1)` | ce qui **se déplace en restant à l'écran** — jauges de progression |
-| `--ease-retrait` | `cubic-bezier(0.5, 1, 0.89, 1)` | tout ce qui **sort** — popover, modale, voile, toast (cf. ci-dessous) |
-
-⚠️ **`--ease-sortie` porte un nom devenu trompeur** : il ne sert plus qu'aux ENTRÉES. Renommer la
-paire en `--ease-entree` / `--ease-sortie` est une correction à part entière — cinq lignes, dans le
-seul `index.css`, puisqu'aucun composant ne référence ces jetons. Tant qu'elle n'est pas faite, se
-fier au tableau et non au nom. Le garde `lib/mouvement-parite.test.ts` s'appuie d'ailleurs sur les
-CLASSES (`-in` / `-out`), jamais sur le nom du jeton.
+| `--ease-sortie` | `cubic-bezier(0.5, 1, 0.89, 1)` | tout ce qui **sort** — popover, modale, voile, toast (cf. ci-dessous) |
 
 **Ne JAMAIS utiliser `ease-in` sur de l'interface.** Il retarde le premier mouvement, c'est-à-dire
 exactement l'instant que l'œil surveille : à durée égale, il paraît plus lent. Les courbes natives
@@ -47,7 +41,7 @@ une transition d'écran). Une **sortie est toujours plus courte que son entrée*
 l'aller, 160 au retour ; modale : 200 et 140) : à ce moment-là l'utilisateur en a fini, le faire attendre est une
 politesse mal placée.
 
-### Deux courbes, deux SENS : `--ease-sortie` entre, `--ease-retrait` sort
+### Deux courbes, deux SENS : `--ease-entree` entre, `--ease-sortie` sort
 
 La courbe d'origine est réglée pour les **entrées** : son départ très franc est ce qui donne la
 sensation de réponse immédiate à l'ouverture. Sur une sortie, ce même départ consomme tout le
@@ -65,12 +59,12 @@ employée pour 99 % du mouvement :
 | toast | 160 ms | 42 % → **20 %** | 104 → **143 ms** |
 
 Autrement dit, l'ancienne courbe ne dépensait que les deux tiers de la durée écrite. **Une durée
-déclarée est désormais une durée vue.** `--ease-retrait` (easeOutQuad) étale le mouvement **sans
+déclarée est désormais une durée vue.** `--ease-sortie` (easeOutQuad) étale le mouvement **sans
 retarder le départ** : elle reste un ease-out, la règle « jamais d'ease-in sur de l'interface »
 n'est pas entamée — et le garde le vérifie sur le `y1` de la courbe.
 
-La frontière n'est donc pas une durée, c'est le **sens** : ce qui arrive prend `--ease-sortie`, ce
-qui part prend `--ease-retrait`. Trois invariants sont verrouillés par `lib/mouvement-parite.test.ts`
+La frontière n'est donc pas une durée, c'est le **sens** : ce qui arrive prend `--ease-entree`, ce
+qui part prend `--ease-sortie`. Trois invariants sont verrouillés par `lib/mouvement-parite.test.ts`
 (courbe par sens, sortie plus courte que son entrée, départ jamais retardé).
 
 ### La SORTIE des popovers, et un déplacement de responsabilité
@@ -140,7 +134,7 @@ du formulaire reçoit une **`key` d'ouverture** qui le réinitialise. C'est le m
 un sous-arbre à neuf, sans effet de synchronisation d'état, et sans quoi un montant tapé puis
 abandonné reparaîtrait à l'ouverture suivante, prêt à être soumis par erreur.
 
-**Mesure, et ce qu'elle apprend sur la courbe.** `--ease-sortie` est un ease-out FORT : à 78 ms sur
+**Mesure, et ce qu'elle apprend sur la courbe.** `--ease-entree` est un ease-out FORT : à 78 ms sur
 les 140, l'opacité est déjà à 0,02 et l'échelle à 0,9705. La sortie nominale de 140 ms est donc
 perçue autour de 80, le reste étant une queue invisible. Ce n'est pas un défaut — une fermeture doit
 être prompte, et `nk-toast-out` a exactement la même caractéristique — mais il faut le savoir avant

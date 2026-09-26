@@ -6,16 +6,18 @@ import { readFileSync } from 'node:fs'
  * voient pas, une feuille de style restant valide quelle que soit la courbe qu'on y écrit.
  *
  * Ils sont ici parce qu'ils ont chacun coûté une mesure :
- *  1. une ENTRÉE prend `--ease-sortie`, une SORTIE prend `--ease-retrait`. Les deux courbes ne
+ *  1. une ENTRÉE prend `--ease-entree`, une SORTIE prend `--ease-sortie`. Les deux courbes ne
  *     sont pas interchangeables : la première consomme le mouvement d'un coup (47 % dès la
  *     première image sur 140 ms) — parfait à l'ouverture, où l'œil guette le départ, illisible
  *     à la fermeture, où elle réduit une sortie de 140 ms à ~90 ms vus ;
  *  2. une sortie est toujours PLUS COURTE que son entrée — l'utilisateur en a déjà fini ;
- *  3. aucune des deux familles ne part dans l'autre sens (`--ease-retrait` sur une entrée
- *     retarderait le départ, soit exactement ce que la règle « jamais d'ease-in » interdit).
+ *  3. les deux courbes restent des ease-OUT, c'est-à-dire démarrent sans délai (`y1 > 0`).
+ *     Remplacer l'une par une courbe à départ mou — la « standard » de Material,
+ *     `cubic-bezier(0.4, 0, 0.2, 1)`, en est une — retarderait le premier mouvement, soit
+ *     exactement ce que la règle « jamais d'ease-in sur de l'interface » interdit.
  *
- * Le nom `--ease-sortie` désigne aujourd'hui la courbe des ENTRÉES : c'est un legs, documenté
- * dans `index.css`. Le test s'appuie sur les classes (`-in` / `-out`), pas sur ce nom.
+ * Le test s'appuie sur les CLASSES (`-in` / `-out`) et non sur le nom des jetons : un nom peut
+ * changer sans que l'invariant bouge — c'est d'ailleurs arrivé une fois.
  */
 
 const CSS = readFileSync(new URL('../index.css', import.meta.url), 'utf8')
@@ -48,18 +50,18 @@ describe('Mouvement — parité des jetons de courbe', () => {
     expect(sorties.length).toBeGreaterThanOrEqual(4)
   })
 
-  it('toute SORTIE utilise --ease-retrait', () => {
+  it('toute SORTIE utilise --ease-sortie', () => {
     for (const s of sorties) {
-      expect(s.jeton, `${s.classe} doit sortir sur --ease-retrait`).toBe('--ease-retrait')
+      expect(s.jeton, `${s.classe} doit sortir sur --ease-sortie`).toBe('--ease-sortie')
     }
   })
 
-  it('toute ENTRÉE utilise --ease-sortie (la courbe au départ franc)', () => {
+  it('toute ENTRÉE utilise --ease-entree (la courbe au départ franc)', () => {
     for (const e of entrees) {
-      expect(e.jeton, `${e.classe} doit entrer sur --ease-sortie`).toBe('--ease-sortie')
+      expect(e.jeton, `${e.classe} doit entrer sur --ease-entree`).toBe('--ease-entree')
     }
     // `nk-reveal` est une entrée qui ne porte pas le suffixe `-in` : vérifiée à part.
-    expect(CSS).toMatch(/animation:\s*nkReveal\s+[\d.]+s\s+var\(--ease-sortie\)/)
+    expect(CSS).toMatch(/animation:\s*nkReveal\s+[\d.]+s\s+var\(--ease-entree\)/)
   })
 
   it('chaque sortie est PLUS COURTE que l’entrée qu’elle referme', () => {
@@ -78,7 +80,7 @@ describe('Mouvement — parité des jetons de courbe', () => {
   })
 
   it('les deux courbes restent des ease-OUT (départ franc, jamais retardé)', () => {
-    for (const jeton of ['--ease-sortie', '--ease-retrait']) {
+    for (const jeton of ['--ease-entree', '--ease-sortie']) {
       const m = CSS.match(new RegExp(String.raw`${jeton}:\s*cubic-bezier\(([^)]+)\)`))
       expect(m, `${jeton} doit être déclaré en cubic-bezier`).not.toBeNull()
       // cubic-bezier(x1, y1, x2, y2) → y1 est l'indice 1. (Lire x2 par erreur rendait ce test

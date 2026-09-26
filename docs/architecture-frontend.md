@@ -178,7 +178,16 @@ réserve des surprises le jour où l'une d'elles se met à changer. Nommer ce qu
 CURÉE et convient aux composants dont plusieurs propriétés changent vraiment (bouton, carte).
 
 **Ne jamais partir de `scale(0)`.** Rien, dans le monde réel, ne surgit du néant — même un ballon
-dégonflé a une forme. Les entrées partent de 0,96–0,97.
+dégonflé a une forme. Les entrées partent de 0,96–0,97, les sorties y reviennent (0,94 pour le
+popover, 0,97 pour la modale, 0,98 pour les toasts). **Plancher : 0,90**, désormais tenu par un
+garde plutôt que par la prose — la règle existait depuis l'origine et rien ne l'appliquait.
+
+**Le recul compte moins par son amplitude que par sa DIRECTION.** Mesuré sur le calendrier réel
+(304 px) : à 0,96 les bords ne se déplaçaient que de 6 px sur les trois quarts du parcours, soit
+rien de perceptible — l'opacité portait tout le geste et l'échelle ne servait plus. Descendue à
+0,94, le déplacement passe à 9 px : toujours invisible isolément, mais assez pour qu'on sente la
+bulle partir VERS son déclencheur au lieu de s'évaporer sur place. Si un effet de sortie paraît
+trop discret, **le levier est le recul, pas la durée** — allonger ferait attendre.
 
 `prefers-reduced-motion` est traité GLOBALEMENT (`*` → durées à 0,01 ms), avec une exception
 délibérée pour `animate-spin` : un indicateur de chargement porte une information.

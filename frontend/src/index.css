@@ -31,25 +31,36 @@
        Les courbes natives (`ease`, `ease-out`) sont trop molles : elles manquent du départ franc
        qui fait lire une animation comme intentionnelle. Ces deux-ci sont des variantes fortes.
 
-       QUAND UTILISER QUOI :
-         --ease-sortie  → tout ce qui ENTRE ou SORT (popover, modale, toast, révélation). Démarre
+       QUAND UTILISER QUOI — la frontière est le SENS, pas la durée :
+         --ease-sortie  → tout ce qui ENTRE (popover, modale, toast, révélation de page). Démarre
                           vite : l'utilisateur voit le mouvement à l'instant où il regarde.
+         --ease-retrait → tout ce qui SORT, quelle que soit la durée (cf. son bloc ci-dessous).
          --ease-trajet  → ce qui se DÉPLACE ou se transforme en restant à l'écran (barre de
                           progression, indicateur de nav qui glisse d'un onglet à l'autre).
+       ⚠️ `--ease-sortie` porte un nom devenu TROMPEUR : il ne sert plus qu'aux ENTRÉES. Renommer
+       la paire en `--ease-entree` / `--ease-sortie` est une correction à part entière (5 lignes,
+       ce seul fichier) — tant qu'elle n'est pas faite, lire le bloc ci-dessus, pas le nom.
        Ne JAMAIS utiliser `ease-in` sur de l'interface : il retarde le premier mouvement, c'est-à-
        dire exactement le moment que l'œil surveille — à durée égale, il paraît plus lent. */
     --ease-sortie: cubic-bezier(0.22, 1, 0.36, 1);
     --ease-trajet: cubic-bezier(0.77, 0, 0.175, 1);
-    /* --ease-retrait → les SORTIES COURTES (popovers, menus). Pourquoi une troisième courbe
-       alors que `--ease-sortie` dit « entre ou sort » : parce qu'elle est réglée pour les
+    /* --ease-retrait → TOUTES les sorties : popover, modale, voile, toast. Pourquoi une courbe
+       distincte alors que l'autre s'appelle « sortie » : parce que l'autre est réglée pour les
        ENTRÉES. Son départ très franc — ce qui donne la sensation de réponse immédiate à
-       l'ouverture — consomme le mouvement d'un coup et laisse une queue invisible. Mesuré :
-       sur 110 ms, `--ease-sortie` a déjà joué 55 % du mouvement à la PREMIÈRE image et 90 %
-       en 41 ms, soit deux images et demie — on ne lit plus un mouvement, on lit une coupe
-       légèrement adoucie. Celle-ci (easeOutQuad) étale les mêmes 90 % sur 75 ms, soit quatre
-       images et demie, sans retarder le départ : elle reste un ease-OUT, la règle « jamais
-       d'ease-in sur de l'interface » tient. La modale (140 ms) et les toasts (160 ms) sont
-       assez longs pour s'en passer ; les bulles, non. */
+       l'ouverture — consomme le mouvement d'un coup et laisse une queue invisible.
+
+       Mesuré dans le moteur, part du mouvement déjà jouée à la PREMIÈRE image (17 ms), puis
+       durée réellement employée pour 99 % du mouvement :
+
+         popover 110 ms : 55 % → 23 %  ·  88 ms puis 105 ms employés
+         modale  140 ms : 47 % → 23 %  ·  91 ms puis 125 ms employés
+         toast   160 ms : 42 % → 20 %  ·  104 ms puis 143 ms employés
+
+       Autrement dit `--ease-sortie` ne dépensait que les deux tiers de la durée DÉCLARÉE : le
+       reste était une queue invisible pendant laquelle la modale restait montée et le verrou de
+       défilement tenu. Celle-ci (easeOutQuad) étale le mouvement sur la durée annoncée sans
+       retarder le départ — elle reste un ease-OUT, la règle « jamais d'ease-in sur de
+       l'interface » tient. Une durée écrite ici est désormais une durée VUE. */
     --ease-retrait: cubic-bezier(0.5, 1, 0.89, 1);
 
     /* Échelle micro-typo (labels/overlines) — UN SEUL cran, posé au PLANCHER de lisibilité de
@@ -347,7 +358,7 @@
     from { opacity: 1; transform: translateY(0) scale(1); }
     to   { opacity: 0; transform: translateY(-8px) scale(0.98); }
 }
-.nk-toast-out { animation: nkToastOut 0.16s var(--ease-sortie) forwards; }
+.nk-toast-out { animation: nkToastOut 0.16s var(--ease-retrait) forwards; }
 
 /* Entrée des POPOVERS (sélecteur de date, grille d'années, sélecteur de membre, aide contextuelle).
    Ils n'avaient AUCUNE transition : un élément qui apparaît d'un coup se lit comme un défaut
@@ -406,13 +417,13 @@
     from { opacity: 1; transform: scale(1); }
     to   { opacity: 0; transform: scale(0.97); }
 }
-.nk-modale-out { animation: nkModaleOut 0.14s var(--ease-sortie) forwards; }
+.nk-modale-out { animation: nkModaleOut 0.14s var(--ease-retrait) forwards; }
 
 @keyframes nkVoileOut {
     from { opacity: 1; }
     to   { opacity: 0; }
 }
-.nk-voile-out { animation: nkVoileOut 0.14s var(--ease-sortie) forwards; }
+.nk-voile-out { animation: nkVoileOut 0.14s var(--ease-retrait) forwards; }
 
 @media (prefers-reduced-motion: reduce) {
     /* Neutralise les transitions ET les animations résiduelles (knob du Toggle, chevron

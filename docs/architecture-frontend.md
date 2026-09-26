@@ -92,9 +92,9 @@ Trois différences avec la modale, toutes vérifiées plutôt que supposées :
    l'ouverture. Elle repart par où elle est venue au lieu de s'effacer sur place — et elle ne suit
    plus un défilement qu'elle ne commente plus.
 3. **Le focus est déjà revenu** : les appelants le rendent au déclencheur dans leur `fermerEt…`.
-   La bulle sortante peut donc passer `aria-hidden` sans risquer d'y piéger le curseur, et
-   `pointer-events-none` empêche qu'un clic en vol atteigne une option qu'on est en train de
-   quitter.
+   La bulle sortante devient alors **`inert`** — ni tabulable, ni cliquable, ni annoncée (cf. le
+   point 2 de la modale ci-dessous : ici c'étaient **46** boutons de jour du calendrier qui
+   restaient focusables sous un `aria-hidden`).
 
 `positionne` (dont `AideNotion` se sert pour focaliser son contenu) vaut `open && coords !== null` :
 pendant la sortie, personne ne doit y renvoyer le focus.
@@ -116,12 +116,24 @@ problèmes qu'une animation « posée vite » laisserait derrière elle :
    commitée (contenu **et titre**, qui se dérive souvent du même état) et la rejoue. Le gel est
    mémorisé dans un effet, PAS pendant le rendu : au rendu de fermeture, `children` porte déjà le
    contenu vidé.
-2. **Ce qui part doit être inerte.** Plus d'Échap ni de piège de focus, `aria-hidden` (un lecteur
-   d'écran n'annonce pas un dialogue en train de disparaître), `pointer-events-none` et boutons
-   `disabled` — sans quoi un clic pressé pendant la sortie atteindrait un bouton FIGÉ, donc une
-   action qui n'est plus celle affichée. En revanche le **focus revient au déclencheur dès la
+2. **Ce qui part doit être inerte** — et « inerte » veut dire TROIS choses, pas deux. La première
+   version posait `aria-hidden` (un lecteur d'écran n'annonce pas un dialogue en train de
+   disparaître), `pointer-events-none` (un clic pressé pendant la sortie ne doit pas atteindre un
+   bouton FIGÉ, donc une action qui n'est plus celle affichée) et `disabled` sur le voile et la
+   croix. **Mesuré sur l'application réelle, il restait 7 éléments focusables** dans la modale —
+   les champs et les boutons du formulaire, qui vivent dans le contenu figé et ne peuvent donc pas
+   être désarmés un par un. La souris était bloquée, le clavier non : un conteneur `aria-hidden`
+   qui garde des éléments focusables est exactement ce qu'interdit la règle `aria-hidden-focus`.
+   D'où l'attribut **`inert`**, qui fait les trois à la fois — hors tabulation, hors pointeur, hors
+   arbre d'accessibilité. `aria-hidden` reste à côté en ceinture et bretelles et ne viole plus
+   rien, puisque plus rien n'y est focusable. En revanche le **focus revient au déclencheur dès la
    fermeture**, sans attendre l'animation : une décoration ne doit jamais faire patienter le
    clavier.
+
+   La leçon dépasse le correctif : `disabled` sur deux boutons donnait l'IMPRESSION que le problème
+   était traité, et c'est cette impression qui l'a laissé passer la revue comme les tests. Il a
+   fallu compter les éléments restants dans l'application qui tourne — espace de démonstration en
+   production — pour le voir.
 3. **Le verrou de défilement se relâche au DÉMONTAGE**, pas au début de la sortie — sinon la page
    bougerait derrière un panneau encore visible.
 

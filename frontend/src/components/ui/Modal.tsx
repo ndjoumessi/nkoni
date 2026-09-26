@@ -31,8 +31,8 @@ const DUREE_SORTIE_MS = 140
  * SORTIE ANIMÉE — le panneau reste monté `DUREE_SORTIE_MS` après le passage de `open` à faux,
  * le temps de jouer `nk-modale-out` / `nk-voile-out`. Trois conséquences, toutes traitées ici :
  *  1. le CONTENU est FIGÉ pendant la sortie (cf. `contenuFige`) ;
- *  2. la modale devient INERTE — `aria-hidden`, `pointer-events-none`, plus aucun raccourci
- *     clavier : ce qui part ne doit plus ni répondre, ni être annoncé, ni être cliquable ;
+ *  2. la modale devient INERTE — attribut `inert`, plus aucun raccourci clavier : ce qui part ne
+ *     doit plus ni répondre, ni être annoncé, ni être cliquable, ni être ATTEIGNABLE AU CLAVIER ;
  *  3. le verrou de défilement du body ne se relâche qu'au DÉMONTAGE, sinon la page bougerait
  *     derrière un panneau encore visible.
  */
@@ -186,18 +186,25 @@ export function Modal({
         // atteindrait un bouton FIGÉ, donc une action qui n'est plus celle affichée.
         sortant && 'pointer-events-none',
       )}
-      // Pendant la sortie, la modale sort aussi de l'arbre d'accessibilité : un lecteur d'écran
-      // ne doit pas annoncer un dialogue en train de disparaître. Le focus en est déjà sorti
-      // (restauré sur le déclencheur), `aria-hidden` ne peut donc pas piéger le curseur.
+      // Pendant la sortie, la modale devient INERTE. `inert` fait les trois choses à la fois :
+      // il retire le sous-arbre de l'ordre de tabulation, bloque les évènements de pointeur et
+      // le masque aux technologies d'assistance.
+      //
+      // Le premier point est ce qui a manqué : une première version posait `aria-hidden` et
+      // `pointer-events-none`, plus `disabled` sur le voile et la croix. Mesuré en production,
+      // il restait 7 éléments focusables (les champs et les boutons du formulaire, qui vivent
+      // dans le contenu FIGÉ et qu'on ne peut donc pas désarmer un par un) à l'intérieur d'un
+      // conteneur annoncé absent — soit exactement ce qu'interdit la règle `aria-hidden-focus` :
+      // la souris était bloquée, le clavier non. `aria-hidden` reste posé à côté, en ceinture et
+      // bretelles, et ne viole plus rien puisque plus rien n'y est focusable.
       {...(sortant
-        ? { 'aria-hidden': true }
+        ? { inert: true, 'aria-hidden': true }
         : { role: 'dialog', 'aria-modal': true, 'aria-label': titreAffiche })}
     >
       <button
         type="button"
         aria-label={t('ui.modal.fermer')}
         onClick={onClose}
-        disabled={sortant}
         className={cn(
           'absolute inset-0 bg-black/60 backdrop-blur-sm',
           sortant ? 'nk-voile-out' : 'nk-voile-in',
@@ -232,7 +239,6 @@ export function Modal({
           <button
             type="button"
             onClick={onClose}
-            disabled={sortant}
             aria-label={t('ui.modal.fermer')}
             className="tap-target flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground"
           >

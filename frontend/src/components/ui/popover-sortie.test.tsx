@@ -136,6 +136,9 @@ describe('Popover — inerte pendant la sortie', () => {
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(bulle()?.getAttribute('aria-hidden')).toBe('true')
     expect(bulle()?.className).toContain('pointer-events-none')
+    // `inert` est la pièce qui coupe le CLAVIER : `aria-hidden` + `pointer-events-none` seuls
+    // laissaient 46 boutons de jour focusables sous un conteneur annoncé absent (mesuré en prod).
+    expect(bulle()?.hasAttribute('inert')).toBe(true)
   })
 
   it('garde son ORIGINE pendant la sortie : elle rétrécit vers son déclencheur', () => {

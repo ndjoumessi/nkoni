@@ -12,8 +12,9 @@ import { Modal } from './Modal'
  * ferait sauter sans que rien d'autre ne casse :
  *  1. le panneau survit à la fermeture, puis disparaît — s'il restait, la page serait bloquée ;
  *  2. son contenu est FIGÉ pendant ce sursis (l'appelant remet sa donnée à zéro dans `onClose`) ;
- *  3. il est INERTE pendant ce sursis (plus d'Échap, plus de clic, hors de l'arbre a11y) et le
- *     focus est DÉJÀ revenu au déclencheur — une décoration ne doit pas faire attendre le clavier.
+ *  3. il est INERTE pendant ce sursis (`inert` : ni tabulable, ni cliquable, ni annoncé ; plus
+ *     d'Échap) et le focus est DÉJÀ revenu au déclencheur — une décoration ne fait pas attendre
+ *     le clavier.
  */
 
 vi.mock('react-i18next', () => ({
@@ -232,13 +233,33 @@ describe('Modal — inerte pendant la sortie', () => {
       </Modal>,
     )
     expect(screen.queryByRole('dialog')).toBeNull()
-    const conteneur = document.querySelector('[aria-hidden="true"].fixed')
-    expect(conteneur).not.toBeNull()
+    const conteneur = document.querySelector('.nk-modale-out')?.parentElement
+    expect(conteneur?.className).toContain('fixed')
+    expect(conteneur?.getAttribute('aria-hidden')).toBe('true')
     expect(conteneur?.className).toContain('pointer-events-none')
-    // Voile et bouton de fermeture désarmés : un clic en vol ne doit rien atteindre.
-    document.querySelectorAll<HTMLButtonElement>('[aria-hidden="true"] button').forEach((b) => {
-      expect(b.disabled).toBe(true)
-    })
+  })
+
+  it('devient INERT — le clavier ne peut plus y entrer', () => {
+    const { rerender } = render(
+      <Modal open onClose={() => {}} title="Titre">
+        <button type="button">action du formulaire</button>
+      </Modal>,
+    )
+    const ouvert = screen.getByRole('dialog')
+    expect(ouvert.hasAttribute('inert')).toBe(false)
+    // Anti-vacuité : le bouton du contenu est bien là, c'est lui qu'il s'agit de neutraliser.
+    expect(screen.getByText('action du formulaire')).toBeTruthy()
+
+    rerender(
+      <Modal open={false} onClose={() => {}} title="Titre">
+        <button type="button">action du formulaire</button>
+      </Modal>,
+    )
+    const conteneur = document.querySelector('.nk-modale-out')?.parentElement
+    // `pointer-events-none` bloquait la SOURIS ; c'est `inert` qui coupe le CLAVIER. Mesuré en
+    // production : sans lui, 7 éléments restaient focusables sous un `aria-hidden` — la règle
+    // `aria-hidden-focus` violée pendant toute la sortie.
+    expect(conteneur?.hasAttribute('inert')).toBe(true)
   })
 
   it('rend le focus au déclencheur DÈS la fermeture, sans attendre l’animation', () => {

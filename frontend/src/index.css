@@ -31,26 +31,39 @@
        Les courbes natives (`ease`, `ease-out`) sont trop molles : elles manquent du départ franc
        qui fait lire une animation comme intentionnelle. Ces deux-ci sont des variantes fortes.
 
-       QUAND UTILISER QUOI :
-         --ease-sortie  → tout ce qui ENTRE ou SORT (popover, modale, toast, révélation). Démarre
+       QUAND UTILISER QUOI — la frontière est le SENS, pas la durée :
+         --ease-entree  → tout ce qui ENTRE (popover, modale, toast, révélation de page). Démarre
                           vite : l'utilisateur voit le mouvement à l'instant où il regarde.
+         --ease-sortie  → tout ce qui SORT, quelle que soit la durée (cf. son bloc ci-dessous).
          --ease-trajet  → ce qui se DÉPLACE ou se transforme en restant à l'écran (barre de
                           progression, indicateur de nav qui glisse d'un onglet à l'autre).
        Ne JAMAIS utiliser `ease-in` sur de l'interface : il retarde le premier mouvement, c'est-à-
        dire exactement le moment que l'œil surveille — à durée égale, il paraît plus lent. */
-    --ease-sortie: cubic-bezier(0.22, 1, 0.36, 1);
+    --ease-entree: cubic-bezier(0.22, 1, 0.36, 1);
     --ease-trajet: cubic-bezier(0.77, 0, 0.175, 1);
-    /* --ease-retrait → les SORTIES COURTES (popovers, menus). Pourquoi une troisième courbe
-       alors que `--ease-sortie` dit « entre ou sort » : parce qu'elle est réglée pour les
-       ENTRÉES. Son départ très franc — ce qui donne la sensation de réponse immédiate à
-       l'ouverture — consomme le mouvement d'un coup et laisse une queue invisible. Mesuré :
-       sur 110 ms, `--ease-sortie` a déjà joué 55 % du mouvement à la PREMIÈRE image et 90 %
-       en 41 ms, soit deux images et demie — on ne lit plus un mouvement, on lit une coupe
-       légèrement adoucie. Celle-ci (easeOutQuad) étale les mêmes 90 % sur 75 ms, soit quatre
-       images et demie, sans retarder le départ : elle reste un ease-OUT, la règle « jamais
-       d'ease-in sur de l'interface » tient. La modale (140 ms) et les toasts (160 ms) sont
-       assez longs pour s'en passer ; les bulles, non. */
-    --ease-retrait: cubic-bezier(0.5, 1, 0.89, 1);
+    /* --ease-sortie → TOUTES les sorties : popover, modale, voile, toast. Pourquoi deux courbes
+       et non une seule pour les deux sens : parce qu'un départ franc ne veut pas dire la même
+       chose à l'aller et au retour. À l'ouverture il donne la sensation de réponse immédiate —
+       l'œil guette ce premier instant. À la fermeture il consomme le mouvement d'un coup et
+       laisse une queue invisible, pendant laquelle une modale reste montée et le verrou de
+       défilement tenu. Les deux courbes ont donc chacune leur sens, et ne s'échangent pas.
+
+       Mesuré dans le moteur, part du mouvement déjà jouée à la PREMIÈRE image (17 ms), puis
+       durée réellement employée pour 99 % du mouvement :
+
+         popover 110 ms : 55 % → 28 %  ·  88 ms puis 105 ms employés
+         modale  140 ms : 47 % → 23 %  ·  91 ms puis 125 ms employés
+         toast   160 ms : 42 % → 20 %  ·  104 ms puis 143 ms employés
+
+       Autrement dit, employée pour sortir, `--ease-entree` ne dépensait que les deux tiers de la
+       durée DÉCLARÉE. Celle-ci (easeOutQuad) étale le mouvement sur la durée annoncée sans
+       retarder le départ — elle reste un ease-OUT, la règle « jamais d'ease-in sur de
+       l'interface » tient. Une durée écrite ici est désormais une durée VUE.
+
+       Garde : `lib/mouvement-parite.test.ts` refuse qu'une classe `-in` prenne la courbe de
+       sortie ou l'inverse, qu'une sortie dure aussi longtemps que son entrée, ou qu'une des
+       deux courbes se mette à retarder son départ. */
+    --ease-sortie: cubic-bezier(0.5, 1, 0.89, 1);
 
     /* Échelle micro-typo (labels/overlines) — UN SEUL cran, posé au PLANCHER de lisibilité de
        12 px. Remplace les tailles arbitraires text-[0.6–0.72rem] éparpillées (M11).
@@ -298,7 +311,7 @@
 }
 .nk-reveal {
     opacity: 0;
-    animation: nkReveal 0.28s var(--ease-sortie) forwards;
+    animation: nkReveal 0.28s var(--ease-entree) forwards;
 }
 .nk-d1 { animation-delay: 0.03s; }
 .nk-d2 { animation-delay: 0.06s; }
@@ -338,7 +351,7 @@
     from { opacity: 0; transform: translateY(-8px) scale(0.98); }
     to   { opacity: 1; transform: translateY(0) scale(1); }
 }
-.nk-toast-in { animation: nkToastIn 0.24s var(--ease-sortie); }
+.nk-toast-in { animation: nkToastIn 0.24s var(--ease-entree); }
 
 /* Sortie des toasts — PLUS RAPIDE que l'entrée. Une entrée animée suivie d'une disparition sèche
    est l'asymétrie qu'on remarque sans savoir la nommer ; à l'inverse, une sortie aussi longue que
@@ -361,10 +374,10 @@
     from { opacity: 0; transform: scale(0.96); }
     to   { opacity: 1; transform: scale(1); }
 }
-.nk-popover-in { animation: nkPopoverIn 0.15s var(--ease-sortie); }
+.nk-popover-in { animation: nkPopoverIn 0.15s var(--ease-entree); }
 
 /* Sortie des POPOVERS — le miroir de l'entrée, en plus court (110 contre 150 ms) et sur
-   `--ease-retrait` (cf. ce jeton pour la mesure qui l'a rendu nécessaire). L'ORIGINE est
+   `--ease-sortie` (cf. ce jeton pour la mesure qui l'a rendu nécessaire). L'ORIGINE est
    conservée par `usePopoverFlottant` : la bulle rétrécit VERS son déclencheur, elle ne s'efface
    pas sur place — elle repart par où elle est venue. `forwards` retient la dernière image,
    sinon la bulle réapparaîtrait en pleine opacité le temps du démontage. */
@@ -372,7 +385,7 @@
     from { opacity: 1; transform: scale(1); }
     to   { opacity: 0; transform: scale(0.96); }
 }
-.nk-popover-out { animation: nkPopoverOut 0.11s var(--ease-retrait) forwards; }
+.nk-popover-out { animation: nkPopoverOut 0.11s var(--ease-sortie) forwards; }
 
 /* Entrée des MODALES. Elles réutilisaient `nk-toast-in`, c'est-à-dire une descente de 8 px : une
    modale n'est ancrée à rien et ne vient donc de nulle part en particulier — elle grandit sur
@@ -382,13 +395,13 @@
     from { opacity: 0; transform: scale(0.97); }
     to   { opacity: 1; transform: scale(1); }
 }
-.nk-modale-in { animation: nkModaleIn 0.2s var(--ease-sortie); }
+.nk-modale-in { animation: nkModaleIn 0.2s var(--ease-entree); }
 
 @keyframes nkVoileIn {
     from { opacity: 0; }
     to   { opacity: 1; }
 }
-.nk-voile-in { animation: nkVoileIn 0.2s var(--ease-sortie); }
+.nk-voile-in { animation: nkVoileIn 0.2s var(--ease-entree); }
 
 /* Sortie des MODALES — le pendant exact de `nkModaleIn`, et la raison d'être de la phase de
    sortie que `Modal.tsx` orchestre. Une modale qui grandit à l'ouverture puis disparaît d'un

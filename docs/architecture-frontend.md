@@ -26,9 +26,9 @@ voisine se remarque sans qu'on sache dire pourquoi :
 
 | jeton | courbe | quand |
 |---|---|---|
-| `--ease-sortie` | `cubic-bezier(0.22, 1, 0.36, 1)` | tout ce qui **entre ou sort** — popover, modale, toast, révélation |
+| `--ease-entree` | `cubic-bezier(0.22, 1, 0.36, 1)` | tout ce qui **entre** — popover, modale, toast, révélation de page |
 | `--ease-trajet` | `cubic-bezier(0.77, 0, 0.175, 1)` | ce qui **se déplace en restant à l'écran** — jauges de progression |
-| `--ease-retrait` | `cubic-bezier(0.5, 1, 0.89, 1)` | les **sorties courtes** — popovers, menus (cf. ci-dessous) |
+| `--ease-sortie` | `cubic-bezier(0.5, 1, 0.89, 1)` | tout ce qui **sort** — popover, modale, voile, toast (cf. ci-dessous) |
 
 **Ne JAMAIS utiliser `ease-in` sur de l'interface.** Il retarde le premier mouvement, c'est-à-dire
 exactement l'instant que l'œil surveille : à durée égale, il paraît plus lent. Les courbes natives
@@ -41,35 +41,37 @@ une transition d'écran). Une **sortie est toujours plus courte que son entrée*
 l'aller, 160 au retour ; modale : 200 et 140) : à ce moment-là l'utilisateur en a fini, le faire attendre est une
 politesse mal placée.
 
-### Pourquoi une TROISIÈME courbe : `--ease-retrait`
+### Deux courbes, deux SENS : `--ease-entree` entre, `--ease-sortie` sort
 
-`--ease-sortie` annonce « entre ou sort », mais elle est réglée pour les **entrées** : son départ
-très franc est ce qui donne la sensation de réponse immédiate à l'ouverture. Sur une sortie, ce
-même départ franc consomme tout le mouvement d'un coup et laisse une queue invisible. Mesuré dans
-le moteur (animation mise en pause et parcourue image par image, sur le CSS du bundle construit),
-à durée égale de 110 ms :
+La courbe d'origine est réglée pour les **entrées** : son départ très franc est ce qui donne la
+sensation de réponse immédiate à l'ouverture. Sur une sortie, ce même départ consomme tout le
+mouvement d'un coup et laisse une queue invisible — pendant laquelle, pour une modale, le panneau
+reste monté et le verrou de défilement tenu.
 
-| temps écoulé | `--ease-retrait` | `--ease-sortie` |
-|---|---|---|
-| 17 ms (une image à 60 Hz) | 28 % | **55 %** |
-| 33 ms | 51 % | 83 % |
-| 50 ms | 70 % | 94 % |
-| 88 ms | 96 % | **100 % — déjà fini** |
+Mesuré dans le moteur (animation mise en pause et parcourue image par image, sur le CSS du bundle
+construit). Part du mouvement déjà jouée à la **première image** (17 ms), puis durée réellement
+employée pour 99 % du mouvement :
 
-Sur une bulle, `--ease-sortie` produit donc deux images et demie de mouvement : on ne lit plus une
-fermeture, on lit une coupe légèrement adoucie. `--ease-retrait` (easeOutQuad) étale les mêmes 90 %
-sur 75 ms — quatre images et demie — **sans retarder le départ** : elle reste un ease-out, la règle
-« jamais d'ease-in sur de l'interface » n'est pas entamée.
+| sortie | durée déclarée | 1ʳᵉ image avant → après | durée employée avant → après |
+|---|---|---|---|
+| popover | 110 ms | 55 % → **28 %** | 88 → **105 ms** |
+| modale / voile | 140 ms | 47 % → **23 %** | 91 → **125 ms** |
+| toast | 160 ms | 42 % → **20 %** | 104 → **143 ms** |
 
-Le seuil est une affaire de DURÉE, pas de goût : la modale (140 ms) et les toasts (160 ms) sont
-assez longs pour que la queue invisible ne coûte rien, et gardent `--ease-sortie`. En dessous de
-~120 ms, il faut `--ease-retrait`, sinon l'animation n'existe pas.
+Autrement dit, l'ancienne courbe ne dépensait que les deux tiers de la durée écrite. **Une durée
+déclarée est désormais une durée vue.** `--ease-sortie` (easeOutQuad) étale le mouvement **sans
+retarder le départ** : elle reste un ease-out, la règle « jamais d'ease-in sur de l'interface »
+n'est pas entamée — et le garde le vérifie sur le `y1` de la courbe.
+
+La frontière n'est donc pas une durée, c'est le **sens** : ce qui arrive prend `--ease-entree`, ce
+qui part prend `--ease-sortie`. Trois invariants sont verrouillés par `lib/mouvement-parite.test.ts`
+(courbe par sens, sortie plus courte que son entrée, départ jamais retardé).
 
 ### La SORTIE des popovers, et un déplacement de responsabilité
 
 Les six popovers — `DatePicker`, `SelecteurAnnee`, `AideNotion`, `SelecteurMembreUnique`, le menu de
 compte d'`AppShell`, le menu d'actions de la fiche membre — partagent `usePopoverFlottant`.
-`nk-popover-out` (110 ms, `--ease-retrait`, échelle de retour à 0,96) referme le geste que
+`nk-popover-out` (110 ms, échelle de retour à 0,96) referme le geste que
 `nk-popover-in` ouvrait.
 
 **C'est désormais le HOOK qui décide du montage**, plus l'appelant : `rendreFlottant` rend `null`
@@ -132,7 +134,7 @@ du formulaire reçoit une **`key` d'ouverture** qui le réinitialise. C'est le m
 un sous-arbre à neuf, sans effet de synchronisation d'état, et sans quoi un montant tapé puis
 abandonné reparaîtrait à l'ouverture suivante, prêt à être soumis par erreur.
 
-**Mesure, et ce qu'elle apprend sur la courbe.** `--ease-sortie` est un ease-out FORT : à 78 ms sur
+**Mesure, et ce qu'elle apprend sur la courbe.** `--ease-entree` est un ease-out FORT : à 78 ms sur
 les 140, l'opacité est déjà à 0,02 et l'échelle à 0,9705. La sortie nominale de 140 ms est donc
 perçue autour de 80, le reste étant une queue invisible. Ce n'est pas un défaut — une fermeture doit
 être prompte, et `nk-toast-out` a exactement la même caractéristique — mais il faut le savoir avant

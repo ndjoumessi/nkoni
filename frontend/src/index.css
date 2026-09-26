@@ -40,6 +40,17 @@
        dire exactement le moment que l'œil surveille — à durée égale, il paraît plus lent. */
     --ease-sortie: cubic-bezier(0.22, 1, 0.36, 1);
     --ease-trajet: cubic-bezier(0.77, 0, 0.175, 1);
+    /* --ease-retrait → les SORTIES COURTES (popovers, menus). Pourquoi une troisième courbe
+       alors que `--ease-sortie` dit « entre ou sort » : parce qu'elle est réglée pour les
+       ENTRÉES. Son départ très franc — ce qui donne la sensation de réponse immédiate à
+       l'ouverture — consomme le mouvement d'un coup et laisse une queue invisible. Mesuré :
+       sur 110 ms, `--ease-sortie` a déjà joué 55 % du mouvement à la PREMIÈRE image et 90 %
+       en 41 ms, soit deux images et demie — on ne lit plus un mouvement, on lit une coupe
+       légèrement adoucie. Celle-ci (easeOutQuad) étale les mêmes 90 % sur 75 ms, soit quatre
+       images et demie, sans retarder le départ : elle reste un ease-OUT, la règle « jamais
+       d'ease-in sur de l'interface » tient. La modale (140 ms) et les toasts (160 ms) sont
+       assez longs pour s'en passer ; les bulles, non. */
+    --ease-retrait: cubic-bezier(0.5, 1, 0.89, 1);
 
     /* Échelle micro-typo (labels/overlines) — UN SEUL cran, posé au PLANCHER de lisibilité de
        12 px. Remplace les tailles arbitraires text-[0.6–0.72rem] éparpillées (M11).
@@ -351,6 +362,17 @@
     to   { opacity: 1; transform: scale(1); }
 }
 .nk-popover-in { animation: nkPopoverIn 0.15s var(--ease-sortie); }
+
+/* Sortie des POPOVERS — le miroir de l'entrée, en plus court (110 contre 150 ms) et sur
+   `--ease-retrait` (cf. ce jeton pour la mesure qui l'a rendu nécessaire). L'ORIGINE est
+   conservée par `usePopoverFlottant` : la bulle rétrécit VERS son déclencheur, elle ne s'efface
+   pas sur place — elle repart par où elle est venue. `forwards` retient la dernière image,
+   sinon la bulle réapparaîtrait en pleine opacité le temps du démontage. */
+@keyframes nkPopoverOut {
+    from { opacity: 1; transform: scale(1); }
+    to   { opacity: 0; transform: scale(0.96); }
+}
+.nk-popover-out { animation: nkPopoverOut 0.11s var(--ease-retrait) forwards; }
 
 /* Entrée des MODALES. Elles réutilisaient `nk-toast-in`, c'est-à-dire une descente de 8 px : une
    modale n'est ancrée à rien et ne vient donc de nulle part en particulier — elle grandit sur

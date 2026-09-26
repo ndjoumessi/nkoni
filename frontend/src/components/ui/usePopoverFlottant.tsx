@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
+import { cn, prefersReducedMotion } from '@/lib/utils'
 
 /**
  * Infrastructure PARTAGÉE des popovers flottants (DatePicker, SelecteurAnnee) — extraite pour ne
@@ -11,7 +12,16 @@ import { createPortal } from 'react-dom'
  *  - le recalcul au scroll (capture) / resize / changement de vue (`repositionSur`) ;
  *  - la fermeture au clic extérieur (le portail est épargné explicitement) ;
  *  - Échap pour fermer (au niveau du popover, ne se déclenche PAS si un handler interne a déjà
- *    traité l'évènement — `e.defaultPrevented` —, ce qui préserve les Échap contextuels des grilles).
+ *    traité l'évènement — `e.defaultPrevented` —, ce qui préserve les Échap contextuels des grilles) ;
+ *  - le MONTAGE lui-même, entrée ET sortie comprises (`nk-popover-in` / `nk-popover-out`).
+ *
+ * C'est le hook qui décide de monter, PAS l'appelant : `rendreFlottant` rend `null` quand il n'y a
+ * rien à afficher. Un appelant qui écrirait `{open && rendreFlottant(…)}` lui retirerait toute
+ * possibilité d'animer une sortie, puisqu'il déciderait du démontage (même contrainte que `Modal`).
+ *
+ * Pendant la sortie, la bulle est INERTE — `aria-hidden`, `pointer-events-none` — et ses `coords`
+ * sont GELÉES : elle rétrécit vers son déclencheur au lieu de suivre un scroll qu'elle ne
+ * commente plus.
  *
  * Le comportement (mesures, marges, bascule) est identique à l'implémentation d'origine des deux
  * composants ; seules les dimensions de repli avant première mesure sont paramétrables.
@@ -29,6 +39,9 @@ import { createPortal } from 'react-dom'
  * @param largeurPopover    largeur de la bulle
  * @param versLeHaut        la bulle a basculé AU-DESSUS du déclencheur faute de place en dessous
  */
+/** Doit valoir la durée de `.nk-popover-out` (index.css). */
+const DUREE_SORTIE_MS = 110
+
 export function origineDepuisDeclencheur(
   centreDeclencheur: number,
   gauchePopover: number,
@@ -67,6 +80,16 @@ export function usePopoverFlottant({
     null,
   )
 
+  // Phase de sortie : vrai entre la fermeture demandée et le démontage effectif. Même motif que
+  // `Modal` — ajustement pendant le rendu, pour qu'aucune image ne passe « bulle déjà disparue ».
+  const [sortant, setSortant] = useState(false)
+  const [ouvertPrecedent, setOuvertPrecedent] = useState(open)
+  if (open !== ouvertPrecedent) {
+    setOuvertPrecedent(open)
+    setSortant(!open)
+  }
+  const monte = open || sortant
+
   // Ancre le popover sous le déclencheur (ou au-dessus s'il n'y a pas la place), borné au viewport.
   const positionner = useCallback(() => {
     const trigger = triggerRef.current
@@ -96,10 +119,12 @@ export function usePopoverFlottant({
   // (Re)positionne à l'ouverture, au changement de vue (`repositionSur` : la hauteur peut varier),
   // puis au scroll (capture → n'importe quel conteneur défilant) et au resize.
   useLayoutEffect(() => {
-    if (!open) {
+    if (!monte) {
       setCoords(null)
       return
     }
+    // Pendant la sortie : coords GELÉES, aucun écouteur. La bulle part de là où elle était.
+    if (!open) return
     positionner()
     const surMaj = () => positionner()
     window.addEventListener('scroll', surMaj, true)
@@ -108,7 +133,7 @@ export function usePopoverFlottant({
       window.removeEventListener('scroll', surMaj, true)
       window.removeEventListener('resize', surMaj)
     }
-  }, [open, repositionSur, positionner])
+  }, [open, monte, repositionSur, positionner])
 
   // Fermeture au clic extérieur. Le popover vivant dans un PORTAIL (hors de containerRef), on
   // l'épargne explicitement : sinon un mousedown sur une cellule fermerait AVANT le click.
@@ -123,6 +148,17 @@ export function usePopoverFlottant({
     return () => document.removeEventListener('mousedown', onDown)
   }, [open, onFermer])
 
+  // Fin de la sortie → démontage. Sous `prefers-reduced-motion` la feuille de style a déjà
+  // neutralisé l'animation : patienter ne ferait que laisser une bulle invisible dans le DOM.
+  useEffect(() => {
+    if (!sortant) return
+    const handle = window.setTimeout(
+      () => setSortant(false),
+      prefersReducedMotion() ? 0 : DUREE_SORTIE_MS,
+    )
+    return () => window.clearTimeout(handle)
+  }, [sortant])
+
   // Échap au niveau du popover : ne ferme QUE si aucun handler interne n'a déjà traité la touche
   // (les grilles font `preventDefault` pour leurs Échap contextuels → on ne double-ferme pas).
   const onKeyDownPopover = useCallback(
@@ -135,37 +171,53 @@ export function usePopoverFlottant({
     [onFermer],
   )
 
-  /** Rend le contenu dans le portail positionné. `className`/`aria-label` propres à chaque popover. */
+  /**
+   * Rend le contenu dans le portail positionné, ou `null` s'il n'y a rien à afficher — c'est le
+   * hook qui décide du montage (cf. docblock). `className`/`aria-label` propres à chaque popover.
+   */
   const rendreFlottant = (
     enfants: ReactNode,
     { className, 'aria-label': ariaLabel }: { className: string; 'aria-label': string },
-  ) =>
-    createPortal(
+  ) => {
+    if (!monte) return null
+    return createPortal(
       <div
         ref={popoverRef}
-        role="dialog"
-        aria-modal="false"
-        aria-label={ariaLabel}
         onKeyDown={onKeyDownPopover}
+        // Ce qui part sort aussi de l'arbre d'accessibilité et cesse de recevoir les clics : un
+        // lecteur d'écran n'annonce pas une bulle qui s'en va, et un clic pressé pendant la sortie
+        // ne doit pas atteindre une option qu'on est en train de quitter. Le focus est déjà
+        // revenu au déclencheur (les appelants le rendent dans leur `fermerEt…`).
+        {...(sortant
+          ? { 'aria-hidden': true }
+          : { role: 'dialog', 'aria-modal': 'false' as const, 'aria-label': ariaLabel })}
         style={{
           position: 'fixed',
           top: coords?.top ?? 0,
           left: coords?.left ?? 0,
           // Masqué tant que la position n'est pas calculée (évite un flash en haut à gauche).
           visibility: coords ? 'visible' : 'hidden',
+          // Conservée pendant la sortie : la bulle rétrécit VERS son déclencheur, exactement le
+          // chemin de son entrée à l'envers.
           transformOrigin: coords?.origine,
         }}
         // L'animation n'est posée QU'UNE FOIS la position connue : appliquée pendant la phase
         // masquée, elle se jouerait dans le vide et la bulle apparaîtrait déjà stabilisée.
-        className={coords ? `${className} nk-popover-in` : className}
+        className={cn(
+          className,
+          coords && (sortant ? 'nk-popover-out pointer-events-none' : 'nk-popover-in'),
+        )}
       >
         {enfants}
       </div>,
       document.body,
     )
+  }
 
   // `positionne` : la bulle est positionnée donc VISIBLE (cf. `visibility` ci-dessus). Un navigateur
   // ignore un `focus()` sur un élément masqué : qui veut focaliser le contenu à l'ouverture doit
   // attendre ce drapeau (ajout pour AideNotion, les autres popovers l'ignorent).
-  return { containerRef, triggerRef, popoverRef, rendreFlottant, positionne: coords !== null }
+  // `positionne` ne vaut que pour une bulle OUVERTE : pendant la sortie, personne ne doit y
+  // renvoyer le focus (AideNotion focalise son contenu sur ce drapeau).
+  return { containerRef, triggerRef, popoverRef, rendreFlottant, positionne: open && coords !== null }
 }

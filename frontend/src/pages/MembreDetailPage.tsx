@@ -417,8 +417,7 @@ export function MembreDetailPage() {
                 >
                   {t('membres.detail.plus')}
                 </Button>
-                {menuActions &&
-                  menuFlottant.rendreFlottant(
+                {menuFlottant.rendreFlottant(
                     <div
                       role="menu"
                       className="min-w-[13rem] rounded-xl border border-hairline-strong bg-surface-2 p-1 shadow-2xl"

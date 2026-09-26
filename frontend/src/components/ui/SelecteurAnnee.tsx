@@ -147,8 +147,7 @@ export function SelecteurAnnee({
         <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
       </button>
 
-      {open &&
-        rendreFlottant(
+      {rendreFlottant(
           <>
             <GrilleAnnees
               focusAnnee={focusAnnee}

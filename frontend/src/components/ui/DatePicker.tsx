@@ -412,8 +412,7 @@ export function DatePicker({
         <Calendar className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
       </button>
 
-      {open &&
-        rendreFlottant(
+      {rendreFlottant(
           <>
             {/* Région live dédiée : annonce la vue courante (mois/décennie/année) à chaque
                 navigation, y compris via les flèches ‹ / › (le focus reste sur le bouton). */}

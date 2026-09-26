@@ -335,8 +335,7 @@ function CompteMenu() {
         />
       </button>
 
-      {open &&
-        rendreFlottant(
+      {rendreFlottant(
           <div className="w-60 overflow-hidden rounded-xl border border-hairline-strong bg-surface p-1.5 shadow-2xl">
             <div className="border-b border-hairline px-2.5 pb-2 pt-1.5">
               <p className="truncate text-sm font-medium text-foreground">{libelleCompte}</p>

@@ -28,6 +28,7 @@ voisine se remarque sans qu'on sache dire pourquoi :
 |---|---|---|
 | `--ease-sortie` | `cubic-bezier(0.22, 1, 0.36, 1)` | tout ce qui **entre ou sort** — popover, modale, toast, révélation |
 | `--ease-trajet` | `cubic-bezier(0.77, 0, 0.175, 1)` | ce qui **se déplace en restant à l'écran** — jauges de progression |
+| `--ease-retrait` | `cubic-bezier(0.5, 1, 0.89, 1)` | les **sorties courtes** — popovers, menus (cf. ci-dessous) |
 
 **Ne JAMAIS utiliser `ease-in` sur de l'interface.** Il retarde le premier mouvement, c'est-à-dire
 exactement l'instant que l'œil surveille : à durée égale, il paraît plus lent. Les courbes natives
@@ -39,6 +40,62 @@ une animation comme intentionnelle. Les deux ci-dessus en sont les variantes for
 une transition d'écran). Une **sortie est toujours plus courte que son entrée** (toast : 240 ms à
 l'aller, 160 au retour ; modale : 200 et 140) : à ce moment-là l'utilisateur en a fini, le faire attendre est une
 politesse mal placée.
+
+### Pourquoi une TROISIÈME courbe : `--ease-retrait`
+
+`--ease-sortie` annonce « entre ou sort », mais elle est réglée pour les **entrées** : son départ
+très franc est ce qui donne la sensation de réponse immédiate à l'ouverture. Sur une sortie, ce
+même départ franc consomme tout le mouvement d'un coup et laisse une queue invisible. Mesuré dans
+le moteur (animation mise en pause et parcourue image par image, sur le CSS du bundle construit),
+à durée égale de 110 ms :
+
+| temps écoulé | `--ease-retrait` | `--ease-sortie` |
+|---|---|---|
+| 17 ms (une image à 60 Hz) | 28 % | **55 %** |
+| 33 ms | 51 % | 83 % |
+| 50 ms | 70 % | 94 % |
+| 88 ms | 96 % | **100 % — déjà fini** |
+
+Sur une bulle, `--ease-sortie` produit donc deux images et demie de mouvement : on ne lit plus une
+fermeture, on lit une coupe légèrement adoucie. `--ease-retrait` (easeOutQuad) étale les mêmes 90 %
+sur 75 ms — quatre images et demie — **sans retarder le départ** : elle reste un ease-out, la règle
+« jamais d'ease-in sur de l'interface » n'est pas entamée.
+
+Le seuil est une affaire de DURÉE, pas de goût : la modale (140 ms) et les toasts (160 ms) sont
+assez longs pour que la queue invisible ne coûte rien, et gardent `--ease-sortie`. En dessous de
+~120 ms, il faut `--ease-retrait`, sinon l'animation n'existe pas.
+
+### La SORTIE des popovers, et un déplacement de responsabilité
+
+Les six popovers — `DatePicker`, `SelecteurAnnee`, `AideNotion`, `SelecteurMembreUnique`, le menu de
+compte d'`AppShell`, le menu d'actions de la fiche membre — partagent `usePopoverFlottant`.
+`nk-popover-out` (110 ms, `--ease-retrait`, échelle de retour à 0,96) referme le geste que
+`nk-popover-in` ouvrait.
+
+**C'est désormais le HOOK qui décide du montage**, plus l'appelant : `rendreFlottant` rend `null`
+quand il n'y a rien à afficher, et les six sites ont perdu leur `{open && …}`. Réintroduire cette
+condition redonnerait à l'appelant la décision du démontage et retirerait au hook toute possibilité
+d'animer — même contrainte que `Modal`. Un **garde textuel** (`popover-sortie.test.tsx`) interdit la
+régression sur les six fichiers : il vérifie qu'aucun n'écrit `… && rendreFlottant(` ni
+`… ? rendreFlottant(`, et compte les appels pour ne pas passer à vide si la liste se vidait.
+
+Trois différences avec la modale, toutes vérifiées plutôt que supposées :
+
+1. **Pas de gel du contenu.** La modale devait figer le sien parce que l'appelant remet sa donnée à
+   zéro dans `onClose`. Les popovers, eux, affichent leur PROPRE état interne (vue du calendrier,
+   requête de recherche, catalogue d'aide), qu'aucun des six ne réinitialise à la fermeture —
+   contrôlé un par un. Rien ne se vide, rien à figer.
+2. **Les `coords` sont GELÉES pendant la sortie** (et les écouteurs de scroll/resize détachés) : la
+   bulle rétrécit **vers son déclencheur**, en conservant le `transform-origin` calculé à
+   l'ouverture. Elle repart par où elle est venue au lieu de s'effacer sur place — et elle ne suit
+   plus un défilement qu'elle ne commente plus.
+3. **Le focus est déjà revenu** : les appelants le rendent au déclencheur dans leur `fermerEt…`.
+   La bulle sortante peut donc passer `aria-hidden` sans risquer d'y piéger le curseur, et
+   `pointer-events-none` empêche qu'un clic en vol atteigne une option qu'on est en train de
+   quitter.
+
+`positionne` (dont `AideNotion` se sert pour focaliser son contenu) vaut `open && coords !== null` :
+pendant la sortie, personne ne doit y renvoyer le focus.
 
 ### La SORTIE de la modale, et les trois choses qu'elle a obligé à traiter
 

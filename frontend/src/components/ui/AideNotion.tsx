@@ -122,8 +122,7 @@ export function AideNotion({ notion, className }: { notion: NotionAide; classNam
       >
         <CircleHelp className="h-3.5 w-3.5" aria-hidden="true" />
       </button>
-      {open &&
-        rendreFlottant(
+      {rendreFlottant(
           <div
             ref={contentRef}
             id={idTexte}

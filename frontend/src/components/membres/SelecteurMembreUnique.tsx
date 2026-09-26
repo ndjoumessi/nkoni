@@ -129,8 +129,7 @@ export function SelecteurMembreUnique({
         <ChevronDown className="h-4 w-4 shrink-0 text-faint" aria-hidden="true" />
       </button>
 
-      {open &&
-        rendreFlottant(
+      {rendreFlottant(
           <div
             style={{ width: largeur }}
             className="overflow-hidden rounded-xl border border-hairline-strong bg-surface-2 shadow-2xl"

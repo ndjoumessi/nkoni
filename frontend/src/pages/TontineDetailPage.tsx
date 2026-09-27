@@ -307,7 +307,10 @@ export function TontineDetailPage() {
             aria-valuemax={100}
             aria-label={t('tontines.detail.collecte')}
           >
-            <div className="h-full rounded-full bg-jade transition-[width] duration-500 ease-trajet" style={{ width: `${pctTour}%` }} />
+            <div
+              className="h-full w-full origin-left rounded-full bg-jade transition-transform duration-500 ease-trajet"
+              style={{ transform: `scaleX(${pctTour / 100})` }}
+            />
           </div>
         )}
 

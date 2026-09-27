@@ -435,6 +435,23 @@
 }
 .nk-voile-out { animation: nkVoileOut 0.14s var(--ease-sortie) forwards; }
 
+/* MOUVEMENT AU SURVOL — réservé au pointeur FIN, et c'est un correctif, pas un raffinement.
+   Sur un écran tactile, `:hover` ne se relâche pas au retrait du doigt : il RESTE actif jusqu'au
+   tap suivant ailleurs. Un chevron qui glisse de 2 px au survol restait donc décalé après chaque
+   appui — sur une PWA majoritairement mobile, c'est le cas NORMAL, pas le cas limite.
+
+   `(pointer: fine)` en plus de `(hover: hover)` : un stylet ou une télécommande peuvent annoncer
+   `hover` sans viser au pixel près.
+
+   Pourquoi une classe et non `group-hover:translate-x-0.5` à chaque appel : une utilitaire
+   Tailwind ne peut pas porter sa propre requête média, donc chaque site devait la répéter — et
+   aucun ne le faisait (zéro `@media (hover)` dans tout `src/`). Centraliser la règle la rend
+   vérifiable : `lib/mouvement-parite.test.ts` interdit désormais tout `hover:translate`/`scale`
+   en dur. Le survol qui change une COULEUR reste libre : il ne déplace rien. */
+@media (hover: hover) and (pointer: fine) {
+    .group:hover .nk-glisse-survol { transform: translateX(2px); }
+}
+
 @media (prefers-reduced-motion: reduce) {
     /* Neutralise les transitions ET les animations résiduelles (knob du Toggle, chevron
        DataTable, `animate-ping`, `animate-pulse` des squelettes…) — pas seulement les 4 classes

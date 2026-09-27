@@ -29,7 +29,7 @@ function Metric({
         <Icon className="h-4 w-4 text-brass" aria-hidden="true" />
         {label}
         {to && (
-          <ChevronRight className="h-3.5 w-3.5 text-faint transition-transform group-hover:translate-x-0.5 group-hover:text-brass" aria-hidden="true" />
+          <ChevronRight className="h-3.5 w-3.5 text-faint transition-transform nk-glisse-survol group-hover:text-brass" aria-hidden="true" />
         )}
       </span>
       <Montant value={value} className={cn('mt-1.5 block text-lg font-semibold', tone)} />

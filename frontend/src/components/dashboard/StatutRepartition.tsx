@@ -79,7 +79,7 @@ function Repartition({ titre, items }: { titre: string; items: Item[] }) {
                     </span>
                     {it.href && (
                       <ChevronRight
-                        className="h-3.5 w-3.5 text-faint transition-transform group-hover:translate-x-0.5 group-hover:text-brass"
+                        className="h-3.5 w-3.5 text-faint transition-transform nk-glisse-survol group-hover:text-brass"
                         aria-hidden="true"
                       />
                     )}

@@ -2,6 +2,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -50,6 +51,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const { t } = useTranslation()
   const [items, setItems] = useState<ToastItem[]>([])
   const counter = useRef(0)
+  /** Élément de chaque toast, et sa position à l'image précédente — matière première du FLIP. */
+  const lignes = useRef(new Map<number, HTMLDivElement>())
+  const positions = useRef(new Map<number, number>())
   // Minuteurs d'auto-fermeture, PAUSABLES au survol/focus (a11y : laisser le temps de lire,
   // WCAG 2.2.1). Par toast : handle du timeout + temps restant recalculé à chaque pause.
   const minuteurs = useRef(new Map<number, { timeout: number; expire: number; restant: number }>())
@@ -75,6 +79,42 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       DUREE_SORTIE_MS,
     )
   }, [])
+
+  /**
+   * FLIP sur la PILE — le morceau qui manquait à la sortie des toasts.
+   *
+   * Le toast sortant fondait proprement, puis son démontage faisait REMONTER D'UN COUP ceux du
+   * dessous : la moitié soignée du geste rendait l'autre plus visible. Le défaut n'est pas dans le
+   * toast qui part, il est chez ses voisins — et aucune animation posée sur lui ne pouvait le
+   * corriger.
+   *
+   * First-Last-Invert-Play : on mémorise la position de chaque ligne (First) ; après le commit qui
+   * change la liste, on lit la nouvelle (Last), on applique la translation INVERSE sans transition
+   * pour donner l'illusion que rien n'a bougé (Invert), puis on la relâche à l'image suivante
+   * (Play). Le navigateur interpole alors un `transform` — donc rien ne quitte le GPU, et aucun
+   * `height`/`margin` n'est animé.
+   */
+  useLayoutEffect(() => {
+    for (const [id, element] of lignes.current) {
+      const nouvelle = element.getBoundingClientRect().top
+      const ancienne = positions.current.get(id)
+      positions.current.set(id, nouvelle)
+      const delta = ancienne === undefined ? 0 : ancienne - nouvelle
+      // Seuil au pixel : sous cette valeur, il n'y a pas de déplacement à raconter.
+      if (Math.abs(delta) < 1) continue
+      element.style.transition = 'none'
+      element.style.transform = `translateY(${delta}px)`
+      requestAnimationFrame(() => {
+        element.style.transition = 'transform 0.18s var(--ease-entree)'
+        element.style.transform = ''
+      })
+    }
+    // Les lignes démontées ne doivent pas garder de position fantôme : une réutilisation d'id
+    // (compteur remis à zéro par un rechargement de module en dev) repartirait d'un delta faux.
+    for (const id of positions.current.keys()) {
+      if (!lignes.current.has(id)) positions.current.delete(id)
+    }
+  })
 
   const pauser = useCallback((id: number) => {
     const m = minuteurs.current.get(id)
@@ -127,6 +167,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           return (
             <div
               key={item.id}
+              ref={(el) => {
+                if (el) lignes.current.set(item.id, el)
+                else lignes.current.delete(item.id)
+              }}
               // Erreur → annonce assertive (role=alert) ; succès/info → polie (role=status).
               role={item.tone === 'error' ? 'alert' : 'status'}
               onMouseEnter={() => pauser(item.id)}

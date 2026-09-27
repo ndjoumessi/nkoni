@@ -217,6 +217,41 @@ rien de perceptible — l'opacité portait tout le geste et l'échelle ne servai
 bulle partir VERS son déclencheur au lieu de s'évaporer sur place. Si un effet de sortie paraît
 trop discret, **le levier est le recul, pas la durée** — allonger ferait attendre.
 
+### Les trois angles morts de la sortie animée
+
+Fermer proprement a révélé trois défauts que la sortie elle-même ne pouvait pas corriger.
+
+**La pile de toasts sautait.** Le toast sortant fondait bien — puis son démontage faisait remonter
+d'un coup ceux du dessous. Le défaut n'était pas dans la ligne qui part mais chez ses voisines, et
+aucune animation posée sur elle ne l'atteignait. `ToastProvider` applique donc un **FLIP** :
+positions mémorisées avant le commit, translation inverse appliquée sans transition juste après,
+relâchée à l'image suivante. Le navigateur interpole un `transform` — rien ne quitte le GPU, et
+aucun `height`/`margin` n'est animé. jsdom n'ayant pas de layout, **ce mécanisme n'est pas
+testable** en unitaire : il se vérifie dans l'application qui tourne.
+
+**Rouvrir pendant une fermeture faisait un saut en arrière.** Une `@keyframes` ne se retargete pas,
+elle repart de zéro : une modale interrompue à mi-sortie rejouait son entrée depuis 0,97/opacité 0.
+`lib/mouvement.ts::reprendreDepuisEtatCourant` fige l'état atteint via `commitStyles()`, annule
+l'animation, et la classe `.nk-reprise` ramène l'élément à son repos **depuis ce point**. On garde
+donc les keyframes (lisibles, sans piège de montage) et on ne paie la mécanique que sur
+l'interruption. Tout convertir en transitions aurait exigé `@starting-style`, qui dégrade en
+« aucune entrée » là où il manque. ⚠️ `getAnimations` est absent de jsdom et des navigateurs
+anciens : la garde de type n'est pas de la prudence, sans elle la reprise LÈVE et emporte le rendu.
+
+**`prefers-reduced-motion` coupait aussi les fondus.** La règle vise le MOUVEMENT ; un fondu
+d'opacité ne déclenche aucune gêne vestibulaire, alors qu'une apparition sèche reste brutale — pour
+ce public plus que pour un autre. Le bloc n'annule donc plus les durées : il **restreint
+`transition-property`** aux propriétés qui ne bougent pas (opacité, couleurs, ombre). Un
+`transition-transform` n'a alors plus d'effet et saute à sa valeur finale, tandis qu'un fondu
+continue. Les keyframes, qui mêlent opacité et mouvement dans les mêmes images, sont **remplacées**
+par leur équivalent fondu (`nkFonduIn`/`nkFonduOut`, 120 ms) — d'où `dureeSortie()`, qui rend une
+durée non nulle en mouvement réduit pour que ce fondu ait le temps de se jouer.
+
+⚠️ **Piège de test vécu ici** : les deux tests de fondu avançaient l'horloge de
+`DUREE_FONDU_REDUIT_MS + 20`, donc d'une valeur IMPORTÉE — ils suivaient la constante qu'ils
+prétendaient vérifier, et ramener le fondu à 0 passait au vert. Un seuil d'assertion se pose en
+LITTÉRAL, jamais depuis la valeur testée.
+
 `prefers-reduced-motion` est traité GLOBALEMENT (`*` → durées à 0,01 ms), avec une exception
 délibérée pour `animate-spin` : un indicateur de chargement porte une information.
 

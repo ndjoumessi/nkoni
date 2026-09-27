@@ -100,12 +100,17 @@ describe('Popover — cycle de vie de la sortie', () => {
     expect(bulle()).toBeNull()
   })
 
-  it('sous prefers-reduced-motion, démonte sans attendre la durée de l’animation', () => {
+  it('sous prefers-reduced-motion, FOND au lieu de disparaître d’un coup', () => {
     poserReducedMotion(true)
     render(<Harnais />)
     fireEvent.click(screen.getByText('declencheur'))
     fireEvent.click(screen.getByText('declencheur'))
-    avancer(1)
+    // Plus instantané : la règle supprime le MOUVEMENT, pas le fondu (cf. index.css).
+    // Seuils LITTÉRAUX (cf. la note du test jumeau de Modal) : la constante importée rendait
+    // l'assertion vacante.
+    avancer(40)
+    expect(bulle(), 'le fondu doit encore être en cours à 40 ms').not.toBeNull()
+    avancer(140)
     expect(bulle()).toBeNull()
   })
 
@@ -116,7 +121,8 @@ describe('Popover — cycle de vie de la sortie', () => {
     expect(bulle()?.className).toContain('nk-popover-out')
 
     fireEvent.click(screen.getByText('declencheur'))
-    expect(bulle()?.className).toContain('nk-popover-in')
+    // `.nk-reprise` : on repart de l'état atteint, on ne rejoue pas l'entrée depuis 0,96.
+    expect(bulle()?.className).toContain('nk-reprise')
     expect(bulle()?.className).not.toContain('nk-popover-out')
 
     // Le minuteur de la sortie annulée ne doit pas démonter la bulle rouverte.

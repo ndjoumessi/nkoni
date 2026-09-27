@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { X } from 'lucide-react'
-import { cn, prefersReducedMotion } from '@/lib/utils'
+import { cn } from '@/lib/utils'
+import { dureeSortie, effacerEtatRepris, reprendreDepuisEtatCourant } from '@/lib/mouvement'
 
 /**
  * Sélecteur des éléments focusables au clavier À L'INTÉRIEUR du panneau — utilisé par le
@@ -51,7 +52,11 @@ export function Modal({
 }) {
   const { t } = useTranslation()
   const panneauRef = useRef<HTMLDivElement>(null)
+  const voileRef = useRef<HTMLButtonElement>(null)
   const declencheurRef = useRef<HTMLElement | null>(null)
+
+  /** Vrai le temps d'un rendu quand une réouverture interrompt une sortie (cf. plus bas). */
+  const repriseRef = useRef(false)
 
   // Phase de sortie : vrai entre la fermeture demandée et le démontage effectif.
   const [sortant, setSortant] = useState(false)
@@ -81,8 +86,11 @@ export function Modal({
   // cherche à supprimer.
   if (open !== ouvertPrecedent) {
     setOuvertPrecedent(open)
-    // Réouverture pendant une sortie : on annule la sortie et l'entrée reprend la main.
     setSortant(!open)
+    // Réouverture PENDANT une sortie : on fige l'état atteint pour repartir de là (cf.
+    // `reprendreDepuisEtatCourant`). Sans cela l'entrée rejouerait depuis 0,97/opacité 0, soit un
+    // saut en arrière visible. Le drapeau est lu au commit, où le DOM existe.
+    if (open && sortant) repriseRef.current = true
   }
 
   useEffect(() => {
@@ -145,6 +153,29 @@ export function Modal({
 
   const monte = open || sortant
 
+  // La reprise s'exécute APRÈS le commit : c'est le seul moment où le panneau sortant est encore
+  // dans le DOM avec son animation en cours.
+  const [repris, setRepris] = useState(false)
+  useLayoutEffect(() => {
+    // Dépendance [open] et NON une absence de tableau : sans elle, le nettoyage s'exécuterait
+    // avant CHAQUE re-rendu et annulerait le minuteur ci-dessous dès le rendu suivant — la classe
+    // de reprise resterait alors posée indéfiniment (défaut relevé par oxlint, pas par un test).
+    if (!repriseRef.current) {
+      setRepris(false)
+      return
+    }
+    repriseRef.current = false
+    reprendreDepuisEtatCourant(panneauRef.current)
+    reprendreDepuisEtatCourant(voileRef.current)
+    setRepris(true)
+    const h = window.setTimeout(() => {
+      effacerEtatRepris(panneauRef.current)
+      effacerEtatRepris(voileRef.current)
+      setRepris(false)
+    }, 130)
+    return () => window.clearTimeout(h)
+  }, [open])
+
   // Verrou de défilement tenu sur TOUTE la durée d'affichage, sortie comprise.
   useEffect(() => {
     if (!monte) return
@@ -162,7 +193,7 @@ export function Modal({
     if (!sortant) return
     const handle = window.setTimeout(
       () => setSortant(false),
-      prefersReducedMotion() ? 0 : DUREE_SORTIE_MS,
+      dureeSortie(DUREE_SORTIE_MS),
     )
     return () => window.clearTimeout(handle)
   }, [sortant])
@@ -203,11 +234,12 @@ export function Modal({
     >
       <button
         type="button"
+        ref={voileRef}
         aria-label={t('ui.modal.fermer')}
         onClick={onClose}
         className={cn(
           'absolute inset-0 bg-black/60 backdrop-blur-sm',
-          sortant ? 'nk-voile-out' : 'nk-voile-in',
+          repris ? 'nk-reprise' : sortant ? 'nk-voile-out' : 'nk-voile-in',
         )}
       />
       {/* HAUTEUR BORNÉE + CORPS DÉFILANT — obligatoire, pas cosmétique. Le panneau était centré
@@ -226,7 +258,7 @@ export function Modal({
           // pas glisser du haut comme une notification qui arriverait d'ailleurs. Elle grandit sur
           // place depuis son centre, et le voile fond en même temps qu'elle (`nk-voile-in`).
           // La sortie est le miroir du même geste, en plus court.
-          sortant ? 'nk-modale-out' : 'nk-modale-in',
+          repris ? 'nk-reprise' : sortant ? 'nk-modale-out' : 'nk-modale-in',
           'relative flex max-h-[85dvh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-hairline bg-canvas shadow-xl',
           className,
         )}

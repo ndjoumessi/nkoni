@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { cn, prefersReducedMotion } from '@/lib/utils'
+import { cn } from '@/lib/utils'
+import { dureeSortie, effacerEtatRepris, reprendreDepuisEtatCourant } from '@/lib/mouvement'
 
 /**
  * Infrastructure PARTAGÉE des popovers flottants (DatePicker, SelecteurAnnee) — extraite pour ne
@@ -83,11 +84,35 @@ export function usePopoverFlottant({
   // `Modal` — ajustement pendant le rendu, pour qu'aucune image ne passe « bulle déjà disparue ».
   const [sortant, setSortant] = useState(false)
   const [ouvertPrecedent, setOuvertPrecedent] = useState(open)
+  /** Vrai le temps d'un rendu quand une réouverture interrompt une sortie. */
+  const repriseRef = useRef(false)
   if (open !== ouvertPrecedent) {
     setOuvertPrecedent(open)
     setSortant(!open)
+    // Rouvrir pendant la fermeture : on repart de l'état atteint au lieu de rejouer l'entrée
+    // depuis 0,96/opacité 0 — une keyframe ne se retargete pas (cf. `reprendreDepuisEtatCourant`).
+    if (open && sortant) repriseRef.current = true
   }
   const monte = open || sortant
+
+  const [repris, setRepris] = useState(false)
+  useLayoutEffect(() => {
+    // Dépendance [open] et NON une absence de tableau : sans elle, le nettoyage s'exécuterait
+    // avant CHAQUE re-rendu et annulerait le minuteur ci-dessous dès le rendu suivant — la classe
+    // de reprise resterait alors posée indéfiniment (défaut relevé par oxlint, pas par un test).
+    if (!repriseRef.current) {
+      setRepris(false)
+      return
+    }
+    repriseRef.current = false
+    reprendreDepuisEtatCourant(popoverRef.current)
+    setRepris(true)
+    const h = window.setTimeout(() => {
+      effacerEtatRepris(popoverRef.current)
+      setRepris(false)
+    }, 130)
+    return () => window.clearTimeout(h)
+  }, [open])
 
   // Ancre le popover sous le déclencheur (ou au-dessus s'il n'y a pas la place), borné au viewport.
   const positionner = useCallback(() => {
@@ -153,7 +178,7 @@ export function usePopoverFlottant({
     if (!sortant) return
     const handle = window.setTimeout(
       () => setSortant(false),
-      prefersReducedMotion() ? 0 : DUREE_SORTIE_MS,
+      dureeSortie(DUREE_SORTIE_MS),
     )
     return () => window.clearTimeout(handle)
   }, [sortant])
@@ -208,7 +233,12 @@ export function usePopoverFlottant({
         // masquée, elle se jouerait dans le vide et la bulle apparaîtrait déjà stabilisée.
         className={cn(
           className,
-          coords && (sortant ? 'nk-popover-out pointer-events-none' : 'nk-popover-in'),
+          coords &&
+            (repris
+              ? 'nk-reprise'
+              : sortant
+                ? 'nk-popover-out pointer-events-none'
+                : 'nk-popover-in'),
         )}
       >
         {enfants}

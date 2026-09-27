@@ -435,6 +435,15 @@
 }
 .nk-voile-out { animation: nkVoileOut 0.14s var(--ease-sortie) forwards; }
 
+/* REPRISE d'une sortie interrompue (rouvrir pendant la fermeture). `reprendreDepuisEtatCourant`
+   fige l'état atteint en styles en ligne et annule la keyframe ; cette transition ramène alors
+   l'élément à son repos DEPUIS ce point, au lieu de rejouer l'entrée depuis zéro — une keyframe
+   ne sait pas se retargeter, une transition si. Durée courte : on rattrape un geste déjà commencé,
+   on n'en rejoue pas un nouveau. */
+.nk-reprise {
+    transition: opacity 0.12s var(--ease-entree), transform 0.12s var(--ease-entree);
+}
+
 /* MOUVEMENT AU SURVOL — réservé au pointeur FIN, et c'est un correctif, pas un raffinement.
    Sur un écran tactile, `:hover` ne se relâche pas au retrait du doigt : il RESTE actif jusqu'au
    tap suivant ailleurs. Un chevron qui glisse de 2 px au survol restait donc décalé après chaque
@@ -452,25 +461,46 @@
     .group:hover .nk-glisse-survol { transform: translateX(2px); }
 }
 
+@keyframes nkFonduIn  { from { opacity: 0; } to { opacity: 1; } }
+@keyframes nkFonduOut { from { opacity: 1; } to { opacity: 0; } }
+
 @media (prefers-reduced-motion: reduce) {
-    /* Neutralise les transitions ET les animations résiduelles (knob du Toggle, chevron
-       DataTable, `animate-ping`, `animate-pulse` des squelettes…) — pas seulement les 4 classes
-       nk-* ci-dessous. Exception DÉLIBÉRÉE : les spinners de chargement `animate-spin` restent
-       animés car ils portent une information essentielle (feedback de progression). */
+    /* La règle demande de supprimer le MOUVEMENT, pas toute transition. Ce bloc écrasait aussi
+       les fondus : une modale SURGISSAIT alors d'un coup — précisément le défaut qu'on venait de
+       corriger, et pour le public le plus sensible. Un fondu d'opacité ne déclenche aucune gêne
+       vestibulaire ; un déplacement ou un changement d'échelle, si.
+
+       D'où la bascule : au lieu d'annuler les durées, on RESTREINT les propriétés en transition à
+       celles qui ne bougent pas. Un `transition-transform` n'a donc plus d'effet (la propriété
+       n'est plus dans la liste) et saute à sa valeur finale, tandis qu'un `transition-opacity` ou
+       un changement de couleur continue de fondre. */
     *, *::before, *::after {
-        transition-duration: 0.01ms !important;
-        animation-duration: 0.01ms !important;
-        animation-iteration-count: 1 !important;
+        transition-property: opacity, color, background-color, border-color, fill, stroke, box-shadow !important;
+        transition-duration: 0.12s !important;
         scroll-behavior: auto !important;
     }
-    .animate-spin {
-        animation-duration: 1s !important;
-        animation-iteration-count: infinite !important;
-    }
-    .nk-reveal { opacity: 1; animation: none; }
-    .nk-marquee { animation: none; }
-    .nk-shimmer::after { animation: none; }
-    .nk-toast-in { animation: none; }
+
+    /* Les animations en keyframes, elles, mêlent opacité ET mouvement dans les mêmes images : on
+       ne peut pas en retirer une propriété, il faut les REMPLACER par leur équivalent fondu. */
+    .nk-reveal    { opacity: 1; animation: none !important; }
+    .nk-toast-in,
+    .nk-popover-in,
+    .nk-modale-in,
+    .nk-voile-in  { animation: nkFonduIn 0.12s linear !important; }
+    .nk-toast-out,
+    .nk-popover-out,
+    .nk-modale-out,
+    .nk-voile-out { animation: nkFonduOut 0.12s linear forwards !important; }
+    .nk-reprise   { transition: opacity 0.12s linear !important; }
+
+    /* Boucles décoratives : rien à sauver, elles ne portent aucune information. */
+    .nk-marquee { animation: none !important; }
+    .nk-shimmer::after { animation: none !important; }
+
+    /* Tout le reste (Tailwind `animate-ping`/`animate-pulse`, animations de tiers) est neutralisé
+       par défaut ; EXCEPTION délibérée pour les spinners, qui portent un feedback de progression. */
+    [class*='animate-'] { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
+    .animate-spin { animation-duration: 1s !important; animation-iteration-count: infinite !important; }
 }
 
 /* ==========================================================================

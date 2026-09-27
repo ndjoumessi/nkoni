@@ -133,7 +133,7 @@ describe('Modal — cycle de vie de la sortie', () => {
     expect(document.body.style.overflow).not.toBe('hidden')
   })
 
-  it('sous prefers-reduced-motion, démonte sans attendre la durée de l’animation', () => {
+  it('sous prefers-reduced-motion, FOND au lieu de disparaître d’un coup', () => {
     poserReducedMotion(true)
     const { rerender } = render(
       <Modal open onClose={() => {}} title="Titre">
@@ -145,19 +145,30 @@ describe('Modal — cycle de vie de la sortie', () => {
         <p>contenu</p>
       </Modal>,
     )
-    // Le minuteur est posé à 0 ms : un seul tour de boucle suffit, très en dessous des 140 ms.
-    avancer(1)
+    // La sortie n'est plus INSTANTANÉE : `prefers-reduced-motion` demande de supprimer le
+    // MOUVEMENT, pas le fondu. Le panneau reste donc monté le temps d'un fondu court — la
+    // feuille de style le réduit à une animation d'opacité, sans échelle ni déplacement.
+    // Seuils LITTÉRAUX, jamais la constante importée : s'en servir rendait l'assertion vacante
+    // (elle suivait la valeur qu'elle prétendait vérifier — un fondu ramené à 0 passait au vert).
+    avancer(40)
+    expect(screen.getByText('contenu'), 'le fondu doit encore être en cours à 40 ms').toBeTruthy()
+    avancer(140)
     expect(screen.queryByText('contenu')).toBeNull()
   })
 
-  it('une réouverture pendant la sortie annule celle-ci et rend le contenu VIVANT', () => {
+  it('une réouverture pendant la sortie REPREND au lieu de rejouer l’entrée', () => {
     render(<AppelantPiloteParLaDonnee />)
     fireEvent.click(screen.getByLabelText('ui.modal.fermer', { selector: 'button.absolute' }))
     expect(document.querySelector('.nk-modale-out')).not.toBeNull()
 
     fireEvent.click(screen.getByText('rouvrir'))
     expect(document.querySelector('.nk-modale-out')).toBeNull()
-    expect(document.querySelector('.nk-modale-in')).not.toBeNull()
+    // `.nk-reprise` et NON `.nk-modale-in` : une keyframe repartirait de 0,97/opacité 0, soit un
+    // saut en arrière depuis l'état atteint. La transition de reprise, elle, repart de là où on
+    // en était. (jsdom n'a pas `getAnimations` : le gel des styles ne s'y joue pas, mais le
+    // CHOIX de la classe — le seul verrou côté React — est bien vérifié ici.)
+    expect(document.querySelector('.nk-reprise')).not.toBeNull()
+    expect(document.querySelector('.nk-modale-in')).toBeNull()
     expect(screen.getByRole('dialog')).toBeTruthy()
 
     // Et le minuteur de la sortie annulée ne doit pas démonter la modale rouverte.

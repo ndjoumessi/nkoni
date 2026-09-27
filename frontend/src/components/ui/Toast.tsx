@@ -96,7 +96,13 @@ export function ToastProvider({ children }: { children: ReactNode }) {
    */
   useLayoutEffect(() => {
     for (const [id, element] of lignes.current) {
-      const nouvelle = element.getBoundingClientRect().top
+      // `offsetTop` et NON `getBoundingClientRect().top` : le rect INCLUT le transform courant.
+      // Quand deux toasts partent coup sur coup, la compensation du premier est encore en vol au
+      // moment de mesurer le second — le FLIP se calculait alors sur une position déjà décalée et
+      // ne masquait qu'une PARTIE du saut. Mesuré en production : 126,6 px compensés pour un saut
+      // réel de 140, soit 13 px qui sautaient quand même. `offsetTop` est une position de MISE EN
+      // PAGE, insensible aux transforms, donc juste même en plein vol.
+      const nouvelle = element.offsetTop
       const ancienne = positions.current.get(id)
       positions.current.set(id, nouvelle)
       const delta = ancienne === undefined ? 0 : ancienne - nouvelle

@@ -9,10 +9,17 @@ import { AuthProvider } from '@/contexts/AuthContext'
 import { ToastProvider } from '@/components/ui/Toast'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { signaler } from '@/lib/observabilite'
+import { installerRepriseDeChunk } from '@/lib/reprise-deploiement'
 
 // PWA : enregistre le service worker (app shell précaché, lecture /api hors-ligne). autoUpdate →
 // le SW se met à jour tout seul au déploiement suivant. Sans effet en dev / navigateur non compatible.
 registerSW({ immediate: true })
+
+// …et le filet qui va avec : `autoUpdate` échange le SW EN SILENCE, donc un onglet resté ouvert
+// tourne encore sur l'ancien bundle et ne retrouve plus ses chunks paresseux (défaut vécu en prod
+// le 2026-09-27 : écran « Une erreur inattendue est survenue » sur /utilisateurs). Cf.
+// `lib/reprise-deploiement` — et son garde anti-boucle, qui est la pièce délicate.
+installerRepriseDeChunk()
 
 // OBSERVABILITÉ (bloquant GA 0.1) — filet global : une erreur non rattrapée (bug de rendu React
 // remonté jusqu'à window, promesse rejetée sans `catch`) laisse aujourd'hui un écran blanc SANS

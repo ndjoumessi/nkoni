@@ -221,11 +221,34 @@ trop discret, **le levier est le recul, pas la durée** — allonger ferait atte
 
 Fermer proprement a révélé trois défauts que la sortie elle-même ne pouvait pas corriger.
 
+**Reprise après basculement du service worker.** `registerType: 'autoUpdate'` échange le SW EN
+SILENCE au déploiement suivant, et Workbox purge l'ancien précache. Un onglet resté ouvert tourne
+encore sur l'ancien bundle : à la première navigation vers une route paresseuse (39 dans
+l'application), il demande un chunk que le précache n'a plus, `React.lazy` lève, et l'utilisateur
+reçoit l'écran d'erreur. **Vécu en production le 2026-09-27 sur `/utilisateurs`** — et ce n'est pas
+un défaut de code applicatif : n'importe quel déploiement le produit, c'est la stratégie de mise à
+jour qui l'ouvre.
+
+`lib/reprise-deploiement.ts` rattrape l'échec : Vite émet `vite:preloadError`, on recharge, la page
+réamorce sur le bundle courant. L'utilisateur voit un rechargement au lieu d'un écran d'erreur.
+⚠️ **Le garde anti-boucle est la pièce à ne pas retirer** : si le chunk est vraiment introuvable
+(déploiement cassé, réseau coupé), recharger sans mémoire boucle à l'infini — un remède pire que le
+mal. D'où le marqueur horodaté en `sessionStorage`, et c'est lui que les tests verrouillent, pas le
+rechargement. L'autre voie, `registerType: 'prompt'`, est plus propre sur le fond mais change
+l'expérience à chaque déploiement et laisse la même fenêtre à qui ignore l'invite — non retenue.
+
 **La pile de toasts sautait.** Le toast sortant fondait bien — puis son démontage faisait remonter
 d'un coup ceux du dessous. Le défaut n'était pas dans la ligne qui part mais chez ses voisines, et
 aucune animation posée sur elle ne l'atteignait. `ToastProvider` applique donc un **FLIP** :
 positions mémorisées avant le commit, translation inverse appliquée sans transition juste après,
-relâchée à l'image suivante. Le navigateur interpole un `transform` — rien ne quitte le GPU, et
+relâchée à l'image suivante.
+
+⚠️ **Les positions se mesurent en `offsetTop`, jamais en `getBoundingClientRect().top`** : le rect
+INCLUT le transform courant. Quand deux toasts partent coup sur coup, la compensation du premier est
+encore en vol au moment de mesurer le second, et le FLIP se calcule alors sur une position déjà
+décalée. Mesuré en production avant correction : **126,6 px compensés pour un saut réel de 140**,
+soit 13 px qui sautaient quand même. Aucun test unitaire ne pouvait le voir (jsdom n'a pas de
+layout) — seule l'application qui tourne l'a montré. Le navigateur interpole un `transform` — rien ne quitte le GPU, et
 aucun `height`/`margin` n'est animé. jsdom n'ayant pas de layout, **ce mécanisme n'est pas
 testable** en unitaire : il se vérifie dans l'application qui tourne.
 

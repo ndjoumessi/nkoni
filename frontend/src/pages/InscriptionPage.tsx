@@ -272,7 +272,7 @@ export function InscriptionPage() {
                 <>
                   {t('commun.actions.creerMonEspace')}
                   <ArrowRight
-                    className="h-4 w-4 transition-transform group-hover:translate-x-0.5"
+                    className="h-4 w-4 transition-transform nk-glisse-survol"
                     aria-hidden="true"
                   />
                 </>

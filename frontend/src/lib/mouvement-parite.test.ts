@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
+import { join } from 'node:path'
 
 /**
  * Garde de PARITÉ du mouvement (`src/index.css`) — trois invariants que `tsc` et `oxlint` ne
@@ -14,6 +15,9 @@ import { readFileSync } from 'node:fs'
  *  3bis. aucune échelle d'animation ne descend sous 0,90 — « rien, dans le monde réel, ne surgit
  *     du néant ». La règle était écrite en prose depuis l'origine et n'avait aucun garde : un
  *     `scale(0)` compilait, se déployait et ne se voyait qu'à l'œil.
+ *  3ter. aucun MOUVEMENT au survol n'est écrit en dur (`hover:translate`, `hover:scale`) : il doit
+ *     passer par `.nk-glisse-survol`, gardée par `(hover: hover) and (pointer: fine)`. Sur
+ *     tactile `:hover` reste actif après le tap — un élément déplacé y restait déplacé.
  *  3. les deux courbes restent des ease-OUT, c'est-à-dire démarrent sans délai (`y1 > 0`).
  *     Remplacer l'une par une courbe à départ mou — la « standard » de Material,
  *     `cubic-bezier(0.4, 0, 0.2, 1)`, en est une — retarderait le premier mouvement, soit
@@ -89,6 +93,32 @@ describe('Mouvement — parité des jetons de courbe', () => {
     for (const e of echelles) {
       expect(e, `échelle ${e} : trop basse, la règle fixe le plancher à 0,90`).toBeGreaterThanOrEqual(0.9)
     }
+  })
+
+  it('aucun mouvement au survol écrit en dur — il passe par la classe gardée', () => {
+    const fichiers: string[] = []
+    const parcourir = (dir: string) => {
+      for (const e of readdirSync(dir, { withFileTypes: true })) {
+        const chemin = join(dir, e.name)
+        if (e.isDirectory()) parcourir(chemin)
+        else if (e.name.endsWith('.tsx')) fichiers.push(chemin)
+      }
+    }
+    parcourir(new URL('..', import.meta.url).pathname)
+    // Anti-vacuité : le dépôt en compte plus de cent ; zéro signifierait un parcours cassé.
+    expect(fichiers.length).toBeGreaterThan(100)
+
+    const fautifs = fichiers.filter((f) => /hover:(translate|scale)/.test(readFileSync(f, 'utf8')))
+    expect(
+      fautifs,
+      'mouvement au survol non gardé : utiliser `nk-glisse-survol` (cf. index.css)',
+    ).toEqual([])
+
+    // Et la classe gardée doit exister, sous sa requête média — sinon la consigne ci-dessus
+    // enverrait les appelants vers une classe morte.
+    expect(CSS).toMatch(
+      /@media \(hover: hover\) and \(pointer: fine\)\s*\{[^}]*\.nk-glisse-survol/,
+    )
   })
 
   it('les deux courbes restent des ease-OUT (départ franc, jamais retardé)', () => {

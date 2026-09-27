@@ -177,6 +177,34 @@ réserve des surprises le jour où l'une d'elles se met à changer. Nommer ce qu
 `transition-opacity` pour un indicateur. Le `transition` de Tailwind (sans `-all`) est une liste
 CURÉE et convient aux composants dont plusieurs propriétés changent vraiment (bouton, carte).
 
+**Le mouvement au SURVOL n'existe que sur pointeur fin.** Sur un écran tactile, `:hover` ne se
+relâche pas au retrait du doigt : il reste actif jusqu'au tap suivant ailleurs. Six chevrons
+glissaient donc de 2 px et **restaient décalés** après chaque appui — sur une PWA majoritairement
+mobile, c'est le cas normal, pas le cas limite. L'audit UI/UX d'août le notait déjà (M4 : « `hover:`
+n'existe pas au doigt »), mais côté *retour tactile manquant* ; le pendant — *le survol qui colle* —
+n'avait jamais été traité, et aucun `@media (hover)` n'existait dans `src/`.
+
+Une utilitaire Tailwind ne pouvant pas porter sa propre requête média, la règle est centralisée en
+une classe, `.nk-glisse-survol`, sous `(hover: hover) and (pointer: fine)` — `pointer: fine` en plus
+parce qu'un stylet ou une télécommande peuvent annoncer `hover` sans viser au pixel près. Le garde
+`lib/mouvement-parite.test.ts` interdit tout `hover:translate`/`hover:scale` en dur **et** vérifie
+que la classe existe bien sous sa requête média, sinon il enverrait les appelants vers une classe
+morte. Le survol qui change une **couleur** reste libre : il ne déplace rien.
+
+**N'animer que `transform` et `opacity`.** Les sept jauges de progression animaient `width`, ce qui
+déclenche layout et paint à chaque image. Elles passent par `scaleX` + `origin-left` : la piste
+clippant déjà en `overflow-hidden rounded-full`, le rendu est inchangé, et le dégradé aussi (une
+boîte de 30 % de large et une boîte pleine largeur réduite à 30 % peignent le même dégradé comprimé).
+
+**Deux exceptions, assumées plutôt que contournées.** La barre **segmentée** de la console
+super-admin garde `width` : ses segments sont proportionnels DANS le flux, `scaleX` les
+superposerait. Les barres de **`GrapheEvolution`** gardent `height` : `scaleY` écraserait le
+`rounded-t-md` proportionnellement à la hauteur — une barre courte aurait des coins plus nets qu'une
+haute, sur des barres qu'on compare précisément du regard — et remapperait le dégradé vertical.
+Elles sont en `position: absolute` (recalcul borné à leur conteneur) et **aucune mesure ne montre de
+coût réel** ; leur durée rejoint en revanche le budget écrit (700 → 500 ms). À reconsidérer si un
+profil montre des images perdues, ou si des barres à sommet plat deviennent acceptables.
+
 **Ne jamais partir de `scale(0)`.** Rien, dans le monde réel, ne surgit du néant — même un ballon
 dégonflé a une forme. Les entrées partent de 0,96–0,97, les sorties y reviennent (0,94 pour le
 popover, 0,97 pour la modale, 0,98 pour les toasts). **Plancher : 0,90**, désormais tenu par un

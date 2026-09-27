@@ -184,13 +184,22 @@ function CorpsBarres({ points, monte }: { points: PointEvolution[]; monte: boole
                   </div>
                 </div>
               )}
+              {/* `height` et non `scaleY` — exception ASSUMÉE à la règle « n'animer que transform et
+                  opacity », et la seule du dépôt. `scaleY` écraserait le `rounded-t-md`
+                  PROPORTIONNELLEMENT à la hauteur : une barre courte aurait des coins plus nets
+                  qu'une haute, sur des barres qu'on compare précisément du regard. Il remapperait
+                  aussi le dégradé vertical. Ces barres sont en `position: absolute`, donc le
+                  recalcul reste borné à leur bloc conteneur, et aucune mesure ne montre de coût
+                  réel ici. La durée, elle, rejoint le budget écrit (500 ms). À reconsidérer si un
+                  profil montre des images perdues, ou si des barres à sommet plat deviennent
+                  acceptables côté design. */}
               <div
-                className="absolute bottom-0 w-full rounded-t-md bg-surface-3 transition-[height] duration-700 ease-out"
+                className="absolute bottom-0 w-full rounded-t-md bg-surface-3 transition-[height] duration-500 ease-out"
                 style={{ height: `${monte ? hAttendu : 0}%`, transitionDelay: delai }}
               />
               <div
                 className={cn(
-                  'absolute bottom-0 w-full rounded-t-md bg-gradient-to-b from-jade to-brass transition-[height,filter] duration-700 ease-out',
+                  'absolute bottom-0 w-full rounded-t-md bg-gradient-to-b from-jade to-brass transition-[height,filter] duration-500 ease-out',
                   actif && 'brightness-110',
                 )}
                 style={{ height: `${monte ? hCollecte : 0}%`, transitionDelay: delai }}
@@ -416,7 +425,7 @@ function CorpsAire({
             Ancré à droite (fin de courbe), apparaît en fondu une fois le tracé révélé. */}
         {legendeAtteinte && dernier && (
           <div
-            className="pointer-events-none absolute z-10 -translate-x-full whitespace-nowrap rounded-md border border-hairline-strong bg-surface-2/95 px-2 py-1 text-right shadow-lg transition-opacity duration-500"
+            className="pointer-events-none absolute z-10 -translate-x-full whitespace-nowrap rounded-md border border-hairline-strong bg-surface-2/95 px-2 py-1 text-right shadow-lg transition-opacity duration-150"
             style={{
               left: `${(x(n - 1) / W) * 100}%`,
               bottom: `${(dernier.collecte / max) * 100}%`,

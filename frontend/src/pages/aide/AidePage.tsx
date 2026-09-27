@@ -37,7 +37,7 @@ export function AidePage() {
               </p>
             </div>
             <ChevronRight
-              className="h-5 w-5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
+              className="h-5 w-5 shrink-0 text-muted-foreground transition-transform nk-glisse-survol"
               aria-hidden="true"
             />
           </Link>

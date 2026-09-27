@@ -179,8 +179,8 @@ function QuotaMembres({
         className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-surface-2"
       >
         <div
-          className={cn('h-full rounded-full transition-[width,background-color] duration-500 ease-trajet', barre)}
-          style={{ width: `${Math.max(4, pct)}%` }}
+          className={cn('h-full w-full origin-left rounded-full transition-[transform,background-color] duration-500 ease-trajet', barre)}
+          style={{ transform: `scaleX(${Math.max(4, pct) / 100})` }}
         />
       </div>
     </div>

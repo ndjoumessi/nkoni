@@ -225,8 +225,8 @@ export function ParametresPage() {
                   aria-label={t('parametres.membres.titre')}
                 >
                   <div
-                    className={cn('h-full rounded-full transition-[width,background-color] duration-500 ease-trajet', couleurJauge(pct))}
-                    style={{ width: `${pct}%` }}
+                    className={cn('h-full w-full origin-left rounded-full transition-[transform,background-color] duration-500 ease-trajet', couleurJauge(pct))}
+                    style={{ transform: `scaleX(${pct / 100})` }}
                   />
                 </div>
 
@@ -256,8 +256,8 @@ export function ParametresPage() {
                   aria-label={t('parametres.stockage.titre')}
                 >
                   <div
-                    className={cn('h-full rounded-full transition-[width,background-color] duration-500 ease-trajet', couleurJauge(pctStockage))}
-                    style={{ width: `${pctStockage}%` }}
+                    className={cn('h-full w-full origin-left rounded-full transition-[transform,background-color] duration-500 ease-trajet', couleurJauge(pctStockage))}
+                    style={{ transform: `scaleX(${pctStockage / 100})` }}
                   />
                 </div>
                 {/* Comparaison sur les OCTETS BRUTS, pas le pourcentage arrondi (`pctStockage`) : à
